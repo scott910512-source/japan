@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#24456E"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#F1EEE4" stroke-width="14"/>
+  <text x="256" y="300" font-family="'Hiragino Mincho ProN','Noto Serif JP',serif" font-size="200" font-weight="600" fill="#F1EEE4" text-anchor="middle">学</text>
+  <circle cx="378" cy="134" r="34" fill="#C1442B"/>
+</svg>
