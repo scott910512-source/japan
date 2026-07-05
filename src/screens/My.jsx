@@ -82,7 +82,7 @@ export default function My({
             <IconMoon />화면 모드
           </div>
           <div className="segment">
-            {[['system', '시스템'], ['light', '라이트'], ['dark', '다크']].map(([v, label]) => (
+            {[['dark', '다크'], ['system', '시스템'], ['light', '라이트']].map(([v, label]) => (
               <button key={v} className={settings.theme === v ? 'active' : ''} onClick={() => onSettingsChange({ theme: v })}>
                 {label}
               </button>

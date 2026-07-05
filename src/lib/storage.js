@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS = {
   dailyGoal: 10,
   notifications: true,
   speechRate: 0.82,
-  theme: 'system', // 'system' | 'light' | 'dark'
+  theme: 'dark', // 'system' | 'light' | 'dark' — dark is the designed-for default
 };
 export function loadSettings() {
   return { ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) };
