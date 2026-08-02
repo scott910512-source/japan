@@ -111,11 +111,10 @@
         <button class="chip helper" data-helper="korean">🇰🇷 힌트</button>
       </div>
       <div id="chunk-area" class="chunk-area hidden">
-        <div id="chunk-slots" class="chunk-slots"></div>
         <div id="chunk-pool" class="chunk-pool"></div>
         <div class="chunk-actions">
+          <span class="chunk-tip">카드를 순서대로 누르면 읽어주면서 문장이 만들어져요</span>
           <button id="btn-chunk-clear" class="btn btn-ghost btn-small">지우기</button>
-          <button id="btn-chunk-send" class="btn btn-primary btn-small">말하기</button>
         </div>
       </div>
       <div class="input-row" id="input-row">
@@ -197,6 +196,10 @@
         <div class="seg" id="set-rate">
           <button data-v="0.8">느리게</button><button data-v="1">보통</button><button data-v="1.15">빠르게</button>
         </div>
+        <label class="set-label">일본어 목소리</label>
+        <select id="set-voice"><option value="">자동 (최고 품질 선택)</option></select>
+        <button id="btn-voice-test" class="btn btn-secondary btn-small" style="margin-top:8px">🔊 목소리 미리 듣기</button>
+        <p class="set-note" style="margin-top:8px">📱 아이폰 발음 개선: 아이폰 설정 → 손쉬운 사용 → 콘텐츠 말하기 → 음성 → 일본어에서 <b>「Kyoko (고급)」</b> 음성을 다운로드하면 게임이 자동으로 그 목소리를 사용해 훨씬 자연스러워집니다. 안드로이드는 Google TTS의 일본어 음성을 설치하세요.</p>
       </div>
       <div class="set-group">
         <button id="btn-save-settings" class="btn btn-primary">저장</button>
