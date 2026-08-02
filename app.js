@@ -15,7 +15,7 @@ const Store = {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム' });
+let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '' });
 let progress = Store.get('progress', { cleared: {}, dayLog: { date: todayStr(), scenes: [], expressions: [] } });
 let profile  = Store.get('profile', {});
 let mistakes = Store.get('mistakes', []);
@@ -50,26 +50,55 @@ function similarity(a, b) {
   return hit / gb.size;
 }
 
-/* ───────── 음성 (Web Speech API) ───────── */
+/* ───────── 음성 (Web Speech API) ─────────
+ * 기기에 설치된 일본어 보이스 중 최고 품질(고급/프리미엄/신경망 계열)을 자동 선택한다.
+ * iOS: Kyoko(고급)·Siri 계열 / Android·Chrome: Google 日本語 / 설정에서 직접 선택도 가능.
+ */
 const Voice = {
   jaVoice: null, lastText: '',
+  rank(v) {
+    if (!v.lang || !v.lang.toLowerCase().startsWith('ja')) return -1;
+    const n = (v.name + ' ' + (v.voiceURI || '')).toLowerCase();
+    let s = 1;
+    if (/enhanced|premium|プレミアム|拡張|super|natural|neural/.test(n)) s += 6;
+    if (/siri/.test(n)) s += 5;
+    if (/google/.test(n)) s += 4;
+    if (/kyoko|otoya|o-?ren|hattori/.test(n)) s += 2;
+    if (v.localService) s += 1;
+    return s;
+  },
+  jaVoices() {
+    if (!('speechSynthesis' in window)) return [];
+    return speechSynthesis.getVoices()
+      .filter(v => (v.lang || '').toLowerCase().startsWith('ja'))
+      .sort((a, b) => this.rank(b) - this.rank(a));
+  },
+  pick() {
+    const list = this.jaVoices();
+    if (settings.voiceURI) {
+      const chosen = list.find(v => v.voiceURI === settings.voiceURI);
+      if (chosen) { this.jaVoice = chosen; return; }
+    }
+    this.jaVoice = list[0] || null;
+  },
   init() {
     if (!('speechSynthesis' in window)) return;
-    const pick = () => {
-      const vs = speechSynthesis.getVoices();
-      this.jaVoice = vs.find(v => v.lang === 'ja-JP') || vs.find(v => (v.lang || '').startsWith('ja')) || null;
-    };
-    pick(); speechSynthesis.onvoiceschanged = pick;
+    this.pick();
+    speechSynthesis.onvoiceschanged = () => { this.pick(); fillVoiceSelect(); };
   },
   speak(text, rate) {
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window) || !text) return;
     speechSynthesis.cancel();
     this.lastText = text;
-    const u = new SpeechSynthesisUtterance(text);
+    this.pick();
+    // 프리미엄 보이스의 억양이 살도록 말줄임표·괄호를 쉼표/무음으로 정리
+    const clean = text.replace(/……|…/g, '、').replace(/[（）()]/g, ' ');
+    const u = new SpeechSynthesisUtterance(clean);
     u.lang = 'ja-JP';
-    if (this.jaVoice) u.voice = this.jaVoice;
+    try { if (this.jaVoice) u.voice = this.jaVoice; } catch (e) { /* 보이스 목록 변동 시 무시 */ }
     u.rate = rate || Number(settings.rate) || 1;
-    speechSynthesis.speak(u);
+    u.pitch = 1;
+    try { speechSynthesis.speak(u); } catch (e) { /* TTS 실패가 게임을 멈추지 않게 */ }
   },
   slow() { if (this.lastText) this.speak(this.lastText, 0.7); },
   sttSupported() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); },
@@ -389,20 +418,63 @@ function setupInputUI() {
   });
 }
 
-let chunkSel = [];
+/* L1 문장 조합: 카드는 제자리에 고정. 누르면 ① 그 카드의 읽기를 TTS로 재생
+ * ② 누른 순서대로 문장이 입력창에 조합된다. 다시 누르면 선택 해제. 전송은 공용 전송 버튼. */
+let chunkSeq = [];
+// 모범 문장의 「漢字[よみ]」 쌍으로 카드별 읽기(かな)를 만든다 → 카드 단독 TTS도 정확하게
+function chunkReadingMap(step) {
+  const map = [];
+  const jp = step && step.model ? step.model.jp : '';
+  const re = /([一-龯々〆ヵヶ〇]+)\[([^\]]+)\]/g;
+  let m;
+  while ((m = re.exec(jp))) map.push([m[1], m[2]]);
+  return map;
+}
+function readingFor(text, map) {
+  let r = text;
+  map.forEach(([k, v]) => { r = r.split(k).join(v); });
+  return r;
+}
+function syncChunkInput() {
+  $('player-input').value = chunkSeq.map(b => b._text).join('');
+}
+function updateChunkOrds() {
+  chunkSeq.forEach((b, i) => { b.querySelector('.chunk-ord').textContent = i + 1; });
+}
+function clearChunkSelection(alsoInput) {
+  chunkSeq.forEach(b => b.classList.remove('sel'));
+  chunkSeq = [];
+  if (alsoInput) $('player-input').value = '';
+}
 function renderChunks(step) {
   if (settings.level !== 1 || !step || !step.model) return;
-  const pool = $('chunk-pool'), slots = $('chunk-slots');
-  chunkSel = [];
-  slots.innerHTML = ''; pool.innerHTML = '';
-  const chunks = (step.chunks || [plain(step.model.jp)]).slice();
-  // 섞기
+  const pool = $('chunk-pool');
+  pool.innerHTML = '';
+  chunkSeq = [];
+  const map = chunkReadingMap(step);
+  const chunks = (step.chunks || [plain(step.model.jp)]).map(plain);
   for (let i = chunks.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [chunks[i], chunks[j]] = [chunks[j], chunks[i]]; }
   chunks.forEach(c => {
     const b = document.createElement('button');
-    b.className = 'chunk'; b.textContent = plain(c);
+    b.className = 'chunk';
+    const ord = document.createElement('span');
+    ord.className = 'chunk-ord';
+    b.appendChild(ord);
+    b.appendChild(document.createTextNode(c));
+    b._text = c;
+    b._reading = readingFor(c, map);
     b.addEventListener('click', () => {
-      if (b.parentElement === pool) { slots.appendChild(b); } else { pool.appendChild(b); }
+      const idx = chunkSeq.indexOf(b);
+      if (idx >= 0) {
+        chunkSeq.splice(idx, 1);
+        b.classList.remove('sel');
+      } else {
+        chunkSeq.push(b);
+        b.classList.add('sel');
+        Voice.speak(b._reading); // 누른 카드를 바로 읽어준다
+      }
+      updateChunkOrds();
+      syncChunkInput();
     });
     pool.appendChild(b);
   });
@@ -481,6 +553,7 @@ async function handleInput(raw) {
   const input = raw.trim();
   if (!input || Scene.ended || Scene.transitioning) return;
   $('player-input').value = '';
+  clearChunkSelection(false);
   showPlayerBubble(input);
   Scene.log.push({ role: 'player', text: input });
   trackExpressionUse(input);
@@ -814,6 +887,14 @@ function renderCollection(tab) {
 }
 
 /* ───────── 설정 ───────── */
+function fillVoiceSelect() {
+  const sel = $('set-voice');
+  if (!sel) return;
+  const list = Voice.jaVoices();
+  const cur = settings.voiceURI || '';
+  sel.innerHTML = '<option value="">자동 (최고 품질 선택)</option>' +
+    list.map(v => `<option value="${esc(v.voiceURI)}"${v.voiceURI === cur ? ' selected' : ''}>${esc(v.name)}${Voice.rank(v) >= 7 ? ' ⭐고품질' : ''}</option>`).join('');
+}
 function fillSettings() {
   $('set-name').value = settings.name || '';
   $('set-apikey').value = settings.apiKey || '';
@@ -823,6 +904,7 @@ function fillSettings() {
   seg('set-furigana', settings.furigana);
   seg('set-subtitle', settings.subtitle);
   seg('set-rate', settings.rate);
+  fillVoiceSelect();
 }
 document.querySelectorAll('.seg').forEach(seg => {
   seg.addEventListener('click', e => {
@@ -857,12 +939,8 @@ function bind() {
     btn.classList.add('rec');
     Voice.listen(text => { $('player-input').value = text; }, () => btn.classList.remove('rec'));
   });
-  // L1 문장 조합
-  $('btn-chunk-clear').addEventListener('click', () => renderChunks(curStep() || {}));
-  $('btn-chunk-send').addEventListener('click', () => {
-    const text = Array.from($('chunk-slots').children).map(c => c.textContent).join('');
-    if (text) handleInput(text);
-  });
+  // L1 문장 조합: 지우기 = 선택만 초기화 (카드는 그대로)
+  $('btn-chunk-clear').addEventListener('click', () => clearChunkSelection(true));
 
   // 대화 도구
   $('btn-replay').addEventListener('click', () => Voice.lastText && Voice.speak(Voice.lastText));
@@ -919,6 +997,13 @@ function bind() {
   // 도감 탭
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => renderCollection(t.dataset.tab)));
 
+  // 목소리 미리 듣기 (선택 중인 보이스로)
+  $('btn-voice-test').addEventListener('click', () => {
+    settings.voiceURI = $('set-voice').value;
+    Voice.pick();
+    Voice.speak('こんにちは。ようこそ、日本へ！良い旅を。');
+  });
+
   // 설정 저장
   $('btn-save-settings').addEventListener('click', () => {
     const segVal = id => { const b = document.querySelector(`#${id} button.on`); return b ? b.dataset.v : null; };
@@ -929,6 +1014,8 @@ function bind() {
     settings.name = $('set-name').value.trim() || settings.name;
     settings.apiKey = $('set-apikey').value.trim();
     settings.model = $('set-model').value.trim();
+    settings.voiceURI = $('set-voice').value;
+    Voice.pick();
     saveAll();
     alert('저장했어요!');
     show(settingsReturnTo);
