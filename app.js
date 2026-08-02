@@ -300,6 +300,36 @@ function stepNpc(step) {
   return ch.npcs[step.npc] || PERSONAS[step.npc] || { role: '현지인', personality: '', style: '' };
 }
 
+// 타이핑 효과: 「漢字[よみ]」 토큰 단위로 순차 표시 (XSS 안전: textContent 사용)
+function typeLine(el, jp, showFuri) {
+  clearInterval(el._ti);
+  el.innerHTML = '';
+  const tokens = [];
+  const re = /([一-龯々〆ヵヶ〇]+)\[([^\]]+)\]/g;
+  let last = 0, m;
+  while ((m = re.exec(jp))) {
+    for (const ch of jp.slice(last, m.index)) tokens.push({ t: ch });
+    tokens.push({ t: m[1], r: m[2] });
+    last = re.lastIndex;
+  }
+  for (const ch of jp.slice(last)) tokens.push({ t: ch });
+  let i = 0;
+  el._ti = setInterval(() => {
+    if (i >= tokens.length) { clearInterval(el._ti); return; }
+    const tk = tokens[i++];
+    if (tk.r && showFuri) {
+      const r = document.createElement('ruby');
+      r.textContent = tk.t;
+      const rt = document.createElement('rt');
+      rt.textContent = tk.r;
+      r.appendChild(rt);
+      el.appendChild(r);
+    } else {
+      el.appendChild(document.createTextNode(tk.t));
+    }
+  }, 35);
+}
+
 // NPC 대사 표시 + TTS
 function npcSay(step, lineObj, mood, actionText) {
   const ch = currentChapter();
@@ -313,7 +343,12 @@ function npcSay(step, lineObj, mood, actionText) {
   $('npc-name').textContent = npc.role;
   const jpEl = $('npc-line');
   const showFuri = settings.furigana === 'on' || (settings.furigana === 'auto' && settings.level <= 2);
-  jpEl.innerHTML = showFuri ? rubyHTML(lineObj.jp) : esc(plain(lineObj.jp));
+  typeLine(jpEl, showFuri ? lineObj.jp : plain(lineObj.jp), showFuri);
+  // AI 모드: 후리가나가 별도 문자열로 오면 대괄호 표기가 없으므로 작은 줄로 표시
+  const furiEl = $('npc-furi');
+  const aiFuri = showFuri && lineObj.furigana && !/\[/.test(lineObj.jp) && plain(lineObj.furigana) !== plain(lineObj.jp);
+  furiEl.textContent = aiFuri ? plain(lineObj.furigana) : '';
+  furiEl.classList.toggle('hidden', !aiFuri);
   Scene.lastNpc = lineObj;
 
   const koEl = $('npc-ko');
@@ -324,8 +359,7 @@ function npcSay(step, lineObj, mood, actionText) {
   $('btn-show-ko').classList.toggle('hidden', !koBtnVisible || !lineObj.ko);
 
   Scene.log.push({ role: 'npc', text: plain(lineObj.jp) });
-  // 대사 타이핑 효과 후 TTS
-  jpEl.style.animation = 'none'; void jpEl.offsetWidth; jpEl.style.animation = 'fadein .4s';
+  // 대사 표시와 동시에 TTS 재생 (§1.5)
   const jaText = plain(lineObj.jp).replace(/（[^）]*）/g, '');
   if (jaText && !/^\(/.test(jaText)) Voice.speak(jaText);
   $('quest-hint').classList.add('hidden');
@@ -357,7 +391,7 @@ function setupInputUI() {
 
 let chunkSel = [];
 function renderChunks(step) {
-  if (settings.level !== 1) return;
+  if (settings.level !== 1 || !step || !step.model) return;
   const pool = $('chunk-pool'), slots = $('chunk-slots');
   chunkSel = [];
   slots.innerHTML = ''; pool.innerHTML = '';
@@ -375,8 +409,21 @@ function renderChunks(step) {
 }
 
 /* ── 판정 ── */
+const hasJapanese = s => /[ぁ-ゖァ-ヶ一-龯ー]/.test(s);
+// 프로필 값 추출: 문장 전체가 아니라 핵심 어구만 저장 (후속 스몰토크 문장에 자연스럽게 끼워 넣기 위해)
+function extractProfileValue(key, input) {
+  const t = input.trim().replace(/^(?:はい[、,]?\s*)?(?:明日|あした|今日|きょう|次|つぎ|来週)[はにも、\s]+/, '');
+  if (key === 'stay') {
+    const m = t.match(/([0-9０-９一二三四五六七八九十]+\s*(?:日間|週間|か月|ヶ月|泊|日))/);
+    if (m) return m[1];
+  }
+  // 조사·술어 앞부분의 명사구만 남기기 (예: 「ラーメンが一番好きです」→「ラーメン」)
+  const m2 = t.match(/^(?:はい[、,]?\s*)?(.+?)(?:が|を|に|は|から|で)\s*(?:一番|大好|好き|来ました|行き|です)/);
+  if (m2 && m2[1].length <= 20) return m2[1];
+  return t.slice(0, 40);
+}
 function judgeScript(step, input) {
-  if (step.free) return normalize(input).length >= 2;
+  if (step.free) return hasJapanese(input) && normalize(input).length >= 2; // 자유 답변도 일본어로 말하게 유도
   if (step.expectBetter) return similarity(input, step.expectBetter) >= 0.45;
   const n = normalize(input);
   return (step.expect || []).every(group => group.some(k => n.includes(normalize(k))));
@@ -454,12 +501,24 @@ function handleScript(input) {
   const pass = judgeScript(step, input);
 
   if (pass) {
-    if (step.free && step.profileKey && !step.reviewOf) {
-      profile[step.profileKey] = input.slice(0, 40); saveAll();
+    if (step.profileKey && (step.free || step.profileFromAnswer) && !step.reviewOf) {
+      profile[step.profileKey] = extractProfileValue(step.profileKey, input); saveAll();
     }
     if (step.reviewOf) { step.reviewOf.retried = true; saveAll(); }
     npcSay(step, step.ok, 'happy', step.ok.action || null);
     advanceStep();
+  } else if (step.free) {
+    // 자유 답변 스텝: 오답 개념이 없다. 일본어 발화만 부드럽게 유도하고, 그래도 어려우면 대화를 잇는다
+    Scene.retries++; Scene.failCount++;
+    if (Scene.failCount === 1) {
+      npcSay(step, { jp: '日本語[にほんご]で、ゆっくりで大丈夫[だいじょうぶ]ですよ！', ko: '일본어로, 천천히 말해도 괜찮아요!' }, 'normal', null);
+      const qh = $('quest-hint');
+      qh.textContent = '💡 정답은 없어요. 아는 일본어 단어로 자유롭게! (예: ' + (step.model ? plain(step.model.jp) : '') + ')';
+      qh.classList.remove('hidden');
+    } else {
+      npcSay(step, step.ok, 'normal', '(상대가 미소 지으며 고개를 끄덕였다)');
+      advanceStep();
+    }
   } else {
     Scene.retries++; Scene.failCount++;
     if (Scene.failCount === 1) {
@@ -547,9 +606,10 @@ async function handleAI(input) {
     }
     if (resp.questStepClear) {
       if (step && step.reviewOf) { step.reviewOf.retried = true; saveAll(); }
-      if (step && step.free && step.profileKey && !resp.profileUpdate) { profile[step.profileKey] = input.slice(0, 40); saveAll(); }
+      if (step && step.profileKey && (step.free || step.profileFromAnswer) && !resp.profileUpdate) { profile[step.profileKey] = extractProfileValue(step.profileKey, input); saveAll(); }
       Scene.idx++;
       Scene.aiCleared++;
+      renderChunks(curStep()); // L1: 다음 스텝의 문장 조합 카드로 갱신
     }
     if (Scene.idx >= Scene.steps.length) Scene.aiTurnsAfterClear++;
     if (resp.sceneEnd || Scene.aiTurnsAfterClear > 5) {
@@ -590,7 +650,9 @@ async function endScene() {
   }
   if (!evalResult) evalResult = localEvaluate();
 
-  (evalResult.repeatedErrorTags || []).forEach(t => { weakTags[t] = (weakTags[t] || 0) + 1; });
+  // addMistake에서 이미 센 태그는 이중 카운트하지 않는다
+  const counted = new Set(Scene.newMistakes.map(m => m.tag));
+  (evalResult.repeatedErrorTags || []).forEach(t => { if (!counted.has(t)) weakTags[t] = (weakTags[t] || 0) + 1; });
 
   // 별점: 힌트·재시도 반영
   let stars = 3;

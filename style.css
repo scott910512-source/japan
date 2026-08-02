@@ -148,6 +148,7 @@ body {
 .npc-line { font-size: 1.25rem; line-height: 1.9; }
 .npc-line rt { font-size: .55em; color: var(--ink-soft); }
 .npc-line .kw { color: var(--red); font-weight: 700; }
+.npc-furi { font-size: .74rem; color: var(--ink-soft); margin-top: 2px; }
 .npc-ko { margin-top: 8px; font-size: .86rem; color: var(--ink-soft); border-top: 1px dashed var(--line); padding-top: 7px; }
 .dialog-tools { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
 
