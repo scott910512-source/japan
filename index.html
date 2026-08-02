@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E85D5D">
+<title>처음 가는 일본</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23FFF3E9'/%3E%3Cpath d='M14 32c12-6 60-6 72 0l-4 8H18z' fill='%23E85D5D'/%3E%3Cpath d='M22 48h56v6H22z' fill='%23E85D5D'/%3E%3Cpath d='M27 40h9v46h-9zM64 40h9v46h-9z' fill='%23D14A4A'/%3E%3Ccircle cx='50' cy='72' r='7' fill='%23F2B84B'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23FFF3E9'/%3E%3Cpath d='M14 32c12-6 60-6 72 0l-4 8H18z' fill='%23E85D5D'/%3E%3Cpath d='M22 48h56v6H22z' fill='%23E85D5D'/%3E%3Cpath d='M27 40h9v46h-9zM64 40h9v46h-9z' fill='%23D14A4A'/%3E%3Ccircle cx='50' cy='72' r='7' fill='%23F2B84B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════ 타이틀 ══════ -->
+  <section id="screen-title" class="screen">
+    <div class="title-art">
+      <svg viewBox="0 0 200 150" class="title-svg" aria-hidden="true">
+        <circle cx="160" cy="34" r="20" fill="#F8C8C8"/>
+        <path d="M0 120 L55 55 L110 120 Z" fill="#B7D3E8"/>
+        <path d="M42 71 L55 55 L68 71 L55 78 Z" fill="#fff"/>
+        <path d="M60 150 L100 150 L100 120 L60 120 Z" fill="none"/>
+        <path d="M60 128c10-5 70-5 80 0l-4 7H64z" fill="#E85D5D"/>
+        <path d="M68 141h64v5H68z" fill="#E85D5D"/>
+        <path d="M73 135h7v15h-7zM120 135h7v15h-7z" fill="#D14A4A"/>
+        <rect x="0" y="148" width="200" height="2" fill="#EBD9C4"/>
+      </svg>
+    </div>
+    <h1 class="title-logo">처음 가는 <span class="jp">日本</span></h1>
+    <p class="title-sub">일본어로 말해야 나아가는 여행 어드벤처</p>
+    <div class="title-menu">
+      <button id="btn-start" class="btn btn-primary">처음부터 시작하기</button>
+      <button id="btn-continue" class="btn btn-secondary hidden">이어하기</button>
+      <button id="btn-title-settings" class="btn btn-ghost">설정</button>
+    </div>
+    <div id="install-banner" class="install-banner hidden">
+      <span>📲 홈 화면에 설치하면 앱처럼 쓸 수 있어요</span>
+      <button id="btn-install" class="btn btn-small">설치</button>
+      <button id="btn-install-close" class="btn-x" aria-label="닫기">✕</button>
+    </div>
+  </section>
+
+  <!-- ══════ 지도 허브 ══════ -->
+  <section id="screen-map" class="screen hidden">
+    <header class="bar">
+      <button class="btn-x nav-back" data-nav="title" aria-label="타이틀로">←</button>
+      <h2>도쿄 여행 지도</h2>
+      <button class="btn-x" data-nav="settings" aria-label="설정">⚙</button>
+    </header>
+    <div class="map-wrap">
+      <svg viewBox="0 0 360 480" class="map-bg" aria-hidden="true">
+        <rect width="360" height="480" fill="#EAF3F8"/>
+        <path d="M0 400 Q90 360 180 400 T360 390 V480 H0 Z" fill="#CFE4F0"/>
+        <path d="M30 60 Q180 20 330 70 Q350 220 320 420 Q180 460 40 420 Q10 240 30 60Z" fill="#F6EFE3" stroke="#EBD9C4" stroke-width="3"/>
+        <path d="M60 120 Q180 100 300 130" stroke="#E8D3B8" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M70 250 Q180 230 295 260" stroke="#E8D3B8" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M120 90 Q140 250 110 400" stroke="#E8D3B8" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M250 100 Q230 250 260 400" stroke="#E8D3B8" stroke-width="6" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div id="map-nodes"></div>
+    </div>
+    <footer class="map-footer">
+      <button class="btn btn-secondary btn-small" data-nav="lodging">🏨 숙소(복습)</button>
+      <button class="btn btn-secondary btn-small" data-nav="collection">📖 도감</button>
+    </footer>
+  </section>
+
+  <!-- ══════ 씬 화면 ══════ -->
+  <section id="screen-scene" class="screen hidden">
+    <header class="scene-topbar">
+      <button class="btn-x" id="btn-scene-exit" aria-label="나가기">←</button>
+      <div class="scene-goal">
+        <span id="scene-location" class="scene-loc"></span>
+        <span id="scene-goal-text"></span>
+      </div>
+      <span id="mode-badge" class="mode-badge">스크립트</span>
+    </header>
+
+    <div class="scene-stage">
+      <div id="scene-bg" class="scene-bg"></div>
+      <div id="npc-figure" class="npc-figure"></div>
+      <div id="scene-action" class="scene-action hidden"></div>
+    </div>
+
+    <div class="dialog-area">
+      <div id="npc-dialog" class="npc-dialog">
+        <div class="npc-name" id="npc-name"></div>
+        <div class="npc-line" id="npc-line"></div>
+        <div class="npc-ko hidden" id="npc-ko"></div>
+        <div class="dialog-tools">
+          <button id="btn-replay" class="chip" title="다시 듣기">🔊</button>
+          <button id="btn-slow" class="chip" title="천천히 듣기">🐢 ゆっくり</button>
+          <button id="btn-show-ko" class="chip">한국어 보기</button>
+        </div>
+      </div>
+      <div id="correction-toast" class="correction-toast hidden"></div>
+      <div id="quest-hint" class="quest-hint hidden"></div>
+    </div>
+
+    <div class="input-area">
+      <div class="helper-row" id="helper-row">
+        <button class="chip helper" data-helper="again">もう一度</button>
+        <button class="chip helper" data-helper="slow">ゆっくり</button>
+        <button class="chip helper" data-helper="meaning">どういう意味？</button>
+        <button class="chip helper" data-helper="keyword">🔑 힌트</button>
+        <button class="chip helper" data-helper="korean">🇰🇷 힌트</button>
+      </div>
+      <div id="chunk-area" class="chunk-area hidden">
+        <div id="chunk-slots" class="chunk-slots"></div>
+        <div id="chunk-pool" class="chunk-pool"></div>
+        <div class="chunk-actions">
+          <button id="btn-chunk-clear" class="btn btn-ghost btn-small">지우기</button>
+          <button id="btn-chunk-send" class="btn btn-primary btn-small">말하기</button>
+        </div>
+      </div>
+      <div class="input-row" id="input-row">
+        <button id="btn-mic" class="btn-mic" aria-label="말하기">🎤</button>
+        <input id="player-input" type="text" lang="ja" placeholder="日本語で話してみましょう…" autocomplete="off">
+        <button id="btn-send" class="btn btn-primary">전송</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════ 결과 화면 ══════ -->
+  <section id="screen-result" class="screen hidden">
+    <header class="bar"><h2>여행 리포트</h2></header>
+    <div id="result-body" class="pane"></div>
+    <footer class="pane-footer">
+      <button id="btn-result-lodging" class="btn btn-secondary">🏨 숙소에서 복습</button>
+      <button id="btn-result-map" class="btn btn-primary">지도로</button>
+    </footer>
+  </section>
+
+  <!-- ══════ 숙소(복습) ══════ -->
+  <section id="screen-lodging" class="screen hidden">
+    <header class="bar">
+      <button class="btn-x nav-back" data-nav="map" aria-label="뒤로">←</button>
+      <h2>🏨 오늘 밤의 숙소</h2><span></span>
+    </header>
+    <div id="lodging-body" class="pane"></div>
+  </section>
+
+  <!-- ══════ 도감 (표현/오답/한자) ══════ -->
+  <section id="screen-collection" class="screen hidden">
+    <header class="bar">
+      <button class="btn-x nav-back" data-nav="map" aria-label="뒤로">←</button>
+      <h2>여행 노트</h2><span></span>
+    </header>
+    <nav class="tabs">
+      <button class="tab active" data-tab="cards">표현 도감</button>
+      <button class="tab" data-tab="mistakes">오답 노트</button>
+      <button class="tab" data-tab="kanji">한자 카드</button>
+    </nav>
+    <div id="collection-body" class="pane"></div>
+  </section>
+
+  <!-- ══════ 설정 ══════ -->
+  <section id="screen-settings" class="screen hidden">
+    <header class="bar">
+      <button class="btn-x" id="btn-settings-back" aria-label="뒤로">←</button>
+      <h2>설정</h2><span></span>
+    </header>
+    <div class="pane settings-pane">
+      <div class="set-group">
+        <label class="set-label">난이도 레벨</label>
+        <div class="seg" id="set-level">
+          <button data-v="1">L1 생존</button><button data-v="2">L2 기초</button>
+          <button data-v="3">L3 자연</button><button data-v="4">L4 실전</button>
+        </div>
+      </div>
+      <div class="set-group">
+        <label class="set-label">플레이어 이름 (일본어/한글)</label>
+        <input id="set-name" type="text" placeholder="예: キム / 김민수">
+      </div>
+      <div class="set-group">
+        <label class="set-label">Claude API 키 <span class="set-note">브라우저(localStorage)에만 저장됩니다</span></label>
+        <input id="set-apikey" type="password" placeholder="sk-ant-…">
+        <label class="set-label" style="margin-top:8px">모델</label>
+        <input id="set-model" type="text" placeholder="claude-sonnet-4-6">
+        <p class="set-note">API 키가 없으면 스크립트 모드로 플레이됩니다.</p>
+      </div>
+      <div class="set-group">
+        <label class="set-label">후리가나</label>
+        <div class="seg" id="set-furigana">
+          <button data-v="auto">레벨 자동</button><button data-v="on">항상</button><button data-v="off">끄기</button>
+        </div>
+        <label class="set-label">한국어 자막</label>
+        <div class="seg" id="set-subtitle">
+          <button data-v="auto">레벨 자동</button><button data-v="on">항상</button><button data-v="off">끄기</button>
+        </div>
+        <label class="set-label">음성 속도</label>
+        <div class="seg" id="set-rate">
+          <button data-v="0.8">느리게</button><button data-v="1">보통</button><button data-v="1.15">빠르게</button>
+        </div>
+      </div>
+      <div class="set-group">
+        <button id="btn-save-settings" class="btn btn-primary">저장</button>
+        <button id="btn-reset-data" class="btn btn-ghost">진행 데이터 초기화</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="data.js"></script>
+<script src="npc-engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
