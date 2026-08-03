@@ -149,6 +149,7 @@ body {
 .npc-line rt { font-size: .55em; color: var(--ink-soft); }
 .npc-line .kw { color: var(--red); font-weight: 700; }
 .npc-furi { font-size: .74rem; color: var(--ink-soft); margin-top: 2px; }
+.npc-hangul { font-size: .8rem; color: #7A9BB8; margin-top: 4px; }
 .npc-ko { margin-top: 8px; font-size: .86rem; color: var(--ink-soft); border-top: 1px dashed var(--line); padding-top: 7px; }
 .dialog-tools { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
 
@@ -176,6 +177,33 @@ body {
   box-shadow: 0 3px 0 var(--red-dark), var(--shadow);
 }
 
+/* 첫 실행 온보딩 */
+.onboard {
+  position: absolute; inset: 0; z-index: 40;
+  background: rgba(61, 54, 48, .45);
+  display: flex; align-items: center; justify-content: center; padding: 22px;
+  animation: fadein .3s;
+}
+.onboard-card {
+  background: var(--paper); border-radius: 18px; padding: 20px 18px;
+  box-shadow: var(--shadow); max-width: 340px;
+}
+.onboard-card h3 { margin-bottom: 12px; }
+.onboard-card ol { padding-left: 20px; display: flex; flex-direction: column; gap: 9px; font-size: .88rem; line-height: 1.5; }
+.onboard-note { font-size: .8rem; color: var(--ink-soft); margin: 12px 0; }
+.onboard-card .btn { width: 100%; }
+
+/* 가나표 (오십음도) */
+.kana-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+.kana-cell {
+  background: var(--paper); border: 2px solid var(--line); border-radius: 11px;
+  padding: 8px 2px; text-align: center; cursor: pointer; font-family: inherit;
+}
+.kana-cell:active { background: #FBE9E9; border-color: var(--red); }
+.kana-cell .k { font-size: 1.25rem; display: block; }
+.kana-cell .h { font-size: .66rem; color: #7A9BB8; }
+.kana-cell.empty { visibility: hidden; }
+
 /* ── 입력부 ── */
 .input-area { background: var(--paper); border-top: 2px solid var(--line); padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }
 .helper-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
@@ -202,6 +230,8 @@ body {
   transition: background .12s, border-color .12s;
 }
 .chunk.sel { border-color: var(--red); background: #FBE9E9; }
+.chunk ruby rt { font-size: .5em; color: var(--ink-soft); }
+.chunk-hangul { display: block; font-size: .62rem; color: #7A9BB8; margin-top: 2px; }
 .chunk-ord {
   position: absolute; top: -8px; right: -8px;
   width: 19px; height: 19px; border-radius: 50%;
@@ -236,11 +266,12 @@ body {
 .mastery-dots .on { color: var(--good); }
 .mastery-dots .off { color: var(--line); }
 
-.tabs { display: flex; background: var(--paper); border-bottom: 2px solid var(--line); }
+.tabs { display: flex; background: var(--paper); border-bottom: 2px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
-  flex: 1; border: none; background: none; padding: 12px 4px;
-  font-family: inherit; font-size: .88rem; font-weight: 700; color: var(--ink-soft);
-  border-bottom: 3px solid transparent; cursor: pointer;
+  flex: 1 0 auto; border: none; background: none; padding: 12px 12px;
+  font-family: inherit; font-size: .86rem; font-weight: 700; color: var(--ink-soft);
+  border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap;
 }
 .tab.active { color: var(--red); border-bottom-color: var(--red); }
 
