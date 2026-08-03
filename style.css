@@ -60,6 +60,11 @@ body {
 }
 .chip:active { background: var(--cream); }
 .chip:disabled { opacity: .35; }
+/* 자동 재생이 막혔을 때: 직접 눌러 들으라는 신호 */
+.chip.needs-tap {
+  border-color: var(--red); background: #FBE9E9; color: var(--red); font-weight: 700;
+  animation: pulse 1.4s infinite;
+}
 
 .bar {
   display: flex; align-items: center; justify-content: space-between;
