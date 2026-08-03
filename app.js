@@ -242,6 +242,8 @@ const Voice = {
    * 마이크 → 원시 PCM 수집 → 16kHz/16bit 다운샘플 → recognize REST 호출.
    * MediaRecorder 포맷 문제(iOS=AAC)를 피하려고 WebAudio로 직접 뽑는다. */
   recActive: false, _recBuf: null, _recCtx: null, _recProc: null, _recStream: null, _recTimer: null,
+  _spoke: false, _lastVoice: 0, _recBegan: 0, _autoStopped: false,
+  sttHints: [],
   cloudSttAvailable() { return !!(settings.gttsKey && navigator.mediaDevices && navigator.mediaDevices.getUserMedia); },
   micAvailable() { return this.cloudSttAvailable() || this.sttSupported(); },
   async recStart(onAutoStop) {
@@ -251,11 +253,34 @@ const Voice = {
     const src = this._recCtx.createMediaStreamSource(this._recStream);
     this._recProc = this._recCtx.createScriptProcessor(4096, 1, 1);
     this._recBuf = [];
-    this._recProc.onaudioprocess = e => { if (this.recActive) this._recBuf.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+    this._spoke = false;
+    this._autoStopped = false;
+    this._recBegan = Date.now();
+    this._lastVoice = Date.now();
+    this._recProc.onaudioprocess = e => {
+      if (!this.recActive) return;
+      const data = e.inputBuffer.getChannelData(0);
+      this._recBuf.push(new Float32Array(data));
+      // 음량(RMS) 측정 → 침묵 감지
+      let sum = 0;
+      for (let i = 0; i < data.length; i += 16) sum += data[i] * data[i];
+      const rms = Math.sqrt(sum / (data.length / 16));
+      const now = Date.now();
+      if (rms > 0.015) { this._spoke = true; this._lastVoice = now; }
+      if (!this._autoStopped && onAutoStop) {
+        if (this._spoke && now - this._lastVoice > 3000) {
+          // 말한 뒤 3초 침묵 → 자동 종료·인식
+          this._autoStopped = true; onAutoStop();
+        } else if (!this._spoke && now - this._recBegan > 7000) {
+          // 7초간 아무 말 없음 → 종료
+          this._autoStopped = true; onAutoStop();
+        }
+      }
+    };
     src.connect(this._recProc);
     this._recProc.connect(this._recCtx.destination);
     this.recActive = true;
-    this._recTimer = setTimeout(() => { if (this.recActive && onAutoStop) onAutoStop(); }, 15000);
+    this._recTimer = setTimeout(() => { if (this.recActive && !this._autoStopped && onAutoStop) { this._autoStopped = true; onAutoStop(); } }, 15000);
   },
   async recStop() {
     if (!this.recActive) return '';
@@ -279,13 +304,16 @@ const Voice = {
     let bin = '';
     const bytes = new Uint8Array(pcm.buffer);
     for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    const config = {
+      encoding: 'LINEAR16', sampleRateHertz: 16000, languageCode: 'ja-JP',
+      enableAutomaticPunctuation: true, model: 'latest_short', useEnhanced: true
+    };
+    // 지금 장면에서 기대되는 문장·단어를 힌트로 → 인식 정확도 대폭 향상
+    if (this.sttHints.length) config.speechContexts = [{ phrases: this.sttHints.slice(0, 40), boost: 12 }];
     const res = await fetch('https://speech.googleapis.com/v1/speech:recognize?key=' + encodeURIComponent(settings.gttsKey), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        config: { encoding: 'LINEAR16', sampleRateHertz: 16000, languageCode: 'ja-JP', enableAutomaticPunctuation: true },
-        audio: { content: btoa(bin) }
-      })
+      body: JSON.stringify({ config, audio: { content: btoa(bin) } })
     });
     if (!res.ok) {
       let msg = 'HTTP ' + res.status;
@@ -618,31 +646,63 @@ function presentStep() {
 }
 
 /* ── L1 문장 조합 UI ── */
-/* 마이크: 클라우드 키가 있으면 구글 STT(누르면 녹음 시작, 다시 누르면 인식), 없으면 브라우저 내장 인식 */
-async function handleMic(btn, inputEl) {
+/* 마이크: 한 번 누르면 녹음 시작 → 말이 끝나고 3초 침묵이면 자동 인식·자동 처리.
+ * onText가 있으면 인식 결과를 그 콜백으로(자동 전송), 없으면 입력창에 채움. */
+function buildSttHints() {
+  const hints = [];
+  if (currentScreen === 'scene') {
+    const step = curStep();
+    if (step) {
+      if (step.model) hints.push(plain(step.model.jp));
+      (step.expect || []).forEach(g => g.forEach(k => hints.push(plain(String(k)))));
+    }
+    const ch = currentChapter();
+    if (ch) ch.expressions.forEach(e => hints.push(plain(e.jp)));
+  } else if (currentScreen === 'training' && Training.queue[Training.idx]) {
+    const q = Training.queue[Training.idx];
+    if (q.jp) hints.push(plain(q.jp));
+  } else if (currentScreen === 'lodging') {
+    mistakes.filter(m => m.date === todayStr()).forEach(m => hints.push(plain(m.better)));
+  }
+  return hints.filter(h => h && h.length >= 2);
+}
+
+async function micFinish(btn, inputEl, onText) {
+  btn.classList.remove('rec');
+  const ph = inputEl.dataset.ph || '日本語で話してみましょう…';
+  inputEl.placeholder = '認識中…';
+  try {
+    const text = await Voice.recStop();
+    inputEl.placeholder = ph;
+    if (text) {
+      if (onText) onText(text); else inputEl.value = text;
+    } else {
+      inputEl.placeholder = '🙉 못 알아들었어요 — 🎤를 눌러 다시!';
+    }
+  } catch (e) {
+    inputEl.placeholder = ph;
+    alert('음성 인식 실패: ' + e.message + '\n\nAPI 키의 "API 제한사항"에 Cloud Speech-to-Text API가 포함돼 있는지 확인하세요.');
+  }
+}
+
+async function handleMic(btn, inputEl, onText) {
   if (Voice.cloudSttAvailable()) {
     if (Voice.recActive) {
-      btn.classList.remove('rec');
-      const ph = inputEl.placeholder;
-      inputEl.placeholder = '認識中…';
-      try {
-        const text = await Voice.recStop();
-        if (text) inputEl.value = text;
-      } catch (e) {
-        alert('음성 인식 실패: ' + e.message + '\n\nAPI 키의 "API 제한사항"에 Cloud Speech-to-Text API가 포함돼 있는지 확인하세요.');
-      }
-      inputEl.placeholder = ph === '認識中…' ? '日本語で話してみましょう…' : ph;
+      micFinish(btn, inputEl, onText); // 수동 종료도 가능
     } else {
       try {
-        await Voice.recStart(() => handleMic(btn, inputEl)); // 15초 후 자동 종료
+        Voice.sttHints = buildSttHints();
+        inputEl.dataset.ph = inputEl.placeholder;
+        await Voice.recStart(() => micFinish(btn, inputEl, onText)); // 침묵 3초 → 자동 종료·인식
         btn.classList.add('rec');
+        inputEl.placeholder = '🎤 말하세요… 말을 멈추면 자동 인식돼요';
       } catch (e) {
         alert('마이크를 사용할 수 없어요: ' + e.message);
       }
     }
   } else {
     btn.classList.add('rec');
-    Voice.listen(t => { inputEl.value = t; }, () => btn.classList.remove('rec'));
+    Voice.listen(t => { if (onText) onText(t); else inputEl.value = t; }, () => btn.classList.remove('rec'));
   }
 }
 
@@ -801,10 +861,25 @@ function showPlayerBubble(text) {
   area.scrollTop = area.scrollHeight;
 }
 
+/* ── 발음 피드백: 음성 입력이 빗나갔을 때 무엇이 어떻게 들렸는지 알려준다 ── */
+function voiceFeedback(step, input) {
+  let msg = `🎙 이렇게 들렸어요: 「${plain(input)}」`;
+  const missing = [];
+  (step.expect || []).forEach(g => {
+    if (!g.some(k => normalize(input).includes(normalize(String(k))))) missing.push(plain(String(g[0])));
+  });
+  const sim = step.model ? similarity(input, step.model.jp) : 0;
+  if (sim >= 0.45) msg += '\n발음은 비슷했는데 다른 단어로 인식됐어요!';
+  if (missing.length) msg += `\n핵심 단어 「${missing.join('・')}」${step.hintWord ? ` (${step.hintWord})` : ''}가 잘 들리게 또박또박 말해 보세요.`;
+  else if (sim < 0.45) msg += '\n조금 다른 이야기로 들렸어요. 목표: ' + (step.model ? step.model.ko : '');
+  return msg;
+}
+
 /* ── 플레이어 입력 처리 ── */
-async function handleInput(raw) {
+async function handleInput(raw, fromVoice) {
   const input = raw.trim();
   if (!input || Scene.ended || Scene.transitioning) return;
+  Scene.lastFromVoice = !!fromVoice;
   // 카드 조합으로 만든 입력인지 기억 (어순 교정용)
   Scene.lastFromChunks = chunkSeq.length > 0 && input === chunkSeq.map(b => b._text).join('');
   $('player-input').value = '';
@@ -864,7 +939,10 @@ function handleScript(input) {
     if (Scene.failCount === 1) {
       npcSay(step, step.retry || { jp: 'すみません、もう一度[いちど]いいですか？', ko: '죄송해요, 한 번 더요?' }, 'confused', null);
       const qh = $('quest-hint');
-      qh.textContent = '💡 목표: ' + (step.model ? step.model.ko : '');
+      qh.textContent = Scene.lastFromVoice
+        ? voiceFeedback(step, input)
+        : '💡 목표: ' + (step.model ? step.model.ko : '');
+      qh.style.whiteSpace = 'pre-line';
       qh.classList.remove('hidden');
     } else if (Scene.failCount === 2) {
       // 2회 실패 → major 교정 카드 + 오답 노트 저장
@@ -1130,7 +1208,12 @@ function renderLodging() {
     });
   });
   $('lodging-body').querySelectorAll('.retry-mic').forEach(btn => {
-    btn.addEventListener('click', () => handleMic(btn, $('lodging-body').querySelector(`.retry-input[data-i="${btn.dataset.i}"]`)));
+    const input = $('lodging-body').querySelector(`.retry-input[data-i="${btn.dataset.i}"]`);
+    const checkBtn = $('lodging-body').querySelector(`.retry-check[data-i="${btn.dataset.i}"]`);
+    btn.addEventListener('click', () => handleMic(btn, input, text => {
+      input.value = text;
+      checkBtn.click(); // 인식되면 자동 채점
+    }));
   });
 }
 
@@ -1300,10 +1383,12 @@ function drillStep() {
   if ($('drill-play')) $('drill-play').addEventListener('click', () => Voice.speak(jpPlain, undefined, 'female'));
   if ($('drill-slow')) $('drill-slow').addEventListener('click', () => Voice.speak(jpPlain, 0.7, 'female'));
   if ($('drill-reveal')) $('drill-reveal').addEventListener('click', () => { $('drill-jp').style.filter = 'none'; });
-  if ($('drill-mic')) $('drill-mic').addEventListener('click', () => handleMic($('drill-mic'), $('drill-input')));
   const check = () => {
+    if ($('drill-check').disabled) return;
     const input = $('drill-input').value.trim();
     if (!input) return;
+    const wasVoice = $('drill-input').dataset.voice === '1';
+    delete $('drill-input').dataset.voice;
     const sim = similarity(input, c.jp);
     const res = $('drill-result');
     if (sim >= 0.55) {
@@ -1312,13 +1397,19 @@ function drillStep() {
       res.innerHTML = `<div class="retry-ok">⭕ ${esc(jpPlain)}</div>` +
         (c.masteryCount >= 3 ? '<div class="ko-small">✨ 이 표현은 이제 숙달!</div>' : '');
     } else {
-      res.innerHTML = `<div class="ko-small">🤏 아까워요! 정답:</div><div class="jp-big">${rubyHTML(c.jp)}</div>`;
+      res.innerHTML = (wasVoice ? `<div class="ko-small">🎙 이렇게 들렸어요: 「${esc(plain(input))}」${sim >= 0.4 ? ' — 발음이 비슷한데 조금 달라요!' : ''}</div>` : '') +
+        `<div class="ko-small">🤏 정답:</div><div class="jp-big">${rubyHTML(c.jp)}</div>`;
       Voice.speak(jpPlain, undefined, 'female');
     }
     res.innerHTML += '<button class="btn btn-primary btn-small" id="drill-next" style="margin-top:10px">다음 ▶</button>';
     $('drill-next').addEventListener('click', () => { t.idx++; drillStep(); });
     $('drill-check').disabled = true;
   };
+  if ($('drill-mic')) $('drill-mic').addEventListener('click', () => handleMic($('drill-mic'), $('drill-input'), text => {
+    $('drill-input').value = text;
+    $('drill-input').dataset.voice = '1';
+    check(); // 인식되면 자동 채점
+  }));
   $('drill-check').addEventListener('click', check);
   $('drill-input').addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
 }
@@ -1473,7 +1564,11 @@ function bind() {
   // 씬: 전송/마이크
   $('btn-send').addEventListener('click', () => handleInput($('player-input').value));
   $('player-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleInput($('player-input').value); });
-  $('btn-mic').addEventListener('click', () => handleMic($('btn-mic'), $('player-input')));
+  // 씬 마이크: 인식되면 자동 전송 (음성 출신 표시 → 발음 피드백)
+  $('btn-mic').addEventListener('click', () => handleMic($('btn-mic'), $('player-input'), text => {
+    $('player-input').value = text;
+    handleInput(text, true);
+  }));
   $('btn-onboard-ok').addEventListener('click', () => {
     $('onboard').classList.add('hidden');
     Store.set('onboarded', 1);
