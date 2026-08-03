@@ -154,6 +154,7 @@
       <button class="tab active" data-tab="cards">표현 도감</button>
       <button class="tab" data-tab="mistakes">오답 노트</button>
       <button class="tab" data-tab="kanji">한자 카드</button>
+      <button class="tab" data-tab="songs">🎵 노래</button>
     </nav>
     <div id="collection-body" class="pane"></div>
   </section>
@@ -196,8 +197,11 @@
         <div class="seg" id="set-rate">
           <button data-v="0.8">느리게</button><button data-v="1">보통</button><button data-v="1.15">빠르게</button>
         </div>
-        <label class="set-label">일본어 목소리</label>
+        <label class="set-label">일본어 목소리 (기기 내장)</label>
         <select id="set-voice"><option value="">자동 (최고 품질 선택)</option></select>
+        <label class="set-label" style="margin-top:10px">Google Cloud TTS API 키 (선택)</label>
+        <input id="set-gtts" type="password" placeholder="AIza… — 월 100만 자 무료">
+        <p class="set-note">키를 넣으면 구글 최신 신경망 음성(Neural2)으로 훨씬 자연스럽게 말합니다. 비우면 기기 내장 음성 사용. 키는 이 브라우저에만 저장됩니다.</p>
         <button id="btn-voice-test" class="btn btn-secondary btn-small" style="margin-top:8px">🔊 목소리 미리 듣기</button>
         <p class="set-note" style="margin-top:8px">📱 아이폰 발음 개선: 아이폰 설정 → 손쉬운 사용 → 콘텐츠 말하기 → 음성 → 일본어에서 <b>「Kyoko (고급)」</b> 음성을 다운로드하면 게임이 자동으로 그 목소리를 사용해 훨씬 자연스러워집니다. 안드로이드는 Google TTS의 일본어 음성을 설치하세요.</p>
       </div>

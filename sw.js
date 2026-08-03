@@ -1,7 +1,7 @@
 /* 「처음 가는 일본」 서비스 워커
  * 앱 셸: cache-first / api.anthropic.com: network-only(캐싱 절대 금지)
  */
-const CACHE_VERSION = 'jtrip-v3';
+const CACHE_VERSION = 'jtrip-v4';
 const APP_SHELL = [
   './',
   './index.html',
