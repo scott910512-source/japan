@@ -439,6 +439,7 @@ function presentStep() {
   const step = curStep();
   if (!step) { endScene(); return; }
   Scene.failCount = 0;
+  hideNextButton();
   npcSay(step, step.ask, 'normal');
   if (Scene.mode === 'ai') Scene.history.push({ role: 'assistant', content: plain(step.ask.jp) });
   renderChunks(step);
@@ -656,14 +657,32 @@ function handleScript(input) {
   }
 }
 
+/* 다음 스텝은 자동으로 넘어가지 않는다 — NPC의 말을 다 듣고 「다음 ▶」을 눌러야 진행 */
+function showNextButton(label, cb) {
+  const b = $('btn-next');
+  b.textContent = label;
+  b.classList.remove('hidden');
+  b.onclick = () => {
+    b.classList.add('hidden');
+    b.onclick = null;
+    cb();
+  };
+  const area = document.querySelector('.dialog-area');
+  area.scrollTop = area.scrollHeight;
+}
+function hideNextButton() {
+  const b = $('btn-next');
+  b.classList.add('hidden');
+  b.onclick = null;
+}
 function advanceStep() {
   Scene.idx++;
-  Scene.transitioning = true;
-  if (Scene.idx >= Scene.steps.length) {
-    setTimeout(() => { Scene.transitioning = false; endScene(); }, 1600);
-  } else {
-    setTimeout(() => { Scene.transitioning = false; presentStep(); }, 1900);
-  }
+  Scene.transitioning = true; // 다음을 누르기 전에는 입력을 받지 않는다
+  const isLast = Scene.idx >= Scene.steps.length;
+  showNextButton(isLast ? '🏁 결과 보기' : '다음 ▶', () => {
+    Scene.transitioning = false;
+    if (isLast) endScene(); else presentStep();
+  });
 }
 
 /* ── AI 모드 ── */
@@ -727,7 +746,8 @@ async function handleAI(input) {
     }
     if (Scene.idx >= Scene.steps.length) Scene.aiTurnsAfterClear++;
     if (resp.sceneEnd || Scene.aiTurnsAfterClear > 5) {
-      setTimeout(() => endScene(), 1800);
+      Scene.transitioning = true;
+      showNextButton('🏁 결과 보기', () => { Scene.transitioning = false; endScene(); });
     }
     return true;
   } catch (e) {
