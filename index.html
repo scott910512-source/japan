@@ -35,6 +35,7 @@
     <div class="title-menu">
       <button id="btn-start" class="btn btn-primary">처음부터 시작하기</button>
       <button id="btn-continue" class="btn btn-secondary hidden">이어하기</button>
+      <button id="btn-title-basics" class="btn btn-secondary">📚 기초 학습</button>
       <button id="btn-title-settings" class="btn btn-ghost">설정</button>
     </div>
     <div id="install-banner" class="install-banner hidden">
@@ -64,6 +65,7 @@
       <div id="map-nodes"></div>
     </div>
     <footer class="map-footer">
+      <button class="btn btn-secondary btn-small" data-nav="basics">📚 기초</button>
       <button class="btn btn-secondary btn-small" data-nav="lodging">🏨 숙소</button>
       <button class="btn btn-secondary btn-small" data-nav="collection">📖 도감</button>
       <button class="btn btn-secondary btn-small" data-nav="training">🏋️ 특훈</button>
@@ -96,7 +98,7 @@
         <h3>🧳 첫 여행 안내</h3>
         <ol>
           <li>🗣 NPC가 일본어로 말을 걸어요. <b>🔊 다시 듣기</b>, <b>🐢 천천히</b>로 반복해서 들어보세요.</li>
-          <li>🧩 파란 카드를 <b>순서대로 누르면</b> 발음을 읽어주며 문장이 만들어져요. 완성되면 <b>전송</b>!</li>
+          <li>📋 <b>보기</b>에서 골라 답하거나, 🧩 <b>조합</b>으로 카드를 순서대로 눌러 문장을 만들어요. 완성되면 <b>전송</b>!</li>
           <li>🆘 막히면 도움 버튼 — <b>もう一度</b>(다시)·<b>ゆっくり</b>(천천히)·<b>どういう意味？</b>(뜻 보기)·<b>🔑 힌트</b></li>
         </ol>
         <p class="onboard-note">틀려도 괜찮아요. 뜻만 통하면 여행은 계속됩니다!</p>
@@ -112,6 +114,12 @@
         <button class="chip helper" data-helper="keyword">🔑 힌트</button>
         <button class="chip helper" data-helper="korean">🇰🇷 힌트</button>
       </div>
+      <div id="mode-switch" class="mode-switch hidden">
+        <button data-imode="choice">📋 보기</button>
+        <button data-imode="chunk">🧩 조합</button>
+        <button data-imode="type">⌨️ 직접</button>
+      </div>
+      <div id="choice-area" class="choice-area hidden"></div>
       <div id="chunk-area" class="chunk-area hidden">
         <div id="chunk-pool" class="chunk-pool"></div>
         <div class="chunk-actions">
@@ -160,6 +168,15 @@
       <button class="tab" data-tab="songs">🎵 노래</button>
     </nav>
     <div id="collection-body" class="pane"></div>
+  </section>
+
+  <!-- ══════ 기초 학습 ══════ -->
+  <section id="screen-basics" class="screen hidden">
+    <header class="bar">
+      <button class="btn-x" id="btn-basics-back" aria-label="뒤로">←</button>
+      <h2>📚 기초 학습</h2><span></span>
+    </header>
+    <div id="basics-body" class="pane"></div>
   </section>
 
   <!-- ══════ 특훈 센터 (실전 연습) ══════ -->

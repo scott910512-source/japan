@@ -15,7 +15,7 @@ const Store = {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '', gttsKey: '', gttsVoice: '', gttsGender: 'auto', hangul: 'off' });
+let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '', gttsKey: '', gttsVoice: '', gttsGender: 'auto', hangul: 'off', inputMode: 'choice' });
 let progress = Store.get('progress', { cleared: {}, dayLog: { date: todayStr(), scenes: [], expressions: [] } });
 let profile  = Store.get('profile', {});
 let mistakes = Store.get('mistakes', []);
@@ -398,7 +398,7 @@ function npcSVG(personaKey, mood) {
 
 /* ───────── 화면 라우팅 ───────── */
 const $ = id => document.getElementById(id);
-const SCREENS = ['title', 'map', 'scene', 'result', 'lodging', 'collection', 'settings', 'training'];
+const SCREENS = ['title', 'map', 'scene', 'result', 'lodging', 'collection', 'settings', 'training', 'basics'];
 let currentScreen = 'title';
 let settingsReturnTo = 'title';
 
@@ -410,6 +410,7 @@ function show(name) {
   if (name === 'collection') renderCollection('cards');
   if (name === 'settings') fillSettings();
   if (name === 'training') renderTraining();
+  if (name === 'basics') renderBasics();
   if (name === 'title') $('btn-continue').classList.toggle('hidden', !Object.keys(progress.cleared).length && !progress.current);
 }
 
@@ -724,10 +725,78 @@ function presentStep() {
   renderStepBar();
   npcSay(step, step.ask, 'normal');
   if (Scene.mode === 'ai') Scene.history.push({ role: 'assistant', content: plain(step.ask.jp) });
-  renderChunks(step);
+  applyInputMode();
   setTurn(true);
   appendMsg('turn-cue', d => { d.textContent = '👇 이제 당신 차례예요'; });
   $('player-input').focus({ preventScroll: true });
+}
+
+/* ── 📋 보기(선택지) 입력 — L1 (기획서 §7: L1 입력 = 선택지·문장 조합) ──
+ * 오답 보기는 같은 챕터의 다른 문장에서 뽑아 "그럴듯하지만 상황에 안 맞는" 선택지를 만든다.
+ * 보기를 누르면 발음을 들려주고 입력창에 채운다 → 전송은 직접 눌러 "내가 말한다"는 감각을 유지. */
+function buildChoices(step) {
+  const correct = step.model ? step.model.jp : '';
+  if (!correct) return [];
+  const ch = currentChapter();
+  const pool = [];
+  Scene.steps.forEach(s => { if (s !== step && s.model && s.model.jp !== correct) pool.push({ jp: s.model.jp, ko: s.model.ko }); });
+  (ch.expressions || []).forEach(e => { if (e.jp !== correct) pool.push({ jp: e.jp, ko: e.ko }); });
+  const seen = new Set([normalize(correct)]);
+  const distractors = [];
+  for (const p of pool.sort(() => Math.random() - 0.5)) {
+    const key = normalize(p.jp);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    distractors.push(p);
+    if (distractors.length === 2) break;
+  }
+  const all = [{ jp: correct, ko: step.model.ko }].concat(distractors);
+  for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+  return all;
+}
+
+function renderChoices(step) {
+  const area = $('choice-area');
+  if (!area) return;
+  area.innerHTML = '';
+  if (inputMode() !== 'choice' || !step || !step.model) return;
+  const showKo = settings.subtitle !== 'off';
+  const showFuri = settings.furigana !== 'off';
+  buildChoices(step).forEach(opt => {
+    const b = document.createElement('button');
+    b.className = 'choice';
+    b.innerHTML = (showFuri ? rubyHTML(opt.jp) : esc(plain(opt.jp))) +
+      (showKo ? `<span class="c-ko">${esc(opt.ko || '')}</span>` : '');
+    b.addEventListener('click', () => {
+      area.querySelectorAll('.choice').forEach(x => x.classList.remove('picked'));
+      b.classList.add('picked');
+      const text = plain(opt.jp);
+      $('player-input').value = text;
+      Voice.speak(text, undefined, 'female'); // 고른 문장을 귀로 확인
+    });
+    area.appendChild(b);
+  });
+  const tip = document.createElement('div');
+  tip.className = 'choice-tip';
+  tip.textContent = '보기를 누르면 읽어줘요 → 소리 내어 따라 말하고 전송!';
+  area.appendChild(tip);
+}
+
+function inputMode() {
+  if (settings.level !== 1) return 'type';
+  return settings.inputMode || 'choice';
+}
+function applyInputMode() {
+  const l1 = settings.level === 1;
+  const mode = inputMode();
+  $('mode-switch').classList.toggle('hidden', !l1);
+  $('choice-area').classList.toggle('hidden', mode !== 'choice');
+  $('chunk-area').classList.toggle('hidden', mode !== 'chunk');
+  document.querySelectorAll('#mode-switch button').forEach(b =>
+    b.classList.toggle('on', b.dataset.imode === mode));
+  const step = curStep();
+  if (mode === 'choice') renderChoices(step);
+  if (mode === 'chunk') renderChunks(step);
 }
 
 /* ── L1 문장 조합 UI ── */
@@ -793,8 +862,7 @@ async function handleMic(btn, inputEl, onText) {
 }
 
 function setupInputUI() {
-  const l1 = settings.level === 1;
-  $('chunk-area').classList.toggle('hidden', !l1);
+  applyInputMode();
   $('btn-mic').classList.toggle('hidden', !Voice.micAvailable());
   // 레벨별 헬퍼 노출 (§7: 레벨이 오를수록 힌트 축소)
   document.querySelectorAll('.helper').forEach(b => {
@@ -1131,7 +1199,7 @@ async function handleAI(input) {
       Scene.idx++;
       Scene.aiCleared++;
       renderStepBar();
-      renderChunks(curStep()); // L1: 다음 스텝의 문장 조합 카드로 갱신
+      applyInputMode(); // L1: 다음 스텝의 보기·조합 카드로 갱신
     }
     if (Scene.idx >= Scene.steps.length) Scene.aiTurnsAfterClear++;
     if (resp.sceneEnd || Scene.aiTurnsAfterClear > 5) {
@@ -1375,6 +1443,117 @@ function renderCollection(tab) {
         <div class="meta">예: ${esc(k.example)}</div>
       </div>`).join('') : '<p class="ko-small">챕터를 클리어하면 한자 카드가 열려요.</p>';
   }
+}
+
+/* ───────── 📚 기초 학습 코스 ───────── */
+let basicsReturnTo = 'title';
+const Quiz = { lesson: null, queue: [], idx: 0, ok: 0 };
+
+function renderBasics() {
+  const done = Store.get('basics', {});
+  $('basics-body').innerHTML = `
+    <p class="ko-small" style="margin-bottom:12px">게임 전에 짚고 가면 훨씬 수월해요. 항목을 누르면 발음을 들려줍니다.</p>
+    ${BASICS.map(l => {
+      const d = done[l.id];
+      return `<button class="card lesson-card" data-lesson="${esc(l.id)}" style="width:100%;text-align:left;font-family:inherit;cursor:pointer;border-width:2px">
+        <h3 style="margin-bottom:4px">${esc(l.icon)} ${esc(l.title)} ${d && d.done ? '<span style="color:var(--good)">✓</span>' : ''}</h3>
+        <div class="ko-small">${esc(l.sub)}</div>
+        <div class="meta">${l.items.length}개 표현${d && d.best ? ` · 퀴즈 최고 ${d.best}/${l.items.length}` : ''}</div>
+      </button>`;
+    }).join('')}`;
+  $('basics-body').querySelectorAll('.lesson-card').forEach(b =>
+    b.addEventListener('click', () => openLesson(b.dataset.lesson)));
+}
+
+function openLesson(id) {
+  const l = BASICS.find(x => x.id === id);
+  if (!l) return;
+  $('basics-body').innerHTML = `
+    <div class="card"><h3>${esc(l.icon)} ${esc(l.title)}</h3>
+      <p class="ko-small">${esc(l.point)}</p>
+    </div>
+    ${l.items.map((it, i) => `
+      <div class="card lesson-item" data-i="${i}" style="cursor:pointer">
+        <div class="jp-big">${rubyHTML(it.jp)} <span class="chip" style="pointer-events:none">🔊</span></div>
+        <div class="ko-small">${esc(it.ko)}</div>
+        <div class="meta">💡 ${esc(it.tip)}</div>
+      </div>`).join('')}
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button class="btn btn-secondary btn-small" id="lesson-back" style="flex:1">← 목록</button>
+      <button class="btn btn-primary btn-small" id="lesson-quiz" style="flex:1">📝 퀴즈 풀기</button>
+    </div>`;
+  $('basics-body').querySelectorAll('.lesson-item').forEach(el =>
+    el.addEventListener('click', e => {
+      if (e.target.closest('ruby')) return; // 단어 사전 탭 우선
+      Voice.speak(l.items[+el.dataset.i].read, undefined, 'female');
+    }));
+  $('lesson-back').addEventListener('click', renderBasics);
+  $('lesson-quiz').addEventListener('click', () => startBasicsQuiz(l));
+  const done = Store.get('basics', {});
+  done[l.id] = Object.assign({}, done[l.id], { done: true });
+  Store.set('basics', done);
+}
+
+function startBasicsQuiz(lesson) {
+  Quiz.lesson = lesson;
+  Quiz.queue = shuffleArr(lesson.items);
+  Quiz.idx = 0; Quiz.ok = 0;
+  basicsQuizStep();
+}
+
+function basicsQuizStep() {
+  const q = Quiz;
+  if (q.idx >= q.queue.length) {
+    const done = Store.get('basics', {});
+    const prev = (done[q.lesson.id] || {}).best || 0;
+    done[q.lesson.id] = Object.assign({}, done[q.lesson.id], { done: true, best: Math.max(prev, q.ok) });
+    Store.set('basics', done);
+    $('basics-body').innerHTML = `
+      <div class="card" style="text-align:center">
+        <h3>📝 ${esc(q.lesson.title)} 퀴즈 결과</h3>
+        <div class="stars-big">${q.ok} / ${q.queue.length}</div>
+        <p class="ko-small">${q.ok === q.queue.length ? '완벽해요! 실전에서 바로 써먹을 수 있겠어요 🎉' : '좋아요! 틀린 것만 다시 보면 금방 익숙해져요.'}</p>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+          <button class="btn btn-primary btn-small" id="quiz-retry">한 번 더</button>
+          <button class="btn btn-secondary btn-small" id="quiz-back">강의로</button>
+        </div>
+      </div>`;
+    $('quiz-retry').addEventListener('click', () => startBasicsQuiz(q.lesson));
+    $('quiz-back').addEventListener('click', () => openLesson(q.lesson.id));
+    return;
+  }
+  const it = q.queue[q.idx];
+  const others = shuffleArr(q.lesson.items.filter(x => x.ko !== it.ko)).slice(0, 3);
+  const opts = shuffleArr([it].concat(others));
+  $('basics-body').innerHTML = `
+    <div class="card">
+      <div class="meta">${q.idx + 1} / ${q.queue.length} · 이 표현의 뜻은?</div>
+      <div style="text-align:center;margin:16px 0">
+        <div class="jp-big" style="font-size:1.5rem">${rubyHTML(it.jp)}</div>
+        <button class="chip" id="bq-say" style="margin-top:8px">🔊 듣기</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${opts.map(o => `<button class="btn btn-secondary btn-small bq-opt" data-ko="${esc(o.ko)}" style="text-align:left">${esc(o.ko)}</button>`).join('')}
+      </div>
+      <div id="bq-result" style="margin-top:10px"></div>
+    </div>`;
+  Voice.speak(it.read, undefined, 'female');
+  $('bq-say').addEventListener('click', () => Voice.speak(it.read, undefined, 'female'));
+  $('basics-body').querySelectorAll('.bq-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const correct = btn.dataset.ko === it.ko;
+      if (correct) q.ok++;
+      $('basics-body').querySelectorAll('.bq-opt').forEach(b => {
+        b.disabled = true;
+        if (b.dataset.ko === it.ko) { b.style.borderColor = 'var(--good)'; b.style.background = '#E3F0E9'; }
+        else if (b === btn) b.style.borderColor = 'var(--bad)';
+      });
+      $('bq-result').innerHTML = `${correct ? '<span class="retry-ok">⭕ 정답!</span>' : '<span class="ko-small">✖ 정답은 초록색!</span>'}
+        <span class="ko-small"> ${esc(it.tip)}</span>
+        <button class="btn btn-primary btn-small" id="bq-next" style="margin-top:8px;width:100%">다음 ▶</button>`;
+      $('bq-next').addEventListener('click', () => { q.idx++; basicsQuizStep(); });
+    });
+  });
 }
 
 /* ───────── 🏋️ 특훈 센터 (실전 연습 드릴) ───────── */
@@ -1640,10 +1819,20 @@ function bind() {
   });
   $('btn-continue').addEventListener('click', () => show('map'));
   $('btn-title-settings').addEventListener('click', () => { settingsReturnTo = 'title'; show('settings'); });
+  $('btn-title-basics').addEventListener('click', () => { basicsReturnTo = 'title'; show('basics'); });
+  $('btn-basics-back').addEventListener('click', () => show(basicsReturnTo));
   document.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.nav === 'settings') settingsReturnTo = currentScreen;
+    if (b.dataset.nav === 'basics') basicsReturnTo = currentScreen;
     show(b.dataset.nav);
   }));
+  // 입력 방식 전환 (보기 / 조합 / 직접)
+  $('mode-switch').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    settings.inputMode = b.dataset.imode;
+    saveAll();
+    applyInputMode();
+  });
   $('btn-settings-back').addEventListener('click', () => show(settingsReturnTo));
   $('btn-scene-exit').addEventListener('click', () => {
     if (confirm('장면을 나갈까요? 진행 중인 대화는 사라집니다.')) { speechSynthesis && speechSynthesis.cancel(); show('map'); }
@@ -1663,6 +1852,11 @@ function bind() {
   });
   // L1 문장 조합: 지우기 = 선택만 초기화 (카드는 그대로)
   $('btn-chunk-clear').addEventListener('click', () => clearChunkSelection(true));
+  // 전송 후 보기 선택 표시도 초기화
+  $('btn-send').addEventListener('click', () => {
+    const a = $('choice-area');
+    if (a) a.querySelectorAll('.choice').forEach(x => x.classList.remove('picked'));
+  });
 
   // 대화 도구
   // 무대 접기/펼치기 (대화에 집중하고 싶을 때)
