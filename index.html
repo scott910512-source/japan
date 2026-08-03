@@ -91,6 +91,7 @@
         <div class="npc-name" id="npc-name"></div>
         <div class="npc-line" id="npc-line"></div>
         <div class="npc-furi hidden" id="npc-furi"></div>
+        <div class="npc-hangul hidden" id="npc-hangul"></div>
         <div class="npc-ko hidden" id="npc-ko"></div>
         <div class="dialog-tools">
           <button id="btn-replay" class="chip" title="다시 듣기">🔊</button>
@@ -101,6 +102,19 @@
       <div id="correction-toast" class="correction-toast hidden"></div>
       <div id="quest-hint" class="quest-hint hidden"></div>
       <button id="btn-next" class="btn btn-primary btn-next hidden">다음 ▶</button>
+    </div>
+
+    <div id="onboard" class="onboard hidden">
+      <div class="onboard-card">
+        <h3>🧳 첫 여행 안내</h3>
+        <ol>
+          <li>🗣 NPC가 일본어로 말을 걸어요. <b>🔊 다시 듣기</b>, <b>🐢 천천히</b>로 반복해서 들어보세요.</li>
+          <li>🧩 파란 카드를 <b>순서대로 누르면</b> 발음을 읽어주며 문장이 만들어져요. 완성되면 <b>전송</b>!</li>
+          <li>🆘 막히면 도움 버튼 — <b>もう一度</b>(다시)·<b>ゆっくり</b>(천천히)·<b>どういう意味？</b>(뜻 보기)·<b>🔑 힌트</b></li>
+        </ol>
+        <p class="onboard-note">틀려도 괜찮아요. 뜻만 통하면 여행은 계속됩니다!</p>
+        <button id="btn-onboard-ok" class="btn btn-primary">여행 시작! ✈️</button>
+      </div>
     </div>
 
     <div class="input-area">
@@ -152,9 +166,10 @@
       <h2>여행 노트</h2><span></span>
     </header>
     <nav class="tabs">
-      <button class="tab active" data-tab="cards">표현 도감</button>
-      <button class="tab" data-tab="mistakes">오답 노트</button>
-      <button class="tab" data-tab="kanji">한자 카드</button>
+      <button class="tab active" data-tab="cards">표현</button>
+      <button class="tab" data-tab="mistakes">오답</button>
+      <button class="tab" data-tab="kanji">한자</button>
+      <button class="tab" data-tab="kana">あ 가나</button>
       <button class="tab" data-tab="songs">🎵 노래</button>
     </nav>
     <div id="collection-body" class="pane"></div>
@@ -193,6 +208,10 @@
         <label class="set-label">한국어 자막</label>
         <div class="seg" id="set-subtitle">
           <button data-v="auto">레벨 자동</button><button data-v="on">항상</button><button data-v="off">끄기</button>
+        </div>
+        <label class="set-label">한글 발음 표기 (초보용: "이츠카칸")</label>
+        <div class="seg" id="set-hangul">
+          <button data-v="auto">L1 자동</button><button data-v="on">항상</button><button data-v="off">끄기</button>
         </div>
         <label class="set-label">음성 속도</label>
         <div class="seg" id="set-rate">

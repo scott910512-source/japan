@@ -15,7 +15,7 @@ const Store = {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '', gttsKey: '', gttsVoice: '', gttsGender: 'auto' });
+let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '', gttsKey: '', gttsVoice: '', gttsGender: 'auto', hangul: 'auto' });
 let progress = Store.get('progress', { cleared: {}, dayLog: { date: todayStr(), scenes: [], expressions: [] } });
 let profile  = Store.get('profile', {});
 let mistakes = Store.get('mistakes', []);
@@ -39,6 +39,68 @@ function normalize(s) {
   return plain(s).normalize('NFKC').toLowerCase()
     .replace(/[\s、。・「」『』？！?!.,…〜~ー－\-()（）]/g, '');
 }
+/* ── 가나 → 한글 발음 표기 (일본어 완전 초보용) ── */
+const KANA_H = {
+  'あ':'아','い':'이','う':'우','え':'에','お':'오',
+  'か':'카','き':'키','く':'쿠','け':'케','こ':'코','が':'가','ぎ':'기','ぐ':'구','げ':'게','ご':'고',
+  'さ':'사','し':'시','す':'스','せ':'세','そ':'소','ざ':'자','じ':'지','ず':'즈','ぜ':'제','ぞ':'조',
+  'た':'타','ち':'치','つ':'츠','て':'테','と':'토','だ':'다','ぢ':'지','づ':'즈','で':'데','ど':'도',
+  'な':'나','に':'니','ぬ':'누','ね':'네','の':'노',
+  'は':'하','ひ':'히','ふ':'후','へ':'헤','ほ':'호','ば':'바','び':'비','ぶ':'부','べ':'베','ぼ':'보',
+  'ぱ':'파','ぴ':'피','ぷ':'푸','ぺ':'페','ぽ':'포',
+  'ま':'마','み':'미','む':'무','め':'메','も':'모','や':'야','ゆ':'유','よ':'요',
+  'ら':'라','り':'리','る':'루','れ':'레','ろ':'로','わ':'와','ゐ':'이','ゑ':'에','を':'오',
+  'ぁ':'아','ぃ':'이','ぅ':'우','ぇ':'에','ぉ':'오','ゃ':'야','ゅ':'유','ょ':'요','ゔ':'부'
+};
+const KANA_DIGRAPH = {
+  'きゃ':'캬','きゅ':'큐','きょ':'쿄','しゃ':'샤','しゅ':'슈','しょ':'쇼','ちゃ':'차','ちゅ':'추','ちょ':'초',
+  'にゃ':'냐','にゅ':'뉴','にょ':'뇨','ひゃ':'햐','ひゅ':'휴','ひょ':'효','みゃ':'먀','みゅ':'뮤','みょ':'묘',
+  'りゃ':'랴','りゅ':'류','りょ':'료','ぎゃ':'갸','ぎゅ':'규','ぎょ':'교','じゃ':'자','じゅ':'주','じょ':'조',
+  'びゃ':'뱌','びゅ':'뷰','びょ':'뵤','ぴゃ':'퍄','ぴゅ':'퓨','ぴょ':'표','ふぁ':'화','ふぃ':'휘','ふぇ':'훼','ふぉ':'훠',
+  'ちぇ':'체','しぇ':'셰','じぇ':'제','うぃ':'위','うぇ':'웨','うぉ':'워','てぃ':'티','でぃ':'디','とぅ':'투','どぅ':'두',
+  'つぁ':'차','つぇ':'체','つぉ':'초','ゔぁ':'바','ゔぃ':'비','ゔぇ':'베','ゔぉ':'보'
+};
+function kanaToHangul(src) {
+  if (!src) return '';
+  let s = '';
+  for (const ch of src) { // 가타카나 → 히라가나
+    const c = ch.codePointAt(0);
+    s += (c >= 0x30A1 && c <= 0x30F6) ? String.fromCodePoint(c - 0x60) : ch;
+  }
+  // 조사 は→わ, へ→え 발음 보정: 인사말 + 단어 경계 마커(\u0000, 한자 읽기 뒤에 삽입됨) 뒤의 조사
+  s = s.replace(/こんにちは/g, 'こんにちわ').replace(/こんばんは/g, 'こんばんわ');
+  s = s.replace(/\u0000((?:に|で|と)?)は/g, '\u0000$1わ').replace(/\u0000へ/g, '\u0000え');
+  s = s.replace(/\u0000/g, '');
+  let out = '';
+  const addJong = jong => { // 직전 한글 음절에 받침 붙이기 (ん→ㄴ, っ→ㅅ)
+    const last = out[out.length - 1];
+    if (!last) return false;
+    const c = last.codePointAt(0);
+    if (c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 === 0) {
+      out = out.slice(0, -1) + String.fromCodePoint(c + jong);
+      return true;
+    }
+    return false;
+  };
+  for (let i = 0; i < s.length; i++) {
+    const two = s.slice(i, i + 2);
+    if (KANA_DIGRAPH[two]) { out += KANA_DIGRAPH[two]; i++; continue; }
+    const ch = s[i];
+    if (ch === 'ん') { if (!addJong(4)) out += '응'; continue; }
+    if (ch === 'っ') { if (!addJong(19)) out += ''; continue; }
+    if (ch === 'ー') { out += '-'; continue; }
+    out += KANA_H[ch] !== undefined ? KANA_H[ch] : ch;
+  }
+  return out;
+}
+// 「漢字[よみ]」 표기를 전체 かな 문자열로 (한자 부분은 읽기로 치환, 뒤에 경계 마커 — 조사 は 보정용)
+function lineKana(jp) {
+  return String(jp == null ? '' : jp).replace(/([一-龯々〆ヵヶ〇]+)\[([^\]]+)\]/g, '$2\u0000');
+}
+function hangulEnabled() {
+  return settings.hangul === 'on' || ((settings.hangul || 'auto') === 'auto' && settings.level === 1);
+}
+
 // 바이그램 유사도 (다시 말하기 판정용)
 function similarity(a, b) {
   a = normalize(a); b = normalize(b);
@@ -446,6 +508,8 @@ function startScene(chId) {
   setupInputUI();
   show('scene');
   presentStep();
+  // 첫 실행이면 조작법 안내
+  if (!Store.get('onboarded')) $('onboard').classList.remove('hidden');
 }
 
 function updateModeBadge() {
@@ -513,6 +577,16 @@ function npcSay(step, lineObj, mood, actionText) {
   const aiFuri = showFuri && lineObj.furigana && !/\[/.test(lineObj.jp) && plain(lineObj.furigana) !== plain(lineObj.jp);
   furiEl.textContent = aiFuri ? plain(lineObj.furigana) : '';
   furiEl.classList.toggle('hidden', !aiFuri);
+  // 한글 발음 표기 (완전 초보용)
+  const hangulEl = $('npc-hangul');
+  if (hangulEnabled()) {
+    const kanaSrc = (!/\[/.test(lineObj.jp) && lineObj.furigana) ? lineObj.furigana : lineKana(lineObj.jp);
+    const h = kanaToHangul(plain(kanaSrc).replace(/（[^）]*）/g, ''));
+    hangulEl.textContent = h ? '🔈 ' + h : '';
+    hangulEl.classList.toggle('hidden', !h);
+  } else {
+    hangulEl.classList.add('hidden');
+  }
   Scene.lastNpc = lineObj;
 
   const koEl = $('npc-ko');
@@ -525,7 +599,9 @@ function npcSay(step, lineObj, mood, actionText) {
   Scene.log.push({ role: 'npc', text: plain(lineObj.jp) });
   // 대사 표시와 동시에 TTS 재생 (§1.5)
   const jaText = plain(lineObj.jp).replace(/（[^）]*）/g, '');
-  if (jaText && !/^\(/.test(jaText)) Voice.speak(jaText, undefined, MALE_NPCS.has(step.npc) ? 'male' : 'female');
+  // L1은 자동으로 10% 느리게 (초보 배려)
+  const npcRate = (Number(settings.rate) || 1) * (settings.level === 1 ? 0.9 : 1);
+  if (jaText && !/^\(/.test(jaText)) Voice.speak(jaText, npcRate, MALE_NPCS.has(step.npc) ? 'male' : 'female');
   $('quest-hint').classList.add('hidden');
 }
 
@@ -599,6 +675,12 @@ function readingFor(text, map) {
   map.forEach(([k, v]) => { r = r.split(k).join(v); });
   return r;
 }
+// 한글 발음용: 읽기 뒤에 경계 마커(공백)를 넣어 조사 は→와 보정이 작동하게
+function readingForMarked(text, map) {
+  let r = text;
+  map.forEach(([k, v]) => { r = r.split(k).join(v + '\u0000'); });
+  return r;
+}
 function syncChunkInput() {
   $('player-input').value = chunkSeq.map(b => b._text).join('');
 }
@@ -618,15 +700,20 @@ function renderChunks(step) {
   const map = chunkReadingMap(step);
   const chunks = (step.chunks || [plain(step.model.jp)]).map(plain);
   for (let i = chunks.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [chunks[i], chunks[j]] = [chunks[j], chunks[i]]; }
+  const showFuri = settings.furigana === 'on' || (settings.furigana === 'auto' && settings.level <= 2);
+  const showHangul = hangulEnabled();
   chunks.forEach(c => {
     const b = document.createElement('button');
     b.className = 'chunk';
-    const ord = document.createElement('span');
-    ord.className = 'chunk-ord';
-    b.appendChild(ord);
-    b.appendChild(document.createTextNode(c));
     b._text = c;
     b._reading = readingFor(c, map);
+    // 카드에도 후리가나(루비)와 한글 발음을 붙여 초보자가 읽을 수 있게
+    let annotated = c;
+    if (showFuri) map.forEach(([k, v]) => {
+      if (!annotated.includes(k + '[')) annotated = annotated.split(k).join(k + '[' + v + ']');
+    });
+    b.innerHTML = '<span class="chunk-ord"></span>' + (showFuri ? rubyHTML(annotated) : esc(c)) +
+      (showHangul ? '<span class="chunk-hangul">' + esc(kanaToHangul(readingForMarked(c, map))) + '</span>' : '');
     b.addEventListener('click', () => {
       const idx = chunkSeq.indexOf(b);
       if (idx >= 0) {
@@ -716,6 +803,8 @@ function showPlayerBubble(text) {
 async function handleInput(raw) {
   const input = raw.trim();
   if (!input || Scene.ended || Scene.transitioning) return;
+  // 카드 조합으로 만든 입력인지 기억 (어순 교정용)
+  Scene.lastFromChunks = chunkSeq.length > 0 && input === chunkSeq.map(b => b._text).join('');
   $('player-input').value = '';
   clearChunkSelection(false);
   showPlayerBubble(input);
@@ -742,6 +831,18 @@ function handleScript(input) {
       profile[step.profileKey] = extractProfileValue(step.profileKey, input); saveAll();
     }
     if (step.reviewOf) { step.reviewOf.retried = true; saveAll(); }
+    // 카드를 틀린 순서로 조합했어도 뜻이 통하면 진행하되, 올바른 어순을 알려준다
+    if (Scene.lastFromChunks && step.model && !step.free &&
+        normalize(input) !== normalize(plain(step.model.jp))) {
+      showCorrectionToast({
+        mine: input, better: step.model.jp, ko: step.model.ko,
+        reason: '뜻은 통했어요! 카드 순서만 이렇게 바꾸면 자연스러운 문장이 됩니다.', simple: ''
+      });
+      addMistake({
+        type: 'minor', mine: input, better: step.model.jp, simple: '',
+        ko: step.model.ko, reason: '어순 연습: 카드 순서를 다시 확인해 보세요', tag: step.tag || 'word_order'
+      });
+    }
     npcSay(step, step.ok, 'happy', step.ok.action || null);
     advanceStep();
   } else if (step.free) {
@@ -1051,6 +1152,28 @@ function renderCollection(tab) {
         <div class="ko-small">${esc(m.reason)}</div>
         <div class="meta">${esc(m.date)} · ${esc(m.tag)} ${m.retried ? '· ✅ 재도전 완료' : ''}</div>
       </div>`).join('') : '<p class="ko-small">아직 오답이 없어요.</p>';
+  } else if (tab === 'kana') {
+    const ROWS = ['あいうえお', 'かきくけこ', 'さしすせそ', 'たちつてと', 'なにぬねの',
+      'はひふへほ', 'まみむめも', 'や ゆ よ', 'らりるれろ', 'わ を ん',
+      'がぎぐげご', 'ざじずぜぞ', 'だぢづでど', 'ばびぶべぼ', 'ぱぴぷぺぽ'];
+    const kataMode = body.dataset.kata === '1';
+    const toKata = ch => { const c = ch.codePointAt(0); return (c >= 0x3041 && c <= 0x3096) ? String.fromCodePoint(c + 0x60) : ch; };
+    body.innerHTML = `
+      <div class="seg" style="margin-bottom:12px">
+        <button id="kana-hira" class="${kataMode ? '' : 'on'}">ひらがな</button>
+        <button id="kana-kata" class="${kataMode ? 'on' : ''}">カタカナ</button>
+      </div>
+      <p class="ko-small" style="margin-bottom:10px">글자를 누르면 발음을 들려줘요. 파란 글씨는 한글 발음이에요.</p>
+      <div class="kana-grid">
+        ${ROWS.map(row => Array.from(row).map(ch => {
+          if (ch === ' ') return '<span class="kana-cell empty"></span>';
+          const disp = kataMode ? toKata(ch) : ch;
+          return `<button class="kana-cell" data-k="${esc(ch)}"><span class="k">${esc(disp)}</span><span class="h">${esc(kanaToHangul(ch))}</span></button>`;
+        }).join('')).join('')}
+      </div>`;
+    body.querySelector('#kana-hira').addEventListener('click', () => { body.dataset.kata = '0'; renderCollection('kana'); });
+    body.querySelector('#kana-kata').addEventListener('click', () => { body.dataset.kata = '1'; renderCollection('kana'); });
+    body.querySelectorAll('.kana-cell[data-k]').forEach(b => b.addEventListener('click', () => Voice.speak(b.dataset.k, undefined, 'female')));
   } else if (tab === 'songs') {
     body.innerHTML = SONGS.map(s => `
       <div class="card">
@@ -1100,6 +1223,7 @@ function fillSettings() {
   seg('set-furigana', settings.furigana);
   seg('set-subtitle', settings.subtitle);
   seg('set-rate', settings.rate);
+  seg('set-hangul', settings.hangul || 'auto');
   seg('set-gender', settings.gttsGender || 'auto');
   $('set-gvoice').value = settings.gttsVoice || Voice.DEFAULT_GVOICE;
   fillVoiceSelect();
@@ -1133,6 +1257,10 @@ function bind() {
   $('btn-send').addEventListener('click', () => handleInput($('player-input').value));
   $('player-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleInput($('player-input').value); });
   $('btn-mic').addEventListener('click', () => handleMic($('btn-mic'), $('player-input')));
+  $('btn-onboard-ok').addEventListener('click', () => {
+    $('onboard').classList.add('hidden');
+    Store.set('onboarded', 1);
+  });
   // L1 문장 조합: 지우기 = 선택만 초기화 (카드는 그대로)
   $('btn-chunk-clear').addEventListener('click', () => clearChunkSelection(true));
 
@@ -1221,6 +1349,7 @@ function bind() {
     settings.furigana = segVal('set-furigana') || settings.furigana;
     settings.subtitle = segVal('set-subtitle') || settings.subtitle;
     settings.rate = segVal('set-rate') || settings.rate;
+    settings.hangul = segVal('set-hangul') || settings.hangul || 'auto';
     settings.name = $('set-name').value.trim() || settings.name;
     settings.apiKey = $('set-apikey').value.trim();
     settings.model = $('set-model').value.trim();
