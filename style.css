@@ -158,6 +158,9 @@ body {
   background: #EEF5FB; border: 2px solid var(--sky); border-radius: 14px;
   padding: 12px 14px; box-shadow: var(--shadow); animation: fadein .18s;
 }
+/* 씬에서는 대화 흐름 속에 인라인으로 — 다른 UI를 가리지 않게 */
+.word-pop.inline { position: static; margin: 0; box-shadow: none; }
+.wp-saved { font-size: .68rem; color: var(--good); margin-left: 6px; }
 .word-pop .wp-word { font-size: 1.35rem; font-weight: 700; }
 .word-pop .wp-read { color: var(--ink-soft); font-size: .9rem; margin: 0 8px 0 7px; }
 .word-pop .wp-mean { margin-top: 7px; font-size: .9rem; line-height: 1.45; }

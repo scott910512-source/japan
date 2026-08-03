@@ -370,7 +370,7 @@ function npcSVG(personaKey, mood) {
 
 /* ───────── 화면 라우팅 ───────── */
 const $ = id => document.getElementById(id);
-const SCREENS = ['title', 'map', 'scene', 'result', 'lodging', 'collection', 'settings'];
+const SCREENS = ['title', 'map', 'scene', 'result', 'lodging', 'collection', 'settings', 'training'];
 let currentScreen = 'title';
 let settingsReturnTo = 'title';
 
@@ -381,6 +381,7 @@ function show(name) {
   if (name === 'lodging') renderLodging();
   if (name === 'collection') renderCollection('cards');
   if (name === 'settings') fillSettings();
+  if (name === 'training') renderTraining();
   if (name === 'title') $('btn-continue').classList.toggle('hidden', !Object.keys(progress.cleared).length && !progress.current);
 }
 
@@ -1205,6 +1206,170 @@ function renderCollection(tab) {
   }
 }
 
+/* ───────── 🏋️ 특훈 센터 (실전 연습 드릴) ───────── */
+const Training = { mode: null, queue: [], idx: 0, ok: 0 };
+
+function shuffleArr(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function renderTraining() {
+  const words = Store.get('words', []);
+  const mastered = cards.filter(c => c.masteryCount >= 3).length;
+  const stat = (n, l) => `<div class="grade-cell"><div class="g">${n}</div><div class="l">${l}</div></div>`;
+  $('training-body').innerHTML = `
+    <div class="card"><h3>📊 내 실력</h3>
+      <div class="grade-grid" style="grid-template-columns:repeat(4,1fr)">
+        ${stat(cards.length, '배운 표현')}${stat(mastered, '숙달')}${stat(mistakes.length, '오답')}${stat(words.length, '단어장')}
+      </div>
+    </div>
+    <div class="card"><h3>🎧 섀도잉 — 듣고 따라 말하기</h3>
+      <p class="ko-small">문장을 귀로만 듣고 그대로 말해 보세요. 실전 청취력 + 발화 연습. 성공하면 숙달 게이지가 올라요.</p>
+      <button class="btn btn-primary btn-small" data-drill="shadow" style="margin-top:8px">시작</button>
+    </div>
+    <div class="card"><h3>🃏 플래시카드 — 한국어 → 일본어</h3>
+      <p class="ko-small">한국어 뜻을 보고 일본어로 말해 보세요. 여행 중 머릿속에서 일어나는 그 과정 그대로!</p>
+      <button class="btn btn-primary btn-small" data-drill="flash" style="margin-top:8px">시작</button>
+    </div>
+    <div class="card"><h3>📖 단어 퀴즈 — 내 단어장 (${words.length}개)</h3>
+      <p class="ko-small">대사에서 탭해 모은 한자 단어로 4지선다 퀴즈를 풀어요.</p>
+      <button class="btn btn-primary btn-small" data-drill="quiz" style="margin-top:8px" ${words.length < 4 ? 'disabled' : ''}>시작</button>
+      ${words.length < 4 ? '<p class="set-note" style="margin-top:6px">대화 중 한자 단어를 4개 이상 탭해서 모으면 열려요!</p>' : ''}
+    </div>`;
+  $('training-body').querySelectorAll('[data-drill]').forEach(b =>
+    b.addEventListener('click', () => startDrill(b.dataset.drill)));
+}
+
+function startDrill(mode) {
+  if (mode === 'quiz') { startWordQuiz(); return; }
+  if (!cards.length) { alert('먼저 퀘스트를 클리어해서 표현 카드를 모아 보세요!'); return; }
+  // 숙달 안 된 표현 우선
+  const pool = shuffleArr(cards).sort((a, b) => (a.masteryCount || 0) - (b.masteryCount || 0));
+  Training.mode = mode;
+  Training.queue = pool.slice(0, 8);
+  Training.idx = 0;
+  Training.ok = 0;
+  drillStep();
+}
+
+function drillFinish() {
+  const t = Training;
+  saveAll(); // masteryCount 반영
+  $('training-body').innerHTML = `
+    <div class="card" style="text-align:center">
+      <h3>${t.mode === 'quiz' ? '📖 단어 퀴즈' : t.mode === 'shadow' ? '🎧 섀도잉' : '🃏 플래시카드'} 결과</h3>
+      <div class="stars-big">${t.ok} / ${t.queue.length}</div>
+      <p class="ko-small">${t.ok === t.queue.length ? '완벽해요! 실전에서도 문제없겠는데요? 🎉' : t.ok >= t.queue.length / 2 ? '좋아요! 틀린 것만 한 번 더 돌면 완성이에요.' : '처음엔 다 그래요. 한 번 더 도전!'}</p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+        <button class="btn btn-primary btn-small" id="drill-again">한 번 더</button>
+        <button class="btn btn-secondary btn-small" id="drill-home">특훈 홈</button>
+      </div>
+    </div>`;
+  $('drill-again').addEventListener('click', () => startDrill(Training.mode));
+  $('drill-home').addEventListener('click', () => renderTraining());
+}
+
+function drillStep() {
+  const t = Training;
+  if (t.idx >= t.queue.length) { drillFinish(); return; }
+  const c = t.queue[t.idx];
+  const jpPlain = plain(c.jp);
+  $('training-body').innerHTML = `
+    <div class="card">
+      <div class="meta">${t.idx + 1} / ${t.queue.length} · ${t.mode === 'shadow' ? '🎧 듣고 그대로 따라 말하기' : '🃏 한국어를 보고 일본어로'}</div>
+      ${t.mode === 'shadow'
+        ? `<div class="jp-big" id="drill-jp" style="filter:blur(7px);user-select:none;margin-top:8px">${rubyHTML(c.jp)}</div>
+           <div class="ko-small">${esc(c.ko)}</div>
+           <div class="dialog-tools">
+             <button class="chip" id="drill-play">🔊 다시 듣기</button>
+             <button class="chip" id="drill-slow">🐢 천천히</button>
+             <button class="chip" id="drill-reveal">👀 문장 보기</button>
+           </div>`
+        : `<div class="jp-big" style="margin-top:8px">${esc(c.ko)}</div>
+           <div class="ko-small">『${esc(c.scene)}』에서 배운 표현</div>`}
+      <div class="input-row" style="margin-top:14px">
+        ${Voice.micAvailable() ? '<button class="btn-mic" id="drill-mic">🎤</button>' : ''}
+        <input id="drill-input" type="text" lang="ja" placeholder="日本語で…" autocomplete="off">
+        <button class="btn btn-primary" id="drill-check">확인</button>
+      </div>
+      <div id="drill-result" style="margin-top:12px"></div>
+    </div>`;
+  if (t.mode === 'shadow') Voice.speak(jpPlain, undefined, 'female');
+  if ($('drill-play')) $('drill-play').addEventListener('click', () => Voice.speak(jpPlain, undefined, 'female'));
+  if ($('drill-slow')) $('drill-slow').addEventListener('click', () => Voice.speak(jpPlain, 0.7, 'female'));
+  if ($('drill-reveal')) $('drill-reveal').addEventListener('click', () => { $('drill-jp').style.filter = 'none'; });
+  if ($('drill-mic')) $('drill-mic').addEventListener('click', () => handleMic($('drill-mic'), $('drill-input')));
+  const check = () => {
+    const input = $('drill-input').value.trim();
+    if (!input) return;
+    const sim = similarity(input, c.jp);
+    const res = $('drill-result');
+    if (sim >= 0.55) {
+      t.ok++;
+      c.masteryCount = Math.min(3, (c.masteryCount || 0) + 1);
+      res.innerHTML = `<div class="retry-ok">⭕ ${esc(jpPlain)}</div>` +
+        (c.masteryCount >= 3 ? '<div class="ko-small">✨ 이 표현은 이제 숙달!</div>' : '');
+    } else {
+      res.innerHTML = `<div class="ko-small">🤏 아까워요! 정답:</div><div class="jp-big">${rubyHTML(c.jp)}</div>`;
+      Voice.speak(jpPlain, undefined, 'female');
+    }
+    res.innerHTML += '<button class="btn btn-primary btn-small" id="drill-next" style="margin-top:10px">다음 ▶</button>';
+    $('drill-next').addEventListener('click', () => { t.idx++; drillStep(); });
+    $('drill-check').disabled = true;
+  };
+  $('drill-check').addEventListener('click', check);
+  $('drill-input').addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+}
+
+function startWordQuiz() {
+  const words = Store.get('words', []);
+  if (words.length < 4) return;
+  Training.mode = 'quiz';
+  Training.queue = shuffleArr(words).slice(0, 10);
+  Training.idx = 0;
+  Training.ok = 0;
+  quizStep();
+}
+
+function quizStep() {
+  const t = Training;
+  if (t.idx >= t.queue.length) { drillFinish(); return; }
+  const w = t.queue[t.idx];
+  // 보기: 정답 + 다른 단어 뜻 3개
+  const allMeans = Object.values(WORDS).filter(m => m !== w.m);
+  const options = shuffleArr([w.m].concat(shuffleArr(allMeans).slice(0, 3)));
+  $('training-body').innerHTML = `
+    <div class="card">
+      <div class="meta">${t.idx + 1} / ${t.queue.length} · 📖 이 단어의 뜻은?</div>
+      <div style="text-align:center;margin:14px 0">
+        <span class="wp-word" style="font-size:2rem">${esc(w.k)}</span>
+        <span class="wp-read">${esc(w.r || '')}</span>
+        <button class="chip" id="quiz-say">🔊</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${options.map(o => `<button class="btn btn-secondary btn-small quiz-opt" data-m="${esc(o)}" style="text-align:left">${esc(o)}</button>`).join('')}
+      </div>
+      <div id="quiz-result" style="margin-top:10px"></div>
+    </div>`;
+  $('quiz-say').addEventListener('click', () => Voice.speak(w.r || w.k, undefined, 'female'));
+  $('training-body').querySelectorAll('.quiz-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const correct = btn.dataset.m === w.m;
+      if (correct) t.ok++;
+      $('training-body').querySelectorAll('.quiz-opt').forEach(b => {
+        b.disabled = true;
+        if (b.dataset.m === w.m) { b.style.borderColor = 'var(--good)'; b.style.background = '#E3F0E9'; }
+        else if (b === btn) { b.style.borderColor = 'var(--bad)'; }
+      });
+      $('quiz-result').innerHTML = `${correct ? '<span class="retry-ok">⭕ 정답!</span>' : '<span class="ko-small">✖ 정답은 위 초록색!</span>'}
+        <button class="btn btn-primary btn-small" id="quiz-next" style="margin-left:8px">다음 ▶</button>`;
+      $('quiz-next').addEventListener('click', () => { t.idx++; quizStep(); });
+    });
+  });
+}
+
 /* ───────── 설정 ───────── */
 function fillVoiceSelect() {
   const sel = $('set-voice');
@@ -1237,15 +1402,37 @@ document.querySelectorAll('.seg').forEach(seg => {
   });
 });
 
-/* ── 탭 단어 사전 팝업: 화면의 <ruby> 한자 단어를 누르면 뜻 표시 ── */
+/* ── 탭 단어 사전 팝업: 화면의 <ruby> 한자 단어를 누르면 뜻 표시 + 단어장 자동 수집 ── */
 function showWordPop(base, reading) {
   const pop = $('word-pop');
   const mean = (typeof WORDS !== 'undefined' && WORDS[base]) || '';
   const h = hangulEnabled() && reading ? ' · ' + kanaToHangul(reading) : '';
+  // 내 단어장에 자동 수집
+  let savedNow = false;
+  if (mean) {
+    const ws = Store.get('words', []);
+    if (!ws.find(w => w.k === base)) {
+      ws.push({ k: base, r: reading, m: mean, date: todayStr() });
+      Store.set('words', ws);
+      savedNow = true;
+    }
+  }
   pop.innerHTML = `<span class="wp-word">${esc(base)}</span><span class="wp-read">${esc(reading)}${esc(h)}</span>` +
     `<button class="chip" id="wp-say">🔊 듣기</button>` +
+    (savedNow ? '<span class="wp-saved">📥 단어장 저장!</span>' : '') +
     `<div class="wp-mean">${mean ? esc(mean) : '이 단어의 뜻 정보가 아직 없어요.'}</div>`;
-  pop.classList.remove('hidden');
+  // 씬에서는 대화 영역 안에 인라인으로 붙여 다른 UI를 가리지 않는다
+  const inline = currentScreen === 'scene';
+  pop.classList.toggle('inline', inline);
+  if (inline) {
+    const area = document.querySelector('.dialog-area');
+    area.appendChild(pop);
+    pop.classList.remove('hidden');
+    area.scrollTop = area.scrollHeight;
+  } else {
+    $('app').appendChild(pop);
+    pop.classList.remove('hidden');
+  }
   $('wp-say').addEventListener('click', ev => {
     ev.stopPropagation();
     Voice.speak(reading || base, undefined, 'female');
