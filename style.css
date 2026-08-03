@@ -127,22 +127,62 @@ body {
 }
 .mode-badge.ai { background: #E3F0E9; color: var(--good); }
 
-.scene-stage { position: relative; height: 30%; min-height: 170px; overflow: hidden; flex-shrink: 0; }
+/* ── 퀘스트 진행 바 ── */
+.step-bar {
+  display: flex; gap: 4px; padding: 7px 12px;
+  background: var(--paper); border-bottom: 2px solid var(--line); flex-shrink: 0;
+}
+.step-dot { flex: 1; height: 5px; border-radius: 3px; background: var(--line); transition: background .3s; }
+.step-dot.done { background: var(--good); }
+.step-dot.now { background: var(--red); }
+
+.scene-stage {
+  position: relative; height: 150px; overflow: hidden; flex-shrink: 0;
+  transition: height .25s ease;
+}
+.scene-stage.collapsed { height: 0; }
 .scene-bg { position: absolute; inset: 0; }
 .scene-bg svg { width: 100%; height: 100%; display: block; }
-.npc-figure { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 108px; }
+.npc-figure { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 96px; }
 .npc-figure svg { width: 100%; display: block; }
-.scene-action {
-  position: absolute; top: 8px; left: 10px; right: 10px;
-  font-size: .74rem; color: var(--ink-soft); font-style: italic;
-  background: rgba(255,253,249,.9); border-radius: 10px; padding: 5px 10px;
+.stage-toggle {
+  position: absolute; top: 6px; right: 8px; z-index: 5;
+  width: 30px; height: 30px; border-radius: 50%; border: none;
+  background: rgba(255,253,249,.85); color: var(--ink-soft);
+  font-size: .9rem; cursor: pointer; line-height: 1;
+}
+.scene-stage.collapsed .stage-toggle { display: none; }
+.stage-show {
+  position: absolute; top: 4px; right: 10px; z-index: 6;
+  border: 1.5px solid var(--line); background: var(--paper); border-radius: 999px;
+  font-size: .66rem; padding: 3px 9px; color: var(--ink-soft); cursor: pointer; font-family: inherit;
 }
 
-/* ── 대화 영역 ── */
-.dialog-area { flex: 1; overflow-y: auto; padding: 10px 12px 4px; display: flex; flex-direction: column; gap: 8px; }
-.npc-dialog {
-  background: var(--paper); border: 2px solid var(--line); border-radius: 16px;
-  padding: 12px 14px; box-shadow: var(--shadow);
+/* ── 대화 로그 (채팅형) ── */
+.dialog-area {
+  flex: 1; overflow-y: auto; padding: 12px 12px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  scroll-behavior: smooth;
+}
+.msg { animation: slidein .28s ease; }
+@keyframes slidein { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+.msg-npc {
+  align-self: flex-start; max-width: 94%;
+  background: var(--paper); border: 2px solid var(--line);
+  border-radius: 16px 16px 16px 4px;
+  padding: 11px 13px; box-shadow: var(--shadow);
+}
+.msg-action {
+  align-self: center; text-align: center; max-width: 96%;
+  font-size: .74rem; color: var(--ink-soft); font-style: italic;
+  background: rgba(235,217,196,.35); border-radius: 10px; padding: 5px 11px;
+  animation: fadein .3s;
+}
+.msg-hint {
+  align-self: flex-start; max-width: 94%;
+  font-size: .8rem; color: #4A6B8A; white-space: pre-line;
+  background: #F2F7FA; border: 1.5px solid #D9E8F2; border-radius: 11px; padding: 8px 12px;
+  animation: fadein .3s;
 }
 .npc-name { font-size: .72rem; font-weight: 700; color: var(--red); margin-bottom: 5px; }
 .npc-line { font-size: 1.25rem; line-height: 1.9; }
@@ -171,12 +211,14 @@ body {
 .dialog-tools { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
 
 .player-bubble {
-  align-self: flex-end; max-width: 85%;
+  align-self: flex-end; max-width: 88%;
   background: #FBE9E9; border: 2px solid #F3CFCF; border-radius: 16px 16px 4px 16px;
-  padding: 9px 13px; font-size: 1rem;
+  padding: 10px 13px; font-size: 1.05rem; animation: slidein .28s ease;
 }
+.player-bubble .pb-tag { display: block; font-size: .62rem; color: var(--ink-soft); margin-bottom: 2px; }
 
 .correction-toast {
+  align-self: stretch;
   background: #FFF4DC; border: 2px solid var(--amber); border-radius: 13px;
   padding: 10px 12px; font-size: .82rem; cursor: pointer; animation: fadein .3s;
 }
@@ -185,13 +227,16 @@ body {
 .correction-toast .ct-better { font-weight: 700; }
 .correction-toast .ct-detail { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #E8CD90; font-size: .8rem; color: var(--ink); white-space: pre-wrap; }
 
-.quest-hint {
-  font-size: .8rem; color: var(--ink-soft);
-  background: #F2F7FA; border-radius: 11px; padding: 8px 12px;
-}
 .btn-next {
-  align-self: flex-end; padding: 11px 26px; animation: fadein .4s;
+  align-self: center; padding: 13px 34px; margin-top: 2px; animation: fadein .4s;
   box-shadow: 0 3px 0 var(--red-dark), var(--shadow);
+}
+/* 내 차례가 아닐 때 입력부를 비활성화해 오작동을 막는다 */
+.input-area { transition: opacity .2s; }
+.input-area.waiting { opacity: .38; pointer-events: none; }
+.turn-cue {
+  align-self: center; font-size: .7rem; color: var(--ink-soft);
+  background: #FBE9E9; border-radius: 999px; padding: 3px 12px; animation: fadein .4s;
 }
 
 /* 첫 실행 온보딩 */

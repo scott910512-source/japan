@@ -81,29 +81,15 @@
       <span id="mode-badge" class="mode-badge">스크립트</span>
     </header>
 
-    <div class="scene-stage">
+    <div id="step-bar" class="step-bar"></div>
+
+    <div class="scene-stage" id="scene-stage">
       <div id="scene-bg" class="scene-bg"></div>
       <div id="npc-figure" class="npc-figure"></div>
-      <div id="scene-action" class="scene-action hidden"></div>
+      <button id="btn-stage-toggle" class="stage-toggle" aria-label="배경 접기/펼치기">⌃</button>
     </div>
 
-    <div class="dialog-area">
-      <div id="npc-dialog" class="npc-dialog">
-        <div class="npc-name" id="npc-name"></div>
-        <div class="npc-line" id="npc-line"></div>
-        <div class="npc-furi hidden" id="npc-furi"></div>
-        <div class="npc-hangul hidden" id="npc-hangul"></div>
-        <div class="npc-ko hidden" id="npc-ko"></div>
-        <div class="dialog-tools">
-          <button id="btn-replay" class="chip" title="다시 듣기">🔊</button>
-          <button id="btn-slow" class="chip" title="천천히 듣기">🐢 ゆっくり</button>
-          <button id="btn-show-ko" class="chip">한국어 보기</button>
-        </div>
-      </div>
-      <div id="correction-toast" class="correction-toast hidden"></div>
-      <div id="quest-hint" class="quest-hint hidden"></div>
-      <button id="btn-next" class="btn btn-primary btn-next hidden">다음 ▶</button>
-    </div>
+    <div class="dialog-area" id="chat-log"></div>
 
     <div id="onboard" class="onboard hidden">
       <div class="onboard-card">

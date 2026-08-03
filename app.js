@@ -536,7 +536,10 @@ function startScene(chId) {
   $('scene-goal-text').textContent = ch.quest.title + ' — ' + ch.goal;
   updateModeBadge();
   setupInputUI();
+  clearChat();
+  setStageCollapsed(!!Store.get('stageCollapsed', 0));
   show('scene');
+  appendAction('🎬 ' + ch.quest.intro);
   presentStep();
   // 첫 실행이면 조작법 안내
   if (!Store.get('onboarded')) $('onboard').classList.remove('hidden');
@@ -588,6 +591,62 @@ function typeLine(el, jp, showFuri) {
 // 남성 목소리를 쓰는 NPC 역할 (클라우드 TTS의 역할별 자동 남/여)
 const MALE_NPCS = new Set(['officer', 'stationman', 'taxi', 'police']);
 
+/* ── 대화 로그: 모든 메시지가 시간 순서대로 쌓인다 ── */
+function chatEl() { return $('chat-log'); }
+function scrollChat() { const el = chatEl(); if (el) el.scrollTop = el.scrollHeight; }
+function clearChat() { const el = chatEl(); if (el) el.innerHTML = ''; }
+function appendMsg(cls, build) {
+  const d = document.createElement('div');
+  d.className = cls;
+  build(d);
+  chatEl().appendChild(d);
+  scrollChat();
+  return d;
+}
+function appendAction(text) {
+  if (!text) return null;
+  return appendMsg('msg-action', d => { d.textContent = text; });
+}
+function appendHint(text) {
+  return appendMsg('msg-hint', d => { d.textContent = text; });
+}
+// 최신 NPC 대사가 항상 #npc-line 등을 갖도록 이전 메시지의 id를 회수
+const NPC_IDS = ['npc-name', 'npc-line', 'npc-furi', 'npc-hangul', 'npc-ko'];
+function releaseNpcIds() {
+  NPC_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.removeAttribute('id'); });
+}
+// 내 차례 표시 (아닐 때 입력부 잠금 → 오작동 방지)
+function setTurn(playerTurn) {
+  const area = document.querySelector('.input-area');
+  if (area) area.classList.toggle('waiting', !playerTurn);
+}
+// 무대(배경) 접기 — 작은 화면에서 대화에 집중
+function setStageCollapsed(collapsed) {
+  const stage = $('scene-stage');
+  stage.classList.toggle('collapsed', collapsed);
+  Store.set('stageCollapsed', collapsed ? 1 : 0);
+  let show = document.getElementById('stage-show');
+  if (collapsed) {
+    if (!show) {
+      show = document.createElement('button');
+      show.id = 'stage-show';
+      show.className = 'stage-show';
+      show.textContent = '🖼 배경 보기';
+      show.addEventListener('click', () => setStageCollapsed(false));
+      $('screen-scene').insertBefore(show, stage);
+    }
+  } else if (show) {
+    show.remove();
+  }
+}
+
+function renderStepBar() {
+  const bar = $('step-bar');
+  if (!bar) return;
+  bar.innerHTML = Scene.steps.map((s, i) =>
+    `<span class="step-dot ${i < Scene.idx ? 'done' : i === Scene.idx ? 'now' : ''}"></span>`).join('');
+}
+
 // NPC 대사 표시 + TTS
 function npcSay(step, lineObj, mood, actionText) {
   const ch = currentChapter();
@@ -595,11 +654,22 @@ function npcSay(step, lineObj, mood, actionText) {
   $('scene-bg').innerHTML = sceneBgSVG(ch.bg, step.bgVariant);
   $('npc-figure').innerHTML = npcSVG(step.npc, mood || 'normal');
   const act = actionText != null ? actionText : step.action;
-  $('scene-action').classList.toggle('hidden', !act);
-  if (act) $('scene-action').textContent = act;
+  appendAction(act);
 
-  $('npc-name').textContent = npc.role;
-  const jpEl = $('npc-line');
+  releaseNpcIds();
+  const wrap = appendMsg('msg msg-npc', d => {
+    d.innerHTML =
+      `<div class="npc-name" id="npc-name">${esc(npc.role)}</div>` +
+      `<div class="npc-line" id="npc-line"></div>` +
+      `<div class="npc-furi hidden" id="npc-furi"></div>` +
+      `<div class="npc-hangul hidden" id="npc-hangul"></div>` +
+      `<div class="npc-ko hidden" id="npc-ko"></div>` +
+      `<div class="dialog-tools">` +
+      `<button class="chip m-play" title="다시 듣기">🔊</button>` +
+      `<button class="chip m-slow" title="천천히">🐢 ゆっくり</button>` +
+      `<button class="chip m-ko">한국어 보기</button></div>`;
+  });
+  const jpEl = wrap.querySelector('.npc-line');
   const showFuri = settings.furigana === 'on' || (settings.furigana === 'auto' && settings.level <= 2);
   typeLine(jpEl, showFuri ? lineObj.jp : plain(lineObj.jp), showFuri);
   // AI 모드: 후리가나가 별도 문자열로 오면 대괄호 표기가 없으므로 작은 줄로 표시
@@ -619,20 +689,31 @@ function npcSay(step, lineObj, mood, actionText) {
   }
   Scene.lastNpc = lineObj;
 
-  const koEl = $('npc-ko');
+  const koEl = wrap.querySelector('.npc-ko');
   const alwaysKo = settings.subtitle === 'on' || (settings.subtitle === 'auto' && settings.level === 1);
   koEl.textContent = lineObj.ko || '';
   koEl.classList.toggle('hidden', !alwaysKo);
-  const koBtnVisible = !alwaysKo && settings.subtitle !== 'off' && (settings.level <= 3 || settings.subtitle === 'on');
-  $('btn-show-ko').classList.toggle('hidden', !koBtnVisible || !lineObj.ko);
+  const koBtn = wrap.querySelector('.m-ko');
+  const koBtnVisible = settings.subtitle !== 'off' && lineObj.ko;
+  koBtn.classList.toggle('hidden', !koBtnVisible);
+  koBtn.textContent = alwaysKo ? '한국어 숨기기' : '한국어 보기';
 
   Scene.log.push({ role: 'npc', text: plain(lineObj.jp) });
-  // 대사 표시와 동시에 TTS 재생 (§1.5)
   const jaText = plain(lineObj.jp).replace(/（[^）]*）/g, '');
   // L1은 자동으로 10% 느리게 (초보 배려)
   const npcRate = (Number(settings.rate) || 1) * (settings.level === 1 ? 0.9 : 1);
-  if (jaText && !/^\(/.test(jaText)) Voice.speak(jaText, npcRate, MALE_NPCS.has(step.npc) ? 'male' : 'female');
-  $('quest-hint').classList.add('hidden');
+  const gender = MALE_NPCS.has(step.npc) ? 'male' : 'female';
+  // 메시지별 도구: 이 대사만 다시 듣기·천천히·번역 (과거 메시지도 언제든 다시 들을 수 있다)
+  wrap.querySelector('.m-play').addEventListener('click', () => Voice.speak(jaText, npcRate, gender));
+  wrap.querySelector('.m-slow').addEventListener('click', () => Voice.speak(jaText, 0.65, gender));
+  koBtn.addEventListener('click', () => {
+    const nowHidden = koEl.classList.toggle('hidden');
+    koBtn.textContent = nowHidden ? '한국어 보기' : '한국어 숨기기';
+    if (!nowHidden && settings.level >= 3) { Scene.koViews++; if (Scene.koViews === 1) Scene.hintsUsed++; }
+  });
+  // 대사 표시와 동시에 TTS 재생 (§1.5)
+  if (jaText && !/^\(/.test(jaText)) Voice.speak(jaText, npcRate, gender);
+  return wrap;
 }
 
 function presentStep() {
@@ -640,9 +721,13 @@ function presentStep() {
   if (!step) { endScene(); return; }
   Scene.failCount = 0;
   hideNextButton();
+  renderStepBar();
   npcSay(step, step.ask, 'normal');
   if (Scene.mode === 'ai') Scene.history.push({ role: 'assistant', content: plain(step.ask.jp) });
   renderChunks(step);
+  setTurn(true);
+  appendMsg('turn-cue', d => { d.textContent = '👇 이제 당신 차례예요'; });
+  $('player-input').focus({ preventScroll: true });
 }
 
 /* ── L1 문장 조합 UI ── */
@@ -673,11 +758,11 @@ async function micFinish(btn, inputEl, onText) {
   inputEl.placeholder = '認識中…';
   try {
     const text = await Voice.recStop();
-    inputEl.placeholder = ph;
+    inputEl.placeholder = ph; // 플레이스홀더는 항상 원래대로 복구
     if (text) {
       if (onText) onText(text); else inputEl.value = text;
-    } else {
-      inputEl.placeholder = '🙉 못 알아들었어요 — 🎤를 눌러 다시!';
+    } else if (currentScreen === 'scene') {
+      appendHint('🙉 소리가 잘 안 들렸어요. 🎤를 다시 눌러 조금 크게 말해 보세요.');
     }
   } catch (e) {
     inputEl.placeholder = ph;
@@ -692,10 +777,11 @@ async function handleMic(btn, inputEl, onText) {
     } else {
       try {
         Voice.sttHints = buildSttHints();
-        inputEl.dataset.ph = inputEl.placeholder;
+        // 원래 플레이스홀더는 최초 1회만 저장 (안내 문구가 덮어써지지 않도록)
+        if (!inputEl.dataset.ph) inputEl.dataset.ph = inputEl.placeholder;
         await Voice.recStart(() => micFinish(btn, inputEl, onText)); // 침묵 3초 → 자동 종료·인식
         btn.classList.add('rec');
-        inputEl.placeholder = '🎤 말하세요… 말을 멈추면 자동 인식돼요';
+        inputEl.placeholder = '🎤 말하세요… 멈추면 자동 인식';
       } catch (e) {
         alert('마이크를 사용할 수 없어요: ' + e.message);
       }
@@ -840,25 +926,29 @@ function addMistake(corr) {
 }
 
 function showCorrectionToast(corr) {
-  const el = $('correction-toast');
-  el.innerHTML = `<div class="ct-head">✏️ 이렇게 말하면 더 잘 통해요 (탭하면 자세히)</div>
-    <div><span class="ct-mine">${esc(plain(corr.mine))}</span></div>
-    <div class="ct-better">→ ${rubyHTML(corr.better)}</div>
-    <div class="ct-detail hidden">${esc(corr.ko || '')}\n${esc(corr.reason || '')}${corr.simple ? '\n더 쉽게: ' + esc(plain(corr.simple)) : ''}</div>`;
-  el.classList.remove('hidden');
-  el.onclick = () => el.querySelector('.ct-detail').classList.toggle('hidden');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.querySelector('.ct-detail').classList.contains('hidden') && el.classList.add('hidden'); }, 8000);
+  const el = appendMsg('correction-toast', d => {
+    d.innerHTML = `<div class="ct-head">✏️ 이렇게 말하면 더 잘 통해요 (탭하면 자세히)</div>
+      <div><span class="ct-mine">${esc(plain(corr.mine))}</span></div>
+      <div class="ct-better">→ ${rubyHTML(corr.better)}</div>
+      <div class="ct-detail hidden">${esc(corr.ko || '')}\n${esc(corr.reason || '')}${corr.simple ? '\n더 쉽게: ' + esc(plain(corr.simple)) : ''}</div>`;
+  });
+  el.addEventListener('click', e => {
+    if (e.target.closest('ruby')) return; // 단어 사전 탭은 그대로
+    el.querySelector('.ct-detail').classList.toggle('hidden');
+  });
 }
 
-function showPlayerBubble(text) {
-  const area = document.querySelector('.dialog-area');
-  const old = area.querySelector('.player-bubble');
-  if (old) old.remove();
-  const div = document.createElement('div');
-  div.className = 'player-bubble'; div.textContent = text;
-  area.appendChild(div);
-  area.scrollTop = area.scrollHeight;
+// 내 발화는 항상 대화 로그의 그 시점에 남는다 (지워지지 않음)
+function showPlayerBubble(text, viaVoice) {
+  appendMsg('player-bubble', d => {
+    if (viaVoice) {
+      const tag = document.createElement('span');
+      tag.className = 'pb-tag';
+      tag.textContent = '🎤 내가 말한 것';
+      d.appendChild(tag);
+    }
+    d.appendChild(document.createTextNode(text));
+  });
 }
 
 /* ── 발음 피드백: 음성 입력이 빗나갔을 때 무엇이 어떻게 들렸는지 알려준다 ── */
@@ -884,7 +974,9 @@ async function handleInput(raw, fromVoice) {
   Scene.lastFromChunks = chunkSeq.length > 0 && input === chunkSeq.map(b => b._text).join('');
   $('player-input').value = '';
   clearChunkSelection(false);
-  showPlayerBubble(input);
+  hideNextButton();
+  showPlayerBubble(input, fromVoice);
+  setTurn(false); // 답변 처리 중에는 입력 잠금
   Scene.log.push({ role: 'player', text: input });
   trackExpressionUse(input);
 
@@ -927,9 +1019,8 @@ function handleScript(input) {
     Scene.retries++; Scene.failCount++;
     if (Scene.failCount === 1) {
       npcSay(step, { jp: '日本語[にほんご]で、ゆっくりで大丈夫[だいじょうぶ]ですよ！', ko: '일본어로, 천천히 말해도 괜찮아요!' }, 'normal', null);
-      const qh = $('quest-hint');
-      qh.textContent = '💡 정답은 없어요. 아는 일본어 단어로 자유롭게! (예: ' + (step.model ? plain(step.model.jp) : '') + ')';
-      qh.classList.remove('hidden');
+      appendHint('💡 정답은 없어요. 아는 일본어 단어로 자유롭게! (예: ' + (step.model ? plain(step.model.jp) : '') + ')');
+      setTurn(true);
     } else {
       npcSay(step, step.ok, 'normal', '(상대가 미소 지으며 고개를 끄덕였다)');
       advanceStep();
@@ -938,12 +1029,10 @@ function handleScript(input) {
     Scene.retries++; Scene.failCount++;
     if (Scene.failCount === 1) {
       npcSay(step, step.retry || { jp: 'すみません、もう一度[いちど]いいですか？', ko: '죄송해요, 한 번 더요?' }, 'confused', null);
-      const qh = $('quest-hint');
-      qh.textContent = Scene.lastFromVoice
+      appendHint(Scene.lastFromVoice
         ? voiceFeedback(step, input)
-        : '💡 목표: ' + (step.model ? step.model.ko : '');
-      qh.style.whiteSpace = 'pre-line';
-      qh.classList.remove('hidden');
+        : '💡 목표: ' + (step.model ? step.model.ko : ''));
+      setTurn(true);
     } else if (Scene.failCount === 2) {
       // 2회 실패 → major 교정 카드 + 오답 노트 저장
       addMistake({
@@ -952,6 +1041,7 @@ function handleScript(input) {
       });
       showCorrectionToast({ mine: input, better: step.model.jp, ko: step.model.ko, reason: step.reason, simple: '' });
       npcSay(step, step.retry || step.ask, 'confused', null);
+      setTurn(true);
     } else {
       // 3회째 → 의미가 통한 것으로 하고 대화를 잇는다 (게임은 멈추지 않는다)
       npcSay(step, step.ok, 'normal', '(상대가 상황을 짐작하고 이해해 주었다)');
@@ -962,25 +1052,24 @@ function handleScript(input) {
 
 /* 다음 스텝은 자동으로 넘어가지 않는다 — NPC의 말을 다 듣고 「다음 ▶」을 눌러야 진행 */
 function showNextButton(label, cb) {
-  const b = $('btn-next');
+  hideNextButton();
+  setTurn(false); // 다음을 누르기 전까지 입력부 잠금
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary btn-next';
+  b.id = 'btn-next';
   b.textContent = label;
-  b.classList.remove('hidden');
-  b.onclick = () => {
-    b.classList.add('hidden');
-    b.onclick = null;
-    cb();
-  };
-  const area = document.querySelector('.dialog-area');
-  area.scrollTop = area.scrollHeight;
+  b.addEventListener('click', () => { b.remove(); cb(); });
+  chatEl().appendChild(b);
+  scrollChat();
 }
 function hideNextButton() {
   const b = $('btn-next');
-  b.classList.add('hidden');
-  b.onclick = null;
+  if (b) b.remove();
 }
 function advanceStep() {
   Scene.idx++;
   Scene.transitioning = true; // 다음을 누르기 전에는 입력을 받지 않는다
+  renderStepBar();
   const isLast = Scene.idx >= Scene.steps.length;
   showNextButton(isLast ? '🏁 결과 보기' : '다음 ▶', () => {
     Scene.transitioning = false;
@@ -1035,22 +1124,21 @@ async function handleAI(input) {
     if (resp.profileUpdate && typeof resp.profileUpdate === 'object') {
       Object.assign(profile, resp.profileUpdate); saveAll();
     }
-    if (resp.nextHint) {
-      const qh = $('quest-hint');
-      qh.textContent = '💡 ' + resp.nextHint;
-      qh.classList.remove('hidden');
-    }
+    if (resp.nextHint) appendHint('💡 ' + resp.nextHint);
     if (resp.questStepClear) {
       if (step && step.reviewOf) { step.reviewOf.retried = true; saveAll(); }
       if (step && step.profileKey && (step.free || step.profileFromAnswer) && !resp.profileUpdate) { profile[step.profileKey] = extractProfileValue(step.profileKey, input); saveAll(); }
       Scene.idx++;
       Scene.aiCleared++;
+      renderStepBar();
       renderChunks(curStep()); // L1: 다음 스텝의 문장 조합 카드로 갱신
     }
     if (Scene.idx >= Scene.steps.length) Scene.aiTurnsAfterClear++;
     if (resp.sceneEnd || Scene.aiTurnsAfterClear > 5) {
       Scene.transitioning = true;
       showNextButton('🏁 결과 보기', () => { Scene.transitioning = false; endScene(); });
+    } else {
+      setTurn(true); // AI 모드는 같은 대화 안에서 계속 이어진다
     }
     return true;
   } catch (e) {
@@ -1577,13 +1665,8 @@ function bind() {
   $('btn-chunk-clear').addEventListener('click', () => clearChunkSelection(true));
 
   // 대화 도구
-  $('btn-replay').addEventListener('click', () => Voice.lastText && Voice.speak(Voice.lastText));
-  $('btn-slow').addEventListener('click', () => Voice.slow());
-  $('btn-show-ko').addEventListener('click', () => {
-    const koEl = $('npc-ko');
-    koEl.classList.toggle('hidden');
-    if (!koEl.classList.contains('hidden') && settings.level >= 3) { Scene.koViews++; if (Scene.koViews === 1) Scene.hintsUsed++; }
-  });
+  // 무대 접기/펼치기 (대화에 집중하고 싶을 때)
+  $('btn-stage-toggle').addEventListener('click', () => setStageCollapsed(true));
 
   // 보조 버튼 (§2)
   $('helper-row').addEventListener('click', e => {
@@ -1599,26 +1682,28 @@ function bind() {
         Scene.log.push({ role: 'player', text: 'もう少しゆっくり話してください' });
         break;
       case 'meaning': {
-        $('npc-ko').classList.remove('hidden');
+        const koEl = $('npc-ko');
+        if (koEl) {
+          koEl.classList.remove('hidden');
+          const btn = koEl.parentElement.querySelector('.m-ko');
+          if (btn) btn.textContent = '한국어 숨기기';
+          scrollChat();
+        }
         Scene.log.push({ role: 'player', text: 'どういう意味ですか？' });
         if (settings.level >= 3) Scene.hintsUsed++;
         break;
       }
       case 'keyword': {
-        if (!step) break;
-        const qh = $('quest-hint');
-        qh.textContent = '🔑 핵심 단어: ' + (step.hintWord || plain(step.model.jp).slice(0, 6));
-        qh.classList.remove('hidden');
+        if (!step || !step.model) break;
+        appendHint('🔑 핵심 단어: ' + (step.hintWord || plain(step.model.jp).slice(0, 6)));
         Scene.hintsUsed++;
         break;
       }
       case 'korean': {
         if (!step) break;
-        if (Scene.koHintUsed) { alert('한국어 힌트는 장면당 1회예요!'); break; }
+        if (Scene.koHintUsed) { appendHint('🇰🇷 한국어 힌트는 장면당 1회예요! 이미 사용했어요.'); break; }
         Scene.koHintUsed = true; Scene.hintsUsed++;
-        const qh = $('quest-hint');
-        qh.textContent = '🇰🇷 ' + (step.hintKo || (step.model ? step.model.ko : ''));
-        qh.classList.remove('hidden');
+        appendHint('🇰🇷 ' + (step.hintKo || (step.model ? step.model.ko : '')));
         break;
       }
     }
