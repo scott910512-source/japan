@@ -149,7 +149,44 @@ const Voice = {
     this.pick();
     speechSynthesis.onvoiceschanged = () => { this.pick(); fillVoiceSelect(); };
   },
-  audio: null, cloudCache: new Map(),
+  audioEl: null, unlocked: false, cloudCache: new Map(),
+  /* iOS/모바일 브라우저는 사용자 제스처 없이 오디오 재생을 막는다.
+   * 매번 new Audio()를 만들면 음성 인식 후 자동 응답 재생이 차단되므로,
+   * 오디오 엘리먼트 하나를 재사용하고 첫 탭에서 무음으로 한 번 재생해 잠금을 푼다. */
+  SILENT_WAV: 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQIAAAAAAA==',
+  getAudioEl() {
+    if (!this.audioEl) {
+      const a = new Audio();
+      a.setAttribute('playsinline', '');
+      a.preload = 'auto';
+      this.audioEl = a;
+    }
+    return this.audioEl;
+  },
+  ttsUnlocked: false,
+  unlock() {
+    // 기기 음성(speechSynthesis)은 제스처 1회로 충분 — 재시도하지 않는다
+    if (!this.ttsUnlocked) {
+      this.ttsUnlocked = true;
+      try {
+        if ('speechSynthesis' in window) {
+          const u = new SpeechSynthesisUtterance(' ');
+          u.volume = 0;
+          speechSynthesis.speak(u);
+        }
+      } catch (e) { /* 무시 */ }
+    }
+    if (this.unlocked) return;
+    this.unlocked = true;
+    try {
+      const a = this.getAudioEl();
+      a.src = this.SILENT_WAV;
+      const p = a.play();
+      // AbortError는 우리가 곧바로 다른 소리를 재생하며 끊은 것이므로 언락 성공으로 본다.
+      // NotAllowedError만 실제 자동 재생 차단 → 다음 탭에서 재시도.
+      if (p && p.catch) p.catch(e => { if (e && e.name === 'NotAllowedError') this.unlocked = false; });
+    } catch (e) { this.unlocked = false; }
+  },
   // 구글 클라우드 보이스: Chirp 3 HD가 최신·최고 자연스러움
   DEFAULT_GVOICE: 'ja-JP-Chirp3-HD-Aoede',
   // 여성 보이스 → 같은 세대의 남성 보이스 짝 (NPC 역할별 자동 남/여)
@@ -168,12 +205,13 @@ const Voice = {
     return base;
   },
   stop() {
-    if (this.audio) { try { this.audio.pause(); } catch (e) {} this.audio = null; }
+    if (this.audioEl) { try { this.audioEl.pause(); } catch (e) {} }
     if ('speechSynthesis' in window) speechSynthesis.cancel();
   },
   lastGender: '',
+  // 재생 성공 여부를 Promise로 알려준다 (자동 재생이 막히면 UI에서 "탭해서 듣기"를 안내)
   speak(text, rate, gender) {
-    if (!text) return;
+    if (!text) return Promise.resolve();
     this.lastText = text;
     this.lastGender = gender || this.lastGender || '';
     this.stop();
@@ -181,20 +219,27 @@ const Voice = {
     const clean = text.replace(/……|…/g, '、').replace(/[（）()]/g, ' ');
     const r = rate || Number(settings.rate) || 1;
     if (settings.gttsKey) {
-      this.cloudSpeak(clean, r, this.gvoiceFor(gender || this.lastGender)).catch(() => this.localSpeak(clean, r)); // 실패 시 기기 음성 폴백
-    } else {
-      this.localSpeak(clean, r);
+      return this.cloudSpeak(clean, r, this.gvoiceFor(gender || this.lastGender))
+        .catch(() => this.localSpeak(clean, r)); // 실패 시 기기 음성 폴백
     }
+    return this.localSpeak(clean, r);
   },
   localSpeak(clean, r) {
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window)) return Promise.reject(new Error('no tts'));
     this.pick();
-    const u = new SpeechSynthesisUtterance(clean);
-    u.lang = 'ja-JP';
-    try { if (this.jaVoice) u.voice = this.jaVoice; } catch (e) { /* 보이스 목록 변동 시 무시 */ }
-    u.rate = r;
-    u.pitch = 1;
-    try { speechSynthesis.speak(u); } catch (e) { /* TTS 실패가 게임을 멈추지 않게 */ }
+    return new Promise((resolve, reject) => {
+      const u = new SpeechSynthesisUtterance(clean);
+      u.lang = 'ja-JP';
+      try { if (this.jaVoice) u.voice = this.jaVoice; } catch (e) { /* 보이스 목록 변동 시 무시 */ }
+      u.rate = r;
+      u.pitch = 1;
+      u.onstart = () => resolve();
+      u.onend = () => resolve();
+      u.onerror = () => reject(new Error('tts blocked'));
+      try { speechSynthesis.speak(u); } catch (e) { reject(e); }
+      // 브라우저가 이벤트를 주지 않는 경우를 대비한 낙관적 처리
+      setTimeout(resolve, 900);
+    });
   },
   // Google Cloud TTS: 같은 문장은 메모리 캐시로 재사용해 무료 한도 절약
   async gttsRequest(clean, r, voiceName, withRate) {
@@ -234,8 +279,9 @@ const Voice = {
       if (this.cloudCache.size > 300) this.cloudCache.clear();
       this.cloudCache.set(key, b64);
     }
-    this.audio = new Audio('data:audio/mp3;base64,' + b64);
-    await this.audio.play();
+    const a = this.getAudioEl(); // 언락된 엘리먼트 재사용 → 자동 재생 차단 회피
+    a.src = 'data:audio/mp3;base64,' + b64;
+    await a.play();
   },
   slow() { if (this.lastText) this.speak(this.lastText, 0.7); },
   /* ── 클라우드 STT (Google Speech-to-Text, ja-JP) ──
@@ -713,7 +759,14 @@ function npcSay(step, lineObj, mood, actionText) {
     if (!nowHidden && settings.level >= 3) { Scene.koViews++; if (Scene.koViews === 1) Scene.hintsUsed++; }
   });
   // 대사 표시와 동시에 TTS 재생 (§1.5)
-  if (jaText && !/^\(/.test(jaText)) Voice.speak(jaText, npcRate, gender);
+  if (jaText && !/^\(/.test(jaText)) {
+    const p = Voice.speak(jaText, npcRate, gender);
+    if (p && p.catch) p.catch(() => {
+      // 브라우저가 자동 재생을 막은 경우 — 직접 탭해서 들을 수 있게 안내
+      const play = wrap.querySelector('.m-play');
+      if (play) { play.classList.add('needs-tap'); play.textContent = '🔊 탭해서 듣기'; }
+    });
+  }
   return wrap;
 }
 
@@ -728,7 +781,7 @@ function presentStep() {
   applyInputMode();
   setTurn(true);
   appendMsg('turn-cue', d => { d.textContent = '👇 이제 당신 차례예요'; });
-  $('player-input').focus({ preventScroll: true });
+  // 모바일에서 키보드가 저절로 올라와 화면을 가리지 않도록 자동 포커스는 하지 않는다
 }
 
 /* ── 📋 보기(선택지) 입력 — L1 (기획서 §7: L1 입력 = 선택지·문장 조합) ──
@@ -1989,6 +2042,10 @@ function setupPWA() {
 /* ───────── 부팅 ───────── */
 window.addEventListener('DOMContentLoaded', () => {
   Voice.init();
+  // 사용자 제스처에서 오디오 잠금 해제 (iOS 자동 재생 정책 대응).
+  // 한 번 실패하면 unlocked가 false로 되돌아가므로 리스너를 유지해 다음 탭에서 재시도한다.
+  ['pointerdown', 'touchstart', 'click', 'keydown'].forEach(ev =>
+    document.addEventListener(ev, () => Voice.unlock(), { capture: true }));
   bind();
   setupPWA();
   show('title');
