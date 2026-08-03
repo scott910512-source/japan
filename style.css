@@ -147,6 +147,20 @@ body {
 .npc-name { font-size: .72rem; font-weight: 700; color: var(--red); margin-bottom: 5px; }
 .npc-line { font-size: 1.25rem; line-height: 1.9; }
 .npc-line rt { font-size: .55em; color: var(--ink-soft); }
+/* 한자 단어는 탭해서 뜻을 볼 수 있다 */
+.npc-line ruby, .card ruby, .npc-ko ruby {
+  cursor: pointer;
+  border-bottom: 1.5px dashed rgba(122, 155, 184, .55);
+}
+.npc-line ruby:active, .card ruby:active { background: #FBE9E9; border-radius: 4px; }
+.word-pop {
+  position: absolute; left: 14px; right: 14px; bottom: 120px; z-index: 60;
+  background: #EEF5FB; border: 2px solid var(--sky); border-radius: 14px;
+  padding: 12px 14px; box-shadow: var(--shadow); animation: fadein .18s;
+}
+.word-pop .wp-word { font-size: 1.35rem; font-weight: 700; }
+.word-pop .wp-read { color: var(--ink-soft); font-size: .9rem; margin: 0 8px 0 7px; }
+.word-pop .wp-mean { margin-top: 7px; font-size: .9rem; line-height: 1.45; }
 .npc-line .kw { color: var(--red); font-weight: 700; }
 .npc-furi { font-size: .74rem; color: var(--ink-soft); margin-top: 2px; }
 .npc-hangul { font-size: .8rem; color: #7A9BB8; margin-top: 4px; }

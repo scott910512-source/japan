@@ -15,7 +15,7 @@ const Store = {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '', gttsKey: '', gttsVoice: '', gttsGender: 'auto', hangul: 'auto' });
+let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '', gttsKey: '', gttsVoice: '', gttsGender: 'auto', hangul: 'off' });
 let progress = Store.get('progress', { cleared: {}, dayLog: { date: todayStr(), scenes: [], expressions: [] } });
 let profile  = Store.get('profile', {});
 let mistakes = Store.get('mistakes', []);
@@ -98,7 +98,8 @@ function lineKana(jp) {
   return String(jp == null ? '' : jp).replace(/([一-龯々〆ヵヶ〇]+)\[([^\]]+)\]/g, '$2\u0000');
 }
 function hangulEnabled() {
-  return settings.hangul === 'on' || ((settings.hangul || 'auto') === 'auto' && settings.level === 1);
+  // 기본은 끄기 — 가나를 읽을 줄 아는 학습자가 다수. 설정에서 'L1 자동' 또는 '항상'을 선택하면 표시
+  return settings.hangul === 'on' || (settings.hangul === 'auto' && settings.level === 1);
 }
 
 // 바이그램 유사도 (다시 말하기 판정용)
@@ -1223,7 +1224,7 @@ function fillSettings() {
   seg('set-furigana', settings.furigana);
   seg('set-subtitle', settings.subtitle);
   seg('set-rate', settings.rate);
-  seg('set-hangul', settings.hangul || 'auto');
+  seg('set-hangul', settings.hangul || 'off');
   seg('set-gender', settings.gttsGender || 'auto');
   $('set-gvoice').value = settings.gttsVoice || Voice.DEFAULT_GVOICE;
   fillVoiceSelect();
@@ -1236,8 +1237,37 @@ document.querySelectorAll('.seg').forEach(seg => {
   });
 });
 
+/* ── 탭 단어 사전 팝업: 화면의 <ruby> 한자 단어를 누르면 뜻 표시 ── */
+function showWordPop(base, reading) {
+  const pop = $('word-pop');
+  const mean = (typeof WORDS !== 'undefined' && WORDS[base]) || '';
+  const h = hangulEnabled() && reading ? ' · ' + kanaToHangul(reading) : '';
+  pop.innerHTML = `<span class="wp-word">${esc(base)}</span><span class="wp-read">${esc(reading)}${esc(h)}</span>` +
+    `<button class="chip" id="wp-say">🔊 듣기</button>` +
+    `<div class="wp-mean">${mean ? esc(mean) : '이 단어의 뜻 정보가 아직 없어요.'}</div>`;
+  pop.classList.remove('hidden');
+  $('wp-say').addEventListener('click', ev => {
+    ev.stopPropagation();
+    Voice.speak(reading || base, undefined, 'female');
+  });
+  clearTimeout(pop._t);
+  pop._t = setTimeout(() => pop.classList.add('hidden'), 8000);
+}
+
 /* ───────── 이벤트 바인딩 ───────── */
 function bind() {
+  // 한자 단어 탭 → 사전 팝업 (조합 카드 안의 루비는 제외 — 카드는 선택 동작)
+  document.addEventListener('click', e => {
+    const pop = $('word-pop');
+    const r = e.target.closest ? e.target.closest('ruby') : null;
+    if (r && !e.target.closest('.chunk') && !e.target.closest('#word-pop')) {
+      const rt = r.querySelector('rt');
+      const reading = rt ? rt.textContent : '';
+      const base = Array.from(r.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join('');
+      if (base) { showWordPop(base, reading); return; }
+    }
+    if (!e.target.closest('#word-pop')) pop.classList.add('hidden');
+  });
   $('btn-start').addEventListener('click', () => {
     if (Object.keys(progress.cleared).length && !confirm('처음부터 시작하면 지도 진행 상황은 유지되고, 챕터 1부터 다시 플레이합니다. 계속할까요?')) return;
     startScene('ch1');
@@ -1349,7 +1379,7 @@ function bind() {
     settings.furigana = segVal('set-furigana') || settings.furigana;
     settings.subtitle = segVal('set-subtitle') || settings.subtitle;
     settings.rate = segVal('set-rate') || settings.rate;
-    settings.hangul = segVal('set-hangul') || settings.hangul || 'auto';
+    settings.hangul = segVal('set-hangul') || settings.hangul || 'off';
     settings.name = $('set-name').value.trim() || settings.name;
     settings.apiKey = $('set-apikey').value.trim();
     settings.model = $('set-model').value.trim();
