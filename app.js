@@ -15,7 +15,7 @@ const Store = {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '', gttsKey: '' });
+let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '', gttsKey: '', gttsVoice: '', gttsGender: 'auto' });
 let progress = Store.get('progress', { cleared: {}, dayLog: { date: todayStr(), scenes: [], expressions: [] } });
 let profile  = Store.get('profile', {});
 let mistakes = Store.get('mistakes', []);
@@ -87,19 +87,38 @@ const Voice = {
     speechSynthesis.onvoiceschanged = () => { this.pick(); fillVoiceSelect(); };
   },
   audio: null, cloudCache: new Map(),
+  // 구글 클라우드 보이스: Chirp 3 HD가 최신·최고 자연스러움
+  DEFAULT_GVOICE: 'ja-JP-Chirp3-HD-Aoede',
+  // 여성 보이스 → 같은 세대의 남성 보이스 짝 (NPC 역할별 자동 남/여)
+  MALE_PAIR: {
+    'ja-JP-Chirp3-HD-Aoede': 'ja-JP-Chirp3-HD-Charon',
+    'ja-JP-Chirp3-HD-Leda': 'ja-JP-Chirp3-HD-Fenrir',
+    'ja-JP-Chirp3-HD-Kore': 'ja-JP-Chirp3-HD-Orus',
+    'ja-JP-Chirp3-HD-Zephyr': 'ja-JP-Chirp3-HD-Puck',
+    'ja-JP-Neural2-B': 'ja-JP-Neural2-C',
+    'ja-JP-Wavenet-A': 'ja-JP-Wavenet-C',
+    'ja-JP-Wavenet-B': 'ja-JP-Wavenet-D'
+  },
+  gvoiceFor(gender) {
+    const base = settings.gttsVoice || this.DEFAULT_GVOICE;
+    if (gender === 'male' && settings.gttsGender !== 'fixed') return this.MALE_PAIR[base] || base;
+    return base;
+  },
   stop() {
     if (this.audio) { try { this.audio.pause(); } catch (e) {} this.audio = null; }
     if ('speechSynthesis' in window) speechSynthesis.cancel();
   },
-  speak(text, rate) {
+  lastGender: '',
+  speak(text, rate, gender) {
     if (!text) return;
     this.lastText = text;
+    this.lastGender = gender || this.lastGender || '';
     this.stop();
     // 억양이 살도록 말줄임표·괄호를 쉼표/무음으로 정리
     const clean = text.replace(/……|…/g, '、').replace(/[（）()]/g, ' ');
     const r = rate || Number(settings.rate) || 1;
     if (settings.gttsKey) {
-      this.cloudSpeak(clean, r).catch(() => this.localSpeak(clean, r)); // 실패 시 기기 음성 폴백
+      this.cloudSpeak(clean, r, this.gvoiceFor(gender || this.lastGender)).catch(() => this.localSpeak(clean, r)); // 실패 시 기기 음성 폴백
     } else {
       this.localSpeak(clean, r);
     }
@@ -114,26 +133,40 @@ const Voice = {
     u.pitch = 1;
     try { speechSynthesis.speak(u); } catch (e) { /* TTS 실패가 게임을 멈추지 않게 */ }
   },
-  // Google Cloud TTS (Neural2): 월 100만 자 무료. 같은 문장은 메모리 캐시로 재사용해 호출 절약
-  async cloudSpeak(clean, r) {
-    const key = clean + '|' + r;
+  // Google Cloud TTS: 같은 문장은 메모리 캐시로 재사용해 무료 한도 절약
+  async gttsRequest(clean, r, voiceName, withRate) {
+    const audioConfig = { audioEncoding: 'MP3' };
+    if (withRate && r !== 1) audioConfig.speakingRate = r;
+    const res = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(settings.gttsKey), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        input: { text: clean },
+        voice: { languageCode: 'ja-JP', name: voiceName },
+        audioConfig
+      })
+    });
+    if (!res.ok) {
+      let msg = 'HTTP ' + res.status;
+      try { const j = await res.json(); if (j.error && j.error.message) msg += ' — ' + j.error.message; } catch (e2) {}
+      const err = new Error(msg);
+      err.status = res.status;
+      throw err;
+    }
+    return (await res.json()).audioContent;
+  },
+  async cloudSpeak(clean, r, voiceName) {
+    voiceName = voiceName || this.gvoiceFor('');
+    const key = clean + '|' + r + '|' + voiceName;
     let b64 = this.cloudCache.get(key);
     if (!b64) {
-      const res = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(settings.gttsKey), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          input: { text: clean },
-          voice: { languageCode: 'ja-JP', name: 'ja-JP-Neural2-B' },
-          audioConfig: { audioEncoding: 'MP3', speakingRate: r }
-        })
-      });
-      if (!res.ok) {
-        let msg = 'HTTP ' + res.status;
-        try { const j = await res.json(); if (j.error && j.error.message) msg += ' — ' + j.error.message; } catch (e2) {}
-        throw new Error(msg);
+      try {
+        b64 = await this.gttsRequest(clean, r, voiceName, true);
+      } catch (e) {
+        // 일부 보이스는 speakingRate 미지원 → 속도 옵션 없이 1회 재시도
+        if (e.status === 400 && r !== 1) b64 = await this.gttsRequest(clean, r, voiceName, false);
+        else throw e;
       }
-      b64 = (await res.json()).audioContent;
       if (!b64) throw new Error('gtts empty');
       if (this.cloudCache.size > 300) this.cloudCache.clear();
       this.cloudCache.set(key, b64);
@@ -142,6 +175,64 @@ const Voice = {
     await this.audio.play();
   },
   slow() { if (this.lastText) this.speak(this.lastText, 0.7); },
+  /* ── 클라우드 STT (Google Speech-to-Text, ja-JP) ──
+   * 마이크 → 원시 PCM 수집 → 16kHz/16bit 다운샘플 → recognize REST 호출.
+   * MediaRecorder 포맷 문제(iOS=AAC)를 피하려고 WebAudio로 직접 뽑는다. */
+  recActive: false, _recBuf: null, _recCtx: null, _recProc: null, _recStream: null, _recTimer: null,
+  cloudSttAvailable() { return !!(settings.gttsKey && navigator.mediaDevices && navigator.mediaDevices.getUserMedia); },
+  micAvailable() { return this.cloudSttAvailable() || this.sttSupported(); },
+  async recStart(onAutoStop) {
+    this._recStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const AC = window.AudioContext || window.webkitAudioContext;
+    this._recCtx = new AC();
+    const src = this._recCtx.createMediaStreamSource(this._recStream);
+    this._recProc = this._recCtx.createScriptProcessor(4096, 1, 1);
+    this._recBuf = [];
+    this._recProc.onaudioprocess = e => { if (this.recActive) this._recBuf.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+    src.connect(this._recProc);
+    this._recProc.connect(this._recCtx.destination);
+    this.recActive = true;
+    this._recTimer = setTimeout(() => { if (this.recActive && onAutoStop) onAutoStop(); }, 15000);
+  },
+  async recStop() {
+    if (!this.recActive) return '';
+    this.recActive = false;
+    clearTimeout(this._recTimer);
+    try { this._recProc.disconnect(); } catch (e) {}
+    try { this._recStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+    const sr = this._recCtx.sampleRate;
+    const chunks = this._recBuf || [];
+    try { this._recCtx.close(); } catch (e) {}
+    let len = 0; chunks.forEach(c => { len += c.length; });
+    if (!len) return '';
+    const all = new Float32Array(len);
+    let off = 0; chunks.forEach(c => { all.set(c, off); off += c.length; });
+    const ratio = sr / 16000;
+    const n = Math.floor(all.length / ratio);
+    const pcm = new Int16Array(n);
+    for (let i = 0; i < n; i++) {
+      pcm[i] = Math.max(-1, Math.min(1, all[Math.floor(i * ratio)])) * 0x7FFF;
+    }
+    let bin = '';
+    const bytes = new Uint8Array(pcm.buffer);
+    for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    const res = await fetch('https://speech.googleapis.com/v1/speech:recognize?key=' + encodeURIComponent(settings.gttsKey), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        config: { encoding: 'LINEAR16', sampleRateHertz: 16000, languageCode: 'ja-JP', enableAutomaticPunctuation: true },
+        audio: { content: btoa(bin) }
+      })
+    });
+    if (!res.ok) {
+      let msg = 'HTTP ' + res.status;
+      try { const j = await res.json(); if (j.error && j.error.message) msg += ' — ' + j.error.message; } catch (e2) {}
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    const alt = ((data.results || [])[0] || {}).alternatives || [{}];
+    return alt[0].transcript || '';
+  },
   sttSupported() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); },
   listen(onResult, onEnd) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -400,6 +491,9 @@ function typeLine(el, jp, showFuri) {
   }, 35);
 }
 
+// 남성 목소리를 쓰는 NPC 역할 (클라우드 TTS의 역할별 자동 남/여)
+const MALE_NPCS = new Set(['officer', 'stationman', 'taxi', 'police']);
+
 // NPC 대사 표시 + TTS
 function npcSay(step, lineObj, mood, actionText) {
   const ch = currentChapter();
@@ -431,7 +525,7 @@ function npcSay(step, lineObj, mood, actionText) {
   Scene.log.push({ role: 'npc', text: plain(lineObj.jp) });
   // 대사 표시와 동시에 TTS 재생 (§1.5)
   const jaText = plain(lineObj.jp).replace(/（[^）]*）/g, '');
-  if (jaText && !/^\(/.test(jaText)) Voice.speak(jaText);
+  if (jaText && !/^\(/.test(jaText)) Voice.speak(jaText, undefined, MALE_NPCS.has(step.npc) ? 'male' : 'female');
   $('quest-hint').classList.add('hidden');
 }
 
@@ -446,10 +540,38 @@ function presentStep() {
 }
 
 /* ── L1 문장 조합 UI ── */
+/* 마이크: 클라우드 키가 있으면 구글 STT(누르면 녹음 시작, 다시 누르면 인식), 없으면 브라우저 내장 인식 */
+async function handleMic(btn, inputEl) {
+  if (Voice.cloudSttAvailable()) {
+    if (Voice.recActive) {
+      btn.classList.remove('rec');
+      const ph = inputEl.placeholder;
+      inputEl.placeholder = '認識中…';
+      try {
+        const text = await Voice.recStop();
+        if (text) inputEl.value = text;
+      } catch (e) {
+        alert('음성 인식 실패: ' + e.message + '\n\nAPI 키의 "API 제한사항"에 Cloud Speech-to-Text API가 포함돼 있는지 확인하세요.');
+      }
+      inputEl.placeholder = ph === '認識中…' ? '日本語で話してみましょう…' : ph;
+    } else {
+      try {
+        await Voice.recStart(() => handleMic(btn, inputEl)); // 15초 후 자동 종료
+        btn.classList.add('rec');
+      } catch (e) {
+        alert('마이크를 사용할 수 없어요: ' + e.message);
+      }
+    }
+  } else {
+    btn.classList.add('rec');
+    Voice.listen(t => { inputEl.value = t; }, () => btn.classList.remove('rec'));
+  }
+}
+
 function setupInputUI() {
   const l1 = settings.level === 1;
   $('chunk-area').classList.toggle('hidden', !l1);
-  $('btn-mic').classList.toggle('hidden', !Voice.sttSupported());
+  $('btn-mic').classList.toggle('hidden', !Voice.micAvailable());
   // 레벨별 헬퍼 노출 (§7: 레벨이 오를수록 힌트 축소)
   document.querySelectorAll('.helper').forEach(b => {
     const h = b.dataset.helper;
@@ -513,7 +635,7 @@ function renderChunks(step) {
       } else {
         chunkSeq.push(b);
         b.classList.add('sel');
-        Voice.speak(b._reading); // 누른 카드를 바로 읽어준다
+        Voice.speak(b._reading, undefined, 'female'); // 누른 카드를 바로 읽어준다 (기본 보이스)
       }
       updateChunkOrds();
       syncChunkInput();
@@ -878,7 +1000,7 @@ function renderLodging() {
           <div class="ko-small">${esc(m.ko || plain(m.better))}</div>
           <div class="ko-small">힌트: ${esc(plain(m.better).slice(0, 3))}…</div>
           <div class="retry-box">
-            ${Voice.sttSupported() ? `<button class="btn-mic retry-mic" data-i="${i}">🎤</button>` : ''}
+            ${Voice.micAvailable() ? `<button class="btn-mic retry-mic" data-i="${i}">🎤</button>` : ''}
             <input type="text" lang="ja" class="retry-input" data-i="${i}" placeholder="일본어로 다시 말해 보세요">
             <button class="btn btn-primary btn-small retry-check" data-i="${i}">확인</button>
           </div>
@@ -905,12 +1027,7 @@ function renderLodging() {
     });
   });
   $('lodging-body').querySelectorAll('.retry-mic').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.classList.add('rec');
-      Voice.listen(text => {
-        $('lodging-body').querySelector(`.retry-input[data-i="${btn.dataset.i}"]`).value = text;
-      }, () => btn.classList.remove('rec'));
-    });
+    btn.addEventListener('click', () => handleMic(btn, $('lodging-body').querySelector(`.retry-input[data-i="${btn.dataset.i}"]`)));
   });
 }
 
@@ -950,7 +1067,7 @@ function renderCollection(tab) {
         ${s.grammar.map(g => `<div style="margin-bottom:12px"><b style="font-size:.9rem">${esc(g.title)}</b><div class="ko-small" style="white-space:pre-wrap;margin-top:3px">${esc(g.body)}</div></div>`).join('')}
       </div>
       <p class="set-note">전체 가사는 저작권 보호 대상이라 싣지 않았어요. 스트리밍 앱에서 곡을 들으며 위 구절을 따라 불러 보세요!</p>`).join('');
-    body.querySelectorAll('.song-play').forEach(b => b.addEventListener('click', () => Voice.speak(b.dataset.say)));
+    body.querySelectorAll('.song-play').forEach(b => b.addEventListener('click', () => Voice.speak(b.dataset.say, undefined, 'female')));
   } else {
     const learned = Object.keys(progress.cleared);
     const list = learned.flatMap(id => KANJI[id] || []);
@@ -983,6 +1100,8 @@ function fillSettings() {
   seg('set-furigana', settings.furigana);
   seg('set-subtitle', settings.subtitle);
   seg('set-rate', settings.rate);
+  seg('set-gender', settings.gttsGender || 'auto');
+  $('set-gvoice').value = settings.gttsVoice || Voice.DEFAULT_GVOICE;
   fillVoiceSelect();
 }
 document.querySelectorAll('.seg').forEach(seg => {
@@ -1013,11 +1132,7 @@ function bind() {
   // 씬: 전송/마이크
   $('btn-send').addEventListener('click', () => handleInput($('player-input').value));
   $('player-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleInput($('player-input').value); });
-  $('btn-mic').addEventListener('click', () => {
-    const btn = $('btn-mic');
-    btn.classList.add('rec');
-    Voice.listen(text => { $('player-input').value = text; }, () => btn.classList.remove('rec'));
-  });
+  $('btn-mic').addEventListener('click', () => handleMic($('btn-mic'), $('player-input')));
   // L1 문장 조합: 지우기 = 선택만 초기화 (카드는 그대로)
   $('btn-chunk-clear').addEventListener('click', () => clearChunkSelection(true));
 
@@ -1080,6 +1195,7 @@ function bind() {
   $('btn-voice-test').addEventListener('click', async () => {
     settings.voiceURI = $('set-voice').value;
     settings.gttsKey = $('set-gtts').value.trim();
+    settings.gttsVoice = $('set-gvoice').value;
     Voice.pick();
     const sample = 'こんにちは。ようこそ、日本へ！良い旅を。';
     if (settings.gttsKey) {
@@ -1110,6 +1226,8 @@ function bind() {
     settings.model = $('set-model').value.trim();
     settings.voiceURI = $('set-voice').value;
     settings.gttsKey = $('set-gtts').value.trim();
+    settings.gttsVoice = $('set-gvoice').value;
+    settings.gttsGender = segVal('set-gender') || 'auto';
     Voice.pick();
     saveAll();
     alert('저장했어요!');
