@@ -128,7 +128,11 @@ const Voice = {
           audioConfig: { audioEncoding: 'MP3', speakingRate: r }
         })
       });
-      if (!res.ok) throw new Error('gtts ' + res.status);
+      if (!res.ok) {
+        let msg = 'HTTP ' + res.status;
+        try { const j = await res.json(); if (j.error && j.error.message) msg += ' — ' + j.error.message; } catch (e2) {}
+        throw new Error(msg);
+      }
       b64 = (await res.json()).audioContent;
       if (!b64) throw new Error('gtts empty');
       if (this.cloudCache.size > 300) this.cloudCache.clear();
@@ -1052,12 +1056,26 @@ function bind() {
   // 도감 탭
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => renderCollection(t.dataset.tab)));
 
-  // 목소리 미리 듣기 (선택 중인 보이스·클라우드 키 반영)
-  $('btn-voice-test').addEventListener('click', () => {
+  // 목소리 미리 듣기 (선택 중인 보이스·클라우드 키 반영, 클라우드 실패 시 원인 표시)
+  $('btn-voice-test').addEventListener('click', async () => {
     settings.voiceURI = $('set-voice').value;
     settings.gttsKey = $('set-gtts').value.trim();
     Voice.pick();
-    Voice.speak('こんにちは。ようこそ、日本へ！良い旅を。');
+    const sample = 'こんにちは。ようこそ、日本へ！良い旅を。';
+    if (settings.gttsKey) {
+      try {
+        Voice.lastText = sample;
+        Voice.stop();
+        await Voice.cloudSpeak(sample, Number(settings.rate) || 1);
+        return; // 클라우드 성공
+      } catch (e) {
+        alert('⚠️ 구글 클라우드 TTS 실패\n\n' + e.message +
+          '\n\n흔한 원인:\n· 프로젝트에 결제 계정 미연결 (무료 한도라도 연결 필요)\n· 키의 웹사이트 제한 주소 오타\n· 제한 변경 후 반영 대기(약 5분)\n\n기기 내장 음성으로 대신 재생합니다.');
+        Voice.localSpeak(sample, Number(settings.rate) || 1);
+        return;
+      }
+    }
+    Voice.speak(sample);
   });
 
   // 설정 저장
