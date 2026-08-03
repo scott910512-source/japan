@@ -15,7 +15,7 @@ const Store = {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '' });
+let settings = Store.get('settings', { apiKey: '', model: '', level: 1, furigana: 'auto', subtitle: 'auto', rate: 1, name: 'キム', voiceURI: '', gttsKey: '' });
 let progress = Store.get('progress', { cleared: {}, dayLog: { date: todayStr(), scenes: [], expressions: [] } });
 let profile  = Store.get('profile', {});
 let mistakes = Store.get('mistakes', []);
@@ -86,19 +86,56 @@ const Voice = {
     this.pick();
     speechSynthesis.onvoiceschanged = () => { this.pick(); fillVoiceSelect(); };
   },
+  audio: null, cloudCache: new Map(),
+  stop() {
+    if (this.audio) { try { this.audio.pause(); } catch (e) {} this.audio = null; }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  },
   speak(text, rate) {
-    if (!('speechSynthesis' in window) || !text) return;
-    speechSynthesis.cancel();
+    if (!text) return;
     this.lastText = text;
-    this.pick();
-    // 프리미엄 보이스의 억양이 살도록 말줄임표·괄호를 쉼표/무음으로 정리
+    this.stop();
+    // 억양이 살도록 말줄임표·괄호를 쉼표/무음으로 정리
     const clean = text.replace(/……|…/g, '、').replace(/[（）()]/g, ' ');
+    const r = rate || Number(settings.rate) || 1;
+    if (settings.gttsKey) {
+      this.cloudSpeak(clean, r).catch(() => this.localSpeak(clean, r)); // 실패 시 기기 음성 폴백
+    } else {
+      this.localSpeak(clean, r);
+    }
+  },
+  localSpeak(clean, r) {
+    if (!('speechSynthesis' in window)) return;
+    this.pick();
     const u = new SpeechSynthesisUtterance(clean);
     u.lang = 'ja-JP';
     try { if (this.jaVoice) u.voice = this.jaVoice; } catch (e) { /* 보이스 목록 변동 시 무시 */ }
-    u.rate = rate || Number(settings.rate) || 1;
+    u.rate = r;
     u.pitch = 1;
     try { speechSynthesis.speak(u); } catch (e) { /* TTS 실패가 게임을 멈추지 않게 */ }
+  },
+  // Google Cloud TTS (Neural2): 월 100만 자 무료. 같은 문장은 메모리 캐시로 재사용해 호출 절약
+  async cloudSpeak(clean, r) {
+    const key = clean + '|' + r;
+    let b64 = this.cloudCache.get(key);
+    if (!b64) {
+      const res = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(settings.gttsKey), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          input: { text: clean },
+          voice: { languageCode: 'ja-JP', name: 'ja-JP-Neural2-B' },
+          audioConfig: { audioEncoding: 'MP3', speakingRate: r }
+        })
+      });
+      if (!res.ok) throw new Error('gtts ' + res.status);
+      b64 = (await res.json()).audioContent;
+      if (!b64) throw new Error('gtts empty');
+      if (this.cloudCache.size > 300) this.cloudCache.clear();
+      this.cloudCache.set(key, b64);
+    }
+    this.audio = new Audio('data:audio/mp3;base64,' + b64);
+    await this.audio.play();
   },
   slow() { if (this.lastText) this.speak(this.lastText, 0.7); },
   sttSupported() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); },
@@ -873,6 +910,23 @@ function renderCollection(tab) {
         <div class="ko-small">${esc(m.reason)}</div>
         <div class="meta">${esc(m.date)} · ${esc(m.tag)} ${m.retried ? '· ✅ 재도전 완료' : ''}</div>
       </div>`).join('') : '<p class="ko-small">아직 오답이 없어요.</p>';
+  } else if (tab === 'songs') {
+    body.innerHTML = SONGS.map(s => `
+      <div class="card">
+        <h3>🎵 ${esc(s.title)} — ${esc(s.artist)}</h3>
+        <div class="ko-small">「${esc(s.titleKo)}」</div>
+        <div class="jp-big" style="margin-top:10px">${rubyHTML(s.hook.jp)}</div>
+        <div class="ko-small">${esc(s.hook.ko)}</div>
+        <button class="chip song-play" data-say="${esc(s.hook.read)}" style="margin-top:6px">🔊 이 구절 듣기</button>
+      </div>
+      <div class="card"><h3>단어</h3>
+        ${s.vocab.map(v => `<div style="margin-bottom:9px"><span class="jp-big">${rubyHTML(v.jp)}</span> <button class="chip song-play" data-say="${esc(v.read)}">🔊</button><div class="ko-small">${esc(v.ko)}</div></div>`).join('')}
+      </div>
+      <div class="card"><h3>문법 포인트</h3>
+        ${s.grammar.map(g => `<div style="margin-bottom:12px"><b style="font-size:.9rem">${esc(g.title)}</b><div class="ko-small" style="white-space:pre-wrap;margin-top:3px">${esc(g.body)}</div></div>`).join('')}
+      </div>
+      <p class="set-note">전체 가사는 저작권 보호 대상이라 싣지 않았어요. 스트리밍 앱에서 곡을 들으며 위 구절을 따라 불러 보세요!</p>`).join('');
+    body.querySelectorAll('.song-play').forEach(b => b.addEventListener('click', () => Voice.speak(b.dataset.say)));
   } else {
     const learned = Object.keys(progress.cleared);
     const list = learned.flatMap(id => KANJI[id] || []);
@@ -899,6 +953,7 @@ function fillSettings() {
   $('set-name').value = settings.name || '';
   $('set-apikey').value = settings.apiKey || '';
   $('set-model').value = settings.model || '';
+  $('set-gtts').value = settings.gttsKey || '';
   const seg = (id, val) => document.querySelectorAll(`#${id} button`).forEach(b => b.classList.toggle('on', b.dataset.v == val));
   seg('set-level', settings.level);
   seg('set-furigana', settings.furigana);
@@ -997,9 +1052,10 @@ function bind() {
   // 도감 탭
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => renderCollection(t.dataset.tab)));
 
-  // 목소리 미리 듣기 (선택 중인 보이스로)
+  // 목소리 미리 듣기 (선택 중인 보이스·클라우드 키 반영)
   $('btn-voice-test').addEventListener('click', () => {
     settings.voiceURI = $('set-voice').value;
+    settings.gttsKey = $('set-gtts').value.trim();
     Voice.pick();
     Voice.speak('こんにちは。ようこそ、日本へ！良い旅を。');
   });
@@ -1015,6 +1071,7 @@ function bind() {
     settings.apiKey = $('set-apikey').value.trim();
     settings.model = $('set-model').value.trim();
     settings.voiceURI = $('set-voice').value;
+    settings.gttsKey = $('set-gtts').value.trim();
     Voice.pick();
     saveAll();
     alert('저장했어요!');
