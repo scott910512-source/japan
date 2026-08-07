@@ -191,6 +191,8 @@ export default function Settings({
           on={settings.showKana} onClick={() => onChange({ showKana: !settings.showKana })} />
         <Toggle label="한글 발음 표기" sub="가나를 한글로 옮겨 적어요 (근사값)"
           on={settings.hangulPron} onClick={() => onChange({ hangulPron: !settings.hangulPron })} />
+        <Toggle label="자동 마이크" sub="뜻을 열면 바로 듣기 시작해요 (처음 한 번은 직접 눌러 권한을 주세요)"
+          on={settings.autoMic} onClick={() => onChange({ autoMic: !settings.autoMic })} />
         <Toggle label="예문 보기" sub="뜻과 함께 예문을 보여줘요"
           on={settings.showExample} onClick={() => onChange({ showExample: !settings.showExample })} />
         <Toggle label="카드 섞기" sub="순서를 외워버리는 걸 막아요"

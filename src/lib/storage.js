@@ -146,6 +146,7 @@ export const DEFAULT_SETTINGS = {
   showKana: false,    // 앞면에 히라가나 함께 표시
   showExample: true,  // 뒷면에 예문 표시
   hangulPron: false,  // 한글 근사 발음 표기
+  autoMic: false,     // 뜻을 연 순간 마이크를 자동으로 켜기 (권한을 한 번 준 뒤부터)
 
   // 하루 분량 — 복습 섞기 + 신규로 끊어서 학습한다
   newPerDay: 50,      // 하루에 새로 볼 단어 수
