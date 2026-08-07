@@ -6,6 +6,7 @@ import {
 import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
 import { todayKey } from '../lib/review.js';
 import Account from './Account.jsx';
+import KeyVault from '../components/KeyVault.jsx';
 
 const MENU_LABELS = {
   basics: '완전기초',
@@ -38,7 +39,7 @@ const STATUS_TEXT = {
 
 export default function Settings({
   settings, onChange, onReplayOnboarding, onOpenWordManager, onToast, onReload,
-  session, syncState, onSync, onSignedOut,
+  session, syncState, onSync, onSignedOut, remoteKeyEnvelope, onSaveRemoteKey,
 }) {
   const fileRef = useRef(null);
   const [keyDraft, setKeyDraft] = useState(settings.gttsKey || '');
@@ -264,6 +265,15 @@ export default function Settings({
             </button>
           )}
         </div>
+        <KeyVault
+          session={session}
+          localKey={settings.gttsKey}
+          remoteEnvelope={remoteKeyEnvelope}
+          onSaveRemote={onSaveRemoteKey}
+          onKeyRestored={(key) => { onChange({ gttsKey: key }); setKeyDraft(key); }}
+          onToast={onToast}
+        />
+
         <div className="set-note">
           웹에 올라간 앱에서 쓰는 키는 브라우저에 노출될 수밖에 없어요.
           Google Cloud 콘솔에서 이 키에 <b>웹사이트 제한(HTTP 리퍼러)</b>과

@@ -666,6 +666,14 @@ button, input, select { font-family: inherit; }
   text-decoration: underline; text-underline-offset: 3px;
 }
 
+.vault { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.vault-state {
+  display: inline-block; padding: 6px 12px; border-radius: 100px;
+  font-size: 12px; font-weight: 650; background: var(--surface-2); color: var(--ink-soft);
+}
+.vault-state b { color: var(--kon); font-weight: 800; }
+.vault-form { margin-top: 12px; }
+
 /* ── 계정 ── */
 .acct-head { display: flex; align-items: center; gap: 12px; }
 .acct-avatar {

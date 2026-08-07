@@ -26,7 +26,8 @@ import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './
 import { configureSTT } from './lib/stt.js';
 import { dueCards, todayKey, weakCards } from './lib/review.js';
 import { supabase, supabaseConfigured } from './lib/supabase.js';
-import { syncNow } from './lib/sync.js';
+import { syncNow, pushMerged } from './lib/sync.js';
+import { pickSyncedSettings } from './lib/merge.js';
 
 const SUB_TITLES = {
   basics: '완전기초',
@@ -53,6 +54,7 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [authSession, setAuthSession] = useState(null);
   const [syncState, setSyncState] = useState({ busy: false, at: null });
+  const [remoteKeyEnvelope, setRemoteKeyEnvelope] = useState(null);
 
   const showToast = useCallback((message) => {
     setToast(message);
@@ -133,6 +135,7 @@ export default function App() {
       setCustomWords(merged.customWords);
       // 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다
       setSettings((s) => ({ ...s, ...merged.settings }));
+      setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
       setSyncState({ busy: false, at: new Date().toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }) });
       if (!silent) showToast('동기화했어요');
     } catch (err) {
@@ -140,6 +143,15 @@ export default function App() {
       showToast(`동기화에 실패했어요 — ${err.message}`);
     }
   }, [authSession, review, progress, settings, stats, streak, customWords, showToast]);
+
+  const saveRemoteKey = useCallback(async (envelope) => {
+    if (!authSession?.user) throw new Error('로그인이 필요해요');
+    await pushMerged(authSession.user.id, {
+      review, progress, settings: pickSyncedSettings(settings), stats, streak,
+      customWords, gttsKeyEnc: envelope,
+    });
+    setRemoteKeyEnvelope(envelope);
+  }, [authSession, review, progress, settings, stats, streak, customWords]);
 
   // 로그인 직후 한 번은 자동으로 맞춘다. 사용자가 버튼을 눌러야만 이어지면 잊는다.
   const syncedFor = useRef(null);
@@ -295,7 +307,9 @@ export default function App() {
             session={authSession}
             syncState={syncState}
             onSync={() => runSync(false)}
-            onSignedOut={() => { setAuthSession(null); syncedFor.current = null; showToast('로그아웃했어요'); }}
+            onSignedOut={() => { setAuthSession(null); setRemoteKeyEnvelope(null); syncedFor.current = null; showToast('로그아웃했어요'); }}
+            remoteKeyEnvelope={remoteKeyEnvelope}
+            onSaveRemoteKey={saveRemoteKey}
           />
         </section>
       </div>
