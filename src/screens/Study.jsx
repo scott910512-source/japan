@@ -2,12 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconSpeaker, IconRewind, IconCheck, IconX, IconPlus, IconArrowLeft, IconEye, IconBulb, IconTriangle,
 } from '../components/Icons.jsx';
-import KeyHints from '../components/KeyHints.jsx';
 import MicButton from '../components/MicButton.jsx';
 import MemoBox from '../components/MemoBox.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
-import { useHotkeys } from '../lib/useHotkeys.js';
+import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import {
   VERDICT, advanceSession, buildDailySession, buildRound1, nextRoundOf, stateOf, todayKey,
 } from '../lib/review.js';
@@ -60,8 +59,8 @@ export default function Study({
   const [showExample, setShowExample] = useState(false);
   const [locked, setLocked] = useState(false);   // 카드 전환 중 연타로 오판정되는 것을 막는다
   const [finished, setFinished] = useState(null);
-  const [showRules, setShowRules] = useState(!settings.seenRules);
   const history = useRef([]);
+  const hasKeyboard = useHasKeyboard();
 
   // 세션이 없으면 새로 만든다. 이어하기는 App이 넘겨준 session을 그대로 쓴다.
   useEffect(() => {
@@ -115,15 +114,11 @@ export default function Study({
     setShowExample(false);
   }, [currentId]);
 
-  const dismissRules = () => {
-    setShowRules(false);
-    onSettingsChange({ seenRules: true });
-  };
-
   const judge = (verdict) => {
     if (!word || locked) return;
-    // 뒷면을 봐야 판정할 수 있다. 단 "이미 외웠어요"는 확인 없이 넘기는 게 목적이라 예외다.
-    if (verdict !== VERDICT.MASTER && !revealed) return;
+    // 모르는 걸 모른다고 하는 데는 답을 볼 필요가 없다.
+    // "알아요"만 뒷면을 확인해야 누를 수 있다 — 안 보고 아는 척하는 걸 막는 장치다.
+    if (verdict === VERDICT.KNOWN && !revealed) return;
     setLocked(true);
 
     history.current.push({
@@ -215,15 +210,8 @@ export default function Study({
         deck={deck}
         onClose={onClose}
         onUndo={history.current.length ? undo : null}
+        hasKeyboard={hasKeyboard}
       />
-
-      {showRules && (
-        <button className="rulecard" onClick={dismissRules}>
-          <b>회독 규칙</b>
-          <span>✕ 몰라요 → 오늘 한 번 더 · △ 애매해요 → 다음 회독에 · ○ 알아요 → 이어지면 졸업</span>
-          <em>탭하면 닫혀요</em>
-        </button>
-      )}
 
       <div className="studycard" onClick={() => !revealed && setRevealed(true)}>
         <div className="sc-top">
@@ -234,6 +222,7 @@ export default function Study({
             aria-label="발음 듣기"
           >
             <IconSpeaker />
+            {hasKeyboard && <kbd className="corner-key">Space</kbd>}
           </button>
         </div>
 
@@ -287,7 +276,9 @@ export default function Study({
             )}
           </div>
         ) : (
-          <div className="sc-hint">탭해서 뜻 확인하기</div>
+          <div className="sc-hint">
+            탭해서 뜻 확인하기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}
+          </div>
         )}
       </div>
 
@@ -315,41 +306,24 @@ export default function Study({
         </>
       )}
 
-      {/* 뜻을 보지 않고도 확실히 아는 카드를 위한 탈출구.
-          뒷면을 확인해야 판정되는 원칙은 유지하되, 이 버튼만 예외로 둔다. */}
-      {!revealed && (
-        <button className="skipbtn" onClick={() => judge(VERDICT.MASTER)} disabled={locked}>
-          이미 외웠어요 · 바로 졸업
-        </button>
-      )}
-
       <div className="judgerow">
-        <button
-          className="judge unknown"
-          disabled={!revealed || locked}
-          onClick={() => judge(VERDICT.UNKNOWN)}
-        >
+        <button className="judge unknown" disabled={locked} onClick={() => judge(VERDICT.UNKNOWN)}>
+          {hasKeyboard && <kbd className="judge-key">1</kbd>}
           <IconX />
           <b>몰라요</b>
           <span>오늘 다시</span>
         </button>
-        <button
-          className="judge vague"
-          disabled={!revealed || locked}
-          onClick={() => judge(VERDICT.VAGUE)}
-        >
+        <button className="judge vague" disabled={locked} onClick={() => judge(VERDICT.VAGUE)}>
+          {hasKeyboard && <kbd className="judge-key">2</kbd>}
           <IconTriangle />
           <b>애매해요</b>
           <span>다음 회독에</span>
         </button>
-        <button
-          className="judge known"
-          disabled={!revealed || locked}
-          onClick={() => judge(VERDICT.KNOWN)}
-        >
+        <button className="judge known" disabled={!revealed || locked} onClick={() => judge(VERDICT.KNOWN)}>
+          {hasKeyboard && <kbd className="judge-key">3</kbd>}
           <IconCheck />
           <b>알아요</b>
-          <span>기억했어요</span>
+          <span>{revealed ? '기억했어요' : '뜻 확인 후'}</span>
         </button>
       </div>
 
@@ -379,20 +353,20 @@ export default function Study({
           </button>
         </div>
       )}
-
-      <KeyHints revealed={revealed} />
     </div>
   );
 }
 
-function StudyHeader({ session, deck, onClose, onUndo }) {
+function StudyHeader({ session, deck, onClose, onUndo, hasKeyboard }) {
   const pct = session.total ? Math.min(100, Math.round((session.done / session.total) * 100)) : 0;
   return (
     <div className="studyhead">
       <div className="sh-row">
         <button className="sh-close" onClick={onClose} aria-label="학습 종료"><IconArrowLeft /></button>
         <div className="sh-title">{deck.label} {session.done} / {session.total}</div>
-        <button className="sh-undo" onClick={onUndo} disabled={!onUndo}>↩ 되돌리기</button>
+        <button className="sh-undo" onClick={onUndo} disabled={!onUndo}>
+          ↩ 되돌리기{hasKeyboard && <kbd className="inline-key">←</kbd>}
+        </button>
       </div>
       <div className="sh-bar"><i style={{ width: `${pct}%` }} /></div>
       <div className="sh-sub">
