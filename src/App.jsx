@@ -9,6 +9,7 @@ import Basics from './screens/Basics.jsx';
 import WordManager from './screens/WordManager.jsx';
 import WordDeck, { filterByLevel } from './screens/WordDeck.jsx';
 import Situations from './screens/Situations.jsx';
+import Quiz from './screens/Quiz.jsx';
 import GrammarHub from './screens/GrammarHub.jsx';
 import Gate from './screens/Gate.jsx';
 import NewPassword from './screens/NewPassword.jsx';
@@ -41,6 +42,7 @@ const SUB_TITLES = {
   rpg: '실전연습 (여행연습)',
   manage: '내 단어장',
   worddeck: '단어암기',
+  quiz: '단어 시험',
 };
 
 export default function App() {
@@ -328,6 +330,14 @@ export default function App() {
     setDeck({ id: 'weak', label: '취약 단어', cards: weak.map((id) => byId.get(id)).filter(Boolean) });
   }, [wordIds, review, byId, showToast]);
 
+  // 시험에서 틀린 단어를 바로 회독으로 넘긴다. 틀린 걸 확인만 하고 닫으면 남는 게 없다.
+  const startQuizWrongDeck = useCallback((ids) => {
+    const cards = ids.map((id) => byId.get(id)).filter(Boolean);
+    if (!cards.length) return;
+    setSub(null);
+    setDeck({ id: `quizwrong-${ids.length}`, label: '시험 오답', cards });
+  }, [byId]);
+
   const openMenu = useCallback((id) => {
     if (id === 'words') { setSub('worddeck'); return; }
     if (id === 'review') { setActiveTab('review'); return; }
@@ -502,6 +512,16 @@ export default function App() {
                 settings={settings}
                 onReviewChange={applyReview}
                 onToast={showToast}
+              />
+            )}
+            {sub === 'quiz' && (
+              <Quiz
+                words={words}
+                review={review}
+                settings={settings}
+                onChange={patchSettings}
+                onToast={showToast}
+                onRetryWrong={startQuizWrongDeck}
               />
             )}
             {sub === 'manage' && (

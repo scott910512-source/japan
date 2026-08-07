@@ -285,6 +285,10 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     ArrowLeft: undo,
     Backspace: undo,
     ArrowDown: () => setRevealed(true),
+    s: () => speakSlow(speakText),
+    S: () => speakSlow(speakText),
+    c: () => onShowCard(item),
+    C: () => onShowCard(item),
     Escape: onExit,
   });
 
@@ -404,8 +408,12 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
       </div>
 
       <div className="studyfoot">
-        <button onClick={() => speakSlow(speakText)}><IconRewind /> 천천히 듣기</button>
-        <button onClick={() => onShowCard(item)}><IconEye /> 보여주기 카드</button>
+        <button onClick={() => speakSlow(speakText)}>
+          <IconRewind /> 천천히 듣기{hasKeyboard && <kbd className="inline-key">S</kbd>}
+        </button>
+        <button onClick={() => onShowCard(item)}>
+          <IconEye /> 보여주기 카드{hasKeyboard && <kbd className="inline-key">C</kbd>}
+        </button>
       </div>
     </div>
   );

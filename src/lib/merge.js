@@ -87,6 +87,7 @@ const SYNCED_SETTINGS = [
   'canReadKana', 'tripDay', 'menus', 'levels',
   'newPerDay', 'reviewMix', 'dailyGoal', 'direction',
   'showKana', 'showExample', 'hangulPron', 'gttsVoice',
+  'quizCount', 'quizType', 'quizDir', 'quizScope',
 ];
 
 export function pickSyncedSettings(settings = {}) {

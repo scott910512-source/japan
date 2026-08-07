@@ -807,4 +807,104 @@ button, input, select { font-family: inherit; }
 
 .ob-next:disabled { opacity: .45; cursor: default; }
 
+/* ── 단어 시험 ── */
+.pickstack { display: flex; flex-direction: column; gap: 8px; }
+.pickrow {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+  padding: 12px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.pickrow.active { border-color: var(--kon); background: var(--kon-soft); box-shadow: var(--glow-soft); }
+.pk-icon {
+  width: 34px; height: 34px; border-radius: 11px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--ink-soft);
+}
+.pickrow.active .pk-icon { background: var(--kon); color: #fff; }
+.pk-icon svg { width: 17px; height: 17px; }
+.pk-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pk-body b { font-size: 14px; font-weight: 700; }
+.pk-body span { font-size: 11.5px; color: var(--ink-soft); }
+
+.quizhead { margin-bottom: 14px; }
+.qh-row { display: flex; align-items: center; gap: 8px; }
+.qh-score { font-size: 12.5px; font-weight: 700; color: var(--kon); font-variant-numeric: tabular-nums; }
+
+.quizcard {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  min-height: 150px; padding: 26px 18px; margin-bottom: 14px;
+  border-radius: 20px; border: 1px solid var(--line); background: var(--surface);
+}
+.qc-tag { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); letter-spacing: .02em; }
+.qc-prompt {
+  font-size: clamp(26px, 8vw, 40px); font-weight: 800; text-align: center; line-height: 1.35;
+  word-break: normal; overflow-wrap: anywhere;
+}
+.qc-prompt.ko { font-size: clamp(22px, 6.5vw, 32px); }
+.qc-sub { font-size: 14px; color: var(--ink-soft); font-weight: 600; }
+.qc-speak {
+  position: relative; margin-top: 4px; padding: 7px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; color: var(--ink-soft);
+}
+.qc-speak svg { width: 19px; height: 19px; display: block; }
+
+.qoptions { display: flex; flex-direction: column; gap: 8px; }
+.qopt {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; cursor: pointer;
+  padding: 13px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.qopt:disabled { cursor: default; }
+.qo-num {
+  width: 26px; height: 26px; flex: 0 0 auto; border-radius: 8px; background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+.qo-num kbd { font-family: var(--font-mono); font-size: 11px; }
+.qo-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.qo-body b { font-size: 14.5px; font-weight: 700; word-break: normal; overflow-wrap: anywhere; }
+.qo-body span { font-size: 11.5px; color: var(--ink-soft); }
+/* 정답은 파랑, 내가 고른 오답은 빨강. 정답을 빨강으로 칠하면 뭐가 맞는지 못 읽는다. */
+.qopt.correct { border-color: var(--kon); background: var(--kon-soft); }
+.qopt.wrong { border-color: var(--shu); background: var(--shu-soft); }
+.qopt.dim { opacity: .45; }
+.qo-mark { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; font-size: 10.5px; font-weight: 800; }
+.qo-mark svg { width: 13px; height: 13px; }
+.qo-mark.ok { color: var(--kon); }
+.qo-mark.no { color: var(--shu); }
+
+.qtyping { display: flex; flex-direction: column; gap: 10px; }
+.qtyping .search-input { font-size: 17px; text-align: center; padding: 14px; }
+
+.qverdict {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  margin-top: 14px; padding: 14px; border-radius: 14px; font-size: 14px; font-weight: 650; line-height: 1.6;
+}
+.qverdict svg { width: 17px; height: 17px; vertical-align: -3px; }
+.qverdict b { font-weight: 800; }
+.qverdict.correct { background: var(--kon-soft); color: var(--kon); }
+.qverdict.close { background: var(--surface-2); color: var(--ink); }
+.qverdict.wrong { background: var(--shu-soft); color: var(--shu); }
+.qv-ex { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; font-weight: 500; color: var(--ink-soft); }
+.qnext { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+
+.quizscore {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  padding: 30px 18px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface);
+}
+.qs-num { font-size: 54px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.qs-num small { font-size: 18px; font-weight: 700; margin-left: 3px; }
+.qs-label { font-size: 16px; font-weight: 700; margin-top: 6px; }
+.qs-sub { font-size: 12.5px; color: var(--ink-soft); }
+.quizscore.great .qs-num, .quizscore.great .qs-label { color: var(--kon); }
+.quizscore.good .qs-num, .quizscore.good .qs-label { color: var(--kon); }
+.quizscore.okay .qs-num, .quizscore.okay .qs-label { color: var(--ink); }
+.quizscore.weak .qs-num, .quizscore.weak .qs-label { color: var(--shu); }
+
+.qwronglist { display: flex; flex-direction: column; }
+.qwrow { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.qwrow:last-child { border-bottom: none; }
+.qw-speak { background: none; border: none; padding: 4px; cursor: pointer; color: var(--ink-soft); display: flex; }
+.qw-speak svg { width: 17px; height: 17px; }
+.qw-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.qw-body b { font-size: 15px; font-weight: 700; }
+.qw-body span { font-size: 11.5px; color: var(--ink-soft); }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

@@ -14,6 +14,7 @@ const MENU_LABELS = {
   grammar: '기초문법',
   words: '단어암기',
   sentences: '상황별 문장암기',
+  quiz: '단어 시험',
   rpg: '실전연습 (여행연습)',
 };
 
