@@ -7,13 +7,16 @@ import MicButton from '../components/MicButton.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
+import BuildQuiz from '../components/BuildQuiz.jsx';
 import { ALL_SITUATIONS as SITUATIONS } from '../data/allSituations.js';
+import { chunksOf, hasChunks } from '../data/allChunks.js';
 import {
   VERDICT, advanceSession, buildRound1, dueCards, isMastered, nextRoundOf, stateOf, todayKey,
 } from '../lib/review.js';
 
 const MODES = [
   { id: 'ko-jp', label: '한국어 → 일본어', desc: '보고 일본어로 말해보기' },
+  { id: 'build', label: '문장 만들기', desc: '단어를 순서대로 눌러 조립하기' },
   { id: 'jp-ko', label: '일본어 → 뜻', desc: '읽고 뜻 떠올리기' },
   { id: 'listen', label: '듣기', desc: '음성만 듣고 뜻 맞히기' },
   { id: 'blank', label: '빈칸 채우기', desc: '조사 · 어미를 채워보기' },
@@ -64,7 +67,7 @@ export default function Situations({ review, settings, onReviewChange, onToast }
       <>
       <SentencePlayer
         part={part}
-        items={itemsOf(part)}
+        items={mode === 'build' ? itemsOf(part).filter((i) => hasChunks(i.id)) : itemsOf(part)}
         mode={mode}
         review={review}
         settings={settings}
@@ -88,15 +91,29 @@ export default function Situations({ review, settings, onReviewChange, onToast }
         </div>
         <p className="lead">{itemsOf(part).length}문장 · 어떻게 연습할까요?</p>
         <div className="stack">
-          {MODES.map((m) => (
-            <button key={m.id} className="menucard" onClick={() => setMode(m.id)}>
-              <span className="mc-body">
-                <span className="mc-title">{m.label}</span>
-                <span className="mc-sub">{m.desc}</span>
-              </span>
-              <IconChevron className="chev" />
-            </button>
-          ))}
+          {MODES.map((m) => {
+            // 조립 퀴즈는 조각이 3개 이상인 문장만 낼 수 있다
+            const usable = m.id === 'build'
+              ? itemsOf(part).filter((i) => hasChunks(i.id)).length
+              : itemsOf(part).length;
+            return (
+              <button
+                key={m.id}
+                className="menucard"
+                disabled={usable === 0}
+                onClick={() => setMode(m.id)}
+              >
+                <span className="mc-body">
+                  <span className="mc-title">{m.label}</span>
+                  <span className="mc-sub">
+                    {usable === 0 ? '이 파트에는 낼 문장이 없어요'
+                      : m.id === 'build' ? `${m.desc} · ${usable}문장` : m.desc}
+                  </span>
+                </span>
+                <IconChevron className="chev" />
+              </button>
+            );
+          })}
         </div>
 
         <div className="section-label">문장 훑어보기</div>
@@ -305,7 +322,10 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
         </div>
       </div>
 
-      <div className="studycard" onClick={() => !revealed && setRevealed(true)}>
+      <div
+        className={`studycard${mode === 'build' ? ' plain' : ''}`}
+        onClick={() => mode !== 'build' && !revealed && setRevealed(true)}
+      >
         <div className="sc-top">
           {item.star === 3 && <span className="sc-weak" style={{ color: 'var(--kon)', background: 'var(--kon-soft)' }}>꼭 필요</span>}
           <button className="sc-speak" onClick={(e) => { e.stopPropagation(); speakJapanese(speakText, settings.speechRate); }} aria-label="듣기">
@@ -313,7 +333,14 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
           </button>
         </div>
 
-        {faces.front === null ? (
+        {mode === 'build' ? (
+          <BuildQuiz
+            item={item}
+            chunks={chunksOf(item.id)}
+            settings={settings}
+            onSolved={() => setRevealed(true)}
+          />
+        ) : faces.front === null ? (
           <button className="listenbig" onClick={(e) => { e.stopPropagation(); speakJapanese(speakText, settings.speechRate); }}>
             <IconSpeaker />
           </button>
@@ -321,7 +348,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
           <div className={`sent-front${faces.frontKo ? ' ko' : ''}`}>{faces.front}</div>
         )}
 
-        {revealed ? (
+        {revealed && mode !== 'build' ? (
           <div className="sc-back">
             <div className="sent-answer">{faces.back}</div>
             {faces.backSub && <div className="sc-kana">{faces.backSub}</div>}
@@ -337,11 +364,11 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
               </div>
             )}
           </div>
-        ) : (
+        ) : mode !== 'build' ? (
           <div className="sc-hint">
             {mode === 'ko-jp' ? '일본어로 말해본 뒤 탭하세요' : '탭해서 정답 확인하기'}
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* 한→일 모드는 입으로 말하는 게 목적이라 마이크를 앞면에 둔다.
