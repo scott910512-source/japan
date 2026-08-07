@@ -376,6 +376,8 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
       {mode === 'ko-jp' && !revealed && (
         <div onClick={(e) => e.stopPropagation()}>
           <MicButton
+            label="일본어로 말해보기"
+            target={item.jp}
             expected={[item.jp, item.kana]}
             hints={[item.jp, item.kana]}
             onToast={onToast}

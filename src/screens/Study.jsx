@@ -276,14 +276,28 @@ export default function Study({
         )}
       </div>
 
-      {/* 읽는 법이 입에서 나오는지 확인한다. 뜻→한자 방향은 정답을 소리로 흘리게 되므로 뺀다. */}
+      {/* 읽는 법이 입에서 나오는지 확인한다. 뜻→한자 방향은 정답을 소리로 흘리게 되므로 뺀다.
+          무엇을 말해야 하는지 버튼에 그대로 적는다 — "읽어보기"만 있으면 단어인지 예문인지 모른다.
+          짧은 단어는 인식이 잘 빗나가서, 예문으로도 해볼 수 있게 따로 둔다. */}
       {revealed && settings.direction !== 'mean-kanji' && (
-        <MicButton
-          label="읽어보기"
-          expected={[word.kanji, word.kana]}
-          hints={[word.kanji, word.kana]}
-          onToast={onToast}
-        />
+        <>
+          <MicButton
+            label={`「${word.kana}」 말해보기`}
+            target={`${word.kanji} (${word.kana})`}
+            expected={[word.kanji, word.kana]}
+            hints={[word.kanji, word.kana, word.example].filter(Boolean)}
+            onToast={onToast}
+          />
+          {word.example && (
+            <MicButton
+              label="예문으로 말해보기"
+              target={word.example}
+              expected={[word.example, word.exampleKana].filter(Boolean)}
+              hints={[word.example, word.exampleKana].filter(Boolean)}
+              onToast={onToast}
+            />
+          )}
+        </>
       )}
 
       {/* 뜻을 보지 않고도 확실히 아는 카드를 위한 탈출구.

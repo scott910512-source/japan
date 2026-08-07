@@ -12,10 +12,16 @@ const VERDICT_TEXT = {
   none: '못 알아들었어요',
 };
 
+// 짧은 단어일수록 인식이 잘 빗나간다. 안 됐을 때 무엇을 말해야 했는지 보여준다.
+function TargetHint({ target }) {
+  if (!target) return null;
+  return <span className="heard">말할 내용: {target}</span>;
+}
+
 /* 말해보기 버튼.
  * expected에는 정답으로 인정할 표기를 전부 넘긴다(한자·가나 둘 다).
  * hints는 인식 정확도를 올리는 힌트로 서버에 함께 보낸다. */
-export default function MicButton({ expected, hints = [], onResult, onToast, label = '말해보기' }) {
+export default function MicButton({ expected, hints = [], onResult, onToast, label = '말해보기', target }) {
   const [state, setState] = useState('idle'); // idle | listening | working
   const [result, setResult] = useState(null);
   const busy = useRef(false);
@@ -107,6 +113,7 @@ export default function MicButton({ expected, hints = [], onResult, onToast, lab
         <div className={`micresult ${result.verdict}`}>
           <b>{VERDICT_TEXT[result.verdict]}</b>
           {result.said && <span className="heard">들린 말: {result.said}</span>}
+          {result.verdict !== 'good' && <TargetHint target={target} />}
         </div>
       )}
     </div>
