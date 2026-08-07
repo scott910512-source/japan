@@ -18,7 +18,9 @@ export default function TabBar({ active, onChange, reviewCount = 0 }) {
           className={`tab${active === id ? ' active' : ''}`}
           onClick={() => onChange(id)}
         >
-          {id === 'review' && reviewCount > 0 && <span className="count">{reviewCount > 99 ? '99+' : reviewCount}</span>}
+          {id === 'review' && reviewCount > 0 && (
+            <span className="count">{reviewCount > 99 ? '99+' : reviewCount}</span>
+          )}
           <Icon />
           {label}
         </button>
