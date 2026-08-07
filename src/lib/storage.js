@@ -137,6 +137,7 @@ export const DEFAULT_SETTINGS = {
     grammar: true,    // 기초문법
     words: true,      // 단어암기
     sentences: true,  // 상황별 문장암기
+    quiz: true,       // 단어 시험
     rpg: false,       // 실전연습(여행 RPG) — 아직 이관 전이라 기본 off
   },
 
@@ -150,6 +151,12 @@ export const DEFAULT_SETTINGS = {
   newPerDay: 50,      // 하루에 새로 볼 단어 수
   reviewMix: 15,      // 그날 함께 섞을 복습(틀린 것) 수
   levels: ['N5'],     // 학습할 JLPT 레벨. 비우면 전체
+
+  // 시험 — 회독과 따로 돈다. 마지막에 고른 설정을 기억해 둔다.
+  quizCount: 20,
+  quizType: 'choice',   // 'choice' | 'typing' | 'mix'
+  quizDir: 'jp-ko',     // 'jp-ko' | 'ko-jp' | 'mix'
+  quizScope: 'all',     // 'all' | 'seen' | 'weak'
 
   dailyGoal: 20,      // 남겨 둔 예전 설정 (복습 덱·취약 덱에서 쓴다)
   shuffle: true,

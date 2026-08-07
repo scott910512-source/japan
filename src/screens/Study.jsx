@@ -160,6 +160,8 @@ export default function Study({
     onToast('직전 판정을 되돌렸어요');
   };
 
+  // 판정만 키에 걸어 두면 카드마다 손이 마우스로 돌아간다.
+  // 아래쪽 보조 동작까지 다 걸어야 키보드만으로 한 바퀴가 돈다.
   useHotkeys({
     ' ': speakCurrent,
     Space: speakCurrent,
@@ -171,6 +173,14 @@ export default function Study({
     ArrowLeft: undo,
     Backspace: undo,
     ArrowDown: () => setRevealed(true),
+    s: () => faces && speakSlow(faces.speak),
+    S: () => faces && speakSlow(faces.speak),
+    b: () => word && onBookmark(word.id),
+    B: () => word && onBookmark(word.id),
+    e: () => { setShowExample((v) => !v); setRevealed(true); },
+    E: () => { setShowExample((v) => !v); setRevealed(true); },
+    k: () => setPeekKana(true),
+    K: () => setPeekKana(true),
     Escape: onClose,
   });
 
@@ -234,7 +244,7 @@ export default function Study({
         )}
         {!revealed && !faces.front.isKana && settings.direction !== 'mean-kanji' && !settings.showKana && !peekKana && (
           <button className="sc-peek" onClick={(e) => { e.stopPropagation(); setPeekKana(true); }}>
-            <IconEye /> 히라가나 보기
+            <IconEye /> 히라가나 보기{hasKeyboard && <kbd className="inline-key">K</kbd>}
           </button>
         )}
         {!revealed && !faces.front.isKana && (peekKana || settings.showKana) && (
@@ -327,15 +337,18 @@ export default function Study({
       </div>
 
       <div className="studyfoot">
-        <button onClick={() => speakSlow(faces.speak)}><IconRewind /> 천천히 듣기</button>
+        <button onClick={() => speakSlow(faces.speak)}>
+          <IconRewind /> 천천히 듣기{hasKeyboard && <kbd className="inline-key">S</kbd>}
+        </button>
         <button className={bookmarked ? 'on' : ''} onClick={() => onBookmark(word.id)}>
           <IconPlus /> {bookmarked ? '단어장에 있음' : '단어장에 추가'}
+          {hasKeyboard && <kbd className="inline-key">B</kbd>}
         </button>
         <button
           className={showExample ? 'on' : ''}
           onClick={() => { setShowExample((v) => !v); setRevealed(true); }}
         >
-          <IconBulb /> 예문 보기
+          <IconBulb /> 예문 보기{hasKeyboard && <kbd className="inline-key">E</kbd>}
         </button>
       </div>
 
