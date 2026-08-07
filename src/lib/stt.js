@@ -45,8 +45,33 @@ const NO_SPEECH_TIMEOUT_MS = 7000;    // 아무 말도 없으면 그냥 종료
 const HARD_LIMIT_MS = 15000;
 const VOICE_RMS = 0.015;
 
+/* 마이크 스트림은 카드마다 새로 열지 않고 한 번 열어 두고 재사용한다.
+ * 매번 여닫으면 기기에 따라 권한을 다시 묻거나, 사용자 제스처 없이는 아예 안 열린다.
+ * 학습 화면을 나갈 때 releaseMic()으로 실제로 끈다 — 그래야 녹음 표시등도 꺼진다. */
+let sharedStream = null;
+
+function streamLive() {
+  return sharedStream?.getTracks().some((t) => t.readyState === 'live');
+}
+
+export async function acquireMic() {
+  if (streamLive()) return sharedStream;
+  sharedStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  return sharedStream;
+}
+
+export function releaseMic() {
+  try { sharedStream?.getTracks().forEach((t) => t.stop()); } catch { /* 무시 */ }
+  sharedStream = null;
+}
+
+// 권한을 이미 받아 뒀는지. 자동으로 켜도 되는지 판단할 때 쓴다.
+export function micReady() {
+  return streamLive();
+}
+
 export async function startRecording(onAutoStop) {
-  rec.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  rec.stream = await acquireMic();
   const AC = window.AudioContext || window.webkitAudioContext;
   rec.ctx = new AC();
   const src = rec.ctx.createMediaStreamSource(rec.stream);
@@ -100,7 +125,7 @@ function teardown() {
   rec.active = false;
   clearTimeout(rec.timer);
   try { rec.proc?.disconnect(); } catch { /* 이미 끊겼으면 무시 */ }
-  try { rec.stream?.getTracks().forEach((t) => t.stop()); } catch { /* 무시 */ }
+  // 스트림은 끄지 않는다 — 다음 카드에서 그대로 다시 쓴다
 }
 
 // 녹음을 멈추고 16kHz PCM을 base64로 만든다. 말한 게 없으면 빈 문자열.

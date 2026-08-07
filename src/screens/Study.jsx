@@ -5,6 +5,7 @@ import {
 import MicButton from '../components/MicButton.jsx';
 import MemoBox from '../components/MemoBox.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
+import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import {
@@ -68,7 +69,11 @@ export default function Study({
   const [locked, setLocked] = useState(false);   // 카드 전환 중 연타로 오판정되는 것을 막는다
   const [finished, setFinished] = useState(null);
   const history = useRef([]);
+  const micTrigger = useRef(null);   // M키로 단어 마이크를 켜고 끈다
   const hasKeyboard = useHasKeyboard();
+
+  // 학습을 끝내면 마이크를 실제로 놓아 준다 — 안 그러면 녹음 표시등이 계속 켜져 있다
+  useEffect(() => releaseMic, []);
 
   // 세션이 없으면 새로 만든다. 이어하기는 App이 넘겨준 session을 그대로 쓴다.
   useEffect(() => {
@@ -189,6 +194,8 @@ export default function Study({
     E: () => { setShowExample((v) => !v); setRevealed(true); },
     k: () => setPeekKana(true),
     K: () => setPeekKana(true),
+    m: () => micTrigger.current?.(),
+    M: () => micTrigger.current?.(),
     Escape: onClose,
   });
 
@@ -310,6 +317,10 @@ export default function Study({
             expected={[word.kanji, word.kana]}
             hints={[word.kanji, word.kana, word.example].filter(Boolean)}
             onToast={onToast}
+            autoStart={settings.autoMic}
+            triggerRef={micTrigger}
+            hasKeyboard={hasKeyboard}
+            hotkey="M"
           />
           {word.example && (
             <MicButton

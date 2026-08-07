@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconMic } from './Icons.jsx';
 import {
-  cancelRecording, cloudSTTReady, listenWithBrowser, scoreSpeech,
+  cancelRecording, cloudSTTReady, listenWithBrowser, micReady, scoreSpeech,
   startRecording, stopBrowserListening, stopRecordingAndRecognize, sttAvailable,
 } from '../lib/stt.js';
 
@@ -21,21 +21,41 @@ function TargetHint({ target }) {
 /* 말해보기 버튼.
  * expected에는 정답으로 인정할 표기를 전부 넘긴다(한자·가나 둘 다).
  * hints는 인식 정확도를 올리는 힌트로 서버에 함께 보낸다. */
-export default function MicButton({ expected, hints = [], onResult, onToast, label = '말해보기', target }) {
+export default function MicButton({
+  expected, hints = [], onResult, onToast, label = '말해보기', target,
+  autoStart = false, triggerRef, hasKeyboard = false, hotkey,
+}) {
   const [state, setState] = useState('idle'); // idle | listening | working
   const [result, setResult] = useState(null);
   const busy = useRef(false);
+  const armed = useRef(false);   // 이 카드에서 자동으로 한 번 켰는지
 
   // 카드가 바뀌면 이전 결과를 지우고, 녹음 중이었다면 끊는다
   useEffect(() => {
     setResult(null);
+    armed.current = false;
     return () => {
       cancelRecording();
       stopBrowserListening();
     };
   }, [expected?.[0]]);
 
-  if (!sttAvailable()) return null;
+  const available = sttAvailable();
+
+  /* 자동으로 켜기.
+   * 권한을 아직 안 받았으면 여기서 여는 건 사용자 제스처가 아니라 막힌다.
+   * 그래서 첫 한 번은 버튼을 눌러 권한을 주고, 그다음부터 자동으로 켜진다.
+   * 한 카드에서 한 번만 — 답하고 나서 또 켜지면 끝이 없다. */
+  useEffect(() => {
+    if (!available || !autoStart || armed.current) return;
+    if (state !== 'idle' || result) return;
+    if (cloudSTTReady() && !micReady()) return;
+    armed.current = true;
+    start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, available]);
+
+  if (!available) return null;
 
   const finish = (said) => {
     const scored = scoreSpeech(said, expected);
@@ -94,19 +114,22 @@ export default function MicButton({ expected, hints = [], onResult, onToast, lab
     else stopBrowserListening();
   };
 
+  const toggle = () => {
+    if (state === 'listening') stop();
+    else if (state === 'idle') { armed.current = true; start(); }
+  };
+  if (triggerRef) triggerRef.current = toggle;
+
   return (
     <div className="micwrap">
-      <button
-        className={`micbtn ${state}`}
-        onClick={() => (state === 'listening' ? stop() : state === 'idle' && start())}
-        disabled={state === 'working'}
-      >
+      <button className={`micbtn ${state}`} onClick={toggle} disabled={state === 'working'}>
         <IconMic />
         <span>
           {state === 'listening' ? '듣는 중… (다 말하면 자동으로 끝나요)'
             : state === 'working' ? '알아듣는 중…'
               : label}
         </span>
+        {hasKeyboard && hotkey && <kbd className="inline-key">{hotkey}</kbd>}
       </button>
 
       {result && (
