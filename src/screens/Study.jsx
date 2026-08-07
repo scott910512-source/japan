@@ -275,6 +275,14 @@ export default function Study({
               <div className="sc-example">
                 <div className="ex-jp">{settings.canReadKana === false && word.exampleKana ? word.exampleKana : word.example}</div>
                 <div className="ex-ko">{word.exampleKo}</div>
+                {/* 예문은 단어보다 길어서 발음 흐름을 익히기 좋다. 따로 들을 수 있게 둔다. */}
+                <button
+                  className="ex-play"
+                  onClick={(e) => { e.stopPropagation(); speakJapanese(word.example, settings.speechRate); }}
+                  aria-label="예문 듣기"
+                >
+                  <IconSpeaker />
+                </button>
               </div>
             )}
           </div>
@@ -362,6 +370,13 @@ export default function Study({
         <div className="card sc-example" style={{ marginTop: 12 }}>
           <div className="ex-jp">{word.example}</div>
           <div className="ex-ko">{word.exampleKo}</div>
+          <button
+            className="ex-play"
+            onClick={() => speakJapanese(word.example, settings.speechRate)}
+            aria-label="예문 듣기"
+          >
+            <IconSpeaker />
+          </button>
         </div>
       )}
 
