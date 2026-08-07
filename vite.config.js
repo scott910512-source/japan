@@ -5,8 +5,15 @@ import { VitePWA } from 'vite-plugin-pwa';
 // GitHub Pages 프로젝트 사이트(https://<user>.github.io/japan/)에 올리므로 base가 필요하다.
 const base = process.env.VITE_BASE ?? '/japan/';
 
+// 지금 기기가 어느 버전을 보고 있는지 설정 화면에서 알 수 있어야
+// "고쳤다는데 왜 안 보이지"를 확인할 수 있다.
+const buildStamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
 export default defineConfig({
   base,
+  define: {
+    __BUILD_STAMP__: JSON.stringify(buildStamp),
+  },
   plugins: [
     react(),
     VitePWA({
