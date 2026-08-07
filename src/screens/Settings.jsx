@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconDownload, IconUpload, IconTrash, IconSpeaker, IconRewind, IconList } from '../components/Icons.jsx';
 import {
   exportBackup, importBackup, backupSummary, clearAll, DEFAULT_SETTINGS,
 } from '../lib/storage.js';
-import { testCloudTTS, cloudTTSReady } from '../lib/tts.js';
+import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
 import { todayKey } from '../lib/review.js';
 
 const MENU_LABELS = {
@@ -22,10 +22,37 @@ const DIRECTIONS = [
 
 const GOALS = [10, 20, 30, 50];
 
+const STATUS_TEXT = {
+  cloud: '클라우드 음성 사용 중',
+  device: '기기 내장 일본어 음성 사용 중',
+  'device-nojp': '일본어 음성을 못 찾았어요',
+  unknown: '음성 상태를 확인하는 중',
+};
+
 export default function Settings({ settings, onChange, onReplayOnboarding, onOpenWordManager, onToast, onReload }) {
   const fileRef = useRef(null);
   const [keyDraft, setKeyDraft] = useState(settings.gttsKey || '');
   const [testing, setTesting] = useState(false);
+  const [status, setStatus] = useState(() => ttsStatus());
+
+  // 음성 목록은 늦게 채워지고 키를 바꾸면 경로도 바뀐다 — 화면이 열려 있는 동안 계속 맞춘다.
+  useEffect(() => {
+    const sync = () => setStatus(ttsStatus());
+    sync();
+    const timer = setInterval(sync, 1000);
+    if (window.speechSynthesis) window.speechSynthesis.addEventListener?.('voiceschanged', sync);
+    return () => {
+      clearInterval(timer);
+      window.speechSynthesis?.removeEventListener?.('voiceschanged', sync);
+    };
+  }, [settings.gttsKey, settings.useCloudTTS]);
+
+  // 버튼을 눌러 소리를 내보는 건 사용자 제스처라, iOS에서 재생이 막혀 있던 것도 이때 풀린다.
+  const tryVoice = () => {
+    unlockAudio();
+    speakJapanese('こんにちは。日本語の勉強を始めましょう。', settings.speechRate);
+    setStatus(ttsStatus());
+  };
 
   const menus = settings.menus || DEFAULT_SETTINGS.menus;
   const enabledCount = Object.values(menus).filter(Boolean).length;
@@ -155,20 +182,43 @@ export default function Settings({ settings, onChange, onReplayOnboarding, onOpe
 
       <div className="section-label">음성</div>
       <div className="card">
-        <div className="set-title">Google Cloud TTS 키</div>
-        <div className="set-sub" style={{ marginBottom: 8 }}>
-          {cloudTTSReady()
-            ? '클라우드 음성으로 재생 중이에요.'
-            : '키를 넣으면 훨씬 자연스러운 음성으로 읽어줘요. 비워 두면 기기 내장 음성을 써요.'}
+        <div className={`ttsbadge ${status.mode}`}>{STATUS_TEXT[status.mode]}</div>
+        {status.mode !== 'cloud' && (
+          <div className="set-sub" style={{ marginTop: 8 }}>
+            {status.mode === 'device-nojp' || status.mode === 'unknown'
+              ? '이 기기에 일본어 음성이 없을 수 있어요. 아래에 클라우드 키를 넣으면 확실하게 들려요.'
+              : '클라우드 키를 넣으면 훨씬 자연스러운 음성으로 읽어줘요.'}
+          </div>
+        )}
+
+        <div className="btnrow" style={{ marginTop: 10 }}>
+          <button className="ghost-btn" onClick={tryVoice}><IconSpeaker /> 지금 소리 내보기</button>
         </div>
-        <input className="search-input" type="password" placeholder="AIza..." value={keyDraft}
+        <div className="set-note">
+          소리가 안 나면 폰의 무음 스위치와 볼륨을 먼저 확인해 주세요.
+        </div>
+
+        <div className="set-title" style={{ marginTop: 16 }}>Google Cloud TTS 키</div>
+        <div className="set-sub" style={{ marginBottom: 8 }}>
+          키는 이 브라우저에만 저장되고 어디로도 전송되지 않아요.
+        </div>
+        <input className="search-input" type="password" placeholder="AIza... 또는 AQ..." value={keyDraft}
           onChange={(e) => setKeyDraft(e.target.value)} style={{ marginBottom: 10 }} />
         <div className="btnrow">
           <button className="ghost-btn" onClick={saveKey} disabled={testing}>
             <IconSpeaker /> {testing ? '확인 중...' : '저장하고 확인'}
           </button>
+          {settings.gttsKey && (
+            <button className="ghost-btn danger" onClick={() => { setKeyDraft(''); onChange({ gttsKey: '' }); onToast('키를 지웠어요'); }}>
+              <IconTrash /> 키 지우기
+            </button>
+          )}
         </div>
-        <div className="set-note">기존 여행 RPG 앱에 저장해 둔 키가 있으면 자동으로 가져와요.</div>
+        <div className="set-note">
+          웹에 올라간 앱에서 쓰는 키는 브라우저에 노출될 수밖에 없어요.
+          Google Cloud 콘솔에서 이 키에 <b>웹사이트 제한(HTTP 리퍼러)</b>과
+          <b> Text-to-Speech API만 허용</b>을 걸어 두세요. 기존 여행 RPG 앱에 저장해 둔 키가 있으면 자동으로 가져와요.
+        </div>
       </div>
 
       <div className="section-label">데이터</div>
