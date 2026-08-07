@@ -199,9 +199,9 @@ export default function Study({
     Escape: onClose,
   });
 
-  // 훅을 모두 부른 뒤에 그린다 — 세션 준비 전에 일찍 빠져나가면 훅 순서가 어긋난다.
-  if (!session || session.deckId !== deck.id) return null;
-
+  /* 완주 화면이 세션 검사보다 먼저다.
+   * 마지막 장을 판정하면 session을 null로 지우는데, 그 검사를 먼저 하면
+   * 완주 화면에 닿기도 전에 null을 반환해서 화면이 통째로 비어 버린다. */
   if (finished) {
     return (
       <FinishCard
@@ -213,6 +213,9 @@ export default function Study({
       />
     );
   }
+
+  // 훅을 모두 부른 뒤에 그린다 — 세션 준비 전에 일찍 빠져나가면 훅 순서가 어긋난다.
+  if (!session || session.deckId !== deck.id) return null;
 
   if (!word) {
     return (
