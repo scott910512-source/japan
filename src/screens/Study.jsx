@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconSpeaker, IconRewind, IconCheck, IconX, IconPlus, IconArrowLeft, IconEye, IconBulb, IconTriangle,
 } from '../components/Icons.jsx';
+import KeyHints from '../components/KeyHints.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
+import { useHotkeys } from '../lib/useHotkeys.js';
 import {
   VERDICT, advanceSession, buildRound1, nextRoundOf, stateOf, todayKey,
 } from '../lib/review.js';
@@ -103,15 +105,15 @@ export default function Study({
     setShowExample(false);
   }, [currentId]);
 
-  if (!session || session.deckId !== deck.id) return null;
-
   const dismissRules = () => {
     setShowRules(false);
     onSettingsChange({ seenRules: true });
   };
 
   const judge = (verdict) => {
-    if (!word || locked || !revealed) return;
+    if (!word || locked) return;
+    // 뒷면을 봐야 판정할 수 있다. 단 "이미 외웠어요"는 확인 없이 넘기는 게 목적이라 예외다.
+    if (verdict !== VERDICT.MASTER && !revealed) return;
     setLocked(true);
 
     history.current.push({
@@ -138,6 +140,7 @@ export default function Study({
       });
     }
 
+    if (verdict === VERDICT.MASTER) onToast('졸업 처리했어요 — 복습에도 안 나와요');
     setTimeout(() => setLocked(false), 220);
   };
 
@@ -152,6 +155,23 @@ export default function Study({
     setFinished(null);
     onToast('직전 판정을 되돌렸어요');
   };
+
+  useHotkeys({
+    ' ': speakCurrent,
+    Space: speakCurrent,
+    Enter: () => (revealed ? judge(VERDICT.KNOWN) : setRevealed(true)),
+    1: () => judge(VERDICT.UNKNOWN),
+    2: () => judge(VERDICT.VAGUE),
+    3: () => judge(VERDICT.KNOWN),
+    0: () => judge(VERDICT.MASTER),
+    ArrowLeft: undo,
+    Backspace: undo,
+    ArrowDown: () => setRevealed(true),
+    Escape: onClose,
+  });
+
+  // 훅을 모두 부른 뒤에 그린다 — 세션 준비 전에 일찍 빠져나가면 훅 순서가 어긋난다.
+  if (!session || session.deckId !== deck.id) return null;
 
   if (finished) {
     return (
@@ -247,6 +267,14 @@ export default function Study({
         )}
       </div>
 
+      {/* 뜻을 보지 않고도 확실히 아는 카드를 위한 탈출구.
+          뒷면을 확인해야 판정되는 원칙은 유지하되, 이 버튼만 예외로 둔다. */}
+      {!revealed && (
+        <button className="skipbtn" onClick={() => judge(VERDICT.MASTER)} disabled={locked}>
+          이미 외웠어요 · 바로 졸업
+        </button>
+      )}
+
       <div className="judgerow">
         <button
           className="judge unknown"
@@ -296,6 +324,8 @@ export default function Study({
           <div className="ex-ko">{word.exampleKo}</div>
         </div>
       )}
+
+      <KeyHints revealed={revealed} />
     </div>
   );
 }
