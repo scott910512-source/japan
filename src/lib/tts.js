@@ -11,6 +11,13 @@ let config = { gttsKey: '', useCloud: true, voice: DEFAULT_VOICE };
 // 같은 문장은 다시 부르지 않는다 — 무료 한도를 아끼기 위한 메모리 캐시.
 const cloudCache = new Map();
 let audioEl = null;
+
+/* 재생 세대 번호.
+ * 클라우드 음성은 "요청 → 응답 → 재생" 사이에 시간이 걸린다. 그 사이에 다음 소리가
+ * 시작되면, 늦게 도착한 예전 응답이 뒤늦게 울리거나 — 우리가 끊어서 생긴 중단 오류가
+ * 실패로 오인돼 기기 음성 폴백까지 울린다. 그래서 두 번 들렸다.
+ * 번호를 매겨 두고, 자기 차례가 지난 요청은 소리를 내지 않는다. */
+let speakToken = 0;
 let cloudDisabled = false; // 키가 잘못된 경우 매번 재시도하지 않도록 잠근다
 let lastText = '';
 let onCloudError = null;
@@ -145,7 +152,7 @@ async function requestCloud(text, rate, withRate) {
   return (await res.json()).audioContent;
 }
 
-async function speakCloud(text, rate) {
+async function speakCloud(text, rate, token) {
   const cacheKey = `${text}|${rate}|${config.voice}`;
   let b64 = cloudCache.get(cacheKey);
 
@@ -162,9 +169,17 @@ async function speakCloud(text, rate) {
     cloudCache.set(cacheKey, b64);
   }
 
+  if (token !== speakToken) return;   // 기다리는 사이에 다음 소리가 시작됐다
+
   const a = getAudioEl();
   a.src = `data:audio/mp3;base64,${b64}`;
-  await a.play();
+  try {
+    await a.play();
+  } catch (err) {
+    // 우리가 끊어서 난 중단은 실패가 아니다 — 여기서 폴백하면 두 번 들린다
+    if (err?.name === 'AbortError' || token !== speakToken) return;
+    throw err;
+  }
 }
 
 /* ── 공개 API ── */
@@ -172,15 +187,17 @@ async function speakCloud(text, rate) {
 export function speakJapanese(text, rate = 0.9) {
   if (!text) return;
   lastText = text;
-  // 앞의 재생을 반드시 끊고 시작한다. 두 번 불리면 두 소리가 겹쳐 들린다.
+  // 앞의 재생을 끊고 세대를 넘긴다. 이 뒤로 예전 요청은 소리를 내지 못한다.
   stopSpeaking();
+  const token = speakToken;
 
   if (!cloudTTSReady()) {
     speakLocal(text, rate);
     return;
   }
 
-  speakCloud(text, rate).catch((err) => {
+  speakCloud(text, rate, token).catch((err) => {
+    if (token !== speakToken) return;   // 이미 지난 요청 — 폴백까지 울리면 두 번이 된다
     // 인증·권한 오류는 키 문제이므로 잠그고 알린다. 그 외는 조용히 폴백만 한다.
     if (err.status === 400 || err.status === 401 || err.status === 403) {
       cloudDisabled = true;
@@ -195,6 +212,7 @@ export function speakSlow(text) {
 }
 
 export function stopSpeaking() {
+  speakToken += 1;   // 진행 중인 요청이 뒤늦게 울리지 못하게 한다
   try { window.speechSynthesis?.cancel(); } catch { /* 무시 */ }
   if (audioEl) {
     audioEl.pause();
