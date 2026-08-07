@@ -8,6 +8,7 @@ import { todayKey } from '../lib/review.js';
 import Account from './Account.jsx';
 import KeyVault from '../components/KeyVault.jsx';
 import VoicePicker from '../components/VoicePicker.jsx';
+import { usageSummary, formatChars } from '../lib/usage.js';
 
 const MENU_LABELS = {
   basics: '완전기초',
@@ -65,6 +66,17 @@ export default function Settings({
       window.speechSynthesis?.removeEventListener?.('voiceschanged', sync);
     };
   }, [settings.gttsKey, settings.useCloudTTS]);
+
+  /* 이번 달 읽어준 글자 수.
+   * 콘솔 측정항목에는 요청 수만 나오고 글자 수는 결제 보고서에 하루 늦게 뜬다.
+   * 여기서 바로 보이면 콘솔에 들어갈 일이 없다. 소리를 낼 때마다 다시 읽는다. */
+  const [usage, setUsage] = useState(() => usageSummary(settings.gttsVoice));
+  useEffect(() => {
+    const tick = () => setUsage(usageSummary(settings.gttsVoice));
+    tick();
+    const timer = setInterval(tick, 3000);
+    return () => clearInterval(timer);
+  }, [settings.gttsVoice]);
 
   // 버튼을 눌러 소리를 내보는 건 사용자 제스처라, iOS에서 재생이 막혀 있던 것도 이때 풀린다.
   const tryVoice = () => {
@@ -248,6 +260,25 @@ export default function Settings({
         <div className="set-note">
           소리가 안 나면 폰의 무음 스위치와 볼륨을 먼저 확인해 주세요.
         </div>
+
+        {status.mode === 'cloud' && (
+          <div className="usagebox">
+            <div className="ub-top">
+              <span className="ub-label">이번 달 읽어준 글자</span>
+              <span className={`ub-val${usage.over ? ' over' : ''}`}>
+                {formatChars(usage.used)} / {formatChars(usage.limit)}자
+              </span>
+            </div>
+            <div className="ub-bar"><i style={{ width: `${Math.min(100, usage.percent)}%` }} /></div>
+            <div className="set-note" style={{ marginTop: 6 }}>
+              {usage.over
+                ? '무료 한도를 넘었어요. 넘은 만큼만 요금이 붙어요.'
+                : `무료 한도까지 ${formatChars(usage.left)}자 남았어요.`}
+              {' '}이 기기에서 보낸 것만 세고, 매달 1일에 다시 0부터예요.
+              같은 단어를 다시 들을 땐 저장해 둔 소리를 쓰므로 늘지 않아요.
+            </div>
+          </div>
+        )}
 
         <div className="set-title" style={{ marginTop: 16 }}>Google Cloud TTS 키</div>
 

@@ -2,6 +2,8 @@
  * 1순위는 Google Cloud TTS(기존 여행 RPG 앱에서 쓰던 API 키를 그대로 승계해서 사용),
  * 키가 없거나 호출이 실패하면 브라우저 내장 speechSynthesis로 자동 폴백한다. */
 
+import { addChars } from './usage.js';
+
 const GTTS_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 const DEFAULT_VOICE = 'ja-JP-Neural2-B';
 let deviceVoiceURI = '';   // 기기 내장 음성 중 사용자가 고른 것
@@ -165,6 +167,8 @@ async function speakCloud(text, rate, token) {
       else throw err;
     }
     if (!b64) throw new Error('빈 응답');
+    // 서버까지 간 요청만 센다 — 캐시로 다시 튼 소리는 청구되지 않는다
+    addChars([...text].length);
     if (cloudCache.size > 300) cloudCache.clear();
     cloudCache.set(cacheKey, b64);
   }
