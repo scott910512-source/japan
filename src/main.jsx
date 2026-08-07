@@ -12,6 +12,17 @@ const updateSW = registerSW({
   onNeedRefresh() {
     updateSW(true);
   },
+  onRegisteredSW(_url, registration) {
+    if (!registration) return;
+    /* 홈 화면 앱은 사실상 안 닫힌다. 앱을 처음 열 때 한 번만 확인하면
+     * 며칠 전 화면을 계속 보게 된다. 앱을 다시 앞으로 꺼낼 때마다 새 버전을 확인한다. */
+    const check = () => {
+      if (document.visibilityState === 'visible') registration.update().catch(() => {});
+    };
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    setInterval(check, 30 * 60 * 1000);
+  },
 });
 
 ReactDOM.createRoot(document.getElementById('root')).render(

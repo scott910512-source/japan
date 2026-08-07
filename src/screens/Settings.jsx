@@ -117,6 +117,20 @@ export default function Settings({
     }
   };
 
+  /* 서비스워커가 옛 화면을 붙잡고 있으면 고친 게 안 보인다.
+   * 홈 화면에 추가한 iOS 앱은 사실상 안 닫혀서 갱신이 늦다.
+   * 캐시만 비우고 다시 받는다 — 학습 기록은 localStorage에 있어서 그대로 남는다. */
+  const forceUpdate = async () => {
+    onToast('최신 버전을 받는 중이에요');
+    try {
+      const regs = await navigator.serviceWorker?.getRegistrations?.() ?? [];
+      await Promise.all(regs.map((r) => r.unregister()));
+      const keys = await caches?.keys?.() ?? [];
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch { /* 지우지 못해도 새로고침은 해 본다 */ }
+    window.location.reload(true);
+  };
+
   const reset = () => {
     const typed = window.prompt('학습 기록을 모두 지우려면 "초기화"라고 입력해 주세요.');
     if (typed !== '초기화') return;
@@ -313,7 +327,15 @@ export default function Settings({
         <button className="listrow" onClick={onReplayOnboarding}>
           <IconRewind /> 처음 질문 다시 하기
         </button>
-        <div className="set-note">JS일본어 · 회독 학습 · 빌드 {__BUILD_STAMP__}</div>
+        <button className="listrow" onClick={forceUpdate}>
+          <IconDownload /> 최신 버전 받기
+        </button>
+        <div className="set-note">
+          JS일본어 · 회독 학습 · 빌드 {__BUILD_STAMP__}
+          <br />
+          고친 게 안 보이면 위 버튼을 누르세요. 빌드 시각이 바뀌면 새 버전입니다.
+          학습 기록은 지워지지 않아요.
+        </div>
       </div>
     </>
   );
