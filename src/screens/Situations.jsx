@@ -3,6 +3,7 @@ import {
   IconSpeaker, IconChevron, IconArrowLeft, IconCheck, IconX, IconTriangle, IconRewind, IconEye,
 } from '../components/Icons.jsx';
 import KeyHints from '../components/KeyHints.jsx';
+import MicButton from '../components/MicButton.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
@@ -334,6 +335,19 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
           </div>
         )}
       </div>
+
+      {/* 한→일 모드는 입으로 말하는 게 목적이라 마이크를 앞면에 둔다.
+          말한 결과가 정답에 가까우면 뒷면을 열어 바로 확인하게 한다. */}
+      {mode === 'ko-jp' && !revealed && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <MicButton
+            expected={[item.jp, item.kana]}
+            hints={[item.jp, item.kana]}
+            onToast={onToast}
+            onResult={(scored) => { if (scored.verdict !== 'none') setRevealed(true); }}
+          />
+        </div>
+      )}
 
       {!revealed && (
         <button className="skipbtn" onClick={() => judge(VERDICT.MASTER)} disabled={locked}>

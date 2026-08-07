@@ -3,6 +3,7 @@ import {
   IconSpeaker, IconRewind, IconCheck, IconX, IconPlus, IconArrowLeft, IconEye, IconBulb, IconTriangle,
 } from '../components/Icons.jsx';
 import KeyHints from '../components/KeyHints.jsx';
+import MicButton from '../components/MicButton.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
@@ -274,6 +275,16 @@ export default function Study({
           <div className="sc-hint">탭해서 뜻 확인하기</div>
         )}
       </div>
+
+      {/* 읽는 법이 입에서 나오는지 확인한다. 뜻→한자 방향은 정답을 소리로 흘리게 되므로 뺀다. */}
+      {revealed && settings.direction !== 'mean-kanji' && (
+        <MicButton
+          label="읽어보기"
+          expected={[word.kanji, word.kana]}
+          hints={[word.kanji, word.kana]}
+          onToast={onToast}
+        />
+      )}
 
       {/* 뜻을 보지 않고도 확실히 아는 카드를 위한 탈출구.
           뒷면을 확인해야 판정되는 원칙은 유지하되, 이 버튼만 예외로 둔다. */}
