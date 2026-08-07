@@ -21,6 +21,7 @@ import {
   loadSession, saveSession,
   loadStats, saveStats,
   touchStreak, setStorageErrorHandler,
+  loadVaultKey, saveVaultKey,
 } from './lib/storage.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
@@ -28,6 +29,7 @@ import { dueCards, todayKey, weakCards } from './lib/review.js';
 import { supabase, supabaseConfigured } from './lib/supabase.js';
 import { syncNow, pushMerged } from './lib/sync.js';
 import { pickSyncedSettings } from './lib/merge.js';
+import { encryptWithVaultKey, decryptWithVaultKey } from './lib/crypto.js';
 
 const SUB_TITLES = {
   basics: '완전기초',
@@ -55,6 +57,7 @@ export default function App() {
   const [authSession, setAuthSession] = useState(null);
   const [syncState, setSyncState] = useState({ busy: false, at: null });
   const [remoteKeyEnvelope, setRemoteKeyEnvelope] = useState(null);
+  const [vaultKey, setVaultKey] = useState(() => loadVaultKey());
 
   const showToast = useCallback((message) => {
     setToast(message);
@@ -152,6 +155,43 @@ export default function App() {
     });
     setRemoteKeyEnvelope(envelope);
   }, [authSession, review, progress, settings, stats, streak, customWords]);
+
+  const rememberVaultKey = useCallback((raw) => {
+    setVaultKey(raw);
+    saveVaultKey(raw);
+  }, []);
+
+  /* API 키를 계정에 자동으로 잠가 두고, 새 기기에서는 자동으로 풀어 온다.
+   * 사용자가 따로 누를 게 없어야 한다 — 눌러야 하면 안 누른다. */
+  useEffect(() => {
+    if (!authSession?.user || !vaultKey) return;
+
+    // 이 기기에 키가 없고 서버에 봉투가 있으면 → 풀어서 가져온다
+    if (!settings.gttsKey && remoteKeyEnvelope) {
+      decryptWithVaultKey(remoteKeyEnvelope, vaultKey).then((key) => {
+        if (key) {
+          patchSettings({ gttsKey: key });
+          showToast('음성 키를 계정에서 가져왔어요');
+        } else {
+          // 비밀번호를 바꿨으면 예전 봉투는 못 연다
+          showToast('계정에 보관된 음성 키를 열지 못했어요. 키를 다시 넣어 주세요');
+        }
+      });
+      return;
+    }
+
+    // 이 기기에 키가 있으면 → 서버 봉투를 이 키로 맞춰 둔다
+    if (settings.gttsKey) {
+      decryptWithVaultKey(remoteKeyEnvelope, vaultKey).then(async (stored) => {
+        if (stored === settings.gttsKey) return; // 이미 같은 키가 올라가 있다
+        const envelope = await encryptWithVaultKey(settings.gttsKey, vaultKey);
+        try {
+          await saveRemoteKey(envelope);
+        } catch { /* 다음 동기화에서 다시 시도한다 */ }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authSession, vaultKey, settings.gttsKey, remoteKeyEnvelope]);
 
   // 로그인 직후 한 번은 자동으로 맞춘다. 사용자가 버튼을 눌러야만 이어지면 잊는다.
   const syncedFor = useRef(null);
@@ -307,9 +347,13 @@ export default function App() {
             session={authSession}
             syncState={syncState}
             onSync={() => runSync(false)}
-            onSignedOut={() => { setAuthSession(null); setRemoteKeyEnvelope(null); syncedFor.current = null; showToast('로그아웃했어요'); }}
+            onSignedOut={() => {
+              setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null);
+              syncedFor.current = null; showToast('로그아웃했어요');
+            }}
+            onVaultKey={rememberVaultKey}
             remoteKeyEnvelope={remoteKeyEnvelope}
-            onSaveRemoteKey={saveRemoteKey}
+            vaultReady={Boolean(vaultKey)}
           />
         </section>
       </div>
