@@ -24,12 +24,14 @@ create table if not exists public.user_data (
   stats        jsonb not null default '{}'::jsonb,   -- 일별 학습량
   custom_words jsonb not null default '[]'::jsonb,   -- 직접 추가한 단어
   streak       jsonb not null default '{}'::jsonb,   -- 연속 학습일
+  memos        jsonb not null default '{}'::jsonb,   -- 단어별 암기 메모 { 카드id: {text, at} }
   gtts_key_enc jsonb,                                -- 음성 API 키 (암호문만, 아래 설명 참고)
   updated_at   timestamptz not null default now()
 );
 
 -- 이미 테이블을 만든 뒤 이 파일을 다시 실행하는 경우를 위해
 alter table public.user_data add column if not exists gtts_key_enc jsonb;
+alter table public.user_data add column if not exists memos jsonb not null default '{}'::jsonb;
 
 -- gtts_key_enc 에는 원문이 들어가지 않는다.
 --   { v, salt, iv, ct } 형태의 봉투이고, 복호화 열쇠는 사용자가 정한

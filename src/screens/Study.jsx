@@ -4,6 +4,7 @@ import {
 } from '../components/Icons.jsx';
 import KeyHints from '../components/KeyHints.jsx';
 import MicButton from '../components/MicButton.jsx';
+import MemoBox from '../components/MemoBox.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
@@ -48,7 +49,7 @@ function facesOf(word, settings) {
 }
 
 export default function Study({
-  deck, review, settings, session, bookmarks,
+  deck, review, settings, session, bookmarks, memos, onSaveMemo,
   onReviewChange, onSessionChange, onSettingsChange, onBookmark, onClose, onToast,
 }) {
   const cards = deck.cards;
@@ -264,6 +265,12 @@ export default function Study({
                 {hangul && <span className="sc-hangul"> · {hangul}</span>}
               </div>
             )}
+            <MemoBox
+              memo={memos?.[word.id]}
+              placeholder={`예) ${word.kana} → 소리로 외우는 나만의 방법`}
+              onSave={(text) => onSaveMemo(word.id, text)}
+              onDelete={() => onSaveMemo(word.id, '')}
+            />
             {settings.showExample && word.example && (
               <div className="sc-example">
                 <div className="ex-jp">{settings.canReadKana === false && word.exampleKana ? word.exampleKana : word.example}</div>
