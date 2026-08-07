@@ -7,7 +7,7 @@ import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import {
-  VERDICT, advanceSession, buildRound1, nextRoundOf, stateOf, todayKey,
+  VERDICT, advanceSession, buildDailySession, buildRound1, nextRoundOf, stateOf, todayKey,
 } from '../lib/review.js';
 
 const ROUND_LABEL = (round) => (round === 1 ? '1회독 (전체)' : `${round}회독 (틀린 것만 복습)`);
@@ -64,10 +64,18 @@ export default function Study({
   // 세션이 없으면 새로 만든다. 이어하기는 App이 넘겨준 session을 그대로 쓴다.
   useEffect(() => {
     if (session && session.deckId === deck.id && session.date === todayKey()) return;
-    const queue = buildRound1(cards.map((w) => w.id), review, {
-      size: settings.dailyGoal,
-      shuffle: settings.shuffle,
-    });
+
+    // 오늘 학습 덱만 "복습 섞기 + 신규"로 짠다.
+    // 복습 덱·취약 덱은 이미 추려진 목록이라 그대로 다 돈다.
+    const ids = cards.map((w) => w.id);
+    const queue = deck.daily
+      ? buildDailySession(ids, review, {
+        newCount: settings.newPerDay,
+        reviewCount: settings.reviewMix,
+        shuffle: settings.shuffle,
+      }).queue
+      : buildRound1(ids, review, { size: 0, shuffle: settings.shuffle });
+
     onSessionChange({
       deckId: deck.id,
       round: 1,

@@ -7,10 +7,11 @@ import ReviewTab from './screens/ReviewTab.jsx';
 import Settings from './screens/Settings.jsx';
 import Basics from './screens/Basics.jsx';
 import WordManager from './screens/WordManager.jsx';
+import WordDeck, { filterByLevel } from './screens/WordDeck.jsx';
 import Situations from './screens/Situations.jsx';
 import GrammarHub from './screens/GrammarHub.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
-import { DEFAULT_WORDS } from './data/words.js';
+import { ALL_WORDS } from './data/allWords.js';
 import { SITUATIONS } from './data/situations.js';
 import {
   loadCustomWords, saveCustomWords,
@@ -30,6 +31,7 @@ const SUB_TITLES = {
   sentences: '상황별 문장암기',
   rpg: '실전연습 (여행연습)',
   manage: '내 단어장',
+  worddeck: '단어암기',
 };
 
 export default function App() {
@@ -81,7 +83,7 @@ export default function App() {
     else root.setAttribute('data-theme', settings.theme);
   }, [settings.theme]);
 
-  const words = useMemo(() => [...DEFAULT_WORDS, ...customWords], [customWords]);
+  const words = useMemo(() => [...ALL_WORDS, ...customWords], [customWords]);
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
   const byId = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
   const due = useMemo(() => dueCards(wordIds, review, todayKey()), [wordIds, review]);
@@ -128,9 +130,16 @@ export default function App() {
     });
   }, []);
 
+  // 오늘 학습 덱만 daily로 표시한다 — 복습 섞기 + 신규로 세션을 짜라는 뜻.
   const startWordDeck = useCallback(() => {
-    setDeck({ id: 'words', label: '오늘 학습', cards: words });
-  }, [words]);
+    const pool = filterByLevel(words, settings.levels);
+    if (pool.length === 0) {
+      showToast('고른 레벨에 단어가 없어요');
+      return;
+    }
+    setSub(null);
+    setDeck({ id: 'words', label: '오늘 학습', cards: pool, daily: true });
+  }, [words, settings.levels, showToast]);
 
   const startDueDeck = useCallback(() => {
     if (due.length === 0) {
@@ -150,7 +159,7 @@ export default function App() {
   }, [wordIds, review, byId, showToast]);
 
   const openMenu = useCallback((id) => {
-    if (id === 'words') { startWordDeck(); return; }
+    if (id === 'words') { setSub('worddeck'); return; }
     if (id === 'review') { setActiveTab('review'); return; }
     if (id === 'rpg') { showToast('여행연습은 이관 준비 중이에요'); return; }
     setSub(id);
@@ -244,6 +253,15 @@ export default function App() {
             <div className="sub-title">{SUB_TITLES[sub]}</div>
           </div>
           <div className="sub-body">
+            {sub === 'worddeck' && (
+              <WordDeck
+                words={words}
+                review={review}
+                settings={settings}
+                onChange={patchSettings}
+                onStart={startWordDeck}
+              />
+            )}
             {sub === 'basics' && <Basics settings={settings} onToast={showToast} />}
             {sub === 'grammar' && (
               <GrammarHub

@@ -151,6 +151,45 @@ export function buildRound1(cardIds, progress, { size = 0, shuffle = true } = {}
   return shuffle ? shuffled(picked) : picked;
 }
 
+/* 하루치 세션 구성 — "복습 섞기 + 신규".
+ *
+ * 매일 신규만 쌓으면 앞서 틀린 것이 영영 안 돌아오고, 복습만 하면 진도가 안 나간다.
+ * 그래서 한 세션을 [이미 틀린 것 중 무작위 N개] + [처음 보는 M개]로 짠다.
+ *
+ * 복습 쪽 우선순위:
+ *   1) 몰라요·애매해요로 남은 카드 (box < KNOWN)
+ *   2) 알아요지만 복습일이 된 카드
+ * 둘 다 무작위로 섞어 뽑는다 — 항상 같은 카드만 도는 것을 막는다.
+ */
+export function buildDailySession(cardIds, progress, {
+  newCount = 50, reviewCount = 15, today = todayKey(), shuffle = true,
+} = {}) {
+  const fresh = [];
+  const wrong = [];
+  const dueKnown = [];
+
+  for (const id of cardIds) {
+    const st = stateOf(progress, id);
+    if (!st.lastSeen) { fresh.push(id); continue; }
+    if (isMastered(st)) continue;
+    if (st.box < BOX.KNOWN) wrong.push(id);
+    else if (isDue(st, today)) dueKnown.push(id);
+  }
+
+  const reviewPool = [...shuffled(wrong), ...shuffled(dueKnown)];
+  const review = reviewPool.slice(0, Math.max(0, reviewCount));
+  const fresher = fresh.slice(0, Math.max(0, newCount));
+
+  const picked = [...review, ...fresher];
+  return {
+    queue: shuffle ? shuffled(picked) : picked,
+    reviewPicked: review.length,
+    newPicked: fresher.length,
+    freshLeft: Math.max(0, fresh.length - fresher.length),
+    reviewLeft: Math.max(0, reviewPool.length - review.length),
+  };
+}
+
 // 다음 회독 큐 = 이번 회독에서 아직 안 끝난 카드만. 2회독부터는 항상 섞는다.
 export function buildNextRound(roundIds, progress) {
   const remaining = roundIds.filter((id) => !isSessionClear(stateOf(progress, id)));
