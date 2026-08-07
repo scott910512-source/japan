@@ -569,6 +569,21 @@ button, input, select { font-family: inherit; }
 .show-ko { font-size: 15px; color: var(--ink-soft); text-align: center; }
 .show-hint { position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); font-size: 12px; color: var(--ink-soft); opacity: .7; }
 
+/* ── 오늘 학습 구성 미리보기 ── */
+.planrow { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.pl-icon {
+  width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+}
+.pl-icon svg { width: 18px; height: 18px; }
+.pl-icon.review { background: var(--shu-soft); color: var(--shu); }
+.pl-icon.new { background: var(--kon-soft); color: var(--kon); }
+.pl-body { display: flex; flex-direction: column; gap: 2px; }
+.pl-body b { font-size: 14px; font-weight: 700; }
+.pl-body span { font-size: 11.5px; color: var(--ink-soft); }
+.plantotal { padding-top: 11px; text-align: right; font-size: 13px; font-weight: 700; color: var(--kon); font-variant-numeric: tabular-nums; }
+.bigstart:disabled { opacity: .5; cursor: default; }
+
 /* ── 이미 외운 카드 건너뛰기 · 키보드 단축키 ── */
 .skipbtn {
   width: 100%; margin-bottom: 10px; padding: 11px 0; border-radius: 12px; cursor: pointer;

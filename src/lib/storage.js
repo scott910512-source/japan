@@ -107,7 +107,13 @@ export const DEFAULT_SETTINGS = {
   showKana: false,    // 앞면에 히라가나 함께 표시
   showExample: true,  // 뒷면에 예문 표시
   hangulPron: false,  // 한글 근사 발음 표기
-  dailyGoal: 20,      // 1회독 분량
+
+  // 하루 분량 — 복습 섞기 + 신규로 끊어서 학습한다
+  newPerDay: 50,      // 하루에 새로 볼 단어 수
+  reviewMix: 15,      // 그날 함께 섞을 복습(틀린 것) 수
+  levels: ['N5'],     // 학습할 JLPT 레벨. 비우면 전체
+
+  dailyGoal: 20,      // 남겨 둔 예전 설정 (복습 덱·취약 덱에서 쓴다)
   shuffle: true,
   direction: 'kanji-mean', // 'kanji-mean' | 'mean-kanji' | 'kanji-kana'
 
