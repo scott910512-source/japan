@@ -569,6 +569,29 @@ button, input, select { font-family: inherit; }
 .show-ko { font-size: 15px; color: var(--ink-soft); text-align: center; }
 .show-hint { position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); font-size: 12px; color: var(--ink-soft); opacity: .7; }
 
+/* ── 이미 외운 카드 건너뛰기 · 키보드 단축키 ── */
+.skipbtn {
+  width: 100%; margin-bottom: 10px; padding: 11px 0; border-radius: 12px; cursor: pointer;
+  background: var(--surface); border: 1px dashed var(--kon); color: var(--kon);
+  font-size: 12.5px; font-weight: 650;
+}
+.skipbtn:disabled { opacity: .5; cursor: default; }
+
+.keyhints { display: none; }
+/* 마우스·키보드가 달린 기기에서만 안내한다 — 폰에서는 자리만 차지한다 */
+@media (hover: hover) and (pointer: fine) {
+  .keyhints {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px;
+    margin-top: 12px; font-size: 11px; color: var(--ink-soft);
+  }
+  .keyhints span { display: inline-flex; align-items: center; gap: 4px; }
+  .keyhints kbd {
+    font-family: var(--font-mono); font-size: 10px; line-height: 1; padding: 3px 5px;
+    border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
+    background: var(--surface-2); color: var(--ink);
+  }
+}
+
 .ob-next:disabled { opacity: .45; cursor: default; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

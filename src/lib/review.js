@@ -4,7 +4,9 @@
 // 사용자에게 설명하는 규칙 한 줄:
 //   "빨강은 오늘 또 나오고, 노랑은 다음 회독에 나오고, 초록이 이어지면 졸업"
 
-export const VERDICT = { UNKNOWN: 'unknown', VAGUE: 'vague', KNOWN: 'known' };
+// MASTER는 "뜻을 안 봐도 확실히 아는" 카드를 바로 졸업시키는 판정이다.
+// 나머지 셋과 달리 뒷면을 확인하지 않은 상태에서도 누를 수 있다.
+export const VERDICT = { UNKNOWN: 'unknown', VAGUE: 'vague', KNOWN: 'known', MASTER: 'master' };
 
 // box: 0=미학습, 1=몰라요, 2=애매해요, 3=알아요
 export const BOX = { NEW: 0, UNKNOWN: 1, VAGUE: 2, KNOWN: 3 };
@@ -53,7 +55,11 @@ export function applyVerdict(prev, verdict, today = todayKey()) {
   const s = { ...emptyState(), ...prev };
   const next = { ...s, rounds: s.rounds + 1, lastSeen: today };
 
-  if (verdict === VERDICT.UNKNOWN) {
+  if (verdict === VERDICT.MASTER) {
+    // 졸업 기준까지 한 번에 올린다 — 복습 큐에서도 바로 빠진다.
+    next.box = BOX.KNOWN;
+    next.streak = MASTER_STREAK;
+  } else if (verdict === VERDICT.UNKNOWN) {
     next.box = BOX.UNKNOWN;
     next.streak = 0;
     next.wrongCount = s.wrongCount + 1;

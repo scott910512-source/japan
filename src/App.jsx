@@ -110,7 +110,7 @@ export default function App() {
         [day]: {
           ...cur,
           studied: cur.studied + 1,
-          known: cur.known + (verdict === 'known' ? 1 : 0),
+          known: cur.known + (verdict === 'known' || verdict === 'master' ? 1 : 0),
           vague: cur.vague + (verdict === 'vague' ? 1 : 0),
           unknown: cur.unknown + (verdict === 'unknown' ? 1 : 0),
         },

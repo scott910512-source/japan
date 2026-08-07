@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconSpeaker, IconChevron, IconArrowLeft, IconCheck, IconX, IconTriangle, IconRewind, IconEye,
 } from '../components/Icons.jsx';
+import KeyHints from '../components/KeyHints.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
+import { useHotkeys } from '../lib/useHotkeys.js';
 import { SITUATIONS } from '../data/situations.js';
 import {
   VERDICT, advanceSession, buildRound1, dueCards, isMastered, nextRoundOf, stateOf, todayKey,
@@ -214,7 +216,8 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
   useEffect(() => setRevealed(false), [currentId]);
 
   const judge = (verdict) => {
-    if (!item || locked || !revealed) return;
+    if (!item || locked) return;
+    if (verdict !== VERDICT.MASTER && !revealed) return;
     setLocked(true);
     history.current.push({ id: item.id, prevReview: review[item.id], prevSession: session });
 
@@ -229,6 +232,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     } else {
       setFinished({ done: result.session.done, carried: next.carried || 0 });
     }
+    if (verdict === VERDICT.MASTER) onToast('졸업 처리했어요 — 복습에도 안 나와요');
     setTimeout(() => setLocked(false), 220);
   };
 
@@ -243,6 +247,20 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     setFinished(null);
     onToast('직전 판정을 되돌렸어요');
   };
+
+  useHotkeys({
+    ' ': () => speakJapanese(speakText, settings.speechRate),
+    Space: () => speakJapanese(speakText, settings.speechRate),
+    Enter: () => (revealed ? judge(VERDICT.KNOWN) : setRevealed(true)),
+    1: () => judge(VERDICT.UNKNOWN),
+    2: () => judge(VERDICT.VAGUE),
+    3: () => judge(VERDICT.KNOWN),
+    0: () => judge(VERDICT.MASTER),
+    ArrowLeft: undo,
+    Backspace: undo,
+    ArrowDown: () => setRevealed(true),
+    Escape: onExit,
+  });
 
   if (finished) {
     return (
@@ -317,6 +335,12 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
         )}
       </div>
 
+      {!revealed && (
+        <button className="skipbtn" onClick={() => judge(VERDICT.MASTER)} disabled={locked}>
+          이미 외웠어요 · 바로 졸업
+        </button>
+      )}
+
       <div className="judgerow">
         <button className="judge unknown" disabled={!revealed || locked} onClick={() => judge(VERDICT.UNKNOWN)}>
           <IconX /><b>몰라요</b><span>오늘 다시</span>
@@ -333,6 +357,8 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
         <button onClick={() => speakSlow(speakText)}><IconRewind /> 천천히 듣기</button>
         <button onClick={() => onShowCard(item)}><IconEye /> 보여주기 카드</button>
       </div>
+
+      <KeyHints revealed={revealed} />
     </div>
   );
 }
