@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import {
   IconFlame, IconChevron, IconBook, IconGrid, IconChat, IconMap, IconSparkle, IconRepeat, IconList,
 } from '../components/Icons.jsx';
-import { summarize, todayKey } from '../lib/review.js';
+import { MASTER_STREAK, summarize, todayKey } from '../lib/review.js';
 
 const MENUS = [
   { id: 'basics', label: '완전기초', sub: '히라가나 · 숫자 · 인사', Icon: IconSparkle },
@@ -36,7 +36,7 @@ export default function Home({
         <IconFlame />
         <div>
           <div className="num">{streak.count}일째</div>
-          <div className="cap">오늘 {today.studied}장 학습 · 외운 단어 {stat.mastered}개</div>
+          <div className="cap">오늘 {today.studied}장 학습 · 공부한 단어 {stat.seen}개</div>
         </div>
       </div>
 
@@ -65,7 +65,7 @@ export default function Home({
             <span className="mc-body">
               <span className="mc-title">{label}</span>
               <span className="mc-sub">
-                {id === 'words' ? `${stat.mastered} / ${stat.total} 외움` : sub}
+                {id === 'words' ? `${stat.seen} / ${stat.total} 공부함` : sub}
               </span>
             </span>
             <IconChevron className="chev" />
@@ -91,6 +91,11 @@ export default function Home({
           <div className="val">{stat.fresh}</div>
           <div className="lab">아직 안 봄</div>
         </div>
+      </div>
+      {/* 1일차에 졸업이 0인 건 정상인데, 설명이 없으면 고장 난 것처럼 보인다 */}
+      <div className="set-note">
+        졸업은 「알아요」가 {MASTER_STREAK}회독 연속 이어져야 붙어요.
+        복습 간격이 1일 → 3일 → 7일이라 빨라도 2주쯤 걸려요.
       </div>
     </>
   );

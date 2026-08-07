@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { IconBook, IconRepeat, IconSparkle } from '../components/Icons.jsx';
-import { buildDailySession, summarize, todayKey } from '../lib/review.js';
+import { MASTER_STREAK, buildDailySession, summarize, todayKey } from '../lib/review.js';
 
 export const LEVELS = ['N5', 'N4', 'N3'];
 
@@ -120,6 +120,9 @@ export default function WordDeck({ words, review, settings, onChange, onStart })
         </div>
         <div className="progress-cell"><div className="val">{stat.learning}</div><div className="lab">학습 중</div></div>
         <div className="progress-cell"><div className="val">{stat.fresh}</div><div className="lab">아직 안 봄</div></div>
+      </div>
+      <div className="set-note">
+        졸업은 「알아요」가 {MASTER_STREAK}회독 연속 이어져야 붙어요 — 오늘 다 맞혀도 바로 오르진 않아요.
       </div>
 
       <div className="statrow card" style={{ marginTop: 12 }}>
