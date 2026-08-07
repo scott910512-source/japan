@@ -7,6 +7,7 @@ import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.
 import { todayKey } from '../lib/review.js';
 import Account from './Account.jsx';
 import KeyVault from '../components/KeyVault.jsx';
+import VoicePicker from '../components/VoicePicker.jsx';
 
 const MENU_LABELS = {
   basics: '완전기초',
@@ -217,6 +218,12 @@ export default function Settings({
               : '클라우드 키를 넣으면 훨씬 자연스러운 음성으로 읽어줘요.'}
           </div>
         )}
+
+        <VoicePicker
+          settings={settings}
+          onChange={onChange}
+          cloudReady={status.mode === 'cloud'}
+        />
 
         <div className="btnrow" style={{ marginTop: 10 }}>
           <button className="ghost-btn" onClick={tryVoice}><IconSpeaker /> 지금 소리 내보기</button>

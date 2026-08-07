@@ -144,6 +144,8 @@ export const DEFAULT_SETTINGS = {
   direction: 'kanji-mean', // 'kanji-mean' | 'mean-kanji' | 'kanji-kana'
 
   speechRate: 0.9,
+  gttsVoice: 'ja-JP-Neural2-B',  // 클라우드 목소리
+  deviceVoiceURI: '',            // 기기 내장 음성 중 고른 것
   gttsKey: '',        // Google Cloud TTS 키 (기존 앱에서 쓰던 키를 그대로 물려받는다)
   useCloudTTS: true,
 
