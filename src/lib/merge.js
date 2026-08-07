@@ -75,7 +75,7 @@ export function mergeProgress(local = {}, remote = {}) {
 const SYNCED_SETTINGS = [
   'canReadKana', 'tripDay', 'menus', 'levels',
   'newPerDay', 'reviewMix', 'dailyGoal', 'direction',
-  'showKana', 'showExample', 'hangulPron',
+  'showKana', 'showExample', 'hangulPron', 'gttsVoice',
 ];
 
 export function pickSyncedSettings(settings = {}) {

@@ -94,9 +94,14 @@ export default function App() {
 
   // 음성 인식도 같은 Google API 키를 쓴다
   useEffect(() => {
-    configureTTS({ gttsKey: settings.gttsKey, useCloud: settings.useCloudTTS });
+    configureTTS({
+      gttsKey: settings.gttsKey,
+      useCloud: settings.useCloudTTS,
+      voice: settings.gttsVoice,
+      deviceVoiceURI: settings.deviceVoiceURI,
+    });
     configureSTT({ gttsKey: settings.gttsKey, useCloud: settings.useCloudTTS });
-  }, [settings.gttsKey, settings.useCloudTTS]);
+  }, [settings.gttsKey, settings.useCloudTTS, settings.gttsVoice, settings.deviceVoiceURI]);
 
   useEffect(() => {
     const root = document.documentElement;

@@ -4,6 +4,7 @@
 
 const GTTS_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 const DEFAULT_VOICE = 'ja-JP-Neural2-B';
+let deviceVoiceURI = '';   // 기기 내장 음성 중 사용자가 고른 것
 
 let config = { gttsKey: '', useCloud: true, voice: DEFAULT_VOICE };
 
@@ -16,7 +17,11 @@ let onCloudError = null;
 
 export function configureTTS(patch) {
   const prevKey = config.gttsKey;
+  const prevVoice = config.voice;
+  if (patch.deviceVoiceURI !== undefined) deviceVoiceURI = patch.deviceVoiceURI || '';
   config = { ...config, ...patch };
+  // 목소리를 바꿨으면 예전 목소리로 받아 둔 캐시를 쓰면 안 된다
+  if (config.voice !== prevVoice) cloudCache.clear();
   if (config.gttsKey !== prevKey) {
     cloudDisabled = false;
     cloudCache.clear();
@@ -36,8 +41,13 @@ export function cloudTTSReady() {
 let cachedVoice = null;
 
 function pickJapaneseVoice() {
-  if (cachedVoice) return cachedVoice;
   const voices = window.speechSynthesis?.getVoices() || [];
+  // 고른 음성이 있으면 그것을, 없거나 기기에서 사라졌으면 아무 일본어 음성이나
+  if (deviceVoiceURI) {
+    const chosen = voices.find((v) => v.voiceURI === deviceVoiceURI);
+    if (chosen) return chosen;
+  }
+  if (cachedVoice && voices.includes(cachedVoice)) return cachedVoice;
   cachedVoice = voices.find((v) => v.lang?.startsWith('ja')) || null;
   return cachedVoice;
 }
