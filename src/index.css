@@ -239,9 +239,24 @@ button, input, select { font-family: inherit; }
 
 .quiz-q { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
 .quiz-opt { display: block; width: 100%; text-align: left; padding: 11px 14px; margin-bottom: 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); font-size: 13.5px; font-weight: 600; color: var(--ink); cursor: pointer; position: relative; }
-.quiz-opt.correct { border-color: var(--shu); background: var(--shu-soft); color: var(--shu); box-shadow: var(--glow-shu-soft); }
-.quiz-opt.wrong { border-color: var(--sumi); background: var(--surface); color: var(--sumi); text-decoration: line-through; }
-.stamp { position: absolute; right: 12px; top: 50%; transform: translateY(-50%) rotate(-8deg); font-size: 11px; font-weight: 800; color: var(--shu); border: 1.5px solid var(--shu); border-radius: 8px; padding: 1px 6px; }
+/* 이 앱에서 빨강은 "몰라요"다. 정답을 빨강으로 칠하면 틀린 것처럼 보인다.
+   정답은 파랑, 내가 고른 오답은 빨강으로 고정한다. */
+.quiz-opt.correct { border-color: var(--kon); background: var(--kon-soft); color: var(--kon); font-weight: 750; }
+.quiz-opt.wrong { border-color: var(--shu); background: var(--shu-soft); color: var(--shu); text-decoration: line-through; }
+.stamp {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 10.5px; font-weight: 800; border-radius: 100px; padding: 3px 8px;
+}
+.stamp.ok { color: #fff; background: var(--kon); }
+.stamp.no { color: var(--shu); border: 1px solid var(--shu); }
+
+.quizverdict {
+  margin: 10px 0 4px; padding: 11px 14px; border-radius: 12px;
+  font-size: 13.5px; font-weight: 650; text-align: center;
+}
+.quizverdict.ok { background: var(--kon-soft); color: var(--kon); }
+.quizverdict.no { background: var(--shu-soft); color: var(--shu); }
+.quizverdict b { font-weight: 800; }
 .swap-btn { margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--kon); background: var(--kon-soft); border: none; border-radius: 100px; padding: 8px 14px; cursor: pointer; }
 
 /* Quiz (vocab multiple-choice) */
@@ -254,8 +269,8 @@ button, input, select { font-family: inherit; }
 .quiz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .quiz-cell { position: relative; padding: 16px 10px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 650; color: var(--ink); cursor: pointer; text-align: center; }
 .quiz-cell .num { position: absolute; top: 6px; left: 8px; font-size: 10px; color: var(--ink-soft); font-weight: 700; font-family: var(--font-mono); }
-.quiz-cell.correct { border-color: var(--shu); background: var(--shu-soft); color: var(--shu); box-shadow: var(--glow-shu-soft); }
-.quiz-cell.wrong { border-color: var(--sumi); color: var(--sumi); text-decoration: line-through; }
+.quiz-cell.correct { border-color: var(--kon); background: var(--kon-soft); color: var(--kon); font-weight: 750; }
+.quiz-cell.wrong { border-color: var(--shu); background: var(--shu-soft); color: var(--shu); text-decoration: line-through; }
 .quiz-next {
   display: block; width: 100%; margin-top: 16px; padding: 13px 0; border-radius: 14px; border: none;
   background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
@@ -568,6 +583,49 @@ button, input, select { font-family: inherit; }
 }
 .show-ko { font-size: 15px; color: var(--ink-soft); text-align: center; }
 .show-hint { position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); font-size: 12px; color: var(--ink-soft); opacity: .7; }
+
+/* ── 문장 조립 퀴즈 ── */
+.studycard.plain { justify-content: flex-start; padding-top: 52px; }
+.build { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.build-ask { font-size: 17px; font-weight: 750; text-align: center; word-break: keep-all; line-height: 1.5; }
+
+.build-line {
+  min-height: 62px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
+  padding: 12px; border-radius: 14px; border: 1.5px dashed var(--line); background: var(--surface-2);
+}
+.build-line.shake { animation: buildshake .3s ease; }
+@keyframes buildshake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.build-empty { font-size: 12.5px; color: var(--ink-soft); }
+
+.build-tile {
+  padding: 10px 14px; border-radius: 11px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size: 16px; font-weight: 650; line-height: 1.3;
+}
+.build-tile.placed { background: var(--kon-soft); border-color: var(--kon); color: var(--kon); }
+.build-tile.placed.bad { background: var(--shu-soft); border-color: var(--shu); color: var(--shu); }
+.build-tile.placed.done { background: var(--kon); border-color: transparent; color: #fff; }
+
+.build-hint { font-size: 12px; color: var(--shu); text-align: center; }
+.build-pool { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+.build-reset {
+  align-self: center; display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 100px;
+  background: none; border: none; color: var(--ink-soft); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.build-reset svg { width: 13px; height: 13px; }
+
+.build-done { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; }
+.bd-jp {
+  display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 750;
+  text-align: center; word-break: normal; overflow-wrap: anywhere;
+}
+.bd-kana { font-size: 13px; color: var(--ink-soft); }
+.bd-note { font-size: 12px; color: var(--kon); font-weight: 650; margin-top: 4px; }
 
 /* ── 말해보기 (음성 인식) ── */
 .micwrap { margin-bottom: 10px; }

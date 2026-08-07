@@ -105,17 +105,30 @@ export default function Grammar({ words, onProgress }) {
             </div>
             <div>
               {question.options.map((opt) => {
+                const isAnswer = opt === question.answer;
+                const isPicked = opt === picked;
                 let cls = 'quiz-opt';
-                if (answered && opt === question.answer) cls += ' correct';
-                else if (answered && opt === picked) cls += ' wrong';
+                if (answered && isAnswer) cls += ' correct';
+                else if (answered && isPicked) cls += ' wrong';
                 return (
                   <button key={opt} className={cls} onClick={() => pick(opt)}>
                     {opt}
-                    {answered && opt === question.answer && <span className="stamp">正</span>}
+                    {answered && isAnswer && <span className="stamp ok">정답</span>}
+                    {answered && isPicked && !isAnswer && <span className="stamp no">내가 고른 답</span>}
                   </button>
                 );
               })}
             </div>
+
+            {/* 어느 게 정답인지 색만으로 알려주면 헷갈린다. 결과를 문장으로도 말해 준다. */}
+            {answered && (
+              <div className={`quizverdict ${picked === question.answer ? 'ok' : 'no'}`}>
+                {picked === question.answer
+                  ? '맞았어요'
+                  : <>아쉬워요 — 정답은 <b>{question.answer}</b> 예요</>}
+              </div>
+            )}
+
             {answered && (
               <button className="swap-btn" onClick={nextQuestion} style={{ marginTop: 4 }}>
                 다음 문제 →
