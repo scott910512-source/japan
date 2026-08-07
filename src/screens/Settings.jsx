@@ -5,6 +5,7 @@ import {
 } from '../lib/storage.js';
 import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
 import { todayKey } from '../lib/review.js';
+import Account from './Account.jsx';
 
 const MENU_LABELS = {
   basics: '완전기초',
@@ -29,7 +30,10 @@ const STATUS_TEXT = {
   unknown: '음성 상태를 확인하는 중',
 };
 
-export default function Settings({ settings, onChange, onReplayOnboarding, onOpenWordManager, onToast, onReload }) {
+export default function Settings({
+  settings, onChange, onReplayOnboarding, onOpenWordManager, onToast, onReload,
+  session, syncState, onSync, onSignedOut,
+}) {
   const fileRef = useRef(null);
   const [keyDraft, setKeyDraft] = useState(settings.gttsKey || '');
   const [testing, setTesting] = useState(false);
@@ -125,6 +129,15 @@ export default function Settings({ settings, onChange, onReplayOnboarding, onOpe
         <small>JS일본어</small>
         설정
       </div>
+
+      <div className="section-label">계정</div>
+      <Account
+        session={session}
+        syncState={syncState}
+        onSync={onSync}
+        onSignedOut={onSignedOut}
+        onToast={onToast}
+      />
 
       <div className="section-label">학습 메뉴</div>
       <div className="card">

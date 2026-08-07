@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TabBar from './components/TabBar.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import Home from './screens/Home.jsx';
@@ -25,6 +25,8 @@ import {
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
 import { dueCards, todayKey, weakCards } from './lib/review.js';
+import { supabase, supabaseConfigured } from './lib/supabase.js';
+import { syncNow } from './lib/sync.js';
 
 const SUB_TITLES = {
   basics: '완전기초',
@@ -49,6 +51,8 @@ export default function App() {
   const [streak, setStreak] = useState({ count: 0, lastDate: null });
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [toast, setToast] = useState('');
+  const [authSession, setAuthSession] = useState(null);
+  const [syncState, setSyncState] = useState({ busy: false, at: null });
 
   const showToast = useCallback((message) => {
     setToast(message);
@@ -105,6 +109,45 @@ export default function App() {
   );
 
   const patchSettings = useCallback((patch) => setSettings((s) => ({ ...s, ...patch })), []);
+
+  /* ── 계정 · 기기 간 동기화 ── */
+
+  useEffect(() => {
+    if (!supabaseConfigured) return;
+    supabase.auth.getSession().then(({ data }) => setAuthSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => setAuthSession(next));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const runSync = useCallback(async (silent = false) => {
+    if (!authSession?.user) return;
+    setSyncState((s) => ({ ...s, busy: true }));
+    try {
+      const merged = await syncNow(authSession.user.id, {
+        review, progress, settings, stats, streak, customWords,
+      });
+      setReview(merged.review);
+      setProgress((p) => ({ ...p, ...merged.progress }));
+      setStats(merged.stats);
+      setStreak(merged.streak);
+      setCustomWords(merged.customWords);
+      // 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다
+      setSettings((s) => ({ ...s, ...merged.settings }));
+      setSyncState({ busy: false, at: new Date().toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }) });
+      if (!silent) showToast('동기화했어요');
+    } catch (err) {
+      setSyncState((s) => ({ ...s, busy: false }));
+      showToast(`동기화에 실패했어요 — ${err.message}`);
+    }
+  }, [authSession, review, progress, settings, stats, streak, customWords, showToast]);
+
+  // 로그인 직후 한 번은 자동으로 맞춘다. 사용자가 버튼을 눌러야만 이어지면 잊는다.
+  const syncedFor = useRef(null);
+  useEffect(() => {
+    if (!authSession?.user || syncedFor.current === authSession.user.id) return;
+    syncedFor.current = authSession.user.id;
+    runSync(true);
+  }, [authSession, runSync]);
 
   /* ── 회독 ── */
 
@@ -249,6 +292,10 @@ export default function App() {
             onOpenWordManager={() => setSub('manage')}
             onToast={showToast}
             onReload={() => window.location.reload()}
+            session={authSession}
+            syncState={syncState}
+            onSync={() => runSync(false)}
+            onSignedOut={() => { setAuthSession(null); syncedFor.current = null; showToast('로그아웃했어요'); }}
           />
         </section>
       </div>
