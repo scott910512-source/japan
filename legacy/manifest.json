@@ -1,0 +1,32 @@
+{
+  "name": "처음 가는 일본",
+  "short_name": "처음가는일본",
+  "description": "일본어로 직접 말하며 여행하는 2D 어드벤처 학습 게임",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFF6EC",
+  "theme_color": "#E85D5D",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23FFF3E9'/%3E%3Cpath d='M14 32c12-6 60-6 72 0l-4 8H18z' fill='%23E85D5D'/%3E%3Cpath d='M22 48h56v6H22z' fill='%23E85D5D'/%3E%3Cpath d='M27 40h9v46h-9zM64 40h9v46h-9z' fill='%23D14A4A'/%3E%3Ccircle cx='50' cy='72' r='7' fill='%23F2B84B'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23FFF3E9'/%3E%3Cpath d='M14 32c12-6 60-6 72 0l-4 8H18z' fill='%23E85D5D'/%3E%3Cpath d='M22 48h56v6H22z' fill='%23E85D5D'/%3E%3Cpath d='M27 40h9v46h-9zM64 40h9v46h-9z' fill='%23D14A4A'/%3E%3Ccircle cx='50' cy='72' r='7' fill='%23F2B84B'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23FFF3E9'/%3E%3Cpath d='M14 32c12-6 60-6 72 0l-4 8H18z' fill='%23E85D5D'/%3E%3Cpath d='M22 48h56v6H22z' fill='%23E85D5D'/%3E%3Cpath d='M27 40h9v46h-9zM64 40h9v46h-9z' fill='%23D14A4A'/%3E%3Ccircle cx='50' cy='72' r='7' fill='%23F2B84B'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
