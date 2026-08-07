@@ -24,8 +24,17 @@ create table if not exists public.user_data (
   stats        jsonb not null default '{}'::jsonb,   -- 일별 학습량
   custom_words jsonb not null default '[]'::jsonb,   -- 직접 추가한 단어
   streak       jsonb not null default '{}'::jsonb,   -- 연속 학습일
+  gtts_key_enc jsonb,                                -- 음성 API 키 (암호문만, 아래 설명 참고)
   updated_at   timestamptz not null default now()
 );
+
+-- 이미 테이블을 만든 뒤 이 파일을 다시 실행하는 경우를 위해
+alter table public.user_data add column if not exists gtts_key_enc jsonb;
+
+-- gtts_key_enc 에는 원문이 들어가지 않는다.
+--   { v, salt, iv, ct } 형태의 봉투이고, 복호화 열쇠는 사용자가 정한
+--   "동기화 암호"에서 브라우저가 만든다. 그 암호는 서버로 전송되지 않는다.
+--   따라서 이 테이블을 통째로 열람해도 암호를 모르면 키를 읽을 수 없다.
 
 -- ─────────────────────────────────────────────
 -- 2) 행 수준 보안 — 남의 학습 기록을 못 보게 한다

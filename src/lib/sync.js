@@ -8,7 +8,7 @@ import {
 export async function fetchRemote(userId) {
   const { data, error } = await supabase
     .from('user_data')
-    .select('review, progress, settings, stats, custom_words, streak, updated_at')
+    .select('review, progress, settings, stats, custom_words, streak, gtts_key_enc, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -27,6 +27,7 @@ export async function pushMerged(userId, merged) {
       stats: merged.stats,
       custom_words: merged.customWords,
       streak: merged.streak,
+      ...(merged.gttsKeyEnc !== undefined ? { gtts_key_enc: merged.gttsKeyEnc } : {}),
     }, { onConflict: 'user_id' });
 
   if (error) throw new Error(error.message);
@@ -44,6 +45,9 @@ export async function syncNow(userId, localData) {
     streak: mergeStreak(localData.streak, remote?.streak),
     customWords: mergeCustomWords(localData.customWords, remote?.custom_words),
     settings: { ...(remote?.settings || {}), ...pickSyncedSettings(localData.settings) },
+    // 암호문 봉투는 합칠 수 없다(내용을 볼 수 없으므로). 새로 올릴 게 있으면 그것을,
+    // 없으면 서버에 있던 것을 그대로 둔다.
+    gttsKeyEnc: localData.gttsKeyEnc ?? remote?.gtts_key_enc ?? null,
   };
 
   await pushMerged(userId, merged);
