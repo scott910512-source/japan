@@ -11,6 +11,7 @@ import WordDeck, { filterByLevel } from './screens/WordDeck.jsx';
 import Situations from './screens/Situations.jsx';
 import GrammarHub from './screens/GrammarHub.jsx';
 import Gate from './screens/Gate.jsx';
+import NewPassword from './screens/NewPassword.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { ALL_WORDS } from './data/allWords.js';
 import { ALL_SITUATIONS as SITUATIONS } from './data/allSituations.js';
@@ -61,6 +62,7 @@ export default function App() {
   const [vaultKey, setVaultKey] = useState(() => loadVaultKey());
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
   const [offlinePass, setOfflinePass] = useState(false);
+  const [recovering, setRecovering] = useState(false);
 
   const showToast = useCallback((message) => {
     setToast(message);
@@ -126,7 +128,11 @@ export default function App() {
       setAuthSession(data.session);
       setAuthReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => setAuthSession(next));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+      setAuthSession(next);
+      // 재설정 메일 링크로 돌아온 경우다. 세션만 열고 끝내면 비밀번호는 안 바뀐다.
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -285,6 +291,24 @@ export default function App() {
     setSub(null);
     setActiveTab(id);
   };
+
+  if (recovering && authSession) {
+    return (
+      <div className="app-shell">
+        <div className="screens">
+          <section className="screen active">
+            <NewPassword
+              session={authSession}
+              onVaultKey={rememberVaultKey}
+              onToast={showToast}
+              onDone={() => setRecovering(false)}
+            />
+          </section>
+        </div>
+        <Toast message={toast} />
+      </div>
+    );
+  }
 
   /* 로그인해야 들어올 수 있다. 학습 기록을 계정에 남기는 게 목적이므로
    * 익명 사용은 열어 두지 않는다. 세션은 기기에 남아 다음부터는 이 화면을 건너뛴다. */
