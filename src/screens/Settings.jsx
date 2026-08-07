@@ -305,7 +305,7 @@ export default function Settings({
         <button className="listrow" onClick={onReplayOnboarding}>
           <IconRewind /> 처음 질문 다시 하기
         </button>
-        <div className="set-note">JS일본어 · 회독 학습 v1</div>
+        <div className="set-note">JS일본어 · 회독 학습 · 빌드 {__BUILD_STAMP__}</div>
       </div>
     </>
   );
