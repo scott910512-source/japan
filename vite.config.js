@@ -37,6 +37,11 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg}'],
         navigateFallback: `${base}index.html`,
+        // 새 서비스워커가 기다리지 않고 바로 넘겨받게 한다.
+        // 안 그러면 탭을 전부 닫기 전까지 옛 화면이 계속 나온다.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
       },
     }),
   ],

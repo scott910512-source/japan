@@ -171,8 +171,10 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
     if (q?.type === QUIZ_TYPE.TYPING) inputRef.current?.focus();
   }, [index, q?.type]);
 
+  // 한자를 그대로 보내면 한 글자짜리 단어에서 음독이 나온다(「海」→ カイ).
+  // 읽는 법인 가나를 보내야 외우려는 소리가 나온다.
   const speak = useCallback(() => {
-    if (word) speakJapanese(word.kanji, settings.speechRate);
+    if (word) speakJapanese(word.kana || word.kanji, settings.speechRate);
   }, [word, settings.speechRate]);
 
   // 일→한 문제에서 문제를 읽어 주면 답이 아니라 문제를 들려주는 거라 괜찮다.
@@ -370,7 +372,7 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
           <div className="card qwronglist">
             {wrongWords.map((w) => (
               <div key={w.id} className="qwrow">
-                <button className="qw-speak" onClick={() => speakJapanese(w.kanji, settings.speechRate)}
+                <button className="qw-speak" onClick={() => speakJapanese(w.kana || w.kanji, settings.speechRate)}
                   aria-label={`${w.kanji} 듣기`}><IconSpeaker /></button>
                 <div className="qw-body">
                   <b>{w.kanji}</b>

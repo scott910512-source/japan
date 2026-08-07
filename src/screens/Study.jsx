@@ -13,6 +13,14 @@ import {
 
 const ROUND_LABEL = (round) => (round === 1 ? '1회독 (전체)' : `${round}회독 (틀린 것만 복습)`);
 
+/* 읽어 줄 때는 한자가 아니라 가나를 보낸다.
+ * 한자 한 글자만 던지면 음성 엔진이 음독을 고르기 쉽다 — 「海」를 うみ가 아니라
+ * 海鮮처럼 カイ로 읽어 버린다. 가나는 읽는 법 그 자체라 헷갈릴 여지가 없고,
+ * 어차피 우리가 외우게 하려는 것도 그 소리다. */
+function readingOf(word) {
+  return word.kana || word.kanji;
+}
+
 // 카드 앞/뒷면에 무엇을 띄울지. 회독 방향과 "히라가나를 읽을 수 있는지"에 따라 달라진다.
 function facesOf(word, settings) {
   const beginner = settings.canReadKana === false;
@@ -21,14 +29,14 @@ function facesOf(word, settings) {
     return {
       front: { main: word.mean, sub: null, isKo: true },
       back: { main: word.kanji, sub: word.kana },
-      speak: word.kanji,
+      speak: readingOf(word),
     };
   }
   if (settings.direction === 'kanji-kana') {
     return {
       front: { main: word.kanji, sub: null },
       back: { main: word.kana, sub: word.mean },
-      speak: word.kanji,
+      speak: readingOf(word),
     };
   }
   // 기본: 한자 → 뜻. 가나를 못 읽으면 앞면을 히라가나로 바꿔 카드가 그림이 되지 않게 한다.
@@ -37,13 +45,13 @@ function facesOf(word, settings) {
     return {
       front: { main: word.kana, isKana: true },
       back: { main: word.mean, sub: word.kanji === word.kana ? null : word.kanji },
-      speak: word.kanji,
+      speak: readingOf(word),
     };
   }
   return {
     front: { main: word.kanji },
     back: { main: word.mean, sub: word.kana },
-    speak: word.kanji,
+    speak: readingOf(word),
   };
 }
 
