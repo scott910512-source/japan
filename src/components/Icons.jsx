@@ -68,6 +68,9 @@ export const IconRewind = (p) => (
 export const IconArrowLeft = (p) => (
   <svg {...base} {...p}><path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 );
+export const IconPencil = (p) => (
+  <svg {...base} {...p}><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M14.5 6.5 17.5 9.5" stroke="currentColor" strokeWidth="1.7"/></svg>
+);
 export const IconMic = (p) => (
   <svg {...base} {...p}><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.7"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 );

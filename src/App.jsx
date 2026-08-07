@@ -24,6 +24,7 @@ import {
   loadStats, saveStats,
   touchStreak, setStorageErrorHandler,
   loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce,
+  loadMemos, saveMemos,
 } from './lib/storage.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
@@ -53,6 +54,7 @@ export default function App() {
   const [review, setReview] = useState(() => loadReview());
   const [session, setSession] = useState(() => loadSession());
   const [stats, setStats] = useState(() => loadStats());
+  const [memos, setMemos] = useState(() => loadMemos());
   const [streak, setStreak] = useState({ count: 0, lastDate: null });
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -91,6 +93,7 @@ export default function App() {
   useEffect(() => saveReview(review), [review]);
   useEffect(() => saveSession(session), [session]);
   useEffect(() => saveStats(stats), [stats]);
+  useEffect(() => saveMemos(memos), [memos]);
 
   // 음성 인식도 같은 Google API 키를 쓴다
   useEffect(() => {
@@ -146,13 +149,14 @@ export default function App() {
     setSyncState((s) => ({ ...s, busy: true }));
     try {
       const merged = await syncNow(authSession.user.id, {
-        review, progress, settings, stats, streak, customWords,
+        review, progress, settings, stats, streak, customWords, memos,
       });
       setReview(merged.review);
       setProgress((p) => ({ ...p, ...merged.progress }));
       setStats(merged.stats);
       setStreak(merged.streak);
       setCustomWords(merged.customWords);
+      setMemos(merged.memos);
       // 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다
       setSettings((s) => ({ ...s, ...merged.settings }));
       setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
@@ -162,16 +166,16 @@ export default function App() {
       setSyncState((s) => ({ ...s, busy: false }));
       showToast(`동기화에 실패했어요 — ${err.message}`);
     }
-  }, [authSession, review, progress, settings, stats, streak, customWords, showToast]);
+  }, [authSession, review, progress, settings, stats, streak, customWords, memos, showToast]);
 
   const saveRemoteKey = useCallback(async (envelope) => {
     if (!authSession?.user) throw new Error('로그인이 필요해요');
     await pushMerged(authSession.user.id, {
       review, progress, settings: pickSyncedSettings(settings), stats, streak,
-      customWords, gttsKeyEnc: envelope,
+      customWords, memos, gttsKeyEnc: envelope,
     });
     setRemoteKeyEnvelope(envelope);
-  }, [authSession, review, progress, settings, stats, streak, customWords]);
+  }, [authSession, review, progress, settings, stats, streak, customWords, memos]);
 
   const rememberVaultKey = useCallback((raw) => {
     setVaultKey(raw);
@@ -210,6 +214,41 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authSession, vaultKey, settings.gttsKey, remoteKeyEnvelope]);
 
+  /* 공부한 걸 자동으로 올린다.
+   * 로그인할 때와 버튼을 누를 때만 올리면, 메모를 적고 다른 기기를 열었을 때 없다.
+   * 매 판정마다 올리면 너무 잦으니 손을 멈춘 뒤 잠깐 기다렸다 한 번에 보낸다.
+   * 앱을 덮거나 탭을 떠날 때도 밀어 넣는다 — 그때 안 보내면 영영 못 보낸다. */
+  const dirty = useRef(false);
+  const pushTimer = useRef(null);
+
+  useEffect(() => {
+    if (!authSession?.user || syncedFor.current !== authSession.user.id) return;
+    dirty.current = true;
+    clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(() => {
+      if (!dirty.current) return;
+      dirty.current = false;
+      runSync(true);
+    }, 12000);
+    return () => clearTimeout(pushTimer.current);
+  }, [review, memos, progress, stats, customWords]);
+
+  useEffect(() => {
+    const flush = () => {
+      if (!dirty.current || !authSession?.user) return;
+      dirty.current = false;
+      clearTimeout(pushTimer.current);
+      runSync(true);
+    };
+    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, [authSession, runSync]);
+
   // 로그인 직후 한 번은 자동으로 맞춘다. 사용자가 버튼을 눌러야만 이어지면 잊는다.
   const syncedFor = useRef(null);
   useEffect(() => {
@@ -237,6 +276,16 @@ export default function App() {
           unknown: cur.unknown + (verdict === 'unknown' ? 1 : 0),
         },
       };
+    });
+  }, []);
+
+  const saveMemo = useCallback((id, text) => {
+    setMemos((prev) => {
+      if (!text) {
+        const { [id]: _drop, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [id]: { text, at: new Date().toISOString() } };
     });
   }, []);
 
@@ -347,6 +396,8 @@ export default function App() {
               settings={settings}
               session={session}
               bookmarks={progress.bookmarks || []}
+              memos={memos}
+              onSaveMemo={saveMemo}
               onReviewChange={applyReview}
               onSessionChange={setSession}
               onSettingsChange={patchSettings}

@@ -8,6 +8,7 @@ const KEYS = {
   stats: 'jp_manabu_stats_v1',     // 일별 학습 집계
   vault: 'jp_manabu_vault_v1',     // 계정 비밀번호에서 파생한 금고 열쇠 (비밀번호 자체는 저장하지 않는다)
   seen: 'jp_manabu_signed_in_v1',  // 이 기기에서 로그인한 적이 있는지 (오프라인 잠김 방지)
+  memos: 'jp_manabu_memos_v1',     // 단어별 암기 메모 { 카드id: { text, at } }
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -84,6 +85,17 @@ export function saveStats(stats) {
     ? Object.fromEntries(days.slice(-60).map((d) => [d, stats[d]]))
     : stats;
   write(KEYS.stats, trimmed);
+}
+
+/* ── 단어 메모 ──
+ * "스베루 → 미끄러졌다" 같은 개인 연상법. 남이 만든 설명보다 자기가 붙인 게 잘 붙는다.
+ * 기기 두 대에서 각각 고쳤을 때 어느 쪽을 남길지 알아야 해서 고친 시각을 함께 담는다. */
+
+export function loadMemos() {
+  return read(KEYS.memos, {});
+}
+export function saveMemos(memos) {
+  write(KEYS.memos, memos);
 }
 
 /* ── 금고 열쇠 ──
@@ -232,6 +244,7 @@ export function exportBackup() {
       streak: read(KEYS.streak, { count: 0, lastDate: null }),
       review: read(KEYS.review, {}),
       stats: read(KEYS.stats, {}),
+      memos: read(KEYS.memos, {}),
     },
   };
 }
@@ -260,6 +273,7 @@ export function importBackup(backup) {
   write(KEYS.streak, d.streak || { count: 0, lastDate: null });
   write(KEYS.review, d.review || {});
   write(KEYS.stats, d.stats || {});
+  write(KEYS.memos, d.memos || {});
   saveSession(null);
 }
 

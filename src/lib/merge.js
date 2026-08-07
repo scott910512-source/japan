@@ -25,6 +25,17 @@ export function mergeReview(local = {}, remote = {}) {
   return out;
 }
 
+// 메모는 글이라 합칠 수 없다. 나중에 고친 쪽을 남긴다.
+export function mergeMemos(local = {}, remote = {}) {
+  const out = { ...remote };
+  for (const [id, l] of Object.entries(local)) {
+    const r = remote[id];
+    if (!r) { out[id] = l; continue; }
+    out[id] = (l.at || '') >= (r.at || '') ? l : r;
+  }
+  return out;
+}
+
 export function mergeStats(local = {}, remote = {}) {
   const out = { ...remote };
   for (const [day, l] of Object.entries(local)) {
