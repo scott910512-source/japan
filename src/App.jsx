@@ -12,7 +12,7 @@ import Situations from './screens/Situations.jsx';
 import GrammarHub from './screens/GrammarHub.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { ALL_WORDS } from './data/allWords.js';
-import { SITUATIONS } from './data/situations.js';
+import { ALL_SITUATIONS as SITUATIONS } from './data/allSituations.js';
 import {
   loadCustomWords, saveCustomWords,
   loadProgress, saveProgress,
