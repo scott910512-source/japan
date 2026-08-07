@@ -10,6 +10,7 @@ import WordManager from './screens/WordManager.jsx';
 import WordDeck, { filterByLevel } from './screens/WordDeck.jsx';
 import Situations from './screens/Situations.jsx';
 import GrammarHub from './screens/GrammarHub.jsx';
+import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { ALL_WORDS } from './data/allWords.js';
 import { ALL_SITUATIONS as SITUATIONS } from './data/allSituations.js';
@@ -21,7 +22,7 @@ import {
   loadSession, saveSession,
   loadStats, saveStats,
   touchStreak, setStorageErrorHandler,
-  loadVaultKey, saveVaultKey,
+  loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce,
 } from './lib/storage.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
@@ -58,6 +59,8 @@ export default function App() {
   const [syncState, setSyncState] = useState({ busy: false, at: null });
   const [remoteKeyEnvelope, setRemoteKeyEnvelope] = useState(null);
   const [vaultKey, setVaultKey] = useState(() => loadVaultKey());
+  const [authReady, setAuthReady] = useState(!supabaseConfigured);
+  const [offlinePass, setOfflinePass] = useState(false);
 
   const showToast = useCallback((message) => {
     setToast(message);
@@ -119,7 +122,10 @@ export default function App() {
 
   useEffect(() => {
     if (!supabaseConfigured) return;
-    supabase.auth.getSession().then(({ data }) => setAuthSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setAuthSession(data.session);
+      setAuthReady(true);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => setAuthSession(next));
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -198,6 +204,7 @@ export default function App() {
   useEffect(() => {
     if (!authSession?.user || syncedFor.current === authSession.user.id) return;
     syncedFor.current = authSession.user.id;
+    markSignedInOnce();
     runSync(true);
   }, [authSession, runSync]);
 
@@ -279,6 +286,27 @@ export default function App() {
     setActiveTab(id);
   };
 
+  /* 로그인해야 들어올 수 있다. 학습 기록을 계정에 남기는 게 목적이므로
+   * 익명 사용은 열어 두지 않는다. 세션은 기기에 남아 다음부터는 이 화면을 건너뛴다. */
+  if (supabaseConfigured && !authSession && !offlinePass) {
+    if (!authReady) return <div className="app-shell" />;  // 세션 확인 전 깜빡임 방지
+    return (
+      <div className="app-shell">
+        <div className="screens">
+          <section className="screen active">
+            <Gate
+              onVaultKey={rememberVaultKey}
+              onToast={showToast}
+              signedInOnce={hasSignedInOnce()}
+              onContinueOffline={() => setOfflinePass(true)}
+            />
+          </section>
+        </div>
+        <Toast message={toast} />
+      </div>
+    );
+  }
+
   if (deck) {
     return (
       <div className="app-shell">
@@ -348,7 +376,7 @@ export default function App() {
             syncState={syncState}
             onSync={() => runSync(false)}
             onSignedOut={() => {
-              setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null);
+              setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null); setOfflinePass(false);
               syncedFor.current = null; showToast('로그아웃했어요');
             }}
             onVaultKey={rememberVaultKey}

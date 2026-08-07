@@ -7,6 +7,7 @@ const KEYS = {
   session: 'jp_manabu_session_v1', // 진행 중 세션 (이어하기)
   stats: 'jp_manabu_stats_v1',     // 일별 학습 집계
   vault: 'jp_manabu_vault_v1',     // 계정 비밀번호에서 파생한 금고 열쇠 (비밀번호 자체는 저장하지 않는다)
+  seen: 'jp_manabu_signed_in_v1',  // 이 기기에서 로그인한 적이 있는지 (오프라인 잠김 방지)
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -98,6 +99,15 @@ export function saveVaultKey(rawBase64) {
     if (rawBase64) localStorage.setItem(KEYS.vault, rawBase64);
     else localStorage.removeItem(KEYS.vault);
   } catch { /* 무시 */ }
+}
+
+/* 이 기기에서 로그인한 적이 있는지. 세션이 만료됐는데 오프라인이라
+ * 갱신을 못 할 때, 학습이 통째로 잠기는 것을 막는 용도다. */
+export function markSignedInOnce() {
+  try { localStorage.setItem(KEYS.seen, '1'); } catch { /* 무시 */ }
+}
+export function hasSignedInOnce() {
+  try { return localStorage.getItem(KEYS.seen) === '1'; } catch { return false; }
 }
 
 /* ── 설정 ── */
