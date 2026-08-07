@@ -569,6 +569,15 @@ button, input, select { font-family: inherit; }
 .show-ko { font-size: 15px; color: var(--ink-soft); text-align: center; }
 .show-hint { position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); font-size: 12px; color: var(--ink-soft); opacity: .7; }
 
+/* ── 음성 상태 배지 ── */
+.ttsbadge {
+  display: inline-block; padding: 6px 12px; border-radius: 100px;
+  font-size: 12px; font-weight: 700; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft);
+}
+.ttsbadge.cloud { background: var(--kon-soft); color: var(--kon); border-color: transparent; }
+.ttsbadge.device { background: var(--surface-2); color: var(--ink); }
+.ttsbadge.device-nojp, .ttsbadge.unknown { background: var(--shu-soft); color: var(--shu); border-color: transparent; }
+
 /* ── 오늘 학습 구성 미리보기 ── */
 .planrow { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
 .pl-icon {

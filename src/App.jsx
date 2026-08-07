@@ -22,7 +22,7 @@ import {
   loadStats, saveStats,
   touchStreak, setStorageErrorHandler,
 } from './lib/storage.js';
-import { configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
+import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { dueCards, todayKey, weakCards } from './lib/review.js';
 
 const SUB_TITLES = {
@@ -60,9 +60,13 @@ export default function App() {
     setStreak(touchStreak());
     setOnboardingOpen(!loadSettings().onboarded);
 
-    // iOS는 첫 사용자 제스처에서만 오디오를 열어준다
-    const unlock = () => unlockAudio();
-    window.addEventListener('pointerdown', unlock, { once: true });
+    // iOS는 첫 사용자 제스처에서만 오디오를 열어준다.
+    // 한 번에 성공하지 못할 수 있어 열릴 때까지 계속 시도한다.
+    const unlock = () => {
+      unlockAudio();
+      if (audioUnlocked()) window.removeEventListener('pointerdown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock);
     return () => window.removeEventListener('pointerdown', unlock);
   }, [showToast]);
 

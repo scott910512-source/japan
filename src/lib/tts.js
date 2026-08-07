@@ -68,14 +68,44 @@ function getAudioEl() {
   return audioEl;
 }
 
+let localUnlocked = false;
+
+export function audioUnlocked() {
+  return localUnlocked && Boolean(audioEl?.dataset?.unlocked);
+}
+
+// 첫 사용자 제스처에서 호출한다. 성공할 때까지 계속 다시 불러도 된다.
 export function unlockAudio() {
   const a = getAudioEl();
-  if (a.dataset?.unlocked) return;
-  a.src = 'data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA';
-  a.play().then(
-    () => { a.dataset.unlocked = '1'; },
-    () => { /* 아직 제스처가 아니면 다음 탭에서 다시 시도 */ },
-  );
+  if (!a.dataset.unlocked) {
+    a.src = 'data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA';
+    a.play().then(
+      () => { a.dataset.unlocked = '1'; },
+      () => { /* 아직 제스처가 아니면 다음 탭에서 다시 시도 */ },
+    );
+  }
+
+  // iOS는 speechSynthesis도 첫 발화가 사용자 제스처 안에서 나와야
+  // 이후 자동 재생을 허용한다. 소리 없는 발화로 미리 열어 둔다.
+  if (!localUnlocked && typeof window !== 'undefined' && window.speechSynthesis) {
+    try {
+      const warm = new SpeechSynthesisUtterance(' ');
+      warm.volume = 0;
+      warm.lang = 'ja-JP';
+      window.speechSynthesis.speak(warm);
+      localUnlocked = true;
+    } catch { /* 다음 제스처에서 다시 시도 */ }
+  }
+}
+
+/* 지금 음성이 어떤 경로로 나가는지. 설정 화면에서 원인을 보여줄 때 쓴다. */
+export function ttsStatus() {
+  const voices = (typeof window !== 'undefined' && window.speechSynthesis?.getVoices()) || [];
+  const jaVoices = voices.filter((v) => v.lang?.startsWith('ja'));
+  if (cloudTTSReady()) return { mode: 'cloud', jaVoices: jaVoices.length, unlocked: localUnlocked };
+  if (jaVoices.length > 0) return { mode: 'device', jaVoices: jaVoices.length, unlocked: localUnlocked };
+  // 목록이 비어 있어도 실제로는 소리가 나는 기기가 있어 단정하지 않는다
+  return { mode: voices.length ? 'device-nojp' : 'unknown', jaVoices: 0, unlocked: localUnlocked };
 }
 
 async function requestCloud(text, rate, withRate) {
