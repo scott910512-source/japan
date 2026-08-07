@@ -68,6 +68,27 @@ export const IconRewind = (p) => (
 export const IconArrowLeft = (p) => (
   <svg {...base} {...p}><path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 );
+export const IconEye = (p) => (
+  <svg {...base} {...p}><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.6"/></svg>
+);
+export const IconBulb = (p) => (
+  <svg {...base} {...p}><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+);
+export const IconTriangle = (p) => (
+  <svg {...base} {...p}><path d="M12 4.5 21 19.5H3L12 4.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
+);
+export const IconRepeat = (p) => (
+  <svg {...base} {...p}><path d="M4 9V7a2 2 0 0 1 2-2h11m3 4-3-4 3-4M20 15v2a2 2 0 0 1-2 2H7m-3-4 3 4-3 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+);
+export const IconSparkle = (p) => (
+  <svg {...base} {...p}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+);
+export const IconUpload = (p) => (
+  <svg {...base} {...p}><path d="M12 15V3m0 0-4 4m4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+);
+export const IconMap = (p) => (
+  <svg {...base} {...p}><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 4v13M15 6.5v13" stroke="currentColor" strokeWidth="1.6"/></svg>
+);
 export const IconDownload = (p) => (
   <svg {...base} {...p}><path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
 );

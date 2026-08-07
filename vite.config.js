@@ -2,18 +2,23 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// GitHub Pages 프로젝트 사이트(https://<user>.github.io/japan/)에 올리므로 base가 필요하다.
+const base = process.env.VITE_BASE ?? '/japan/';
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
       manifest: {
-        name: '일본어 학습 — 마나부',
-        short_name: '마나부',
-        description: '단어부터 기초 문장까지, 한국인 학습자를 위한 일본어 학습 앱',
+        name: 'JS일본어 — 회독 일본어 학습',
+        short_name: 'JS일본어',
+        description: '회독으로 반복해서 외우는 한국인 학습자용 일본어 앱',
         lang: 'ko',
-        start_url: '/',
+        scope: base,
+        start_url: base,
         display: 'standalone',
         background_color: '#0A0D14',
         theme_color: '#0A0D14',
@@ -24,6 +29,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg}'],
+        navigateFallback: `${base}index.html`,
       },
     }),
   ],

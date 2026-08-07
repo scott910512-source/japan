@@ -1,23 +1,24 @@
-import { IconHome, IconBook, IconChat, IconGrid, IconPerson } from './Icons.jsx';
+import { IconHome, IconBook, IconRepeat, IconGear } from './Icons.jsx';
 
+// 탭은 "행위" 4개로 고정한다. 학습 메뉴는 홈 허브의 카드로 두어,
+// 설정에서 메뉴를 껐다 켜도 탭 구성이 흔들리지 않게 한다.
 const TABS = [
   { id: 'home', label: '홈', Icon: IconHome },
-  { id: 'vocab', label: '단어', Icon: IconBook },
-  { id: 'sentence', label: '문장', Icon: IconChat, badge: true },
-  { id: 'grammar', label: '문법', Icon: IconGrid },
-  { id: 'my', label: '나', Icon: IconPerson },
+  { id: 'study', label: '학습', Icon: IconBook },
+  { id: 'review', label: '복습', Icon: IconRepeat },
+  { id: 'settings', label: '설정', Icon: IconGear },
 ];
 
-export default function TabBar({ active, onChange }) {
+export default function TabBar({ active, onChange, reviewCount = 0 }) {
   return (
     <nav className="tabbar">
-      {TABS.map(({ id, label, Icon, badge }) => (
+      {TABS.map(({ id, label, Icon }) => (
         <button
           key={id}
           className={`tab${active === id ? ' active' : ''}`}
           onClick={() => onChange(id)}
         >
-          {badge && <span className="dot" />}
+          {id === 'review' && reviewCount > 0 && <span className="count">{reviewCount > 99 ? '99+' : reviewCount}</span>}
           <Icon />
           {label}
         </button>

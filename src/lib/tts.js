@@ -1,3 +1,38 @@
+/* 일본어 음성 재생.
+ * 1순위는 Google Cloud TTS(기존 여행 RPG 앱에서 쓰던 API 키를 그대로 승계해서 사용),
+ * 키가 없거나 호출이 실패하면 브라우저 내장 speechSynthesis로 자동 폴백한다. */
+
+const GTTS_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
+const DEFAULT_VOICE = 'ja-JP-Neural2-B';
+
+let config = { gttsKey: '', useCloud: true, voice: DEFAULT_VOICE };
+
+// 같은 문장은 다시 부르지 않는다 — 무료 한도를 아끼기 위한 메모리 캐시.
+const cloudCache = new Map();
+let audioEl = null;
+let cloudDisabled = false; // 키가 잘못된 경우 매번 재시도하지 않도록 잠근다
+let lastText = '';
+let onCloudError = null;
+
+export function configureTTS(patch) {
+  const prevKey = config.gttsKey;
+  config = { ...config, ...patch };
+  if (config.gttsKey !== prevKey) {
+    cloudDisabled = false;
+    cloudCache.clear();
+  }
+}
+
+export function setTTSErrorHandler(fn) {
+  onCloudError = fn;
+}
+
+export function cloudTTSReady() {
+  return Boolean(config.useCloud && config.gttsKey && !cloudDisabled);
+}
+
+/* ── 브라우저 내장 음성 ── */
+
 let cachedVoice = null;
 
 function pickJapaneseVoice() {
@@ -13,8 +48,8 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
   };
 }
 
-export function speakJapanese(text, rate = 0.82) {
-  if (!text || typeof window === 'undefined' || !window.speechSynthesis) return;
+function speakLocal(text, rate) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'ja-JP';
@@ -22,4 +57,119 @@ export function speakJapanese(text, rate = 0.82) {
   const voice = pickJapaneseVoice();
   if (voice) utter.voice = voice;
   window.speechSynthesis.speak(utter);
+}
+
+/* ── Google Cloud TTS ── */
+
+// iOS는 사용자 제스처 없이 만든 audio 엘리먼트로는 재생을 막는다.
+// 첫 탭에서 한 번 언락해 두고 같은 엘리먼트를 계속 재사용한다.
+function getAudioEl() {
+  if (!audioEl) audioEl = new Audio();
+  return audioEl;
+}
+
+export function unlockAudio() {
+  const a = getAudioEl();
+  if (a.dataset?.unlocked) return;
+  a.src = 'data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA';
+  a.play().then(
+    () => { a.dataset.unlocked = '1'; },
+    () => { /* 아직 제스처가 아니면 다음 탭에서 다시 시도 */ },
+  );
+}
+
+async function requestCloud(text, rate, withRate) {
+  const audioConfig = { audioEncoding: 'MP3' };
+  if (withRate && rate !== 1) audioConfig.speakingRate = rate;
+
+  const res = await fetch(`${GTTS_ENDPOINT}?key=${encodeURIComponent(config.gttsKey)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      input: { text },
+      voice: { languageCode: 'ja-JP', name: config.voice || DEFAULT_VOICE },
+      audioConfig,
+    }),
+  });
+
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.error?.message) msg += ` — ${body.error.message}`;
+    } catch { /* 본문 파싱 실패는 무시 */ }
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
+  return (await res.json()).audioContent;
+}
+
+async function speakCloud(text, rate) {
+  const cacheKey = `${text}|${rate}|${config.voice}`;
+  let b64 = cloudCache.get(cacheKey);
+
+  if (!b64) {
+    try {
+      b64 = await requestCloud(text, rate, true);
+    } catch (err) {
+      // 일부 보이스는 speakingRate를 받지 않는다 → 속도 옵션 없이 1회만 재시도
+      if (err.status === 400 && rate !== 1) b64 = await requestCloud(text, rate, false);
+      else throw err;
+    }
+    if (!b64) throw new Error('빈 응답');
+    if (cloudCache.size > 300) cloudCache.clear();
+    cloudCache.set(cacheKey, b64);
+  }
+
+  const a = getAudioEl();
+  a.src = `data:audio/mp3;base64,${b64}`;
+  await a.play();
+}
+
+/* ── 공개 API ── */
+
+export function speakJapanese(text, rate = 0.9) {
+  if (!text) return;
+  lastText = text;
+
+  if (!cloudTTSReady()) {
+    speakLocal(text, rate);
+    return;
+  }
+
+  speakCloud(text, rate).catch((err) => {
+    // 인증·권한 오류는 키 문제이므로 잠그고 알린다. 그 외는 조용히 폴백만 한다.
+    if (err.status === 400 || err.status === 401 || err.status === 403) {
+      cloudDisabled = true;
+      onCloudError?.(`클라우드 음성을 쓸 수 없어 기기 음성으로 재생해요 (${err.message})`);
+    }
+    speakLocal(text, rate);
+  });
+}
+
+export function speakSlow(text) {
+  speakJapanese(text ?? lastText, 0.7);
+}
+
+export function stopSpeaking() {
+  try { window.speechSynthesis?.cancel(); } catch { /* 무시 */ }
+  if (audioEl) {
+    audioEl.pause();
+    audioEl.currentTime = 0;
+  }
+}
+
+// 설정 화면에서 키를 확인할 때 쓴다. 성공하면 재생까지 한다.
+export async function testCloudTTS(key, voice = DEFAULT_VOICE) {
+  const prev = config;
+  config = { ...config, gttsKey: key, voice, useCloud: true };
+  cloudDisabled = false;
+  try {
+    await speakCloud('こんにちは', 1);
+    return { ok: true };
+  } catch (err) {
+    config = prev;
+    return { ok: false, message: err.message };
+  }
 }
