@@ -255,5 +255,7 @@ export function summarize(cardIds, progress) {
     else if (st.lastSeen) learning++;
     else fresh++;
   }
-  return { total: cardIds.length, mastered, learning, fresh };
+  // seen은 "한 번이라도 본 단어". 졸업은 며칠 걸리므로, 오늘 한 만큼 올라가는
+  // 숫자가 따로 있어야 진도가 멈춘 것처럼 보이지 않는다.
+  return { total: cardIds.length, mastered, learning, fresh, seen: mastered + learning };
 }
