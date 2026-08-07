@@ -39,7 +39,7 @@ const STATUS_TEXT = {
 
 export default function Settings({
   settings, onChange, onReplayOnboarding, onOpenWordManager, onToast, onReload,
-  session, syncState, onSync, onSignedOut, remoteKeyEnvelope, onSaveRemoteKey,
+  session, syncState, onSync, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
 }) {
   const fileRef = useRef(null);
   const [keyDraft, setKeyDraft] = useState(settings.gttsKey || '');
@@ -149,6 +149,7 @@ export default function Settings({
         syncState={syncState}
         onSync={onSync}
         onSignedOut={onSignedOut}
+        onVaultKey={onVaultKey}
         onToast={onToast}
       />
 
@@ -269,9 +270,7 @@ export default function Settings({
           session={session}
           localKey={settings.gttsKey}
           remoteEnvelope={remoteKeyEnvelope}
-          onSaveRemote={onSaveRemoteKey}
-          onKeyRestored={(key) => { onChange({ gttsKey: key }); setKeyDraft(key); }}
-          onToast={onToast}
+          vaultReady={vaultReady}
         />
 
         <div className="set-note">

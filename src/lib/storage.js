@@ -6,6 +6,7 @@ const KEYS = {
   review: 'jp_manabu_review_v1',   // 회독 상태 { cardId: {box, streak, lastSeen, ...} }
   session: 'jp_manabu_session_v1', // 진행 중 세션 (이어하기)
   stats: 'jp_manabu_stats_v1',     // 일별 학습 집계
+  vault: 'jp_manabu_vault_v1',     // 계정 비밀번호에서 파생한 금고 열쇠 (비밀번호 자체는 저장하지 않는다)
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -82,6 +83,21 @@ export function saveStats(stats) {
     ? Object.fromEntries(days.slice(-60).map((d) => [d, stats[d]]))
     : stats;
   write(KEYS.stats, trimmed);
+}
+
+/* ── 금고 열쇠 ──
+ * 계정 비밀번호에서 만든 파생 열쇠. 비밀번호 원문은 어디에도 남기지 않는다.
+ * 이 기기는 어차피 API 키 원문을 갖고 있어야 하므로, 열쇠를 함께 두는 것이
+ * 노출을 늘리지 않는다. 지키려는 대상은 서버에 쌓인 데이터다. */
+
+export function loadVaultKey() {
+  try { return localStorage.getItem(KEYS.vault) || null; } catch { return null; }
+}
+export function saveVaultKey(rawBase64) {
+  try {
+    if (rawBase64) localStorage.setItem(KEYS.vault, rawBase64);
+    else localStorage.removeItem(KEYS.vault);
+  } catch { /* 무시 */ }
 }
 
 /* ── 설정 ── */

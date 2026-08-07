@@ -81,3 +81,50 @@ export async function decryptSecret(envelope, passphrase) {
 export async function canDecrypt(envelope, passphrase) {
   return (await decryptSecret(envelope, passphrase)) !== null;
 }
+
+/* ── 계정 비밀번호에서 만드는 금고 열쇠 ──
+ *
+ * 동기화 암호를 따로 외우게 하면 안 쓴다. 로그인할 때 어차피 치는 계정 비밀번호에서
+ * 열쇠를 만든다. 비밀번호 자체는 저장하지 않고, 파생된 열쇠 바이트만 기기에 남긴다.
+ * salt는 사용자 id로 고정한다 — 그래야 어느 기기에서 로그인해도 같은 열쇠가 나온다. */
+
+export async function deriveVaultKey(password, userId) {
+  if (!password || !userId) return null;
+  const material = await crypto.subtle.importKey(
+    'raw', enc.encode(password), 'PBKDF2', false, ['deriveBits'],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: enc.encode(`jsjp:${userId}`), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    material,
+    256,
+  );
+  return toBase64(bits);
+}
+
+async function importVaultKey(rawBase64) {
+  return crypto.subtle.importKey(
+    'raw', fromBase64(rawBase64), { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'],
+  );
+}
+
+export async function encryptWithVaultKey(plaintext, rawBase64) {
+  if (!plaintext || !rawBase64) return null;
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const key = await importVaultKey(rawBase64);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plaintext));
+  return { v: 2, iv: toBase64(iv), ct: toBase64(ct) };
+}
+
+// 비밀번호를 바꾸면 예전 봉투는 못 연다. 그때는 null이 나오고 화면이 다시 넣으라고 알린다.
+export async function decryptWithVaultKey(envelope, rawBase64) {
+  if (!envelope?.ct || !rawBase64) return null;
+  try {
+    const key = await importVaultKey(rawBase64);
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(envelope.iv) }, key, fromBase64(envelope.ct),
+    );
+    return dec.decode(plain);
+  } catch {
+    return null;
+  }
+}

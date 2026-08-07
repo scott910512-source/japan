@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { IconPerson, IconDownload, IconUpload } from '../components/Icons.jsx';
 import { supabase, supabaseConfigured, redirectUrl } from '../lib/supabase.js';
+import { deriveVaultKey } from '../lib/crypto.js';
 
 const MODES = {
   signin: { title: '로그인', action: '로그인', other: 'signup', otherLabel: '처음이신가요? 가입하기' },
@@ -20,7 +21,7 @@ function readableError(message = '') {
   return message || '잠시 후 다시 시도해 주세요';
 }
 
-export default function Account({ session, syncState, onSync, onSignedOut, onToast }) {
+export default function Account({ session, syncState, onSync, onSignedOut, onToast, onVaultKey }) {
   const [mode, setMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -102,6 +103,12 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
       if (mode === 'signup' && !data.session) {
         setNotice('가입 확인 메일을 보냈어요. 링크를 누르면 로그인돼요.');
         return;
+      }
+
+      // 지금이 계정 비밀번호를 아는 유일한 순간이다. 여기서 금고 열쇠를 만들어 두면
+      // 이후로는 API 키를 자동으로 잠그고 풀 수 있다. 비밀번호 자체는 저장하지 않는다.
+      if (data.session?.user) {
+        onVaultKey?.(await deriveVaultKey(password, data.session.user.id));
       }
       setPassword('');
     } catch (err) {
