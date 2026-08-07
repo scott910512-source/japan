@@ -172,6 +172,8 @@ async function speakCloud(text, rate) {
 export function speakJapanese(text, rate = 0.9) {
   if (!text) return;
   lastText = text;
+  // 앞의 재생을 반드시 끊고 시작한다. 두 번 불리면 두 소리가 겹쳐 들린다.
+  stopSpeaking();
 
   if (!cloudTTSReady()) {
     speakLocal(text, rate);
