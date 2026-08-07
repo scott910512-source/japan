@@ -28,6 +28,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          # anon 키는 공개돼도 되는 값이라 secret이 아니라 variable로 둔다.
+          # 데이터를 지키는 건 키가 아니라 테이블의 RLS다.
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
         with:
           enablement: true

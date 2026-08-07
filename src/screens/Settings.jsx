@@ -5,6 +5,7 @@ import {
 } from '../lib/storage.js';
 import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
 import { todayKey } from '../lib/review.js';
+import Account from './Account.jsx';
 
 const MENU_LABELS = {
   basics: '완전기초',
@@ -22,6 +23,12 @@ const DIRECTIONS = [
 
 const GOALS = [10, 20, 30, 50];
 
+// 키를 그대로 띄우면 어깨너머로 보인다. 저장 여부만 알 수 있게 앞뒤만 남긴다.
+function maskKey(key = '') {
+  if (key.length <= 10) return `${key.slice(0, 2)}${'•'.repeat(6)}`;
+  return `${key.slice(0, 4)}${'•'.repeat(8)}${key.slice(-4)}`;
+}
+
 const STATUS_TEXT = {
   cloud: '클라우드 음성 사용 중',
   device: '기기 내장 일본어 음성 사용 중',
@@ -29,10 +36,19 @@ const STATUS_TEXT = {
   unknown: '음성 상태를 확인하는 중',
 };
 
-export default function Settings({ settings, onChange, onReplayOnboarding, onOpenWordManager, onToast, onReload }) {
+export default function Settings({
+  settings, onChange, onReplayOnboarding, onOpenWordManager, onToast, onReload,
+  session, syncState, onSync, onSignedOut,
+}) {
   const fileRef = useRef(null);
   const [keyDraft, setKeyDraft] = useState(settings.gttsKey || '');
+  const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
+
+  // 다른 경로로 키가 바뀌면(기존 앱에서 승계, 계정 동기화) 입력칸도 따라간다
+  useEffect(() => {
+    setKeyDraft(settings.gttsKey || '');
+  }, [settings.gttsKey]);
   const [status, setStatus] = useState(() => ttsStatus());
 
   // 음성 목록은 늦게 채워지고 키를 바꾸면 경로도 바뀐다 — 화면이 열려 있는 동안 계속 맞춘다.
@@ -126,6 +142,15 @@ export default function Settings({ settings, onChange, onReplayOnboarding, onOpe
         설정
       </div>
 
+      <div className="section-label">계정</div>
+      <Account
+        session={session}
+        syncState={syncState}
+        onSync={onSync}
+        onSignedOut={onSignedOut}
+        onToast={onToast}
+      />
+
       <div className="section-label">학습 메뉴</div>
       <div className="card">
         {Object.entries(MENU_LABELS).map(([id, label]) => (
@@ -199,11 +224,36 @@ export default function Settings({ settings, onChange, onReplayOnboarding, onOpe
         </div>
 
         <div className="set-title" style={{ marginTop: 16 }}>Google Cloud TTS 키</div>
-        <div className="set-sub" style={{ marginBottom: 8 }}>
-          키는 이 브라우저에만 저장되고 어디로도 전송되지 않아요.
+
+        {/* 빈 칸만 보이면 "저장이 안 된 건지, 원래 안 보이는 건지" 알 수 없다.
+            저장된 키가 있으면 가려서라도 보여준다. */}
+        <div className="keystate">
+          {settings.gttsKey
+            ? <><b>저장됨</b> · {maskKey(settings.gttsKey)}</>
+            : <>이 기기에는 아직 키가 없어요</>}
         </div>
-        <input className="search-input" type="password" placeholder="AIza... 또는 AQ..." value={keyDraft}
-          onChange={(e) => setKeyDraft(e.target.value)} style={{ marginBottom: 10 }} />
+        <div className="set-sub" style={{ margin: '6px 0 8px' }}>
+          키는 기기마다 따로 저장돼요. 아이폰에 넣어도 아이패드에는 자동으로 오지 않아요.
+        </div>
+
+        {/* type=password로 두면 iOS 암호 자동완성이 끼어들어 화면 값과 실제 값이
+            어긋난 채 저장될 수 있다. 직접 가리고 자동완성은 꺼 둔다. */}
+        <input
+          className="search-input"
+          type={showKey ? 'text' : 'password'}
+          name="gtts-api-key"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          placeholder="AIza... 또는 AQ..."
+          value={keyDraft}
+          onChange={(e) => setKeyDraft(e.target.value)}
+          style={{ marginBottom: 6 }}
+        />
+        <button className="keypeek" onClick={() => setShowKey((v) => !v)}>
+          {showKey ? '가리기' : '입력한 키 보기'}
+        </button>
         <div className="btnrow">
           <button className="ghost-btn" onClick={saveKey} disabled={testing}>
             <IconSpeaker /> {testing ? '확인 중...' : '저장하고 확인'}

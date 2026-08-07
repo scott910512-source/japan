@@ -655,6 +655,35 @@ button, input, select { font-family: inherit; }
 .micresult.close { background: color-mix(in srgb, #E9A23B 18%, transparent); color: #E9A23B; }
 .micresult.off, .micresult.none { background: var(--shu-soft); color: var(--shu); }
 
+.keystate {
+  display: inline-block; padding: 6px 12px; border-radius: 100px; margin-top: 8px;
+  font-size: 12px; font-weight: 650; background: var(--surface-2); color: var(--ink-soft);
+}
+.keystate b { color: var(--kon); font-weight: 800; }
+.keypeek {
+  display: block; margin: 0 0 10px auto; padding: 4px 2px; background: none; border: none;
+  color: var(--ink-soft); font-size: 11.5px; font-weight: 600; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* ── 계정 ── */
+.acct-head { display: flex; align-items: center; gap: 12px; }
+.acct-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #fff;
+}
+.acct-avatar svg { width: 20px; height: 20px; }
+.acct-notice {
+  margin: 10px 0 2px; padding: 10px 12px; border-radius: 10px;
+  background: var(--kon-soft); color: var(--kon); font-size: 12.5px; line-height: 1.55;
+}
+.acct-links { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 12px; }
+.acct-links button {
+  background: none; border: none; color: var(--ink-soft); font-size: 12.5px; font-weight: 600;
+  cursor: pointer; padding: 4px 0; text-decoration: underline; text-underline-offset: 3px;
+}
+
 /* ── 음성 상태 배지 ── */
 .ttsbadge {
   display: inline-block; padding: 6px 12px; border-radius: 100px;
