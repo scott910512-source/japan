@@ -7,7 +7,7 @@ import MicButton from '../components/MicButton.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
-import { SITUATIONS } from '../data/situations.js';
+import { ALL_SITUATIONS as SITUATIONS } from '../data/allSituations.js';
 import {
   VERDICT, advanceSession, buildRound1, dueCards, isMastered, nextRoundOf, stateOf, todayKey,
 } from '../lib/review.js';
@@ -42,7 +42,15 @@ export default function Situations({ review, settings, onReviewChange, onToast }
   );
   const dueItems = useMemo(() => {
     const ids = new Set(dueCards(allItems.map((i) => i.id), review, todayKey()));
-    return allItems.filter((i) => ids.has(i.id));
+    // 「タクシーを呼んでいただけますか」처럼 여러 상황에 같은 문장이 들어 있다.
+    // 파트별 학습에서는 각 맥락에서 한 번씩 나오는 게 맞지만,
+    // 복습 큐는 전 상황을 훑으므로 같은 문장이 연달아 나오면 오류로 보인다.
+    const seen = new Set();
+    return allItems.filter((i) => {
+      if (!ids.has(i.id) || seen.has(i.jp)) return false;
+      seen.add(i.jp);
+      return true;
+    });
   }, [allItems, review]);
 
   // 보여주기 카드는 화면을 덮는 오버레이다. 갈아끼우면 학습 화면이 언마운트되면서
