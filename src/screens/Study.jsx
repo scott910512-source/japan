@@ -116,9 +116,8 @@ export default function Study({
 
   const judge = (verdict) => {
     if (!word || locked) return;
-    // 모르는 걸 모른다고 하는 데는 답을 볼 필요가 없다.
-    // "알아요"만 뒷면을 확인해야 누를 수 있다 — 안 보고 아는 척하는 걸 막는 장치다.
-    if (verdict === VERDICT.KNOWN && !revealed) return;
+    // 판정은 언제든 누를 수 있다. 아는 단어를 확인시키려고 한 번 더 두드리게 하면
+    // 아는 것만 많은 회독에서 그 두드림이 전부 마찰이 된다. 내 기록은 내가 정한다.
     setLocked(true);
 
     history.current.push({
@@ -319,11 +318,11 @@ export default function Study({
           <b>애매해요</b>
           <span>다음 회독에</span>
         </button>
-        <button className="judge known" disabled={!revealed || locked} onClick={() => judge(VERDICT.KNOWN)}>
+        <button className="judge known" disabled={locked} onClick={() => judge(VERDICT.KNOWN)}>
           {hasKeyboard && <kbd className="judge-key">3</kbd>}
           <IconCheck />
           <b>알아요</b>
-          <span>{revealed ? '기억했어요' : '뜻 확인 후'}</span>
+          <span>기억했어요</span>
         </button>
       </div>
 

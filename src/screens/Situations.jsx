@@ -243,8 +243,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
 
   const judge = (verdict) => {
     if (!item || locked) return;
-    // 모르는 걸 모른다고 하는 데는 답을 볼 필요가 없다. "알아요"만 확인 후에 누른다.
-    if (verdict === VERDICT.KNOWN && !revealed) return;
+    // 판정은 언제든 누를 수 있다. 아는 것을 굳이 확인시키면 그게 다 마찰이 된다.
     setLocked(true);
     history.current.push({ id: item.id, prevReview: review[item.id], prevSession: session });
 
@@ -398,9 +397,9 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
           {hasKeyboard && <kbd className="judge-key">2</kbd>}
           <IconTriangle /><b>애매해요</b><span>다음 회독에</span>
         </button>
-        <button className="judge known" disabled={!revealed || locked} onClick={() => judge(VERDICT.KNOWN)}>
+        <button className="judge known" disabled={locked} onClick={() => judge(VERDICT.KNOWN)}>
           {hasKeyboard && <kbd className="judge-key">3</kbd>}
-          <IconCheck /><b>알아요</b><span>{revealed ? '기억했어요' : '정답 확인 후'}</span>
+          <IconCheck /><b>알아요</b><span>기억했어요</span>
         </button>
       </div>
 
