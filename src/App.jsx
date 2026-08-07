@@ -59,7 +59,7 @@ export default function App() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [authSession, setAuthSession] = useState(null);
-  const [syncState, setSyncState] = useState({ busy: false, at: null });
+  const [syncState, setSyncState] = useState({ busy: false, at: null, error: null });
   const [remoteKeyEnvelope, setRemoteKeyEnvelope] = useState(null);
   const [vaultKey, setVaultKey] = useState(() => loadVaultKey());
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
@@ -160,11 +160,12 @@ export default function App() {
       // 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다
       setSettings((s) => ({ ...s, ...merged.settings }));
       setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
-      setSyncState({ busy: false, at: new Date().toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }) });
+      setSyncState({ busy: false, error: null, at: new Date().toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }) });
       if (!silent) showToast('동기화했어요');
     } catch (err) {
-      setSyncState((s) => ({ ...s, busy: false }));
-      showToast(`동기화에 실패했어요 — ${err.message}`);
+      // 토스트는 2초 뒤 사라져서 왜 안 되는지 확인할 방법이 없다. 계정 칸에 남긴다.
+      setSyncState((s) => ({ ...s, busy: false, error: err.message }));
+      if (!silent) showToast('동기화에 실패했어요');
     }
   }, [authSession, review, progress, settings, stats, streak, customWords, memos, showToast]);
 

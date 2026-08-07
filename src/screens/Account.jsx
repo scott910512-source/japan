@@ -54,6 +54,13 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
           </div>
         </div>
 
+        {syncState.error && (
+          <div className="syncerror">
+            <b>동기화가 안 되고 있어요</b>
+            <span>{syncState.error}</span>
+          </div>
+        )}
+
         <div className="btnrow" style={{ marginTop: 12 }}>
           <button className="ghost-btn" onClick={onSync} disabled={syncState.busy}>
             <IconUpload /> {syncState.busy ? '동기화 중…' : '지금 동기화'}
