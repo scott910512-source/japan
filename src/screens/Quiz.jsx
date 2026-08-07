@@ -177,11 +177,15 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
     if (word) speakJapanese(word.kana || word.kanji, settings.speechRate);
   }, [word, settings.speechRate]);
 
-  // 일→한 문제에서 문제를 읽어 주면 답이 아니라 문제를 들려주는 거라 괜찮다.
-  // 한→일은 정답이 소리로 새기 때문에 답을 낸 뒤에만 읽는다.
+  /* 일→한 문제에서 문제를 읽어 주면 답이 아니라 문제를 들려주는 거라 괜찮다.
+   * 한→일은 정답이 소리로 새기 때문에 답을 낸 뒤에만 읽는다.
+   * 한 문항에서 한 번만 읽는다 — answered가 바뀔 때 또 부르면 겹쳐 들린다. */
+  const spokenFor = useRef(null);
   useEffect(() => {
     if (!settings.autoTTS || !q) return;
     if (q.dir === QUIZ_DIR.KO_JP && !answered) return;
+    if (spokenFor.current === index) return;
+    spokenFor.current = index;
     speak();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, Boolean(answered)]);

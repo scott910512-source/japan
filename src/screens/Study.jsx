@@ -63,7 +63,11 @@ export default function Study({
   const cards = deck.cards;
   const byId = useMemo(() => new Map(cards.map((w) => [w.id, w])), [cards]);
 
-  const [revealed, setRevealed] = useState(false);
+  /* "뒤집었다"를 boolean으로 들고 있으면 카드가 바뀐 뒤에도 한 박자 동안 true로 남는다.
+   * 그 틈에 자동 음성이 돌아 아직 뒤집지도 않은 다음 카드의 정답을 읽어 버렸다.
+   * 그래서 "어느 카드의 몇 번째 방문을 뒤집었는지"를 들고, revealed는 거기서 끌어낸다.
+   * 카드가 바뀌는 즉시 같은 렌더에서 false가 되므로 틈이 없다. */
+  const [revealedFor, setRevealedFor] = useState(null);
   const [peekKana, setPeekKana] = useState(false);
   const [showExample, setShowExample] = useState(false);
   const [locked, setLocked] = useState(false);   // 카드 전환 중 연타로 오판정되는 것을 막는다
@@ -109,20 +113,33 @@ export default function Study({
   const word = currentId ? byId.get(currentId) : null;
   const faces = word ? facesOf(word, settings) : null;
 
+  // 같은 카드가 몰라요로 다시 나오면 done이 달라져 새 방문으로 친다
+  const visitKey = `${currentId}:${session?.done ?? 0}`;
+  const revealed = revealedFor === visitKey;
+  const reveal = () => setRevealedFor(visitKey);
+
   const speakCurrent = useCallback(() => {
     if (faces?.speak) speakJapanese(faces.speak, settings.speechRate);
   }, [faces, settings.speechRate]);
 
-  // 자동 음성은 앞면이 일본어일 때만 의미가 있다(뜻→한자 방향에서는 정답을 흘리게 된다).
+  /* 자동 음성은 앞면이 일본어일 때만 의미가 있다(뜻→한자 방향에서는 정답을 흘리게 된다).
+   *
+   * revealed가 의존성에 들어 있어야 "뜻→한자"에서 뒤집은 뒤에 읽어 줄 수 있는데,
+   * 그대로 두면 카드를 뒤집었다가 판정할 때 두 번 읽는다 — 다음 카드로 넘어가며
+   * currentId가 바뀌어 한 번, 곧이어 revealed가 false로 돌아가며 또 한 번.
+   * 그래서 "이번에 넘긴 카드"마다 한 번만 읽도록 표시를 남긴다.
+   * done을 함께 쓰는 이유는 몰라요로 같은 카드가 다시 나왔을 때는 또 읽어야 하기 때문이다. */
+  const spokenFor = useRef(null);
   useEffect(() => {
     if (!word || !settings.autoTTS) return;
     if (settings.direction === 'mean-kanji' && !revealed) return;
+    if (spokenFor.current === visitKey) return;   // 한 방문에 한 번만
+    spokenFor.current = visitKey;
     speakCurrent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentId, revealed]);
+  }, [visitKey, revealed]);
 
   useEffect(() => {
-    setRevealed(false);
     setPeekKana(false);
     setShowExample(false);
   }, [currentId]);
@@ -178,20 +195,20 @@ export default function Study({
   useHotkeys({
     ' ': speakCurrent,
     Space: speakCurrent,
-    Enter: () => (revealed ? judge(VERDICT.KNOWN) : setRevealed(true)),
+    Enter: () => (revealed ? judge(VERDICT.KNOWN) : reveal()),
     1: () => judge(VERDICT.UNKNOWN),
     2: () => judge(VERDICT.VAGUE),
     3: () => judge(VERDICT.KNOWN),
     0: () => judge(VERDICT.MASTER),
     ArrowLeft: undo,
     Backspace: undo,
-    ArrowDown: () => setRevealed(true),
+    ArrowDown: reveal,
     s: () => faces && speakSlow(faces.speak),
     S: () => faces && speakSlow(faces.speak),
     b: () => word && onBookmark(word.id),
     B: () => word && onBookmark(word.id),
-    e: () => { setShowExample((v) => !v); setRevealed(true); },
-    E: () => { setShowExample((v) => !v); setRevealed(true); },
+    e: () => { setShowExample((v) => !v); reveal(); },
+    E: () => { setShowExample((v) => !v); reveal(); },
     k: () => setPeekKana(true),
     K: () => setPeekKana(true),
     m: () => micTrigger.current?.(),
@@ -240,7 +257,7 @@ export default function Study({
         hasKeyboard={hasKeyboard}
       />
 
-      <div className="studycard" onClick={() => !revealed && setRevealed(true)}>
+      <div className="studycard" onClick={() => !revealed && reveal()}>
         <div className="sc-top">
           {st.wrongCount + st.vagueCount >= 3 && <span className="sc-weak">취약</span>}
           <button
@@ -368,7 +385,7 @@ export default function Study({
         </button>
         <button
           className={showExample ? 'on' : ''}
-          onClick={() => { setShowExample((v) => !v); setRevealed(true); }}
+          onClick={() => { setShowExample((v) => !v); reveal(); }}
         >
           <IconBulb /> 예문 보기{hasKeyboard && <kbd className="inline-key">E</kbd>}
         </button>
