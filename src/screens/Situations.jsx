@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconSpeaker, IconChevron, IconArrowLeft, IconCheck, IconX, IconTriangle, IconRewind, IconEye,
 } from '../components/Icons.jsx';
-import KeyHints from '../components/KeyHints.jsx';
 import MicButton from '../components/MicButton.jsx';
 import { speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
-import { useHotkeys } from '../lib/useHotkeys.js';
+import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import BuildQuiz from '../components/BuildQuiz.jsx';
 import { ALL_SITUATIONS as SITUATIONS } from '../data/allSituations.js';
 import { chunksOf, hasChunks } from '../data/allChunks.js';
@@ -223,6 +222,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
   const [locked, setLocked] = useState(false);
   const [finished, setFinished] = useState(null);
   const history = useRef([]);
+  const hasKeyboard = useHasKeyboard();
 
   const currentId = session.queue[0];
   const item = currentId ? byId.get(currentId) : null;
@@ -243,7 +243,8 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
 
   const judge = (verdict) => {
     if (!item || locked) return;
-    if (verdict !== VERDICT.MASTER && !revealed) return;
+    // 모르는 걸 모른다고 하는 데는 답을 볼 필요가 없다. "알아요"만 확인 후에 누른다.
+    if (verdict === VERDICT.KNOWN && !revealed) return;
     setLocked(true);
     history.current.push({ id: item.id, prevReview: review[item.id], prevSession: session });
 
@@ -312,7 +313,9 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
         <div className="sh-row">
           <button className="sh-close" onClick={onExit} aria-label="나가기"><IconArrowLeft /></button>
           <div className="sh-title">{part.label} {session.done} / {session.total}</div>
-          <button className="sh-undo" onClick={undo} disabled={!history.current.length}>↩ 되돌리기</button>
+          <button className="sh-undo" onClick={undo} disabled={!history.current.length}>
+            ↩ 되돌리기{hasKeyboard && <kbd className="inline-key">←</kbd>}
+          </button>
         </div>
         <div className="sh-bar">
           <i style={{ width: `${session.total ? (session.done / session.total) * 100 : 0}%` }} />
@@ -386,21 +389,18 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
         </div>
       )}
 
-      {!revealed && (
-        <button className="skipbtn" onClick={() => judge(VERDICT.MASTER)} disabled={locked}>
-          이미 외웠어요 · 바로 졸업
-        </button>
-      )}
-
       <div className="judgerow">
-        <button className="judge unknown" disabled={!revealed || locked} onClick={() => judge(VERDICT.UNKNOWN)}>
+        <button className="judge unknown" disabled={locked} onClick={() => judge(VERDICT.UNKNOWN)}>
+          {hasKeyboard && <kbd className="judge-key">1</kbd>}
           <IconX /><b>몰라요</b><span>오늘 다시</span>
         </button>
-        <button className="judge vague" disabled={!revealed || locked} onClick={() => judge(VERDICT.VAGUE)}>
+        <button className="judge vague" disabled={locked} onClick={() => judge(VERDICT.VAGUE)}>
+          {hasKeyboard && <kbd className="judge-key">2</kbd>}
           <IconTriangle /><b>애매해요</b><span>다음 회독에</span>
         </button>
         <button className="judge known" disabled={!revealed || locked} onClick={() => judge(VERDICT.KNOWN)}>
-          <IconCheck /><b>알아요</b><span>기억했어요</span>
+          {hasKeyboard && <kbd className="judge-key">3</kbd>}
+          <IconCheck /><b>알아요</b><span>{revealed ? '기억했어요' : '정답 확인 후'}</span>
         </button>
       </div>
 
@@ -408,8 +408,6 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
         <button onClick={() => speakSlow(speakText)}><IconRewind /> 천천히 듣기</button>
         <button onClick={() => onShowCard(item)}><IconEye /> 보여주기 카드</button>
       </div>
-
-      <KeyHints revealed={revealed} />
     </div>
   );
 }

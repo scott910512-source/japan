@@ -415,13 +415,6 @@ button, input, select { font-family: inherit; }
 .sh-sub { text-align: center; font-size: 12px; color: var(--ink-soft); font-weight: 600; }
 .sh-sub .sep { opacity: .4; margin: 0 6px; }
 
-.rulecard {
-  width: 100%; display: flex; flex-direction: column; gap: 3px; text-align: left; cursor: pointer;
-  background: var(--kon-soft); border: 1px solid var(--kon); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; color: var(--ink);
-}
-.rulecard b { font-size: 12.5px; color: var(--kon); }
-.rulecard span { font-size: 12px; line-height: 1.6; color: var(--ink-soft); }
-.rulecard em { font-size: 10.5px; font-style: normal; color: var(--ink-soft); opacity: .7; }
 
 .studycard {
   position: relative; flex: 1 1 auto; min-height: 260px; display: flex; flex-direction: column;
@@ -798,31 +791,19 @@ button, input, select { font-family: inherit; }
 .plantotal { padding-top: 11px; text-align: right; font-size: 13px; font-weight: 700; color: var(--kon); font-variant-numeric: tabular-nums; }
 .bigstart:disabled { opacity: .5; cursor: default; }
 
-/* ── 이미 외운 카드 건너뛰기 · 키보드 단축키 ── */
-.skipbtn {
-  width: 100%; margin-bottom: 10px; padding: 11px 0; border-radius: 12px; cursor: pointer;
-  background: var(--surface); border: 1px dashed var(--kon); color: var(--kon);
-  font-size: 12.5px; font-weight: 650;
+/* ── 키보드 단축키 표시 ──
+   따로 안내 줄을 두면 화면만 길어진다. 누르는 버튼 위에 바로 적는다. */
+.judge-key, .corner-key, .inline-key {
+  font-family: var(--font-mono); font-size: 9.5px; line-height: 1; font-weight: 700;
+  padding: 2px 4px; border-radius: 4px;
+  border: 1px solid var(--line); border-bottom-width: 2px;
+  background: var(--surface-2); color: var(--ink-soft);
 }
-.skipbtn:disabled { opacity: .5; cursor: default; }
-
-.keyhints { display: none; }
-/* 마우스·키보드가 달린 기기, 또는 실제로 키를 눌러 본 적이 있는 기기에서만 안내한다.
-   iPadOS는 키보드를 꽂아도 pointer가 coarse라 미디어 쿼리만으로는 못 가른다. */
-@media (hover: hover) and (pointer: fine) {
-  .keyhints { display: flex; }
-}
-.keyhints.show { display: flex; }
-.keyhints {
-  flex-wrap: wrap; justify-content: center; gap: 4px 12px;
-  margin-top: 12px; font-size: 11px; color: var(--ink-soft);
-}
-.keyhints span { display: inline-flex; align-items: center; gap: 4px; }
-.keyhints kbd {
-  font-family: var(--font-mono); font-size: 10px; line-height: 1; padding: 3px 5px;
-  border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
-  background: var(--surface-2); color: var(--ink);
-}
+.judge-key { position: absolute; top: 5px; left: 6px; }
+.corner-key { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); }
+.inline-key { margin-left: 5px; }
+.judge { position: relative; }
+.sc-speak { position: relative; }
 
 .ob-next:disabled { opacity: .45; cursor: default; }
 
