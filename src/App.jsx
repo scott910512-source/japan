@@ -23,6 +23,7 @@ import {
   touchStreak, setStorageErrorHandler,
 } from './lib/storage.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
+import { configureSTT } from './lib/stt.js';
 import { dueCards, todayKey, weakCards } from './lib/review.js';
 
 const SUB_TITLES = {
@@ -77,8 +78,10 @@ export default function App() {
   useEffect(() => saveSession(session), [session]);
   useEffect(() => saveStats(stats), [stats]);
 
+  // 음성 인식도 같은 Google API 키를 쓴다
   useEffect(() => {
     configureTTS({ gttsKey: settings.gttsKey, useCloud: settings.useCloudTTS });
+    configureSTT({ gttsKey: settings.gttsKey, useCloud: settings.useCloudTTS });
   }, [settings.gttsKey, settings.useCloudTTS]);
 
   useEffect(() => {

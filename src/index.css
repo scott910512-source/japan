@@ -569,6 +569,34 @@ button, input, select { font-family: inherit; }
 .show-ko { font-size: 15px; color: var(--ink-soft); text-align: center; }
 .show-hint { position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); font-size: 12px; color: var(--ink-soft); opacity: .7; }
 
+/* ── 말해보기 (음성 인식) ── */
+.micwrap { margin-bottom: 10px; }
+.micbtn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 0; border-radius: 14px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--kon); color: var(--kon);
+  font-size: 13.5px; font-weight: 700;
+}
+.micbtn svg { width: 19px; height: 19px; }
+.micbtn:disabled { opacity: .6; cursor: default; }
+.micbtn.listening {
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); border-color: transparent; color: #fff;
+  animation: micpulse 1.4s ease-in-out infinite;
+}
+@keyframes micpulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--kon) 45%, transparent); }
+  50% { box-shadow: 0 0 0 10px transparent; }
+}
+.micresult {
+  margin-top: 8px; padding: 10px 14px; border-radius: 12px; text-align: center;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.micresult b { font-size: 13.5px; }
+.micresult .heard { font-size: 12px; opacity: .85; }
+.micresult.good { background: var(--kon-soft); color: var(--kon); }
+.micresult.close { background: color-mix(in srgb, #E9A23B 18%, transparent); color: #E9A23B; }
+.micresult.off, .micresult.none { background: var(--shu-soft); color: var(--shu); }
+
 /* ── 음성 상태 배지 ── */
 .ttsbadge {
   display: inline-block; padding: 6px 12px; border-radius: 100px;
