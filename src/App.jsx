@@ -7,10 +7,11 @@ import ReviewTab from './screens/ReviewTab.jsx';
 import Settings from './screens/Settings.jsx';
 import Basics from './screens/Basics.jsx';
 import WordManager from './screens/WordManager.jsx';
-import Sentence from './screens/Sentence.jsx';
-import Grammar from './screens/Grammar.jsx';
+import Situations from './screens/Situations.jsx';
+import GrammarHub from './screens/GrammarHub.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { DEFAULT_WORDS } from './data/words.js';
+import { SITUATIONS } from './data/situations.js';
 import {
   loadCustomWords, saveCustomWords,
   loadProgress, saveProgress,
@@ -84,6 +85,15 @@ export default function App() {
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
   const byId = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
   const due = useMemo(() => dueCards(wordIds, review, todayKey()), [wordIds, review]);
+
+  const sentenceIds = useMemo(
+    () => SITUATIONS.flatMap((s) => s.parts.flatMap((p) => p.items.map((i) => i.id))),
+    [],
+  );
+  const sentenceDue = useMemo(
+    () => dueCards(sentenceIds, review, todayKey()).length,
+    [sentenceIds, review],
+  );
 
   const patchSettings = useCallback((patch) => setSettings((s) => ({ ...s, ...patch })), []);
 
@@ -210,6 +220,8 @@ export default function App() {
             stats={stats}
             onStartDeck={startDueDeck}
             onOpenWeak={startWeakDeck}
+            onOpenSentences={() => setSub('sentences')}
+            sentenceDue={sentenceDue}
           />
         </section>
 
@@ -234,21 +246,23 @@ export default function App() {
           <div className="sub-body">
             {sub === 'basics' && <Basics settings={settings} onToast={showToast} />}
             {sub === 'grammar' && (
-              <Grammar
+              <GrammarHub
                 words={words}
                 progress={progress}
                 onProgress={(moduleId, delta) => setProgress((p) => ({
                   ...p, grammarDone: { ...p.grammarDone, [moduleId]: (p.grammarDone[moduleId] || 0) + delta },
                 }))}
-              />
-            )}
-            {sub === 'sentences' && (
-              <Sentence
-                words={words}
-                progress={progress}
                 onPatternDone={(patternId) => setProgress((p) => ({
                   ...p, sentenceDone: { ...p.sentenceDone, [patternId]: true },
                 }))}
+              />
+            )}
+            {sub === 'sentences' && (
+              <Situations
+                review={review}
+                settings={settings}
+                onReviewChange={applyReview}
+                onToast={showToast}
               />
             )}
             {sub === 'manage' && (
@@ -264,7 +278,7 @@ export default function App() {
         </div>
       )}
 
-      <TabBar active={activeTab} onChange={selectTab} reviewCount={due.length} />
+      <TabBar active={activeTab} onChange={selectTab} reviewCount={due.length + sentenceDue} />
       <Toast message={toast} />
     </div>
   );

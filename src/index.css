@@ -512,6 +512,63 @@ button, input, select { font-family: inherit; }
 .lr-kana { font-size: 12.5px; color: var(--ink-soft); }
 .lr-ko { margin-left: auto; font-size: 12.5px; color: var(--ink-soft); }
 
+/* ── 상황별 문장암기 ── */
+.lead { font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; margin: -4px 0 14px; }
+
+.starfilter {
+  width: 100%; margin-top: 12px; padding: 11px 14px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font-size: 12.5px; font-weight: 650;
+}
+.starfilter.on { border-color: var(--kon); background: var(--kon-soft); color: var(--kon); }
+
+.menucard .mc-icon.partno { font-size: 15px; font-weight: 800; font-family: var(--font-mono); }
+
+.sentrow { display: flex; align-items: center; gap: 8px; padding: 12px 14px; }
+.sentrow .sr-main { flex: 1; min-width: 0; }
+.sr-jp { font-size: 14.5px; font-weight: 650; line-height: 1.5; }
+.sr-jp .star { color: var(--kon); margin-right: 5px; }
+.sr-ko { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+.iconbtn {
+  width: 34px; height: 34px; border-radius: 10px; flex: 0 0 auto; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+}
+.iconbtn svg { width: 16px; height: 16px; color: var(--kon); }
+
+.sent-front { font-size: clamp(19px, 6vw, 26px); font-weight: 750; line-height: 1.5; text-align: center; word-break: normal; overflow-wrap: anywhere; }
+.sent-front.ko { font-size: clamp(17px, 5.2vw, 21px); word-break: keep-all; }
+.sent-answer { font-size: clamp(18px, 5.6vw, 22px); font-weight: 750; line-height: 1.5; text-align: center; word-break: normal; overflow-wrap: anywhere; }
+.listenbig {
+  width: 92px; height: 92px; border-radius: 50%; cursor: pointer;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); border: none;
+  display: flex; align-items: center; justify-content: center; box-shadow: var(--glow-btn);
+}
+.listenbig svg { width: 40px; height: 40px; color: #fff; }
+
+.replybox { width: 100%; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--kon-soft); text-align: center; }
+.rb-label { font-size: 10.5px; font-weight: 700; color: var(--kon); margin-bottom: 5px; }
+.rb-jp { font-size: 15px; font-weight: 650; }
+.rb-ko { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+.rb-play {
+  margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 100px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); color: var(--kon); font-size: 11.5px; font-weight: 650;
+}
+.rb-play svg { width: 14px; height: 14px; }
+
+/* 보여주기 카드 — 점원에게 화면을 그대로 보여주는 화면이라 글씨를 최대로 키운다 */
+.showcard {
+  position: fixed; inset: 0; z-index: 220; background: var(--paper); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 28px 22px;
+}
+/* 일본어는 글자 사이 어디서든 줄바꿈돼야 한다 — keep-all을 걸면 긴 문장이 화면 밖으로 잘린다.
+   문장 길이가 제각각이라 글자 크기도 화면 폭에 맞춰 줄인다. */
+.show-jp {
+  font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size: clamp(26px, 8.5vw, 44px); font-weight: 800; line-height: 1.45; text-align: center;
+  word-break: normal; overflow-wrap: anywhere; max-width: 100%;
+}
+.show-ko { font-size: 15px; color: var(--ink-soft); text-align: center; }
+.show-hint { position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); font-size: 12px; color: var(--ink-soft); opacity: .7; }
+
 .ob-next:disabled { opacity: .45; cursor: default; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

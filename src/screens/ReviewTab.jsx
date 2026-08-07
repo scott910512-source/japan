@@ -4,7 +4,7 @@ import {
   DAILY_REVIEW_CAP, dueCards, stateOf, summarize, todayKey, weakCards, isMastered,
 } from '../lib/review.js';
 
-export default function ReviewTab({ words, review, streak, stats, onStartDeck, onOpenWeak }) {
+export default function ReviewTab({ words, review, streak, stats, onStartDeck, onOpenWeak, onOpenSentences, sentenceDue }) {
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
   const today = todayKey();
 
@@ -58,6 +58,14 @@ export default function ReviewTab({ words, review, streak, stats, onStartDeck, o
         <div className="notice">
           복습이 밀려서 오늘은 {DAILY_REVIEW_CAP}장까지만 담았어요. {overflow}장은 내일로 넘어가요.
         </div>
+      )}
+
+      {sentenceDue > 0 && (
+        <button className="duebar" style={{ marginTop: 10 }} onClick={onOpenSentences}>
+          <IconRepeat />
+          <span>오늘 복습할 문장 <b>{sentenceDue}개</b></span>
+          <IconChevron className="chev" />
+        </button>
       )}
 
       <div className="section-label">내 취약 단어</div>
