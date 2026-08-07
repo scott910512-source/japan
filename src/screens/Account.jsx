@@ -76,14 +76,20 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
 
   /* ── 로그인 전 ── */
   const submit = async () => {
-    if (!email.trim()) { onToast('이메일을 입력해 주세요'); return; }
+    const address = email.trim();
+    if (!address) { onToast('이메일을 입력해 주세요'); return; }
+    // 서버까지 갔다 와서 알려주면 느리다. 형식이 아닌 건 여기서 바로 잡는다.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+      onToast('아이디가 아니라 이메일 주소를 넣어 주세요 (예: name@gmail.com)');
+      return;
+    }
     if (mode !== 'reset' && password.length < 6) { onToast('비밀번호는 6자 이상이어야 해요'); return; }
 
     setBusy(true);
     setNotice('');
     try {
       if (mode === 'reset') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        const { error } = await supabase.auth.resetPasswordForEmail(address, {
           redirectTo: redirectUrl(),
         });
         if (error) throw error;
@@ -94,7 +100,7 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
 
       const fn = mode === 'signup' ? 'signUp' : 'signInWithPassword';
       const { data, error } = await supabase.auth[fn]({
-        email: email.trim(),
+        email: address,
         password,
         ...(mode === 'signup' ? { options: { emailRedirectTo: redirectUrl() } } : {}),
       });
