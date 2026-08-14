@@ -3,7 +3,7 @@ import {
   IconSpeaker, IconChevron, IconArrowLeft, IconCheck, IconX, IconTriangle, IconRewind, IconEye,
 } from '../components/Icons.jsx';
 import MicButton from '../components/MicButton.jsx';
-import { speakJapanese, speakSlow } from '../lib/tts.js';
+import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import BuildQuiz from '../components/BuildQuiz.jsx';
@@ -126,7 +126,7 @@ export default function Situations({ review, settings, onReviewChange, onToast }
                 </div>
                 <div className="sr-ko">{item.ko}</div>
               </div>
-              <button className="iconbtn" onClick={() => speakJapanese(item.jp, settings.speechRate)} aria-label="듣기">
+              <button className="iconbtn" onClick={() => speakJapanese(readingText(item.kana, item.jp), settings.speechRate)} aria-label="듣기">
                 <IconSpeaker />
               </button>
               <button className="iconbtn" onClick={() => setShowCard(item)} aria-label="크게 보여주기">
@@ -227,7 +227,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
   const currentId = session.queue[0];
   const item = currentId ? byId.get(currentId) : null;
   const faces = item ? facesOf(item, mode, settings) : null;
-  const speakText = item ? item.jp : '';
+  const speakText = item ? readingText(item.kana, item.jp) : '';
 
   // 듣기 모드는 앞면에 글자가 없으므로 반드시 소리를 내야 한다.
   useEffect(() => {
@@ -364,7 +364,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
                 <div className="rb-label">상대는 이렇게 답해요</div>
                 <div className="rb-jp">{settings.canReadKana === false ? item.reply.kana : item.reply.jp}</div>
                 <div className="rb-ko">{item.reply.ko}</div>
-                <button className="rb-play" onClick={(e) => { e.stopPropagation(); speakJapanese(item.reply.jp, settings.speechRate); }}>
+                <button className="rb-play" onClick={(e) => { e.stopPropagation(); speakJapanese(readingText(item.reply.kana, item.reply.jp), settings.speechRate); }}>
                   <IconSpeaker /> 답변 듣기
                 </button>
               </div>
@@ -428,7 +428,7 @@ function ShowCard({ item, settings, onClose }) {
       <div className="show-ko">{item.ko}</div>
       <button
         className="ghost-btn"
-        onClick={(e) => { e.stopPropagation(); speakJapanese(item.jp, settings.speechRate); }}
+        onClick={(e) => { e.stopPropagation(); speakJapanese(readingText(item.kana, item.jp), settings.speechRate); }}
       >
         <IconSpeaker /> 소리로 들려주기
       </button>

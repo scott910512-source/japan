@@ -188,6 +188,22 @@ async function speakCloud(text, rate, token) {
 
 /* ── 공개 API ── */
 
+/* 소리로 낼 문자열을 고른다.
+ *
+ * 한자를 그대로 넘기면 읽는 법은 음성 엔진이 자기 마음대로 고른다. 그래서
+ * 「開く(あく)」를 가르치는 카드가 예문 「ドアが開きます」를 ひらきます로 읽어 주는
+ * 어긋남이 실제로 있었다. 학습 앱에서 화면의 읽기와 들리는 소리가 다른 것은
+ * 틀린 발음을 가르치는 것과 같다.
+ *
+ * 우리 데이터는 모든 문장에 정답 읽기(kana·exampleKana)를 함께 갖고 있으니
+ * 소리를 낼 때는 언제나 그쪽을 쓴다.
+ * 「よん / し」처럼 대안을 병기한 읽기는 앞의 하나만 읽는다. */
+export function readingText(kana, fallback) {
+  const source = kana || fallback || '';
+  const first = source.split(/\s*\/\s*/)[0].trim();
+  return first || source;
+}
+
 export function speakJapanese(text, rate = 0.9) {
   if (!text) return;
   lastText = text;

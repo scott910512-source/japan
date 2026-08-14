@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { IconSpeaker, IconChevron, IconArrowLeft } from '../components/Icons.jsx';
-import { speakJapanese } from '../lib/tts.js';
+import { readingText, speakJapanese } from '../lib/tts.js';
 import {
   HIRAGANA_ROWS, KATAKANA_ROWS, DAKUON_ROWS, KATAKANA_DAKUON_ROWS, YOUON, NUMBERS, GREETINGS,
 } from '../data/kana.js';
@@ -66,7 +66,7 @@ export default function Basics({ settings, onToast }) {
       {section === 'num' && (
         <div className="stack" style={{ marginTop: 14 }}>
           {NUMBERS.map((n) => (
-            <button key={n.kana} className="listrow" onClick={() => speakJapanese(n.jp || n.kana, settings.speechRate)}>
+            <button key={n.kana} className="listrow" onClick={() => speakJapanese(readingText(n.kana, n.jp), settings.speechRate)}>
               <IconSpeaker />
               <span className="lr-jp">{n.jp}</span>
               <span className="lr-kana">{n.kana}</span>
@@ -79,7 +79,7 @@ export default function Basics({ settings, onToast }) {
       {section === 'greet' && (
         <div className="stack" style={{ marginTop: 14 }}>
           {GREETINGS.map((g) => (
-            <button key={g.jp} className="card greetcard" onClick={() => speakJapanese(g.jp, settings.speechRate)}>
+            <button key={g.jp} className="card greetcard" onClick={() => speakJapanese(readingText(g.kana, g.jp), settings.speechRate)}>
               <div className="gc-jp">{g.jp}</div>
               <div className="gc-ko">{g.ko}</div>
               {g.note && <div className="gc-note">{g.note}</div>}
