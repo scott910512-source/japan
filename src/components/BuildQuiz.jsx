@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { IconSpeaker, IconX } from './Icons.jsx';
-import { speakJapanese } from '../lib/tts.js';
+import { readingText, speakJapanese } from '../lib/tts.js';
 import { shuffled } from '../lib/review.js';
 
 /* 문장 조립 퀴즈 — 흩어진 조각을 순서대로 눌러 문장을 만든다.
@@ -42,7 +42,7 @@ export default function BuildQuiz({ item, chunks, settings, onSolved }) {
     }
     if (next.length === chunks.length) {
       setSolved(true);
-      speakJapanese(item.jp, settings.speechRate);
+      speakJapanese(readingText(item.kana, item.jp), settings.speechRate);
       onSolved?.(tries === 0);
     }
   };
@@ -87,7 +87,7 @@ export default function BuildQuiz({ item, chunks, settings, onSolved }) {
             {item.jp}
             <button
               className="iconbtn"
-              onClick={() => speakJapanese(item.jp, settings.speechRate)}
+              onClick={() => speakJapanese(readingText(item.kana, item.jp), settings.speechRate)}
               aria-label="듣기"
             >
               <IconSpeaker />

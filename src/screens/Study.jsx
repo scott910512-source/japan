@@ -4,7 +4,7 @@ import {
 } from '../components/Icons.jsx';
 import MicButton from '../components/MicButton.jsx';
 import MemoBox from '../components/MemoBox.jsx';
-import { speakJapanese, speakSlow } from '../lib/tts.js';
+import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
@@ -311,7 +311,7 @@ export default function Study({
                 {/* 예문은 단어보다 길어서 발음 흐름을 익히기 좋다. 따로 들을 수 있게 둔다. */}
                 <button
                   className="ex-play"
-                  onClick={(e) => { e.stopPropagation(); speakJapanese(word.example, settings.speechRate); }}
+                  onClick={(e) => { e.stopPropagation(); speakJapanese(readingText(word.exampleKana, word.example), settings.speechRate); }}
                   aria-label="예문 듣기"
                 >
                   <IconSpeaker />
@@ -397,7 +397,7 @@ export default function Study({
           <div className="ex-ko">{word.exampleKo}</div>
           <button
             className="ex-play"
-            onClick={() => speakJapanese(word.example, settings.speechRate)}
+            onClick={() => speakJapanese(readingText(word.exampleKana, word.example), settings.speechRate)}
             aria-label="예문 듣기"
           >
             <IconSpeaker />
