@@ -202,13 +202,18 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   const grabScript = async () => {
     if (busy) return;
     setBusy(true);
+    const began = Date.now();
     try {
       const { text, tokens } = await fetchTranscript({ apiKey: aiKey, model: ai.model, videoId: open.id });
       const got = parseScript(text).length;
       if (!got) throw new Error('받아 적은 게 없어요');
       setScript(text);
-      // 토큰 수를 같이 보여 준다 — 영상을 진짜로 봤는지 눈으로 확인할 수 있게
-      onToast(`${got}줄을 받아 왔어요${tokens ? ` (영상 ${tokens.toLocaleString()}토큰)` : ''}. 확인하고 저장해 주세요`);
+      /* 걸린 시간과 토큰 수를 같이 보여 준다 — 영상을 진짜로 들었는지 재는 자다.
+         정말 들었으면 시간이 걸리고 토큰이 뛴다. 몇 초 만에 적은 토큰으로 오면
+         듣지 않고 지어낸 것이다. */
+      const took = Math.max(1, Math.round((Date.now() - began) / 1000));
+      const how = [`${took}초`, tokens ? `영상 ${tokens.toLocaleString()}토큰` : ''].filter(Boolean).join(' · ');
+      onToast(`${got}줄을 받아 왔어요 (${how}). 확인하고 저장해 주세요`);
     } catch (err) {
       onToast(err.message || '자막을 받아오지 못했어요');
     } finally {
