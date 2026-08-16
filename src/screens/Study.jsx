@@ -91,8 +91,7 @@ export default function Study({
     const ids = cards.map((w) => w.id);
     const queue = deck.daily
       ? buildDailySession(ids, review, {
-        newCount: settings.newPerDay,
-        reviewCount: settings.reviewMix,
+        goal: settings.dailyGoal,
         shuffle: settings.shuffle,
       }).queue
       : buildRound1(ids, review, { size: 0, shuffle: settings.shuffle });

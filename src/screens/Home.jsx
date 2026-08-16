@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import {
   IconFlame, IconChevron, IconBook, IconGrid, IconChat, IconMap, IconSparkle, IconRepeat, IconList,
 } from '../components/Icons.jsx';
-import { MASTER_STREAK, summarize, todayKey } from '../lib/review.js';
+import { MASTER_STREAK, planDailySession, summarize, todayKey } from '../lib/review.js';
+import { filterByLevel } from './WordDeck.jsx';
 
 const MENUS = [
   { id: 'basics', label: '완전기초', sub: '히라가나 · 숫자 · 인사', Icon: IconSparkle },
@@ -20,7 +21,18 @@ export default function Home({
   words, review, streak, settings, stats, dueCount, session, onOpen, onStartStudy,
 }) {
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
+  // 세션은 고른 레벨 안에서만 짜인다. 여기서도 같은 범위로 세야 숫자가 맞는다.
+  const deckIds = useMemo(
+    () => filterByLevel(words, settings.levels).map((w) => w.id),
+    [words, settings.levels],
+  );
   const stat = useMemo(() => summarize(wordIds, review), [wordIds, review]);
+  /* 버튼에 진짜 장수를 적는다. 예전엔 설정값(오늘 학습량)을 적어 놓고 실제로는
+     65장이 나왔다 — 눌러 보기 전엔 알 수가 없었다. */
+  const plan = useMemo(
+    () => planDailySession(deckIds, review, { goal: settings.dailyGoal }),
+    [deckIds, review, settings.dailyGoal],
+  );
   const today = stats[todayKey()] || { studied: 0 };
 
   const visible = MENUS.filter((m) => settings.menus?.[m.id]);
@@ -46,7 +58,7 @@ export default function Home({
         <span className="bs-s">
           {resumable
             ? `${session.round}회독 · 남은 ${session.queue.length}장`
-            : `단어암기 · 오늘 ${settings.dailyGoal}장`}
+            : `단어암기 · 새 단어 ${plan.newPicked}장 + 복습 ${plan.reviewPicked}장`}
         </span>
       </button>
 

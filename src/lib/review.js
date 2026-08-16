@@ -179,50 +179,95 @@ function drawMixed(groups, take) {
   return out;
 }
 
-/* 하루치 세션 구성 — "복습 섞기 + 신규".
- *
- * 매일 신규만 쌓으면 앞서 틀린 것이 영영 안 돌아오고, 복습만 하면 진도가 안 나간다.
- * 그래서 한 세션을 [복습 N개] + [처음 보는 M개]로 짠다.
- *
- * 복습 쪽은 세 갈래를 섞는다 — 몰라요·애매해요로 남은 것(2), 복습일이 된
- * 알아요(1), 졸업했지만 오래돼 한 번 확인할 것(1). 갈래마다 무작위로 섞어
- * 뽑는다 — 항상 같은 카드만 도는 것을 막는다.
+/* 오늘 뽑을 카드를 네 갈래로 나눈다.
+ *   fresh     한 번도 안 본 것
+ *   wrong     몰라요·애매해요로 남은 것 — 날짜를 안 따진다. 오늘 틀린 걸
+ *             내일까지 기다릴 이유가 없다
+ *   dueKnown  알아요지만 복습일이 된 것
+ *   refresh   졸업했지만 오래돼 한 번 확인할 것
  */
-export function buildDailySession(cardIds, progress, {
-  newCount = 50, reviewCount = 15, today = todayKey(), shuffle = true,
-} = {}) {
-  const fresh = [];
-  const wrong = [];
-  const dueKnown = [];
-  const refresh = [];
-
+function classify(cardIds, progress, today) {
+  const fresh = []; const wrong = []; const dueKnown = []; const refresh = [];
   for (const id of cardIds) {
     const st = stateOf(progress, id);
     if (!st.lastSeen) { fresh.push(id); continue; }
-    // 아직 몰라요·애매해요로 남은 카드는 날짜를 따지지 않는다 — 오늘 틀린 걸
-    // 내일까지 기다릴 이유가 없다. 나머지는 복습일이 됐을 때만 부른다.
     if (st.box < BOX.KNOWN) { wrong.push(id); continue; }
     if (!isDue(st, today)) continue;
     if (isMastered(st)) refresh.push(id);
     else dueKnown.push(id);
   }
+  return { fresh, wrong, dueKnown, refresh };
+}
+
+/* 오늘 학습량을 신규와 복습으로 나눈다.
+ *
+ * 예전에는 신규 50 + 복습 15가 코드에 박혀 있었고, 설정의 "오늘 학습량"은
+ * 아무 데도 안 쓰였다. 20장으로 맞춰 놓고 65장이 나오는 게 그래서였다.
+ * 이제 학습량 하나만 정하면 그 안에서 나눈다.
+ *
+ * 복습이 1/4다. 새것만 밀어 넣으면 앞에 본 게 무너지고, 복습만 하면 진도가
+ * 안 나간다. 아주 적게 잡은 날에도 복습이 최소 한 장은 있어야 한다. */
+export const REVIEW_SHARE = 0.25;
+
+// 고를 수 있는 학습량. 두 화면이 같은 값을 써야 서로 어긋나지 않는다.
+export const GOAL_CHOICES = [10, 20, 30, 50, 80];
+
+export function splitGoal(goal) {
+  const total = Math.max(1, Math.round(goal) || 1);
+  const review = total <= 4 ? 1 : Math.max(2, Math.round(total * REVIEW_SHARE));
+  return { review: Math.min(review, total), fresh: total - Math.min(review, total) };
+}
+
+/* 실제로 몇 장이 나올지 — 화면에 미리 적어 주기 위한 것.
+ * 한쪽 갈래가 모자라면 다른 쪽으로 채워 목표 장수를 맞춘다. */
+function shareOut(pools, goal) {
+  const want = splitGoal(goal);
+  const reviewTotal = pools.wrong.length + pools.dueKnown.length + pools.refresh.length;
+  let review = Math.min(want.review, reviewTotal);
+  const fresh = Math.min(goal - review, pools.fresh.length);
+  if (review + fresh < goal) review = Math.min(reviewTotal, goal - fresh);
+  return { review, fresh, reviewTotal };
+}
+
+export function planDailySession(cardIds, progress, { goal = 20, today = todayKey() } = {}) {
+  const pools = classify(cardIds, progress, today);
+  const { review, fresh, reviewTotal } = shareOut(pools, Math.max(0, goal));
+  return {
+    total: review + fresh,
+    reviewPicked: review,
+    newPicked: fresh,
+    freshLeft: Math.max(0, pools.fresh.length - fresh),
+    reviewLeft: Math.max(0, reviewTotal - review),
+  };
+}
+
+/* 하루치 세션 구성 — "복습 섞기 + 신규".
+ *
+ * 매일 신규만 쌓으면 앞서 틀린 것이 영영 안 돌아오고, 복습만 하면 진도가 안 나간다.
+ * 복습 쪽은 세 갈래를 2:1:1로 섞는다 — 몰라요, 복습일이 된 알아요, 졸업 재확인.
+ * 갈래마다 무작위로 섞어 뽑는다 — 항상 같은 카드만 도는 것을 막는다.
+ */
+export function buildDailySession(cardIds, progress, {
+  goal = 20, today = todayKey(), shuffle = true,
+} = {}) {
+  const pools = classify(cardIds, progress, today);
+  const want = shareOut(pools, Math.max(0, goal));
 
   const groups = [
-    { items: shuffled(wrong), weight: 2 },
-    { items: shuffled(dueKnown), weight: 1 },
-    { items: shuffled(refresh), weight: 1 },
+    { items: shuffled(pools.wrong), weight: 2 },
+    { items: shuffled(pools.dueKnown), weight: 1 },
+    { items: shuffled(pools.refresh), weight: 1 },
   ];
-  const reviewPool = groups.flatMap((g) => g.items);
-  const review = drawMixed(groups, Math.max(0, reviewCount));
-  const fresher = fresh.slice(0, Math.max(0, newCount));
+  const review = drawMixed(groups, want.review);
+  const fresher = pools.fresh.slice(0, want.fresh);
 
   const picked = [...review, ...fresher];
   return {
     queue: shuffle ? shuffled(picked) : picked,
     reviewPicked: review.length,
     newPicked: fresher.length,
-    freshLeft: Math.max(0, fresh.length - fresher.length),
-    reviewLeft: Math.max(0, reviewPool.length - review.length),
+    freshLeft: Math.max(0, pools.fresh.length - fresher.length),
+    reviewLeft: Math.max(0, want.reviewTotal - review.length),
   };
 }
 

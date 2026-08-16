@@ -4,7 +4,7 @@ import {
   exportBackup, importBackup, backupSummary, clearAll, DEFAULT_SETTINGS,
 } from '../lib/storage.js';
 import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
-import { todayKey } from '../lib/review.js';
+import { GOAL_CHOICES, todayKey } from '../lib/review.js';
 import Account from './Account.jsx';
 import KeyVault from '../components/KeyVault.jsx';
 import VoicePicker from '../components/VoicePicker.jsx';
@@ -29,7 +29,6 @@ const DIRECTIONS = [
   { id: 'kanji-kana', label: '한자 → 읽기' },
 ];
 
-const GOALS = [10, 20, 30, 50];
 
 /* 영상 설명을 만들 곳.
  *
@@ -334,8 +333,11 @@ export default function Settings({
 
         <div className="setrow col">
           <div className="set-title">오늘 학습량</div>
+          <div className="set-sub">
+            하루에 볼 카드 수예요. 이 안에서 새 단어 4 : 복습 1로 나눠 담습니다.
+          </div>
           <div className="grouppick">
-            {GOALS.map((g) => (
+            {GOAL_CHOICES.map((g) => (
               <button key={g} className={settings.dailyGoal === g ? 'active' : ''}
                 onClick={() => onChange({ dailyGoal: g })}>{g}장</button>
             ))}
