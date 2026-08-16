@@ -116,7 +116,14 @@ export function parseAnalysis(text) {
   } catch {
     const start = trimmed.indexOf('{');
     const end = trimmed.lastIndexOf('}');
-    if (start >= 0 && end > start) return JSON.parse(trimmed.slice(start, end + 1));
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(trimmed.slice(start, end + 1));
+      } catch { /* 아래에서 왜 못 읽었는지 가려낸다 */ }
+    }
+    /* 여는 중괄호는 있는데 닫는 게 없으면 길어서 잘린 것이다.
+       "JSON을 읽지 못했어요"로 뭉개면 자막을 줄이면 된다는 걸 알 수 없다. */
+    if (start >= 0 && end <= start) throw new Error('설명이 너무 길어 중간에 잘렸어요. 자막을 나눠서 넣어 보세요');
     throw new Error('JSON을 읽지 못했어요');
   }
 }
@@ -151,6 +158,20 @@ export async function listGeminiModels(apiKey) {
     .sort();
 }
 
+/* 글이 안 왔을 때 왜 안 왔는지 말해 준다.
+ *
+ * "빈 응답"만 뜨면 자막이 막힌 건지, 길어서 잘린 건지, 모델이 이상한 건지
+ * 알 수가 없다. 구글이 이유를 finishReason으로 알려 주니 그대로 옮긴다. */
+function geminiReason(data) {
+  const blocked = data?.promptFeedback?.blockReason;
+  if (blocked) return `자막이 안전 필터에 걸렸어요 (${blocked})`;
+  const why = data?.candidates?.[0]?.finishReason;
+  if (why === 'MAX_TOKENS') return '설명이 너무 길어 잘렸어요. 자막을 나눠서 넣어 보세요';
+  if (why === 'SAFETY' || why === 'PROHIBITED_CONTENT') return `안전 필터에 걸렸어요 (${why})`;
+  if (why === 'RECITATION') return '자막이 저작물로 판단돼 거절됐어요 (RECITATION)';
+  return why ? `Gemini가 글을 못 만들었어요 (${why})` : 'Gemini가 빈 응답을 보냈어요';
+}
+
 async function analyzeWithGemini({ apiKey, model, title, channel, script }) {
   const name = model || DEFAULT_GEMINI_MODEL;
   const res = await fetch(
@@ -161,15 +182,20 @@ async function analyzeWithGemini({ apiKey, model, title, channel, script }) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM }] },
         contents: [{ role: 'user', parts: [{ text: userText({ title, channel, script }) }] }],
-        // JSON으로 달라고 형식을 직접 지정한다 — 펜스나 앞말이 붙지 않는다.
-        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 },
+        /* JSON으로 달라고 형식을 직접 지정한다 — 펜스나 앞말이 붙지 않는다.
+         *
+         * 한도를 넉넉히 잡는다. Gemini 2.5부터는 생각하는 토큰도 이 한도에서
+         * 깎아 먹는데, 우리가 받는 JSON은 항목이 아홉 개라 그것만으로도 수천
+         * 토큰이다. 빠듯하게 잡으면 생각하다 한도를 다 써서 JSON이 중간에
+         * 잘리고, 잘린 JSON은 읽을 수가 없다. */
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 32768 },
       }),
     },
   );
   if (!res.ok) throw await failure(res, 'Gemini');
   const data = await res.json();
   const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
-  if (!text) throw new Error('Gemini가 빈 응답을 보냈어요');
+  if (!text) throw new Error(geminiReason(data));
   return parseAnalysis(text);
 }
 
