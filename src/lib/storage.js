@@ -10,7 +10,8 @@ const KEYS = {
   seen: 'jp_manabu_signed_in_v1',  // 이 기기에서 로그인한 적이 있는지 (오프라인 잠김 방지)
   memos: 'jp_manabu_memos_v1',     // 단어별 암기 메모 { 카드id: { text, at } }
   videos: 'jp_manabu_videos_v1',   // 영상으로 배우기 — 담아 둔 영상 목록
-  videoAnalyses: 'jp_manabu_video_analyses_v1', // 영상별 학습자료 (자막은 저작물이라 담지 않는다)
+  videoAnalyses: 'jp_manabu_video_analyses_v1', // 영상별 설명 자료 (있을 때만)
+  videoScripts: 'jp_manabu_video_scripts_v1',   // 붙여넣은 자막 — 이걸로 학습하니 기기에 남긴다
   videoProgress: 'jp_manabu_video_progress_v1', // 영상별 학습 진도 — 어디까지 했는지
 };
 
@@ -52,6 +53,12 @@ export function loadVideoAnalyses() {
 }
 export function saveVideoAnalyses(map) {
   write(KEYS.videoAnalyses, map);
+}
+export function loadVideoScripts() {
+  return read(KEYS.videoScripts, {});
+}
+export function saveVideoScripts(map) {
+  write(KEYS.videoScripts, map);
 }
 export function loadVideoProgress() {
   return read(KEYS.videoProgress, {});

@@ -7,19 +7,23 @@ import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { analyzeScript, youtubeId } from '../lib/videoTutor.js';
 import { SEED_VIDEOS } from '../data/videos.js';
 import {
-  loadVideoAnalyses, loadVideoProgress, loadVideos,
-  saveVideoAnalyses, saveVideoProgress, saveVideos,
+  loadVideoAnalyses, loadVideoProgress, loadVideoScripts, loadVideos,
+  saveVideoAnalyses, saveVideoProgress, saveVideoScripts, saveVideos,
 } from '../lib/storage.js';
 import VideoLesson, { buildSteps } from './VideoLesson.jsx';
+import ScriptLesson from './ScriptLesson.jsx';
+import { hasTimes, parseScript } from '../lib/script.js';
 
 /* 영상으로 배우기.
  *
- * 영상을 한 번 보고 끝내지 않고 다음 순서로 끌고 간다 —
- * 시청 → 핵심 표현 이해 → 문장 구조 이해 → 소리 내어 쉐도잉 → 직접 문장 만들기.
- * 그래서 화면도 그 순서로 쌓아 두었다.
+ * 학습의 바탕은 붙여넣은 자막 그 자체다. 자막만 넣으면 바로 학습이 되고,
+ * 영상이 줄마다 그 시각으로 되감긴다 — 듣는 말을 눈으로 보면서 따라 말하는 것이
+ * 목적이라, 영상과 자막이 따로 놀면 안 된다.
  *
- * 자막은 저작물이라 저장소에 담지 않는다. 사용자가 붙여넣은 자막과 분석 결과는
- * 그 기기에만 남는다. */
+ * 설명(뜻·문법·쉐도잉 정리)은 그 위에 얹는 선택지다. 있으면 더 깊이 보고,
+ * 없어도 학습은 된다 — 그것 때문에 시작을 못 하면 안 된다.
+ *
+ * 자막과 분석 결과는 그 기기에만 남는다. */
 
 function Section({ title, sub, children }) {
   return (
@@ -89,6 +93,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   });
   const [analyses, setAnalyses] = useState(() => loadVideoAnalyses());
   const [progress, setProgress] = useState(() => loadVideoProgress());
+  const [scripts, setScripts] = useState(() => loadVideoScripts());
   const [openId, setOpenId] = useState(null);
   const [mode, setMode] = useState(null); // null=영상 화면, 'lesson'=단계 학습, 'full'=전체 보기
   const [urlDraft, setUrlDraft] = useState('');
@@ -98,21 +103,49 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   useEffect(() => saveVideos(videos), [videos]);
   useEffect(() => saveVideoAnalyses(analyses), [analyses]);
   useEffect(() => saveVideoProgress(progress), [progress]);
+  useEffect(() => saveVideoScripts(scripts), [scripts]);
 
   const titles = useTitles(videos, active);
   const open = videos.find((v) => v.id === openId) || null;
   const info = open ? titles[open.id] : null;
   const analysis = open ? analyses[open.id] : null;
+  const savedScript = open ? scripts[open.id] || '' : '';
 
-  useEffect(() => { setScript(''); setMode(null); }, [openId]);
+  useEffect(() => { setScript(openId ? loadVideoScripts()[openId] || '' : ''); setMode(null); }, [openId]);
 
+  const lines = useMemo(() => parseScript(savedScript), [savedScript]);
   const steps = useMemo(() => buildSteps(analysis), [analysis]);
-  const mark = open ? (progress[open.id] || { step: 0, done: false }) : { step: 0, done: false };
-  const setStep = (step) => setProgress((p) => ({ ...p, [open.id]: { ...(p[open.id] || {}), step } }));
+
+  /* 설명이 있으면 줄마다 뜻을 붙여 준다. 자막 문장과 똑같이 적힌 것만 쓴다 —
+     비슷해 보인다고 갖다 붙이면 엉뚱한 줄에 엉뚱한 뜻이 달린다. */
+  const notes = useMemo(() => {
+    const map = {};
+    (analysis?.shadowing || []).forEach((sh) => { if (sh.jp) map[sh.jp] = { ko: sh.ko, point: sh.point }; });
+    (analysis?.breakdown || []).forEach((b) => { if (b.sentence && !map[b.sentence]) map[b.sentence] = { ko: b.natural, point: b.why }; });
+    return map;
+  }, [analysis]);
+  /* 진도는 자막 학습과 설명 학습을 따로 센다. 자막은 줄 수, 설명은 단계 수라
+     길이가 달라서, 한 칸에 같이 적으면 어느 쪽 진도인지 알 수 없다. */
+  const mark = open ? (progress[open.id] || {}) : {};
+  const scriptMark = { step: mark.scriptStep || 0, done: Boolean(mark.scriptDone) };
+  const lessonMark = { step: mark.step || 0, done: Boolean(mark.done) };
+  const patchMark = (patch) => setProgress((p) => ({ ...p, [open.id]: { ...(p[open.id] || {}), ...patch } }));
   const finish = () => {
-    setProgress((p) => ({ ...p, [open.id]: { step: 0, done: true } }));
+    patchMark({ step: 0, done: true });
     setMode(null);
-    onToast('영상 학습을 마쳤어요');
+    onToast('설명 학습을 마쳤어요');
+  };
+  const finishScript = () => {
+    patchMark({ scriptStep: 0, scriptDone: true });
+    setMode(null);
+    onToast('자막 학습을 마쳤어요');
+  };
+
+  const saveScript = () => {
+    const text = script.trim();
+    if (parseScript(text).length === 0) { onToast('자막을 읽지 못했어요'); return; }
+    setScripts((prev) => ({ ...prev, [open.id]: text }));
+    onToast('자막을 저장했어요');
   };
 
   const addVideo = () => {
@@ -126,6 +159,8 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   const removeVideo = (id) => {
     setVideos((prev) => prev.filter((v) => v.id !== id));
     setAnalyses((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setScripts((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setProgress((prev) => { const next = { ...prev }; delete next[id]; return next; });
     if (openId === id) setOpenId(null);
   };
 
@@ -138,7 +173,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
         model: settings.claudeModel,
         title: info?.title,
         channel: info?.channel,
-        script,
+        script: savedScript || script,
       });
       setAnalyses((prev) => ({ ...prev, [open.id]: { ...result, at: Date.now() } }));
       onToast('학습자료를 만들었어요');
@@ -226,12 +261,13 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
         <div className="stack" style={{ marginTop: 14 }}>
           {videos.map((v) => {
             const t = titles[v.id];
-            const ready = Boolean(analyses[v.id]);
             const p = progress[v.id];
-            const total = ready ? buildSteps(analyses[v.id]).length : 0;
-            const done = ready
-              ? (p?.step > 0 ? `학습 중 · ${p.step + 1}/${total}` : p?.done ? '학습 마침' : `학습 준비됨 · ${total}단계`)
-              : '자막 붙여넣기 전';
+            const total = parseScript(scripts[v.id] || '').length;
+            const done = total === 0
+              ? '자막 붙여넣기 전'
+              : p?.scriptStep > 0 ? `학습 중 · ${p.scriptStep + 1}/${total}줄`
+                : p?.scriptDone ? '학습 마침'
+                  : `학습 준비됨 · ${total}줄`;
             return (
               <div key={v.id} className="card vd-item">
                 <button className="vd-open" onClick={() => setOpenId(v.id)}>
@@ -255,19 +291,37 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
     );
   }
 
-  /* ── 단계 학습 ── */
+  /* ── 자막으로 영상과 함께 학습 ── */
+  if (mode === 'script' && lines.length > 0) {
+    return (
+      <ScriptLesson
+        videoId={open.id}
+        title={info?.title || `youtu.be/${open.id}`}
+        lines={lines}
+        step={scriptMark.step}
+        settings={settings}
+        notes={notes}
+        onStep={(step) => patchMark({ scriptStep: step })}
+        onQuit={() => setMode(null)}
+        onDone={finishScript}
+        onToast={onToast}
+      />
+    );
+  }
+
+  /* ── 설명으로 단계 학습 ── */
   if (mode === 'lesson' && analysis && steps.length > 0) {
     return (
       <VideoLesson
         analysis={analysis}
         title={info?.title || `youtu.be/${open.id}`}
-        step={mark.step}
+        step={lessonMark.step}
         settings={settings}
         findKnown={findKnown}
         onKeep={(w) => { keepWord(w); onToast(`${w.jp} 담았어요`); }}
         onKeepAll={keepAll}
         onStudyWords={studyVideo}
-        onStep={setStep}
+        onStep={(step) => patchMark({ step })}
         onQuit={() => setMode(null)}
         onDone={finish}
         onToast={onToast}
@@ -295,8 +349,11 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
         />
       </div>
 
-      {!analysis && (
-        <Section title="자막 붙여넣기" sub="영상의 일본어 자막을 그대로 붙여넣으세요. 한국어 번역이 없어도 됩니다.">
+      {(!savedScript || mode === 'edit') && (
+        <Section
+          title="자막 붙여넣기"
+          sub="영상의 일본어 자막을 그대로 붙여넣으세요. 시간([00:12])이 같이 들어오면 그 부분으로 영상이 맞춰집니다."
+        >
           <textarea
             className="vd-script"
             value={script}
@@ -304,46 +361,77 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
             placeholder={'[00:00]\nこんにちは。今日は…'}
             rows={7}
           />
-          <button className="vd-run" disabled={busy || !script.trim()} onClick={runAnalysis}>
-            {busy ? '읽는 중…' : '학습자료 만들기'}
+          <button className="vd-run" disabled={!script.trim()} onClick={() => { saveScript(); setMode(null); }}>
+            자막으로 학습 준비하기
           </button>
-          {!settings.claudeKey && (
-            <p className="vd-note" style={{ marginTop: 10 }}>
-              설정 → 영상 학습에서 Claude API 키를 넣으면 자막을 분석해 줘요.
-              키는 이 기기에만 저장됩니다.
-            </p>
-          )}
+          <p className="vd-note" style={{ marginTop: 10 }}>
+            이 자막은 이 기기에만 저장돼요. 뜻과 문법 설명은 학습을 시작한 뒤에
+            따로 붙일 수 있어요.
+          </p>
         </Section>
       )}
 
-      {analysis && (
-        <>
-          {/* 학습은 여기서 들어간다. 아래 전체 보기는 끝낸 뒤 다시 찾아볼 때 쓴다 —
-              처음부터 다 펼쳐 두면 결국 스크롤만 내리다 끝난다. */}
-          <div className="card vd-entry">
-            <h3 className="vd-h">영상 학습</h3>
-            {/* 진행 중이 마침보다 먼저다. 마친 영상을 다시 시작해 중간에 멈추면
-                지금 어디인지가 궁금하지, 예전에 끝냈다는 사실이 궁금한 게 아니다. */}
-            <p className="vd-sub">
-              {mark.step > 0
-                ? `${steps.length}단계 중 ${mark.step + 1}단계까지 왔어요.`
-                : mark.done
-                  ? '한 번 마친 영상이에요. 다시 처음부터 볼 수 있어요.'
-                  : `${steps.length}단계로 나눠 하나씩 봅니다.`}
-            </p>
-            <div className="vd-entrybar">
-              <i style={{ width: `${Math.round(((mark.step > 0 ? mark.step : mark.done ? steps.length : 0) / Math.max(steps.length, 1)) * 100)}%` }} />
-            </div>
-            <div className="vd-entryacts">
-              <button className="submit-btn" onClick={() => setMode('lesson')}>
-                {mark.step > 0 ? '이어서 학습하기' : mark.done ? '다시 학습하기' : '학습 시작'}
-              </button>
-              <button className="ghost-btn" onClick={() => setMode(mode === 'full' ? null : 'full')}>
-                {mode === 'full' ? '전체 접기' : '전체 보기'}
-              </button>
-            </div>
+      {/* 학습의 바탕은 자막이다. 설명이 없어도 여기서 바로 시작한다. */}
+      {savedScript && mode !== 'edit' && lines.length > 0 && (
+        <div className="card vd-entry">
+          <h3 className="vd-h">자막으로 영상과 함께</h3>
+          {/* 진행 중이 마침보다 먼저다. 마친 영상을 다시 시작해 중간에 멈추면
+              지금 어디인지가 궁금하지, 예전에 끝냈다는 사실이 궁금한 게 아니다. */}
+          <p className="vd-sub">
+            {scriptMark.step > 0
+              ? `${lines.length}줄 중 ${scriptMark.step + 1}번째 줄까지 왔어요.`
+              : scriptMark.done
+                ? '한 번 마친 영상이에요. 다시 처음부터 볼 수 있어요.'
+                : hasTimes(lines)
+                  ? `${lines.length}줄을 한 줄씩, 그 부분 영상과 같이 봅니다.`
+                  : `${lines.length}줄을 한 줄씩 봅니다. 시간이 없는 자막이라 영상은 따로 재생해 주세요.`}
+          </p>
+          <div className="vd-entrybar">
+            <i style={{ width: `${Math.round(((scriptMark.step > 0 ? scriptMark.step : scriptMark.done ? lines.length : 0) / Math.max(lines.length, 1)) * 100)}%` }} />
           </div>
-        </>
+          <div className="vd-entryacts">
+            <button className="submit-btn" onClick={() => setMode('script')}>
+              {scriptMark.step > 0 ? '이어서 학습하기' : scriptMark.done ? '다시 학습하기' : '학습 시작'}
+            </button>
+            <button className="ghost-btn" onClick={() => { setScript(savedScript); setMode('edit'); }}>
+              자막 고치기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 설명은 얹는 것이다. 없어도 위에서 학습은 된다. */}
+      {savedScript && mode !== 'edit' && (
+        <div className="card vd-entry">
+          <h3 className="vd-h">뜻·문법 설명</h3>
+          <p className="vd-sub">
+            {analysis
+              ? (lessonMark.step > 0
+                ? `${steps.length}단계 중 ${lessonMark.step + 1}단계까지 왔어요.`
+                : lessonMark.done
+                  ? '한 번 마친 설명이에요. 다시 볼 수 있어요.'
+                  : `핵심 단어·문법·실제 회화 표현을 ${steps.length}단계로 봅니다.`)
+              : settings.claudeKey
+                ? '자막에서 핵심 단어와 문법을 뽑아 설명으로 만들어요. 한 번 만들면 그대로 남습니다.'
+                : '설정 → 영상 학습에 Claude API 키를 넣으면, 이 자막에서 단어와 문법 설명을 뽑아 줘요. 없어도 위 자막 학습은 됩니다.'}
+          </p>
+          <div className="vd-entryacts">
+            {analysis ? (
+              <>
+                <button className="submit-btn" onClick={() => setMode('lesson')}>
+                  {lessonMark.step > 0 ? '이어서 보기' : lessonMark.done ? '다시 보기' : '설명 보기'}
+                </button>
+                <button className="ghost-btn" onClick={() => setMode(mode === 'full' ? null : 'full')}>
+                  {mode === 'full' ? '전체 접기' : '전체 보기'}
+                </button>
+              </>
+            ) : (
+              <button className="submit-btn" disabled={busy || !settings.claudeKey} onClick={runAnalysis}>
+                {busy ? '읽는 중…' : '설명 만들기'}
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {analysis && mode === 'full' && (
@@ -530,12 +618,12 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
         </>
       )}
 
-      {analysis && (
+      {analysis && mode !== 'edit' && (
         <button className="vd-redo" onClick={() => {
           setAnalyses((prev) => { const next = { ...prev }; delete next[open.id]; return next; });
-          setProgress((prev) => { const next = { ...prev }; delete next[open.id]; return next; });
+          patchMark({ step: 0, done: false });
           setMode(null);
-        }}>자막 다시 넣기
+        }}>설명 다시 만들기
         </button>
       )}
     </>
