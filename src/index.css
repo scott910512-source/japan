@@ -778,6 +778,20 @@ button, input, select { font-family: inherit; }
   background: var(--shu-soft); color: var(--shu);
   display: flex; flex-direction: column; gap: 4px;
 }
+/* 안내는 오류처럼 안 보이게 — 붉은색은 진짜 문제일 때만 쓴다 */
+.syncnote {
+  margin-top: 12px; padding: 11px 13px; border-radius: 12px;
+  background: var(--kon-soft); color: var(--kon);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.syncnote b { font-size: 12.5px; }
+.syncnote span { font-size: 12px; line-height: 1.55; color: var(--ink-soft); }
+.syncsql {
+  display: block; margin-top: 4px; padding: 10px; border-radius: 10px;
+  background: var(--surface-2); color: var(--ink); font-family: var(--font-mono);
+  font-size: 11px; line-height: 1.6; word-break: break-all; user-select: all;
+}
+.syncnote .ghost-btn { margin-top: 8px; }
 .syncerror b { font-size: 12.5px; }
 .syncerror span { font-size: 12px; line-height: 1.55; }
 
