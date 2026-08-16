@@ -10,6 +10,7 @@ import WordManager from './screens/WordManager.jsx';
 import WordDeck, { filterByLevel } from './screens/WordDeck.jsx';
 import Situations from './screens/Situations.jsx';
 import Quiz from './screens/Quiz.jsx';
+import Jlpt from './screens/Jlpt.jsx';
 import GrammarHub from './screens/GrammarHub.jsx';
 import Gate from './screens/Gate.jsx';
 import NewPassword from './screens/NewPassword.jsx';
@@ -330,6 +331,13 @@ export default function App() {
     setDeck({ id: 'weak', label: '취약 단어', cards: weak.map((id) => byId.get(id)).filter(Boolean) });
   }, [wordIds, review, byId, showToast]);
 
+  // JLPT 세트는 고른 100개만 도는 덱이다 — 오늘 학습 세션과 섞지 않는다.
+  const startJlptSet = useCallback((cards, label, id) => {
+    if (!cards?.length) return;
+    setSub(null);
+    setDeck({ id, label, cards });
+  }, []);
+
   // 시험에서 틀린 단어를 바로 회독으로 넘긴다. 틀린 걸 확인만 하고 닫으면 남는 게 없다.
   const startQuizWrongDeck = useCallback((ids) => {
     const cards = ids.map((id) => byId.get(id)).filter(Boolean);
@@ -511,6 +519,14 @@ export default function App() {
                 review={review}
                 settings={settings}
                 onReviewChange={applyReview}
+                onToast={showToast}
+              />
+            )}
+            {sub === 'jlpt' && (
+              <Jlpt
+                words={words}
+                review={review}
+                onStartSet={startJlptSet}
                 onToast={showToast}
               />
             )}

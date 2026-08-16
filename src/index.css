@@ -917,3 +917,33 @@ button, input, select { font-family: inherit; }
 .ub-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--kon), var(--kon-deep)); transition: width .3s ease; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ── JLPT 레벨별 단어 ── */
+.jl-note { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+.jl-note svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.jl-level, .jl-set {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  color: var(--ink); font: inherit; cursor: pointer;
+}
+.jl-level:disabled { opacity: .45; cursor: default; }
+.jl-badge {
+  flex: 0 0 auto; width: 46px; height: 46px; border-radius: 14px;
+  display: grid; place-items: center; font-weight: 800; font-size: 15px;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14;
+}
+.jl-level:disabled .jl-badge { background: var(--surface-2); color: var(--ink-soft); }
+.jl-setno {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 12px;
+  display: grid; place-items: center; font-weight: 700; font-size: 14px;
+  background: var(--surface-2); color: var(--ink-soft);
+}
+.jl-setno svg { width: 18px; height: 18px; color: var(--kon); }
+.jl-body { flex: 1; min-width: 0; }
+.jl-title { font-size: 15px; font-weight: 600; }
+.jl-sub {
+  font-size: 12px; color: var(--ink-soft); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jl-bar { height: 5px; border-radius: 3px; background: var(--surface-2); margin-top: 8px; overflow: hidden; }
+.jl-bar span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--kon), var(--kon-deep)); transition: width .3s ease; }
+.jl-pct { flex: 0 0 auto; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
