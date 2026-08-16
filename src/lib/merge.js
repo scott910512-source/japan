@@ -81,6 +81,63 @@ export function mergeProgress(local = {}, remote = {}) {
   };
 }
 
+/* 영상으로 배우기 — 담아 둔 목록 · 자막 · 설명 · 진도.
+ *
+ * { list: [{id, addedAt}], removed: {id: 뺀시각}, scripts: {id: 글},
+ *   analyses: {id: {…, at}}, progress: {id: {scriptStep, scriptDone, step, done}} }
+ *
+ * 뺀 영상을 되살리지 않는 게 이 함수의 제일 큰 일이다. 목록을 그냥 합치면
+ * 한쪽에서 뺀 영상이 다른 기기에 남아 있다가 다음 동기화에 돌아온다. 그래서
+ * 묘비(removed)를 같이 들고 다니며, 묘비보다 나중에 담은 것만 살린다 —
+ * 다시 담으면 addedAt이 새로워지니 그때는 제대로 돌아온다. */
+export function mergeVideos(local = {}, remote = {}) {
+  const removed = {};
+  for (const id of new Set([...Object.keys(local.removed || {}), ...Object.keys(remote.removed || {})])) {
+    removed[id] = Math.max(local.removed?.[id] || 0, remote.removed?.[id] || 0);
+  }
+
+  const byId = new Map();
+  for (const v of [...(remote.list || []), ...(local.list || [])]) {
+    if (!v?.id) continue;
+    byId.set(v.id, { id: v.id, addedAt: Math.max(byId.get(v.id)?.addedAt || 0, v.addedAt || 0) });
+  }
+  const list = [...byId.values()]
+    .filter((v) => !(removed[v.id] > v.addedAt))
+    .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+  const live = new Set(list.map((v) => v.id));
+  const keep = (map) => Object.fromEntries(Object.entries(map).filter(([id]) => live.has(id)));
+
+  /* 자막은 언제 고쳤는지 기록해 두지 않아서 나중 것을 가릴 수가 없다.
+     지금 기기 것을 남긴다 — 방금 눈으로 보고 저장한 쪽이 그쪽이다. */
+  const scripts = keep({ ...(remote.scripts || {}), ...(local.scripts || {}) });
+
+  // 설명은 만든 시각(at)이 있으니 나중에 만든 것을 남긴다
+  const analyses = {};
+  for (const id of new Set([...Object.keys(remote.analyses || {}), ...Object.keys(local.analyses || {})])) {
+    if (!live.has(id)) continue;
+    const l = local.analyses?.[id];
+    const r = remote.analyses?.[id];
+    analyses[id] = !r || (l && (l.at || 0) >= (r.at || 0)) ? l : r;
+  }
+
+  /* 진도는 앞선 쪽을 남긴다. 마쳤다는 표시는 한 번 서면 지우지 않는다 —
+     한쪽에서 마친 걸 다른 기기가 "아직 안 함"으로 되돌리면 안 된다. */
+  const progress = {};
+  for (const id of new Set([...Object.keys(remote.progress || {}), ...Object.keys(local.progress || {})])) {
+    if (!live.has(id)) continue;
+    const l = local.progress?.[id] || {};
+    const r = remote.progress?.[id] || {};
+    progress[id] = {
+      scriptStep: Math.max(l.scriptStep || 0, r.scriptStep || 0),
+      scriptDone: Boolean(l.scriptDone || r.scriptDone),
+      step: Math.max(l.step || 0, r.step || 0),
+      done: Boolean(l.done || r.done),
+    };
+  }
+
+  return { list, removed, scripts, analyses, progress };
+}
+
 // 설정은 기기마다 다른 게 자연스럽다(음성 속도, 테마). 학습 범위에 관한 것만 가져온다.
 // 음성 API 키는 자격 증명이라 서버에 올리지 않는다.
 const SYNCED_SETTINGS = [

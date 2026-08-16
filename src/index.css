@@ -1038,6 +1038,39 @@ button, input, select { font-family: inherit; }
   width: 100%; margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line);
   border-radius: 12px; padding: 12px; color: var(--ink); font: inherit; line-height: 1.6; resize: vertical;
 }
+/* 영상 빼기 — 되돌릴 수 없으니 "삭제"를 치게 한다. */
+.vd-delwhat { font-size: 14px; font-weight: 600; margin: 2px 0 10px; word-break: break-all; }
+.vd-delword {
+  width: 100%; margin: 12px 0 6px; padding: 12px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+  font: inherit; text-align: center; letter-spacing: .1em;
+}
+.vd-delword:focus { outline: none; border-color: var(--shu); }
+.vd-delacts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.vd-delgo {
+  padding: 13px; border: none; border-radius: 12px; cursor: pointer;
+  background: var(--shu); color: #0A0D14; font: inherit; font-weight: 700;
+}
+.vd-delgo:disabled { opacity: .35; cursor: default; }
+
+/* 자막 구하는 법 — 처음 한 번만 필요한 안내라 접어 둔다. */
+.vd-how { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.vd-how > summary {
+  cursor: pointer; list-style: none; font-size: 13px; font-weight: 600; color: var(--kon);
+}
+.vd-how > summary::-webkit-details-marker { display: none; }
+.vd-how > summary::after { content: ' ▾'; font-weight: 400; }
+.vd-how[open] > summary::after { content: ' ▴'; }
+.vd-steps {
+  margin: 10px 0 0; padding-left: 20px; font-size: 13px; line-height: 1.9; color: var(--ink-soft);
+}
+/* 읽고 직접 복사하는 용도. 자막 입력칸(.vd-script)과 생김새는 같되 클래스는
+   따로 둔다 — 같이 쓰면 "자막 칸"을 가리키는 곳마다 둘 다 걸린다. */
+.vd-prompt {
+  width: 100%; margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px; color: var(--ink-soft); font: inherit; font-size: 13px;
+  line-height: 1.6; resize: vertical;
+}
 .vd-run {
   width: 100%; margin-top: 10px; padding: 13px; border: none; border-radius: 12px; cursor: pointer;
   background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14; font: inherit; font-weight: 700;
