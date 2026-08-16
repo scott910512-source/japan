@@ -13,6 +13,7 @@ const KEYS = {
   videoAnalyses: 'jp_manabu_video_analyses_v1', // 영상별 설명 자료 (있을 때만)
   videoScripts: 'jp_manabu_video_scripts_v1',   // 붙여넣은 자막 — 이걸로 학습하니 기기에 남긴다
   videoProgress: 'jp_manabu_video_progress_v1', // 영상별 학습 진도 — 어디까지 했는지
+  videoRemoved: 'jp_manabu_video_removed_v1',   // 뺀 영상의 묘비 — 아래 설명 참고
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -42,8 +43,12 @@ function write(key, value) {
   }
 }
 
+/* 담아 둔 영상 목록.
+ *
+ * 한 번도 저장한 적이 없으면 null을 돌려준다 — 처음 켠 사람과 전부 빼 버린
+ * 사람을 구별해야 한다. []로 뭉개면 마지막 영상을 뺀 순간 기본 영상이 되살아난다. */
 export function loadVideos() {
-  return read(KEYS.videos, []);
+  return read(KEYS.videos, null);
 }
 export function saveVideos(list) {
   write(KEYS.videos, list);
@@ -65,6 +70,18 @@ export function loadVideoProgress() {
 }
 export function saveVideoProgress(map) {
   write(KEYS.videoProgress, map);
+}
+
+/* 뺀 영상의 묘비 { 영상id: 뺀 시각 }.
+ *
+ * 기기 두 대를 합칠 때 목록을 그냥 합치면, 아이폰에서 뺀 영상이 아이패드에
+ * 남아 있다가 다음 동기화에 되살아난다. "뺐다"도 기록해야 사라진 채로 있는다.
+ * 다시 담으면 addedAt이 묘비보다 새로워져서 되살아난다. */
+export function loadVideoRemoved() {
+  return read(KEYS.videoRemoved, {});
+}
+export function saveVideoRemoved(map) {
+  write(KEYS.videoRemoved, map);
 }
 
 export function loadCustomWords() {

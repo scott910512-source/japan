@@ -25,6 +25,7 @@ create table if not exists public.user_data (
   custom_words jsonb not null default '[]'::jsonb,   -- 직접 추가한 단어
   streak       jsonb not null default '{}'::jsonb,   -- 연속 학습일
   memos        jsonb not null default '{}'::jsonb,   -- 단어별 암기 메모 { 카드id: {text, at} }
+  videos       jsonb not null default '{}'::jsonb,   -- 영상으로 배우기 (아래 설명 참고)
   gtts_key_enc jsonb,                                -- 음성 API 키 (암호문만, 아래 설명 참고)
   updated_at   timestamptz not null default now()
 );
@@ -32,6 +33,17 @@ create table if not exists public.user_data (
 -- 이미 테이블을 만든 뒤 이 파일을 다시 실행하는 경우를 위해
 alter table public.user_data add column if not exists gtts_key_enc jsonb;
 alter table public.user_data add column if not exists memos jsonb not null default '{}'::jsonb;
+alter table public.user_data add column if not exists videos jsonb not null default '{}'::jsonb;
+
+-- videos 는 이런 모양이다.
+--   { list: [{id, addedAt}],        담아 둔 영상
+--     removed: { 영상id: 뺀시각 },   뺀 영상의 묘비 — 없으면 뺀 영상이 다른 기기에서 되살아난다
+--     scripts: { 영상id: 자막 },
+--     analyses: { 영상id: 설명 },
+--     progress: { 영상id: 진도 } }
+--
+-- 자막은 사용자가 직접 넣은 글이고 자기 계정에만 올라간다(RLS로 본인만 조회).
+-- 이 칸이 없어도 나머지 동기화는 그대로 된다 — 앱이 영상만 빼고 다시 올린다.
 
 -- gtts_key_enc 에는 원문이 들어가지 않는다.
 --   { v, salt, iv, ct } 형태의 봉투이고, 복호화 열쇠는 사용자가 정한

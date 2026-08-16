@@ -28,6 +28,9 @@ import {
   touchStreak, setStorageErrorHandler,
   loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce,
   loadMemos, saveMemos,
+  loadVideos, saveVideos, loadVideoAnalyses, saveVideoAnalyses,
+  loadVideoScripts, saveVideoScripts, loadVideoProgress, saveVideoProgress,
+  loadVideoRemoved, saveVideoRemoved,
 } from './lib/storage.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
@@ -35,6 +38,7 @@ import { dueCards, todayKey, weakCards } from './lib/review.js';
 import { supabase, supabaseConfigured } from './lib/supabase.js';
 import { syncNow, pushMerged } from './lib/sync.js';
 import { pickSyncedSettings } from './lib/merge.js';
+import { SEED_VIDEOS } from './data/videos.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from './lib/crypto.js';
 
 const SUB_TITLES = {
@@ -61,6 +65,14 @@ export default function App() {
   const [session, setSession] = useState(() => loadSession());
   const [stats, setStats] = useState(() => loadStats());
   const [memos, setMemos] = useState(() => loadMemos());
+  /* 영상은 화면이 아니라 여기서 들고 있다 — 기기 간 동기화에 실어야 한다.
+     처음 켠 사람에게만 기본 영상을 넣는다. 전부 뺀 사람에게 다시 넣으면
+     지운 게 돌아오는 셈이다(loadVideos가 그래서 null을 돌려준다). */
+  const [videos, setVideos] = useState(() => loadVideos() ?? SEED_VIDEOS);
+  const [videoAnalyses, setVideoAnalyses] = useState(() => loadVideoAnalyses());
+  const [videoScripts, setVideoScripts] = useState(() => loadVideoScripts());
+  const [videoProgress, setVideoProgress] = useState(() => loadVideoProgress());
+  const [videoRemoved, setVideoRemoved] = useState(() => loadVideoRemoved());
   const [streak, setStreak] = useState({ count: 0, lastDate: null });
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -100,6 +112,36 @@ export default function App() {
   useEffect(() => saveSession(session), [session]);
   useEffect(() => saveStats(stats), [stats]);
   useEffect(() => saveMemos(memos), [memos]);
+  useEffect(() => saveVideos(videos), [videos]);
+  useEffect(() => saveVideoAnalyses(videoAnalyses), [videoAnalyses]);
+  useEffect(() => saveVideoScripts(videoScripts), [videoScripts]);
+  useEffect(() => saveVideoProgress(videoProgress), [videoProgress]);
+  useEffect(() => saveVideoRemoved(videoRemoved), [videoRemoved]);
+
+  /* 동기화에 실을 영상 묶음. 묘비(removed)까지 같이 올려야 한 기기에서 뺀
+     영상이 다른 기기에서 되살아나지 않는다. */
+  const videoBundle = useMemo(() => ({
+    list: videos, removed: videoRemoved,
+    scripts: videoScripts, analyses: videoAnalyses, progress: videoProgress,
+  }), [videos, videoRemoved, videoScripts, videoAnalyses, videoProgress]);
+
+  const applyVideoBundle = useCallback((b) => {
+    if (!b) return;
+    setVideos(b.list || []);
+    setVideoRemoved(b.removed || {});
+    setVideoScripts(b.scripts || {});
+    setVideoAnalyses(b.analyses || {});
+    setVideoProgress(b.progress || {});
+  }, []);
+
+  // 뺀 영상은 묘비를 남긴다. 남기지 않으면 다음 동기화에 서버에서 다시 내려온다.
+  const removeVideo = useCallback((id) => {
+    setVideos((prev) => prev.filter((v) => v.id !== id));
+    setVideoRemoved((prev) => ({ ...prev, [id]: Date.now() }));
+    setVideoAnalyses((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setVideoScripts((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setVideoProgress((prev) => { const next = { ...prev }; delete next[id]; return next; });
+  }, []);
 
   // 음성 인식도 같은 Google API 키를 쓴다
   useEffect(() => {
@@ -155,7 +197,7 @@ export default function App() {
     setSyncState((s) => ({ ...s, busy: true }));
     try {
       const merged = await syncNow(authSession.user.id, {
-        review, progress, settings, stats, streak, customWords, memos,
+        review, progress, settings, stats, streak, customWords, memos, videos: videoBundle,
       });
       setReview(merged.review);
       setProgress((p) => ({ ...p, ...merged.progress }));
@@ -163,17 +205,23 @@ export default function App() {
       setStreak(merged.streak);
       setCustomWords(merged.customWords);
       setMemos(merged.memos);
+      applyVideoBundle(merged.videos);
       // 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다
       setSettings((s) => ({ ...s, ...merged.settings }));
       setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
-      setSyncState({ busy: false, error: null, at: new Date().toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }) });
-      if (!silent) showToast('동기화했어요');
+      setSyncState({
+        busy: false,
+        // 영상 칸이 아직 없으면 나머지는 올라갔어도 그 사실은 말해 준다
+        error: merged.videoNote || null,
+        at: new Date().toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }),
+      });
+      if (!silent) showToast(merged.videoNote ? '동기화했어요 (영상 제외)' : '동기화했어요');
     } catch (err) {
       // 토스트는 2초 뒤 사라져서 왜 안 되는지 확인할 방법이 없다. 계정 칸에 남긴다.
       setSyncState((s) => ({ ...s, busy: false, error: err.message }));
       if (!silent) showToast('동기화에 실패했어요');
     }
-  }, [authSession, review, progress, settings, stats, streak, customWords, memos, showToast]);
+  }, [authSession, review, progress, settings, stats, streak, customWords, memos, videoBundle, applyVideoBundle, showToast]);
 
   const saveRemoteKey = useCallback(async (envelope) => {
     if (!authSession?.user) throw new Error('로그인이 필요해요');
@@ -224,26 +272,37 @@ export default function App() {
   /* 공부한 걸 자동으로 올린다.
    * 로그인할 때와 버튼을 누를 때만 올리면, 메모를 적고 다른 기기를 열었을 때 없다.
    * 매 판정마다 올리면 너무 잦으니 손을 멈춘 뒤 잠깐 기다렸다 한 번에 보낸다.
-   * 앱을 덮거나 탭을 떠날 때도 밀어 넣는다 — 그때 안 보내면 영영 못 보낸다. */
+   * 앱을 덮거나 탭을 떠날 때도 밀어 넣는다 — 그때 안 보내면 영영 못 보낸다.
+   *
+   * 다만 기다리기만 하면 안 된다. 회독은 손이 계속 움직이는 일이라 12초가
+   * 도무지 안 오고, 그 사이 앱이 죽으면 한 세션이 통째로 날아간다. 그래서
+   * 마지막으로 올린 지 2분이 넘으면 손이 움직이는 중이라도 한 번 올린다. */
+  const PUSH_IDLE_MS = 12000;
+  const PUSH_MAX_MS = 120000;
   const dirty = useRef(false);
   const pushTimer = useRef(null);
+  const pushedAt = useRef(Date.now());
 
   useEffect(() => {
-    if (!authSession?.user || syncedFor.current !== authSession.user.id) return;
+    if (!authSession?.user || syncedFor.current !== authSession.user.id) return undefined;
     dirty.current = true;
-    clearTimeout(pushTimer.current);
-    pushTimer.current = setTimeout(() => {
+    const send = () => {
       if (!dirty.current) return;
       dirty.current = false;
+      pushedAt.current = Date.now();
       runSync(true);
-    }, 12000);
+    };
+    clearTimeout(pushTimer.current);
+    const waited = Date.now() - pushedAt.current;
+    pushTimer.current = setTimeout(send, Math.max(0, Math.min(PUSH_IDLE_MS, PUSH_MAX_MS - waited)));
     return () => clearTimeout(pushTimer.current);
-  }, [review, memos, progress, stats, customWords]);
+  }, [review, memos, progress, stats, customWords, videoBundle]);
 
   useEffect(() => {
     const flush = () => {
       if (!dirty.current || !authSession?.user) return;
       dirty.current = false;
+      pushedAt.current = Date.now();
       clearTimeout(pushTimer.current);
       runSync(true);
     };
@@ -479,6 +538,15 @@ export default function App() {
             ))}
             onStartSet={startJlptSet}
             onToast={showToast}
+            videos={videos}
+            setVideos={setVideos}
+            analyses={videoAnalyses}
+            setAnalyses={setVideoAnalyses}
+            scripts={videoScripts}
+            setScripts={setVideoScripts}
+            progress={videoProgress}
+            setProgress={setVideoProgress}
+            onRemoveVideo={removeVideo}
           />
           )}
         </section>

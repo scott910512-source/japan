@@ -8,11 +8,6 @@ import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import {
   ANALYZE_CHAR_LIMIT, analyzeScript, resolveProvider, transcriptPrompt, youtubeId,
 } from '../lib/videoTutor.js';
-import { SEED_VIDEOS } from '../data/videos.js';
-import {
-  loadVideoAnalyses, loadVideoProgress, loadVideoScripts, loadVideos,
-  saveVideoAnalyses, saveVideoProgress, saveVideoScripts, saveVideos,
-} from '../lib/storage.js';
 import VideoLesson, { buildSteps } from './VideoLesson.jsx';
 import ScriptLesson from './ScriptLesson.jsx';
 import { clipScript, hasTimes, parseScript, scriptChars } from '../lib/script.js';
@@ -89,24 +84,17 @@ function toCard(w, videoId, title) {
   };
 }
 
-export default function Videos({ active, settings, words, onAddWord, onStartSet, onToast }) {
-  const [videos, setVideos] = useState(() => {
-    const saved = loadVideos();
-    return saved.length ? saved : SEED_VIDEOS;
-  });
-  const [analyses, setAnalyses] = useState(() => loadVideoAnalyses());
-  const [progress, setProgress] = useState(() => loadVideoProgress());
-  const [scripts, setScripts] = useState(() => loadVideoScripts());
+/* 영상 상태는 App이 들고 있다 — 기기 간 동기화에 실어야 해서다.
+   여기서만 들고 있으면 App이 무엇이 바뀌었는지 알 방법이 없다. */
+export default function Videos({
+  active, settings, words, onAddWord, onStartSet, onToast,
+  videos, setVideos, analyses, setAnalyses, scripts, setScripts, progress, setProgress, onRemoveVideo,
+}) {
   const [openId, setOpenId] = useState(null);
   const [mode, setMode] = useState(null); // null=영상 화면, 'lesson'=단계 학습, 'full'=전체 보기
   const [urlDraft, setUrlDraft] = useState('');
   const [script, setScript] = useState('');
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => saveVideos(videos), [videos]);
-  useEffect(() => saveVideoAnalyses(analyses), [analyses]);
-  useEffect(() => saveVideoProgress(progress), [progress]);
-  useEffect(() => saveVideoScripts(scripts), [scripts]);
 
   const titles = useTitles(videos, active);
   const open = videos.find((v) => v.id === openId) || null;
@@ -114,7 +102,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   const analysis = open ? analyses[open.id] : null;
   const savedScript = open ? scripts[open.id] || '' : '';
 
-  useEffect(() => { setScript(openId ? loadVideoScripts()[openId] || '' : ''); setMode(null); }, [openId]);
+  useEffect(() => { setScript(openId ? scripts[openId] || '' : ''); setMode(null); }, [openId]);
 
   const lines = useMemo(() => parseScript(savedScript), [savedScript]);
   /* 설명에 실을 몫. 자막 학습은 API를 안 쓰니 전부 그대로 돌고, 이 한도는
@@ -172,10 +160,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   const removeVideo = () => {
     const id = pendingDel;
     if (!id || delWord.trim() !== '삭제') return;
-    setVideos((prev) => prev.filter((v) => v.id !== id));
-    setAnalyses((prev) => { const next = { ...prev }; delete next[id]; return next; });
-    setScripts((prev) => { const next = { ...prev }; delete next[id]; return next; });
-    setProgress((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    onRemoveVideo(id);
     if (openId === id) setOpenId(null);
     setPendingDel(null);
     onToast('영상을 뺐어요');
