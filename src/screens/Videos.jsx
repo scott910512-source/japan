@@ -5,7 +5,8 @@ import {
 import MicButton from '../components/MicButton.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import {
-  ANALYZE_CHAR_LIMIT, PROVIDERS, analyzeScript, fetchTranscript, resolveProvider, youtubeId,
+  ANALYZE_CHAR_LIMIT, PROVIDERS, TRANSCRIBE_MINUTES,
+  analyzeScript, fetchTranscript, resolveProvider, youtubeId,
 } from '../lib/videoTutor.js';
 import { SEED_VIDEOS } from '../data/videos.js';
 import {
@@ -425,7 +426,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
           </div>
           <p className="vd-note" style={{ marginTop: 10 }}>
             {canGrab
-              ? '「영상에서 가져오기」는 Gemini가 영상을 듣고 받아 적어요. 사람이 만든 자막이 아니라 틀릴 수 있으니, 눈으로 훑어보고 저장해 주세요.'
+              ? `「영상에서 가져오기」는 Gemini가 영상을 ${TRANSCRIBE_MINUTES}분까지 듣고 받아 적어요(화면은 거의 안 보고 소리만 들어 API를 아껴 씁니다). 사람이 만든 자막이 아니라 틀릴 수 있으니, 눈으로 훑어보고 저장해 주세요.`
               : '이 자막은 이 기기에만 저장돼요.'}
             {' '}뜻과 문법 설명은 학습을 시작한 뒤에 따로 붙일 수 있어요.
           </p>

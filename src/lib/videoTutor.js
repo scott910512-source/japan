@@ -27,12 +27,28 @@ export const PROVIDERS = { CLAUDE: 'claude', GEMINI: 'gemini' };
  * 그쯤이 맞다. 자막 학습 자체는 API를 쓰지 않으니 이 한도와 무관하다. */
 export const ANALYZE_CHAR_LIMIT = 4000;
 
+/* 받아 적을 영상의 최대 길이(분).
+ *
+ * 유튜브에는 한 시간짜리도 있는데, 그걸 통째로 넘기면 한 번에 십수만 토큰이
+ * 나간다. 무료 한도로는 그 한 번으로 끝이다. 게다가 한 번에 배울 분량도 아니다 —
+ * 설명은 어차피 앞 4000자로 만든다(ANALYZE_CHAR_LIMIT). 앞 15분이면 그쯤 나온다. */
+export const TRANSCRIBE_MINUTES = 15;
+
+/* 영상에서 초당 몇 장면을 볼지.
+ *
+ * 우리가 받아 적는 건 "말한 내용"이라 화면은 거의 필요 없다. 그런데 그냥
+ * 넘기면 구글은 1초에 한 장씩 그림으로 잘라 읽는다 — 소리(초당 32토큰)보다
+ * 그림(장당 258토큰)이 여덟 배 비싸고, 비용의 대부분이 안 쓸 화면이다.
+ * 10초에 한 장이면 소리는 그대로 다 듣고 화면 값만 십분의 일로 떨어진다. */
+const TRANSCRIBE_FPS = 0.1;
+
 /* 영상이 실제로 들어갔다고 볼 수 있는 최소 입력 토큰 수.
  *
- * 아주 낮게 잡는다. 몇 초짜리 영상도 천 단위는 되고, 지시문만 세면 수백이다.
- * 이 사이에 선을 그으면 "영상을 안 봤다"는 것만 확실히 걸러진다 — 애매하게
- * 높이 잡아 되는 것까지 막느니, 확실한 것만 막는다. */
-const VIDEO_TOKEN_FLOOR = 1000;
+ * 아주 낮게 잡는다. 위처럼 화면을 덜 보게 하면 1분이 삼천 토큰쯤이고, 짧은
+ * 영상도 천 단위는 된다. 지시문만 세면 수백이다. 이 사이에 선을 그으면
+ * "영상을 안 봤다"는 것만 확실히 걸러진다 — 애매하게 높이 잡아 되는 것까지
+ * 막느니, 확실한 것만 막는다. */
+const VIDEO_TOKEN_FLOOR = 500;
 
 const SYSTEM = `당신은 한국인을 위한 일본어 회화 튜터입니다.
 학습자 수준은 JLPT N5 상위 ~ N4 초반이고, 목표는 일본인이 실제로 쓰는 자연스러운
@@ -196,33 +212,50 @@ const TRANSCRIBE = `이 영상에서 일본어로 말하는 내용을 그대로 
 - 잘 안 들리는 부분은 지어내지 말고 그 줄을 빼세요.
 - 다른 말 없이 받아 적은 줄만 출력하세요.`;
 
-/* 유튜브 주소를 Gemini에 그대로 넘겨 말한 내용을 받아 적게 한다.
+/* 유튜브 주소를 Gemini에 넘겨 말한 내용을 받아 적게 한다.
  *
- * 자막을 손으로 붙여넣는 단계를 없애려는 것이지만, 받아 온 글을 바로 학습에
- * 쓰지는 않는다. 이건 사람이 만든 자막이 아니라 모델이 듣고 옮긴 것이라 틀릴
- * 수 있고, 틀린 문장으로 공부하면 틀린 걸 외운다. 그래서 입력칸에 채워 넣고
- * 눈으로 확인한 뒤 저장하게 한다 — 배우는 건 사용자가 받아들인 글이다. */
-export async function fetchTranscript({ apiKey, model, videoId }) {
+ * 유튜브가 가진 자막 파일을 그대로 내려받는 게 아니다 — 그 주소는 브라우저에서
+ * 부를 수 없고(CORS), 서버 없는 앱이라 대신 불러 줄 곳도 없다. 그래서 주소를
+ * 구글에 넘기고 구글이 영상을 열어 듣는다. 대신 화면은 거의 안 보고(fps),
+ * 앞부분만 본다(offset) — 필요한 건 소리뿐이고, 나머지는 그냥 요금이다.
+ *
+ * 받아 온 글을 바로 학습에 쓰지는 않는다. 이건 사람이 만든 자막이 아니라 모델이
+ * 듣고 옮긴 것이라 틀릴 수 있고, 틀린 문장으로 공부하면 틀린 걸 외운다. 그래서
+ * 입력칸에 채워 넣고 눈으로 확인한 뒤 저장하게 한다 — 배우는 건 사용자가
+ * 받아들인 글이다. */
+export async function fetchTranscript({ apiKey, model, videoId, minutes = TRANSCRIBE_MINUTES }) {
   if (!apiKey) throw new Error('구글 API 키가 필요해요');
   if (!videoId) throw new Error('영상 주소를 확인해 주세요');
   const name = model || DEFAULT_GEMINI_MODEL;
-  const res = await fetch(
-    `${GEMINI_BASE}/models/${encodeURIComponent(name)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          role: 'user',
-          parts: [
-            { file_data: { file_uri: `https://www.youtube.com/watch?v=${videoId}` } },
-            { text: TRANSCRIBE },
-          ],
-        }],
-        generationConfig: { maxOutputTokens: 32768 },
-      }),
-    },
-  );
+  const url = `${GEMINI_BASE}/models/${encodeURIComponent(name)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const ask = (thrifty) => fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [
+          {
+            file_data: { file_uri: `https://www.youtube.com/watch?v=${videoId}` },
+            ...(thrifty ? {
+              video_metadata: {
+                start_offset: { seconds: 0 },
+                end_offset: { seconds: Math.round(minutes * 60) },
+                fps: TRANSCRIBE_FPS,
+              },
+            } : {}),
+          },
+          { text: TRANSCRIBE },
+        ],
+      }],
+      generationConfig: { maxOutputTokens: 32768 },
+    }),
+  });
+
+  /* 아껴 쓰는 설정(길이·화면 수)을 못 알아듣는 모델도 있다. 그때 400을 그대로
+     내면 "왜 안 되지"로 끝나니, 설정만 빼고 한 번 더 해 본다 — 비싸지지만 된다. */
+  let res = await ask(true);
+  if (res.status === 400) res = await ask(false);
   if (!res.ok) throw await failure(res, 'Gemini');
   const data = await res.json();
   const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
@@ -234,7 +267,7 @@ export async function fetchTranscript({ apiKey, model, videoId }) {
    * 지어낼 수 있다. 겉보기에는 잘 된 것과 구별이 안 되고, 그걸로 공부하면 세상에
    * 없는 문장을 외운다. 답이 유난히 빨리 오면 대개 이 경우다.
    *
-   * 증거는 입력 토큰 수다. 영상이 실제로 들어갔으면 1분만 돼도 만 단위로 뛴다.
+   * 증거는 입력 토큰 수다. 영상이 실제로 들어갔으면 1분만 돼도 천 단위로 뛴다.
    * 지시문만 세면 수백이다. 그래서 아주 낮은 바닥선만 두고, 그 아래면 받아 온
    * 글을 버린다 — 지어낸 자막을 넘겨주는 것보다 못 가져왔다고 하는 편이 낫다. */
   const tokens = data.usageMetadata?.promptTokenCount;
