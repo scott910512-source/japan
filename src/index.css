@@ -1038,6 +1038,8 @@ button, input, select { font-family: inherit; }
   width: 100%; margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line);
   border-radius: 12px; padding: 12px; color: var(--ink); font: inherit; line-height: 1.6; resize: vertical;
 }
+/* 복사가 막혔을 때만 나오는 칸 — 읽고 직접 복사하는 용도라 눈에 덜 걸리게. */
+.vd-prompt { font-size: 13px; color: var(--ink-soft); }
 .vd-run {
   width: 100%; margin-top: 10px; padding: 13px; border: none; border-radius: 12px; cursor: pointer;
   background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14; font: inherit; font-weight: 700;

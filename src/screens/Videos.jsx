@@ -6,7 +6,7 @@ import MicButton from '../components/MicButton.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import {
   ANALYZE_CHAR_LIMIT, PROVIDERS, TRANSCRIBE_MINUTES,
-  analyzeScript, fetchTranscript, resolveProvider, youtubeId,
+  analyzeScript, fetchTranscript, resolveProvider, transcriptPrompt, youtubeId,
 } from '../lib/videoTutor.js';
 import { SEED_VIDEOS } from '../data/videos.js';
 import {
@@ -102,6 +102,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   const [urlDraft, setUrlDraft] = useState('');
   const [script, setScript] = useState('');
   const [busy, setBusy] = useState(false);
+  const [prompt, setPrompt] = useState(''); // 복사가 막혔을 때만 펼쳐 보여 준다
 
   useEffect(() => saveVideos(videos), [videos]);
   useEffect(() => saveVideoAnalyses(analyses), [analyses]);
@@ -212,6 +213,22 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
       onToast(err.message || '자막을 받아오지 못했어요');
     } finally {
       setBusy(false);
+    }
+  };
+
+  /* Gemini 앱에 물어볼 말을 복사해 준다.
+     앱은 유튜브 자막을 그대로 읽어 오고 요금도 안 든다 — API로 영상을 듣게
+     하는 것보다 이 길이 낫다. 복사가 막힌 브라우저(https가 아니거나 권한이
+     없는 경우)에서는 글을 펼쳐 보여 주고 직접 복사하게 한다. */
+  const copyPrompt = async () => {
+    const text = transcriptPrompt(`https://youtu.be/${open.id}`);
+    try {
+      await navigator.clipboard.writeText(text);
+      setPrompt('');
+      onToast('복사했어요. Gemini 앱에 붙여넣고, 받은 자막을 여기에 넣어 주세요');
+    } catch {
+      setPrompt(text);
+      onToast('복사가 막혀 있어요. 아래 글을 직접 복사해 주세요');
     }
   };
 
@@ -415,20 +432,22 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
             </div>
           )}
           <div className="vd-scriptacts">
+            <button className="ghost-btn" onClick={copyPrompt}>Gemini 앱에 물어볼 말 복사</button>
             {canGrab && (
               <button className="ghost-btn" disabled={busy} onClick={grabScript}>
-                {busy ? '영상 보는 중…' : '영상에서 가져오기'}
+                {busy ? '영상 듣는 중…' : '영상에서 가져오기'}
               </button>
             )}
             <button className="vd-run" disabled={busy || !script.trim()} onClick={() => { saveScript(); setMode(null); }}>
               자막으로 학습 준비하기
             </button>
           </div>
+          {prompt && <textarea className="vd-script vd-prompt" value={prompt} readOnly rows={6} />}
           <p className="vd-note" style={{ marginTop: 10 }}>
+            {'「Gemini 앱에 물어볼 말 복사」가 가장 싸고 정확해요 — 앱의 Gemini는 유튜브에 등록된 자막을 그대로 읽어 오고, API 요금이 들지 않습니다. 받은 글을 위 칸에 붙여넣으세요. '}
             {canGrab
-              ? `「영상에서 가져오기」는 Gemini가 영상을 ${TRANSCRIBE_MINUTES}분까지 듣고 받아 적어요(화면은 거의 안 보고 소리만 들어 API를 아껴 씁니다). 사람이 만든 자막이 아니라 틀릴 수 있으니, 눈으로 훑어보고 저장해 주세요.`
-              : '이 자막은 이 기기에만 저장돼요.'}
-            {' '}뜻과 문법 설명은 학습을 시작한 뒤에 따로 붙일 수 있어요.
+              && `「영상에서 가져오기」는 앱을 거치지 않는 대신 Gemini가 영상을 ${TRANSCRIBE_MINUTES}분까지 직접 듣고 받아 적어요(화면은 거의 안 보고 소리만 들어 API를 아껴 씁니다). 사람이 만든 자막이 아니라 틀릴 수 있으니, 눈으로 훑어보고 저장해 주세요. `}
+            자막은 이 기기에만 저장돼요. 뜻과 문법 설명은 학습을 시작한 뒤에 따로 붙일 수 있어요.
           </p>
         </Section>
       )}
