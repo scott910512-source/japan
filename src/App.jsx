@@ -46,11 +46,11 @@ const SUB_TITLES = {
   worddeck: '단어암기',
   quiz: '단어 시험',
   jlpt: 'JLPT 단어',
-  videos: '영상으로 배우기',
 };
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
+  const [videosSeen, setVideosSeen] = useState(false); // 영상 탭에 한 번이라도 들어갔는지
   const [sub, setSub] = useState(null);
   const [deck, setDeck] = useState(null); // 학습 중인 덱 (있으면 회독 화면이 전체를 덮는다)
 
@@ -364,6 +364,7 @@ export default function App() {
   // 학습 탭은 화면이 아니라 바로 회독으로 들어가는 통로다
   const selectTab = (id) => {
     if (id === 'study') { startWordDeck(); return; }
+    if (id === 'videos') setVideosSeen(true);
     setSub(null);
     setActiveTab(id);
   };
@@ -453,6 +454,27 @@ export default function App() {
           />
         </section>
 
+        {/* 영상은 제 탭에서 산다. 홈 카드로 두면 단어 외우기 메뉴들 사이에 섞여
+            버리는데, 보고 듣고 따라 말하는 일은 결이 다르다.
+
+            탭은 숨겨져 있어도 화면에 붙어 있어서, 그대로 두면 앱을 켜자마자
+            열지도 않은 탭이 유튜브에서 제목과 섬네일을 받아 온다. 한 번 들어간
+            뒤부터 붙이고, 그 뒤로는 계속 붙여 둔다 — 보던 자리를 잃지 않게. */}
+        <section className={`screen${activeTab === 'videos' && !sub ? ' active' : ''}`}>
+          {videosSeen && (
+          <Videos
+            active={activeTab === 'videos' && !sub}
+            settings={settings}
+            words={words}
+            onAddWord={(w) => setCustomWords((prev) => (
+              prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+            ))}
+            onStartSet={startJlptSet}
+            onToast={showToast}
+          />
+          )}
+        </section>
+
         <section className={`screen${activeTab === 'review' && !sub ? ' active' : ''}`}>
           <ReviewTab
             words={words}
@@ -522,17 +544,6 @@ export default function App() {
                 review={review}
                 settings={settings}
                 onReviewChange={applyReview}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'videos' && (
-              <Videos
-                settings={settings}
-                words={words}
-                onAddWord={(w) => setCustomWords((prev) => (
-                  prev.some((x) => x.id === w.id) ? prev : [...prev, w]
-                ))}
-                onStartSet={startJlptSet}
                 onToast={showToast}
               />
             )}
