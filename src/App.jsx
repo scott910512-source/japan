@@ -209,10 +209,12 @@ export default function App() {
       // 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다
       setSettings((s) => ({ ...s, ...merged.settings }));
       setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
+      /* 안내(note)와 오류(error)를 나눈다. 영상 칸이 없는 건 나머지가 다 올라간
+         상태라, 이걸 오류 자리에 넣으면 "동기화가 안 되고 있어요"로 읽힌다. */
       setSyncState({
         busy: false,
-        // 영상 칸이 아직 없으면 나머지는 올라갔어도 그 사실은 말해 준다
-        error: merged.videoNote || null,
+        error: null,
+        note: merged.videoNote || null,
         at: new Date().toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }),
       });
       if (!silent) showToast(merged.videoNote ? '동기화했어요 (영상 제외)' : '동기화했어요');

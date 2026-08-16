@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { IconPerson, IconDownload, IconUpload } from '../components/Icons.jsx';
 import { supabase, supabaseConfigured, redirectUrl } from '../lib/supabase.js';
 import { deriveVaultKey } from '../lib/crypto.js';
+import { VIDEO_COLUMN_SQL } from '../lib/sync.js';
 
 const MODES = {
   signin: { title: '로그인', action: '로그인', other: 'signup', otherLabel: '처음이신가요? 가입하기' },
@@ -22,6 +23,15 @@ function readableError(message = '') {
 }
 
 export default function Account({ session, syncState, onSync, onSignedOut, onToast, onVaultKey }) {
+  // 복사가 막힌 브라우저에서도 글은 그대로 보이니 길게 눌러 복사하면 된다
+  const copySql = async () => {
+    try {
+      await navigator.clipboard.writeText(VIDEO_COLUMN_SQL);
+      onToast('복사했어요. Supabase → SQL Editor에 붙여넣고 Run 하세요');
+    } catch {
+      onToast('복사가 막혀 있어요. 아래 글을 길게 눌러 복사해 주세요');
+    }
+  };
   const [mode, setMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -58,6 +68,16 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
           <div className="syncerror">
             <b>동기화가 안 되고 있어요</b>
             <span>{syncState.error}</span>
+          </div>
+        )}
+
+        {/* 안내는 오류와 자리를 나눈다 — 나머지는 다 올라간 상태다 */}
+        {!syncState.error && syncState.note && (
+          <div className="syncnote">
+            <b>학습 기록은 올라갔어요</b>
+            <span>{syncState.note}</span>
+            <code className="syncsql">{VIDEO_COLUMN_SQL}</code>
+            <button className="ghost-btn" onClick={copySql}>이 줄 복사</button>
           </div>
         )}
 

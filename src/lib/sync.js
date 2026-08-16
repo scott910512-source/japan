@@ -26,7 +26,9 @@ import {
  * 한다 — 영상 하나 때문에 회독 기록이 안 올라가면 그게 더 큰 손해다.
  * 칸이 없다는 오류일 때만 영상을 빼고 한 번 더 하고, 사실대로 알린다. */
 const NO_VIDEO_COLUMN = /Could not find the 'videos' column|column .*videos.* does not exist/i;
-export const VIDEO_COLUMN_HINT = '영상 동기화는 아직 켜지지 않았어요. Supabase SQL Editor에서 docs/supabase.sql을 다시 실행해 주세요';
+export const VIDEO_COLUMN_HINT = '영상만 아직 계정에 안 올라가요. Supabase → SQL Editor에서 아래 한 줄을 실행하면 켜집니다.';
+// 화면에서 그대로 복사해 붙여넣을 수 있게 따로 둔다 — 파일 경로만 알려 주면 찾아야 한다.
+export const VIDEO_COLUMN_SQL = "alter table public.user_data add column if not exists videos jsonb not null default '{}'::jsonb;";
 
 /* ── 서버 왕복 ── */
 
