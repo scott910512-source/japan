@@ -203,6 +203,18 @@ export async function analyzeScript({ provider, apiKey, model, title, channel, s
   return parseAnalysis(text);
 }
 
+/* AI Studio에서 받은 Gemini 키인지 본다.
+ *
+ * 음성(Cloud TTS)과 Gemini는 둘 다 구글이지만 키가 다르다. Cloud 키는 AIza로
+ * 시작하고, AI Studio 키는 AQ.로 시작한다. 생김새가 비슷해서 음성 칸에 Gemini
+ * 키를 넣는 일이 실제로 일어나는데, 그러면 구글이 "Expected OAuth2 access
+ * token…"이라는 알 수 없는 말로 거절한다. 넣는 순간 알려 주는 게 낫다.
+ *
+ * AIza로 시작하는 키는 양쪽 다 가능해서 판단하지 않는다 — 확실할 때만 말한다. */
+export function looksLikeGeminiKey(key = '') {
+  return /^AQ\./.test(String(key).trim());
+}
+
 /* 설정에서 실제로 쓸 제공처와 키를 정한다.
  *
  * Gemini 키는 음성(TTS/STT) 키와 같은 구글 API 키 형식이라, 따로 넣지 않았으면
