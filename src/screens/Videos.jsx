@@ -7,8 +7,10 @@ import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { analyzeScript, youtubeId } from '../lib/videoTutor.js';
 import { SEED_VIDEOS } from '../data/videos.js';
 import {
-  loadVideoAnalyses, loadVideos, saveVideoAnalyses, saveVideos,
+  loadVideoAnalyses, loadVideoProgress, loadVideos,
+  saveVideoAnalyses, saveVideoProgress, saveVideos,
 } from '../lib/storage.js';
+import VideoLesson, { buildSteps } from './VideoLesson.jsx';
 
 /* 영상으로 배우기.
  *
@@ -80,20 +82,32 @@ export default function Videos({ settings, words, onAddWord, onStartSet, onToast
     return saved.length ? saved : SEED_VIDEOS;
   });
   const [analyses, setAnalyses] = useState(() => loadVideoAnalyses());
+  const [progress, setProgress] = useState(() => loadVideoProgress());
   const [openId, setOpenId] = useState(null);
+  const [mode, setMode] = useState(null); // null=영상 화면, 'lesson'=단계 학습, 'full'=전체 보기
   const [urlDraft, setUrlDraft] = useState('');
   const [script, setScript] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => saveVideos(videos), [videos]);
   useEffect(() => saveVideoAnalyses(analyses), [analyses]);
+  useEffect(() => saveVideoProgress(progress), [progress]);
 
   const titles = useTitles(videos);
   const open = videos.find((v) => v.id === openId) || null;
   const info = open ? titles[open.id] : null;
   const analysis = open ? analyses[open.id] : null;
 
-  useEffect(() => { setScript(''); }, [openId]);
+  useEffect(() => { setScript(''); setMode(null); }, [openId]);
+
+  const steps = useMemo(() => buildSteps(analysis), [analysis]);
+  const mark = open ? (progress[open.id] || { step: 0, done: false }) : { step: 0, done: false };
+  const setStep = (step) => setProgress((p) => ({ ...p, [open.id]: { ...(p[open.id] || {}), step } }));
+  const finish = () => {
+    setProgress((p) => ({ ...p, [open.id]: { step: 0, done: true } }));
+    setMode(null);
+    onToast('영상 학습을 마쳤어요');
+  };
 
   const addVideo = () => {
     const id = youtubeId(urlDraft);
@@ -206,7 +220,12 @@ export default function Videos({ settings, words, onAddWord, onStartSet, onToast
         <div className="stack" style={{ marginTop: 14 }}>
           {videos.map((v) => {
             const t = titles[v.id];
-            const done = Boolean(analyses[v.id]);
+            const ready = Boolean(analyses[v.id]);
+            const p = progress[v.id];
+            const total = ready ? buildSteps(analyses[v.id]).length : 0;
+            const done = ready
+              ? (p?.step > 0 ? `학습 중 · ${p.step + 1}/${total}` : p?.done ? '학습 마침' : `학습 준비됨 · ${total}단계`)
+              : '자막 붙여넣기 전';
             return (
               <div key={v.id} className="card vd-item">
                 <button className="vd-open" onClick={() => setOpenId(v.id)}>
@@ -215,7 +234,7 @@ export default function Videos({ settings, words, onAddWord, onStartSet, onToast
                     <div className="vd-title">{t?.title || `youtu.be/${v.id}`}</div>
                     <div className="vd-meta">
                       {t?.channel ? `${t.channel} · ` : ''}
-                      {done ? '학습자료 있음' : '자막 붙여넣기 전'}
+                      {done}
                     </div>
                   </div>
                   <IconChevron className="chev" />
@@ -227,6 +246,26 @@ export default function Videos({ settings, words, onAddWord, onStartSet, onToast
           {videos.length === 0 && <div className="empty-state">담아 둔 영상이 없어요</div>}
         </div>
       </>
+    );
+  }
+
+  /* ── 단계 학습 ── */
+  if (mode === 'lesson' && analysis && steps.length > 0) {
+    return (
+      <VideoLesson
+        analysis={analysis}
+        title={info?.title || `youtu.be/${open.id}`}
+        step={mark.step}
+        settings={settings}
+        findKnown={findKnown}
+        onKeep={(w) => { keepWord(w); onToast(`${w.jp} 담았어요`); }}
+        onKeepAll={keepAll}
+        onStudyWords={studyVideo}
+        onStep={setStep}
+        onQuit={() => setMode(null)}
+        onDone={finish}
+        onToast={onToast}
+      />
     );
   }
 
@@ -272,6 +311,36 @@ export default function Videos({ settings, words, onAddWord, onStartSet, onToast
       )}
 
       {analysis && (
+        <>
+          {/* 학습은 여기서 들어간다. 아래 전체 보기는 끝낸 뒤 다시 찾아볼 때 쓴다 —
+              처음부터 다 펼쳐 두면 결국 스크롤만 내리다 끝난다. */}
+          <div className="card vd-entry">
+            <h3 className="vd-h">영상 학습</h3>
+            {/* 진행 중이 마침보다 먼저다. 마친 영상을 다시 시작해 중간에 멈추면
+                지금 어디인지가 궁금하지, 예전에 끝냈다는 사실이 궁금한 게 아니다. */}
+            <p className="vd-sub">
+              {mark.step > 0
+                ? `${steps.length}단계 중 ${mark.step + 1}단계까지 왔어요.`
+                : mark.done
+                  ? '한 번 마친 영상이에요. 다시 처음부터 볼 수 있어요.'
+                  : `${steps.length}단계로 나눠 하나씩 봅니다.`}
+            </p>
+            <div className="vd-entrybar">
+              <i style={{ width: `${Math.round(((mark.step > 0 ? mark.step : mark.done ? steps.length : 0) / Math.max(steps.length, 1)) * 100)}%` }} />
+            </div>
+            <div className="vd-entryacts">
+              <button className="submit-btn" onClick={() => setMode('lesson')}>
+                {mark.step > 0 ? '이어서 학습하기' : mark.done ? '다시 학습하기' : '학습 시작'}
+              </button>
+              <button className="ghost-btn" onClick={() => setMode(mode === 'full' ? null : 'full')}>
+                {mode === 'full' ? '전체 접기' : '전체 보기'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {analysis && mode === 'full' && (
         <>
           {analysis.overview && (
             <Section title="이 영상은 어떤가요">
@@ -452,11 +521,16 @@ export default function Videos({ settings, words, onAddWord, onStartSet, onToast
             </Section>
           )}
 
-          <button className="vd-redo" onClick={() => {
-            setAnalyses((prev) => { const next = { ...prev }; delete next[open.id]; return next; });
-          }}>자막 다시 넣기
-          </button>
         </>
+      )}
+
+      {analysis && (
+        <button className="vd-redo" onClick={() => {
+          setAnalyses((prev) => { const next = { ...prev }; delete next[open.id]; return next; });
+          setProgress((prev) => { const next = { ...prev }; delete next[open.id]; return next; });
+          setMode(null);
+        }}>자막 다시 넣기
+        </button>
       )}
     </>
   );
