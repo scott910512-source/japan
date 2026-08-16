@@ -1066,6 +1066,26 @@ button, input, select { font-family: inherit; }
 .vl-next { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .vl-next svg { width: 16px; height: 16px; }
 
+/* 자막으로 영상과 함께 학습 */
+.sl-player { margin-bottom: 14px; }
+.sl-line { padding: 4px 2px 2px; }
+.sl-jp { font-size: 20px; font-weight: 600; line-height: 1.65; margin: 0; word-break: keep-all; overflow-wrap: anywhere; }
+.sl-ko { font-size: 14px; color: var(--ink-soft); line-height: 1.6; margin: 8px 0 0; }
+.sl-point { font-size: 12.5px; color: var(--kon); line-height: 1.5; margin: 6px 0 0; }
+.sl-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.sl-acts > button, .sl-acts .micbtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12.5px; font-weight: 600; padding: 9px 13px; border-radius: 11px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
+}
+.sl-acts > button:disabled { opacity: .45; cursor: default; }
+.sl-acts svg { width: 15px; height: 15px; }
+.sl-auto {
+  display: flex; align-items: center; gap: 7px; margin-top: 14px;
+  font-size: 12.5px; color: var(--ink-soft); cursor: pointer;
+}
+
+.vd-entry + .vd-entry { margin-top: 12px; }
 .vd-entry .vd-h { margin-bottom: 4px; }
 .vd-entrybar { height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 12px 0 14px; }
 .vd-entrybar i { display: block; height: 100%; border-radius: 3px; background: var(--kon); transition: width .25s ease; }
