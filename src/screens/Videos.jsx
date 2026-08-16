@@ -4,7 +4,9 @@ import {
 } from '../components/Icons.jsx';
 import MicButton from '../components/MicButton.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
-import { analyzeScript, resolveProvider, youtubeId } from '../lib/videoTutor.js';
+import {
+  PROVIDERS, analyzeScript, fetchTranscript, resolveProvider, youtubeId,
+} from '../lib/videoTutor.js';
 import { SEED_VIDEOS } from '../data/videos.js';
 import {
   loadVideoAnalyses, loadVideoProgress, loadVideoScripts, loadVideos,
@@ -184,7 +186,29 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   };
 
   const say = (text) => speakJapanese(text, settings.speechRate);
-  const aiKey = resolveProvider(settings).apiKey;
+  const ai = resolveProvider(settings);
+  const aiKey = ai.apiKey;
+  // 영상을 직접 보고 받아 적는 건 Gemini만 된다 — Claude는 유튜브를 못 본다
+  const canGrab = ai.provider === PROVIDERS.GEMINI && Boolean(aiKey);
+
+  /* 받아 온 글을 바로 저장하지 않고 입력칸에 채운다. 사람이 만든 자막이 아니라
+     모델이 듣고 옮긴 것이라 틀릴 수 있고, 틀린 문장으로 공부하면 틀린 걸
+     외운다. 눈으로 확인하고 저장하는 건 사용자 몫이다. */
+  const grabScript = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const text = await fetchTranscript({ apiKey: aiKey, model: ai.model, videoId: open.id });
+      const got = parseScript(text).length;
+      if (!got) throw new Error('받아 적은 게 없어요');
+      setScript(text);
+      onToast(`${got}줄을 받아 왔어요. 확인하고 저장해 주세요`);
+    } catch (err) {
+      onToast(err.message || '자막을 받아오지 못했어요');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   /* 이미 단어장에 있는 단어를 또 만들지 않는다. 結構는 N3에 이미 있는데
    * 영상에서 담았다고 새 카드를 만들면, 같은 단어를 두 번 외우면서 회독 기록도
@@ -361,12 +385,21 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
             placeholder={'[00:00]\nこんにちは。今日は…'}
             rows={7}
           />
-          <button className="vd-run" disabled={!script.trim()} onClick={() => { saveScript(); setMode(null); }}>
-            자막으로 학습 준비하기
-          </button>
+          <div className="vd-scriptacts">
+            {canGrab && (
+              <button className="ghost-btn" disabled={busy} onClick={grabScript}>
+                {busy ? '영상 보는 중…' : '영상에서 가져오기'}
+              </button>
+            )}
+            <button className="vd-run" disabled={busy || !script.trim()} onClick={() => { saveScript(); setMode(null); }}>
+              자막으로 학습 준비하기
+            </button>
+          </div>
           <p className="vd-note" style={{ marginTop: 10 }}>
-            이 자막은 이 기기에만 저장돼요. 뜻과 문법 설명은 학습을 시작한 뒤에
-            따로 붙일 수 있어요.
+            {canGrab
+              ? '「영상에서 가져오기」는 Gemini가 영상을 듣고 받아 적어요. 사람이 만든 자막이 아니라 틀릴 수 있으니, 눈으로 훑어보고 저장해 주세요.'
+              : '이 자막은 이 기기에만 저장돼요.'}
+            {' '}뜻과 문법 설명은 학습을 시작한 뒤에 따로 붙일 수 있어요.
           </p>
         </Section>
       )}
