@@ -31,13 +31,19 @@ function Section({ title, sub, children }) {
   );
 }
 
-// 제목은 지어내지 않는다. 유튜브에서 받아오되 못 받으면 주소만 보여 준다.
-function useTitles(videos) {
+/* 제목은 지어내지 않는다. 유튜브에서 받아오되 못 받으면 주소만 보여 준다.
+ *
+ * 화면을 보고 있을 때만 부른다 — 탭이 되면서 앱이 켜지자마자 붙는데, 열지도
+ * 않은 탭이 유튜브를 부를 이유가 없다.
+ * 실패한 것은 기억하지 않는다. 비행기 모드로 앱을 켠 날 한 번 실패했다고
+ * 그날 내내 주소만 보이면 안 된다 — 탭에 다시 들어오면 다시 시도한다. */
+function useTitles(videos, active) {
   const [titles, setTitles] = useState({});
   useEffect(() => {
+    if (!active) return undefined;
     let alive = true;
     videos.forEach((v) => {
-      if (titles[v.id] !== undefined) return;
+      if (titles[v.id]) return;
       fetch(`https://www.youtube.com/oembed?url=https://youtu.be/${v.id}&format=json`)
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => {
@@ -48,7 +54,7 @@ function useTitles(videos) {
     });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videos]);
+  }, [videos, active]);
   return titles;
 }
 
@@ -76,7 +82,7 @@ function toCard(w, videoId, title) {
   };
 }
 
-export default function Videos({ settings, words, onAddWord, onStartSet, onToast }) {
+export default function Videos({ active, settings, words, onAddWord, onStartSet, onToast }) {
   const [videos, setVideos] = useState(() => {
     const saved = loadVideos();
     return saved.length ? saved : SEED_VIDEOS;
@@ -93,7 +99,7 @@ export default function Videos({ settings, words, onAddWord, onStartSet, onToast
   useEffect(() => saveVideoAnalyses(analyses), [analyses]);
   useEffect(() => saveVideoProgress(progress), [progress]);
 
-  const titles = useTitles(videos);
+  const titles = useTitles(videos, active);
   const open = videos.find((v) => v.id === openId) || null;
   const info = open ? titles[open.id] : null;
   const analysis = open ? analyses[open.id] : null;

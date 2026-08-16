@@ -17,6 +17,12 @@ export const IconGrid = (p) => (
     <rect x="13" y="13" width="7" height="7" rx="1.4" stroke="currentColor" strokeWidth="1.7"/>
   </svg>
 );
+export const IconVideo = (p) => (
+  <svg {...base} {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="3.2" stroke="currentColor" strokeWidth="1.7"/>
+    <path d="M10.4 9.6 15 12l-4.6 2.4V9.6Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
+  </svg>
+);
 export const IconPerson = (p) => (
   <svg {...base} {...p}>
     <circle cx="12" cy="8" r="3.4" stroke="currentColor" strokeWidth="1.7"/>
