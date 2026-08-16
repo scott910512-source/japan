@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   IconArrowLeft, IconBook, IconChevron, IconPlus, IconSpeaker, IconTrash,
 } from '../components/Icons.jsx';
+import BottomSheet from '../components/BottomSheet.jsx';
 import MicButton from '../components/MicButton.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import {
@@ -161,12 +162,23 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
     setUrlDraft('');
   };
 
-  const removeVideo = (id) => {
+  /* 영상을 빼면 자막·설명·진도가 같이 사라진다. 자막은 손으로 넣은 것이고
+     설명은 API를 써서 만든 것이라, 잘못 누르면 되돌릴 방법이 없다. 그래서
+     "삭제"를 직접 치게 한다 — 예/아니오는 손가락이 먼저 움직여서 못 막는다. */
+  const [pendingDel, setPendingDel] = useState(null);
+  const [delWord, setDelWord] = useState('');
+  const askRemove = (id) => { setPendingDel(id); setDelWord(''); };
+
+  const removeVideo = () => {
+    const id = pendingDel;
+    if (!id || delWord.trim() !== '삭제') return;
     setVideos((prev) => prev.filter((v) => v.id !== id));
     setAnalyses((prev) => { const next = { ...prev }; delete next[id]; return next; });
     setScripts((prev) => { const next = { ...prev }; delete next[id]; return next; });
     setProgress((prev) => { const next = { ...prev }; delete next[id]; return next; });
     if (openId === id) setOpenId(null);
+    setPendingDel(null);
+    onToast('영상을 뺐어요');
   };
 
   const runAnalysis = async () => {
@@ -316,12 +328,42 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
                   </div>
                   <IconChevron className="chev" />
                 </button>
-                <button className="vd-del" onClick={() => removeVideo(v.id)} aria-label="영상 빼기"><IconTrash /></button>
+                <button className="vd-del" onClick={() => askRemove(v.id)} aria-label="영상 빼기"><IconTrash /></button>
               </div>
             );
           })}
           {videos.length === 0 && <div className="empty-state">담아 둔 영상이 없어요</div>}
         </div>
+
+        <BottomSheet open={Boolean(pendingDel)} onClose={() => setPendingDel(null)}>
+          <h3>영상 빼기</h3>
+          <p className="vd-delwhat">
+            {titles[pendingDel]?.title || `youtu.be/${pendingDel}`}
+          </p>
+          <p className="vd-note">
+            {(() => {
+              const n = parseScript(scripts[pendingDel] || '').length;
+              const gone = [n ? `자막 ${n}줄` : '', analyses[pendingDel] ? '설명' : '', progress[pendingDel] ? '학습 진도' : ''].filter(Boolean);
+              return gone.length
+                ? `${gone.join(' · ')}이(가) 같이 지워지고 되돌릴 수 없어요. 단어장에 담아 둔 단어는 그대로 남습니다.`
+                : '담아 둔 목록에서만 빠져요. 다시 주소를 넣으면 됩니다.';
+            })()}
+          </p>
+          {/* 예/아니오는 손가락이 먼저 움직여서 못 막는다. 글자를 치게 한다. */}
+          <input
+            className="vd-delword"
+            value={delWord}
+            onChange={(e) => setDelWord(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && removeVideo()}
+            placeholder="삭제"
+            aria-label="삭제라고 입력"
+          />
+          <p className="vd-note">지우려면 <b>삭제</b> 두 글자를 그대로 쳐 주세요.</p>
+          <div className="vd-delacts">
+            <button className="ghost-btn" onClick={() => setPendingDel(null)}>취소</button>
+            <button className="vd-delgo" disabled={delWord.trim() !== '삭제'} onClick={removeVideo}>삭제</button>
+          </div>
+        </BottomSheet>
       </>
     );
   }

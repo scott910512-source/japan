@@ -430,6 +430,14 @@ export default function App() {
             />
           </section>
         </div>
+        {/* 회독 중에도 탭바를 남긴다. 없애 놨더니 다른 데로 가려면 위쪽 뒤로가기를
+            찾아야 했는데, 그건 이 앱에서 여기 한 곳만 다른 규칙이었다.
+            진도는 session에 남으니 나갔다 와도 이어진다. */}
+        <TabBar
+          active="study"
+          onChange={(id) => { if (id === 'study') return; setDeck(null); selectTab(id); }}
+          reviewCount={due.length + sentenceDue}
+        />
         <Toast message={toast} />
       </div>
     );
