@@ -9,7 +9,15 @@
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+
 export const DEFAULT_MODEL = 'claude-sonnet-5';
+
+/* 제미나이 모델 이름은 자주 바뀐다. 여기 적어 둔 값이 낡으면 404가 나는데,
+ * 그때 "왜 안 되지"로 끝나면 안 되니 키로 목록을 직접 받아 고를 수 있게 해 둔다
+ * (listGeminiModels). 여기 값은 그 전까지 쓰는 첫 후보일 뿐이다. */
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const PROVIDERS = { CLAUDE: 'claude', GEMINI: 'gemini' };
 
 const SYSTEM = `당신은 한국인을 위한 일본어 회화 튜터입니다.
 학습자 수준은 JLPT N5 상위 ~ N4 초반이고, 목표는 일본인이 실제로 쓰는 자연스러운
@@ -113,11 +121,65 @@ export function parseAnalysis(text) {
   }
 }
 
-export async function analyzeScript({ apiKey, model, title, channel, script }) {
-  if (!apiKey) throw new Error('Claude API 키가 필요해요');
-  if (!script?.trim()) throw new Error('자막을 먼저 붙여넣어 주세요');
-
+function userText({ title, channel, script }) {
   const head = [title && `제목: ${title}`, channel && `채널: ${channel}`].filter(Boolean).join('\n');
+  return `${head ? `[영상 정보]\n${head}\n\n` : ''}[자막]\n${script.trim()}`;
+}
+
+/* 어느 쪽이 실패했는지 알 수 있게 오류를 그대로 꺼내 준다. "실패했어요"만 뜨면
+ * 키가 틀린 건지, 모델 이름이 낡은 건지, 한도를 넘은 건지 알 수가 없다. */
+async function failure(res, who) {
+  let msg = `${who} HTTP ${res.status}`;
+  try {
+    const body = await res.json();
+    const detail = body?.error?.message;
+    if (detail) msg += ` — ${detail}`;
+  } catch { /* 본문 파싱 실패는 무시 */ }
+  return new Error(msg);
+}
+
+/* 이 키로 실제로 쓸 수 있는 모델을 받아 온다. 내가 적어 둔 이름이 맞는지
+ * 짐작하지 않고 물어보는 쪽이 확실하다. */
+export async function listGeminiModels(apiKey) {
+  if (!apiKey) throw new Error('구글 API 키가 필요해요');
+  const res = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(apiKey)}`);
+  if (!res.ok) throw await failure(res, 'Gemini');
+  const data = await res.json();
+  return (data.models || [])
+    .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map((m) => String(m.name).replace(/^models\//, ''))
+    .sort();
+}
+
+async function analyzeWithGemini({ apiKey, model, title, channel, script }) {
+  const name = model || DEFAULT_GEMINI_MODEL;
+  const res = await fetch(
+    `${GEMINI_BASE}/models/${encodeURIComponent(name)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM }] },
+        contents: [{ role: 'user', parts: [{ text: userText({ title, channel, script }) }] }],
+        // JSON으로 달라고 형식을 직접 지정한다 — 펜스나 앞말이 붙지 않는다.
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 },
+      }),
+    },
+  );
+  if (!res.ok) throw await failure(res, 'Gemini');
+  const data = await res.json();
+  const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
+  if (!text) throw new Error('Gemini가 빈 응답을 보냈어요');
+  return parseAnalysis(text);
+}
+
+export async function analyzeScript({ provider, apiKey, model, title, channel, script }) {
+  if (!apiKey) throw new Error('API 키가 필요해요');
+  if (!script?.trim()) throw new Error('자막을 먼저 붙여넣어 주세요');
+  if (provider === PROVIDERS.GEMINI) {
+    return analyzeWithGemini({ apiKey, model, title, channel, script });
+  }
+
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: {
@@ -130,22 +192,33 @@ export async function analyzeScript({ apiKey, model, title, channel, script }) {
       model: model || DEFAULT_MODEL,
       max_tokens: 8000,
       system: SYSTEM,
-      messages: [{ role: 'user', content: `${head ? `[영상 정보]\n${head}\n\n` : ''}[자막]\n${script.trim()}` }],
+      messages: [{ role: 'user', content: userText({ title, channel, script }) }],
     }),
   });
 
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      if (body?.error?.message) msg += ` — ${body.error.message}`;
-    } catch { /* 본문 파싱 실패는 무시 */ }
-    throw new Error(msg);
-  }
+  if (!res.ok) throw await failure(res, 'Claude');
 
   const data = await res.json();
   const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
   return parseAnalysis(text);
+}
+
+/* 설정에서 실제로 쓸 제공처와 키를 정한다.
+ *
+ * Gemini 키는 음성(TTS/STT) 키와 같은 구글 API 키 형식이라, 따로 넣지 않았으면
+ * 그 키를 그대로 쓴다 — 키를 두 번 넣게 하지 않는다. 다만 그 키가 붙은 구글
+ * 프로젝트에서 Generative Language API가 켜져 있어야 통한다. */
+export function resolveProvider(settings = {}) {
+  const provider = settings.aiProvider === PROVIDERS.CLAUDE ? PROVIDERS.CLAUDE : PROVIDERS.GEMINI;
+  if (provider === PROVIDERS.CLAUDE) {
+    return { provider, apiKey: settings.claudeKey || '', model: settings.claudeModel || '' };
+  }
+  return {
+    provider,
+    apiKey: settings.geminiKey || settings.gttsKey || '',
+    model: settings.geminiModel || '',
+    borrowed: !settings.geminiKey && Boolean(settings.gttsKey),
+  };
 }
 
 /* 유튜브 주소에서 영상 id만 뽑는다. youtu.be, watch?v=, shorts, embed 모두 받는다. */

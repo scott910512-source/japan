@@ -4,7 +4,7 @@ import {
 } from '../components/Icons.jsx';
 import MicButton from '../components/MicButton.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
-import { analyzeScript, youtubeId } from '../lib/videoTutor.js';
+import { analyzeScript, resolveProvider, youtubeId } from '../lib/videoTutor.js';
 import { SEED_VIDEOS } from '../data/videos.js';
 import {
   loadVideoAnalyses, loadVideoProgress, loadVideoScripts, loadVideos,
@@ -169,8 +169,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
     setBusy(true);
     try {
       const result = await analyzeScript({
-        apiKey: settings.claudeKey,
-        model: settings.claudeModel,
+        ...resolveProvider(settings),
         title: info?.title,
         channel: info?.channel,
         script: savedScript || script,
@@ -185,6 +184,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   };
 
   const say = (text) => speakJapanese(text, settings.speechRate);
+  const aiKey = resolveProvider(settings).apiKey;
 
   /* 이미 단어장에 있는 단어를 또 만들지 않는다. 結構는 N3에 이미 있는데
    * 영상에서 담았다고 새 카드를 만들면, 같은 단어를 두 번 외우면서 회독 기록도
@@ -411,9 +411,9 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
                 : lessonMark.done
                   ? '한 번 마친 설명이에요. 다시 볼 수 있어요.'
                   : `핵심 단어·문법·실제 회화 표현을 ${steps.length}단계로 봅니다.`)
-              : settings.claudeKey
+              : aiKey
                 ? '자막에서 핵심 단어와 문법을 뽑아 설명으로 만들어요. 한 번 만들면 그대로 남습니다.'
-                : '설정 → 영상 학습에 Claude API 키를 넣으면, 이 자막에서 단어와 문법 설명을 뽑아 줘요. 없어도 위 자막 학습은 됩니다.'}
+                : '설정 → 영상 학습에서 API 키를 넣으면, 이 자막에서 단어와 문법 설명을 뽑아 줘요. 없어도 위 자막 학습은 됩니다.'}
           </p>
           <div className="vd-entryacts">
             {analysis ? (
@@ -426,7 +426,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
                 </button>
               </>
             ) : (
-              <button className="submit-btn" disabled={busy || !settings.claudeKey} onClick={runAnalysis}>
+              <button className="submit-btn" disabled={busy || !aiKey} onClick={runAnalysis}>
                 {busy ? '읽는 중…' : '설명 만들기'}
               </button>
             )}

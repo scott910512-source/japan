@@ -174,7 +174,11 @@ export const DEFAULT_SETTINGS = {
   // 학습 기능
   autoTTS: true,      // 카드가 뜨면 자동으로 읽어주기
   speakOnJudge: false, // 답을 고를 때 그 단어를 한 번 더 읽어주기
-  claudeKey: '',       // 영상 자막 분석용 (이 기기에만 저장, 서버로 보내지 않는다)
+  // 영상 설명을 만들 곳. 키는 모두 이 기기에만 저장하고 서버로 보내지 않는다.
+  aiProvider: 'gemini', // gemini | claude
+  geminiKey: '',        // 비워 두면 음성 키(gttsKey)를 그대로 쓴다 — 같은 형식이다
+  geminiModel: '',      // 비우면 기본값, 설정에서 목록을 받아 고를 수 있다
+  claudeKey: '',
   claudeModel: '',     // 비우면 기본 모델
   showKana: false,    // 앞면에 히라가나 함께 표시
   showExample: true,  // 뒷면에 예문 표시
