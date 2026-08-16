@@ -11,6 +11,7 @@ const KEYS = {
   memos: 'jp_manabu_memos_v1',     // 단어별 암기 메모 { 카드id: { text, at } }
   videos: 'jp_manabu_videos_v1',   // 영상으로 배우기 — 담아 둔 영상 목록
   videoAnalyses: 'jp_manabu_video_analyses_v1', // 영상별 학습자료 (자막은 저작물이라 담지 않는다)
+  videoProgress: 'jp_manabu_video_progress_v1', // 영상별 학습 진도 — 어디까지 했는지
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -51,6 +52,12 @@ export function loadVideoAnalyses() {
 }
 export function saveVideoAnalyses(map) {
   write(KEYS.videoAnalyses, map);
+}
+export function loadVideoProgress() {
+  return read(KEYS.videoProgress, {});
+}
+export function saveVideoProgress(map) {
+  write(KEYS.videoProgress, map);
 }
 
 export function loadCustomWords() {
