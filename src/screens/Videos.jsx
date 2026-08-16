@@ -21,7 +21,8 @@ import { clipScript, hasTimes, parseScript, scriptChars } from '../lib/script.js
  * 설명(뜻·문법·쉐도잉 정리)은 그 위에 얹는 선택지다. 있으면 더 깊이 보고,
  * 없어도 학습은 된다 — 그것 때문에 시작을 못 하면 안 된다.
  *
- * 자막과 분석 결과는 그 기기에만 남는다. */
+ * 담아 둔 영상·자막·설명·진도는 계정에 같이 저장된다(로그인했을 때). 상태를
+ * App이 들고 있는 것도 그래서다 — 화면 안에만 있으면 동기화에 실을 수 없다. */
 
 function Section({ title, sub, children }) {
   return (
@@ -87,7 +88,7 @@ function toCard(w, videoId, title) {
 /* 영상 상태는 App이 들고 있다 — 기기 간 동기화에 실어야 해서다.
    여기서만 들고 있으면 App이 무엇이 바뀌었는지 알 방법이 없다. */
 export default function Videos({
-  active, settings, words, onAddWord, onStartSet, onToast,
+  active, settings, words, signedIn, onAddWord, onStartSet, onToast,
   videos, setVideos, analyses, setAnalyses, scripts, setScripts, progress, setProgress, onRemoveVideo,
 }) {
   const [openId, setOpenId] = useState(null);
@@ -457,7 +458,10 @@ export default function Videos({
           </details>
 
           <p className="vd-note" style={{ marginTop: 10 }}>
-            자막은 이 기기에만 저장돼요. 뜻과 문법 설명은 학습을 시작한 뒤에 따로 붙일 수 있어요.
+            {signedIn
+              ? '자막·설명·진도는 계정에 같이 저장돼서 다른 기기에서도 이어집니다.'
+              : '로그인하면 자막·설명·진도가 계정에 같이 저장돼요. 지금은 이 기기에만 남습니다.'}
+            {' '}뜻과 문법 설명은 학습을 시작한 뒤에 따로 붙일 수 있어요.
           </p>
         </Section>
       )}

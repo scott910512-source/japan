@@ -538,6 +538,7 @@ export default function App() {
             ))}
             onStartSet={startJlptSet}
             onToast={showToast}
+            signedIn={Boolean(authSession?.user)}
             videos={videos}
             setVideos={setVideos}
             analyses={videoAnalyses}
