@@ -50,7 +50,31 @@ function useTitles(videos) {
   return titles;
 }
 
-export default function Videos({ settings, onAddWord, onToast }) {
+const WORD_TYPES = ['verb', 'noun', 'adj-i', 'adj-na', 'adv', 'conj', 'etc'];
+const WORD_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'];
+
+/* 영상에서 담은 단어도 원래 쓰던 단어장의 카드와 같은 모양이어야 한다.
+ * 그래야 레벨 필터·회독·시험이 따로 놀지 않는다.
+ *
+ * id는 영상과 단어로 고정한다 — 같은 영상을 다시 분석해도 같은 id가 나와야
+ * 그동안 쌓인 회독 기록이 이어진다. 시각으로 만들면 누를 때마다 새 단어가 된다. */
+function toCard(w, videoId, title) {
+  return {
+    id: `custom-vid-${videoId}-${w.jp}`,
+    kanji: w.jp,
+    kana: w.yomi || w.jp,
+    mean: w.ko,
+    type: WORD_TYPES.includes(w.type) ? w.type : 'etc',
+    level: WORD_LEVELS.includes(w.level) ? w.level : 'N4',
+    example: w.ex || '',
+    exampleKana: w.exYomi || '',
+    exampleKo: w.exKo || '',
+    custom: true,
+    source: { video: videoId, title: title || '' },
+  };
+}
+
+export default function Videos({ settings, words, onAddWord, onStartSet, onToast }) {
   const [videos, setVideos] = useState(() => {
     const saved = loadVideos();
     return saved.length ? saved : SEED_VIDEOS;
@@ -106,6 +130,57 @@ export default function Videos({ settings, onAddWord, onToast }) {
   };
 
   const say = (text) => speakJapanese(text, settings.speechRate);
+
+  /* 이미 단어장에 있는 단어를 또 만들지 않는다. 結構는 N3에 이미 있는데
+   * 영상에서 담았다고 새 카드를 만들면, 같은 단어를 두 번 외우면서 회독 기록도
+   * 반으로 갈린다. 있으면 그 카드를 그대로 쓴다. */
+  const known = useMemo(() => {
+    const byPair = new Map();
+    const byKanji = new Map();
+    const byKana = new Map(); // 표기가 가나뿐인 단어만 — 아래 이유 참고
+    (words || []).forEach((w) => {
+      byPair.set(`${w.kanji}|${w.kana}`, w);
+      if (!byKanji.has(w.kanji)) byKanji.set(w.kanji, w);
+      if (!/[一-龯]/.test(w.kanji)) byKana.set(w.kana, (byKana.get(w.kana) || []).concat(w));
+    });
+    return { byPair, byKanji, byKana };
+  }, [words]);
+
+  /* 표기가 달라도 같은 단어인 경우를 잡는다 — 영상은 結構라고 쓰는데 단어장에는
+   * けっこう로 들어 있는 식이다.
+   *
+   * 다만 읽기만 같다고 합치면 안 된다. あつい 하나에 熱い·厚い·暑い가 걸리고,
+   * 그걸 합치면 뜻이 다른 단어를 같은 카드로 외우게 된다. 그래서 단어장 쪽 표기가
+   * 가나뿐이고(= 한자 표기가 따로 없는 단어) 후보가 하나일 때만 같다고 본다.
+   * 못 찾아서 카드가 하나 늘어나는 건 성가신 정도지만, 잘못 합치면 틀리게 외운다. */
+  const findKnown = (w) => {
+    const exact = known.byPair.get(`${w.jp}|${w.yomi}`) || known.byKanji.get(w.jp);
+    if (exact) return exact;
+    const sameKana = known.byKana.get(w.yomi);
+    return sameKana?.length === 1 ? sameKana[0] : null;
+  };
+
+  // 담을 카드를 돌려준다. 새 카드면 단어장에 넣고, 이미 있으면 그 카드를 쓴다.
+  const keepWord = (w) => {
+    const found = findKnown(w);
+    if (found) return { card: found, added: false };
+    const card = toCard(w, open.id, info?.title);
+    onAddWord(card);
+    return { card, added: true };
+  };
+
+  const keepAll = () => {
+    const results = (analysis?.words || []).map(keepWord);
+    const added = results.filter((r) => r.added).length;
+    onToast(added ? `${added}개 담았어요` : '모두 이미 단어장에 있어요');
+  };
+
+  // 영상에서 나온 단어만 모아 도는 덱. 오늘 학습 세션과 섞지 않는다.
+  const studyVideo = () => {
+    const cards = (analysis?.words || []).map((w) => keepWord(w).card);
+    if (!cards.length) { onToast('담을 단어가 없어요'); return; }
+    onStartSet(cards, `영상 · ${info?.title || open.id}`, `video-${open.id}`);
+  };
 
   /* ── 목록 ── */
   if (!open) {
@@ -214,28 +289,34 @@ export default function Videos({ settings, onAddWord, onToast }) {
           )}
 
           {analysis.words?.length > 0 && (
-            <Section title="핵심 단어" sub="누르면 읽어 줘요. 담기를 누르면 회독에 들어갑니다.">
-              {analysis.words.map((w) => (
-                <div key={w.jp + w.yomi} className="vd-word">
-                  <button className="vd-wordmain" onClick={() => say(readingText(w.yomi, w.jp))}>
-                    <span className="vd-jp">{w.jp}</span>
-                    <span className="vd-yomi">{w.yomi}</span>
-                    <span className="vd-ko">{w.ko}</span>
-                    {w.point && <span className="vd-point">{w.point}</span>}
-                  </button>
-                  <button
-                    className="vd-keep"
-                    onClick={() => {
-                      onAddWord({
-                        id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                        kanji: w.jp, kana: w.yomi || w.jp, mean: w.ko,
-                        type: 'noun', level: 'N4', custom: true,
-                      });
-                      onToast(`${w.jp} 담았어요`);
-                    }}
-                  >담기</button>
-                </div>
-              ))}
+            <Section title="핵심 단어" sub="누르면 읽어 줘요. 담기를 누르면 원래 쓰던 단어장으로 들어갑니다.">
+              {analysis.words.map((w) => {
+                const found = findKnown(w);
+                return (
+                  <div key={w.jp + w.yomi} className="vd-word">
+                    <button className="vd-wordmain" onClick={() => say(readingText(w.yomi, w.jp))}>
+                      <span className="vd-jp">{w.jp}</span>
+                      <span className="vd-yomi">{w.yomi}</span>
+                      <span className="vd-ko">{w.ko}</span>
+                      {w.point && <span className="vd-point">{w.point}</span>}
+                    </button>
+                    {found ? (
+                      <span className="vd-have">{found.level || 'N5'}에<br />있어요</span>
+                    ) : (
+                      <button
+                        className="vd-keep"
+                        onClick={() => { keepWord(w); onToast(`${w.jp} 담았어요`); }}
+                      >담기</button>
+                    )}
+                  </div>
+                );
+              })}
+              <div className="vd-wordacts">
+                <button className="vd-keepall" onClick={keepAll}>전부 담기</button>
+                <button className="vd-study" onClick={studyVideo}>
+                  <IconBook /> 이 단어로 회독하기
+                </button>
+              </div>
             </Section>
           )}
 

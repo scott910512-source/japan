@@ -528,7 +528,11 @@ export default function App() {
             {sub === 'videos' && (
               <Videos
                 settings={settings}
-                onAddWord={(w) => setCustomWords((prev) => [...prev, w])}
+                words={words}
+                onAddWord={(w) => setCustomWords((prev) => (
+                  prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+                ))}
+                onStartSet={startJlptSet}
                 onToast={showToast}
               />
             )}

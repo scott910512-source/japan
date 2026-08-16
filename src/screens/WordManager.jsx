@@ -134,6 +134,9 @@ function ManageList({ defaultWords, customWords, onDelete }) {
             <div>
               <div className="manage-jp">{w.kanji} <span style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>· {w.kana}</span></div>
               <div className="manage-kr">{w.mean}</div>
+              {w.source?.video && (
+                <div className="manage-src">영상에서 담음{w.source.title ? ` · ${w.source.title}` : ''}</div>
+              )}
             </div>
             <button className="del-btn" onClick={() => onDelete(w.id)}><IconTrash /></button>
           </div>
