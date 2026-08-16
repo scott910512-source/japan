@@ -10,7 +10,7 @@ import KeyVault from '../components/KeyVault.jsx';
 import VoicePicker from '../components/VoicePicker.jsx';
 import { usageSummary, formatChars } from '../lib/usage.js';
 import {
-  DEFAULT_GEMINI_MODEL, PROVIDERS, listGeminiModels, resolveProvider,
+  DEFAULT_GEMINI_MODEL, PROVIDERS, listGeminiModels, looksLikeGeminiKey, resolveProvider,
 } from '../lib/videoTutor.js';
 
 const MENU_LABELS = {
@@ -265,11 +265,19 @@ export default function Settings({
 
   const saveKey = async () => {
     const key = keyDraft.trim();
-    onChange({ gttsKey: key });
     if (!key) {
+      onChange({ gttsKey: '' });
       onToast('기기 내장 음성으로 재생해요');
       return;
     }
+    /* Gemini 키를 음성 칸에 넣으면 구글이 "Expected OAuth2 access token…"으로
+       거절한다. 그 말로는 뭐가 잘못됐는지 알 수 없으니, 저장하기 전에 막는다.
+       기존에 되던 키를 덮어쓰는 게 더 큰 손해라 저장 자체를 하지 않는다. */
+    if (looksLikeGeminiKey(key)) {
+      onToast('이건 Gemini 키예요. 음성에는 Cloud TTS 키(AIza…)가 필요해요');
+      return;
+    }
+    onChange({ gttsKey: key });
     setTesting(true);
     const result = await testCloudTTS(key);
     setTesting(false);
@@ -420,11 +428,17 @@ export default function Settings({
           autoCorrect="off"
           autoCapitalize="none"
           spellCheck={false}
-          placeholder="AIza... 또는 AQ..."
+          placeholder="AIza..."
           value={keyDraft}
           onChange={(e) => setKeyDraft(e.target.value)}
           style={{ marginBottom: 6 }}
         />
+        {looksLikeGeminiKey(keyDraft) && (
+          <p className="set-warn">
+            이건 AI Studio에서 받은 <b>Gemini 키</b>예요. 음성에는 Google Cloud의
+            TTS 키(AIza…)가 필요합니다. 이 키는 <b>영상 학습 → 구글 API 키</b>에 넣어 주세요.
+          </p>
+        )}
         <button className="keypeek" onClick={() => setShowKey((v) => !v)}>
           {showKey ? '가리기' : '입력한 키 보기'}
         </button>
