@@ -156,7 +156,7 @@ const SYNCED_SETTINGS = [
   'canReadKana', 'tripDay', 'menus', 'levels',
   'dailyGoal', 'direction',
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
-  'quizCount', 'quizType', 'quizDir', 'quizScope',
+  'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
 ];
 
 export function pickSyncedSettings(settings = {}) {

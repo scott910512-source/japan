@@ -27,6 +27,29 @@ export const PROVIDERS = { CLAUDE: 'claude', GEMINI: 'gemini' };
  * 그쯤이 맞다. 자막 학습 자체는 API를 쓰지 않으니 이 한도와 무관하다. */
 export const ANALYZE_CHAR_LIMIT = 4000;
 
+/* 받아 적을 영상의 최대 길이(분).
+ *
+ * 유튜브에는 한 시간짜리도 있는데, 그걸 통째로 넘기면 한 번에 십수만 토큰이
+ * 나간다. 무료 한도로는 그 한 번으로 끝이다. 게다가 한 번에 배울 분량도 아니다 —
+ * 설명은 어차피 앞 4000자로 만든다(ANALYZE_CHAR_LIMIT). 앞 15분이면 그쯤 나온다. */
+export const TRANSCRIBE_MINUTES = 15;
+
+/* 영상에서 초당 몇 장면을 볼지.
+ *
+ * 우리가 받아 적는 건 "말한 내용"이라 화면은 거의 필요 없다. 그런데 그냥
+ * 넘기면 구글은 1초에 한 장씩 그림으로 잘라 읽는다 — 소리(초당 32토큰)보다
+ * 그림(장당 258토큰)이 여덟 배 비싸고, 비용의 대부분이 안 쓸 화면이다.
+ * 10초에 한 장이면 소리는 그대로 다 듣고 화면 값만 십분의 일로 떨어진다. */
+const TRANSCRIBE_FPS = 0.1;
+
+/* 영상이 실제로 들어갔다고 볼 수 있는 최소 입력 토큰 수.
+ *
+ * 아주 낮게 잡는다. 위처럼 화면을 덜 보게 하면 1분이 삼천 토큰쯤이고, 짧은
+ * 영상도 천 단위는 된다. 지시문만 세면 수백이다. 이 사이에 선을 그으면
+ * "영상을 안 봤다"는 것만 확실히 걸러진다 — 애매하게 높이 잡아 되는 것까지
+ * 막느니, 확실한 것만 막는다. */
+const VIDEO_TOKEN_FLOOR = 500;
+
 const SYSTEM = `당신은 한국인을 위한 일본어 회화 튜터입니다.
 학습자 수준은 JLPT N5 상위 ~ N4 초반이고, 목표는 일본인이 실제로 쓰는 자연스러운
 표현으로 10~15분 대화하는 것입니다.
@@ -180,15 +203,92 @@ function geminiReason(data) {
   return why ? `Gemini가 글을 못 만들었어요 (${why})` : 'Gemini가 빈 응답을 보냈어요';
 }
 
+const TRANSCRIBE = `이 영상에서 일본어로 말하는 내용을 그대로 받아 적으세요.
+
+- 한 줄에 하나씩, [분:초] 뒤에 그 시각에 말한 일본어를 적습니다. 예: [1:23] やっぱり美味しいですね。
+- 시각은 그 말이 시작하는 지점으로 적습니다.
+- 들리는 대로만 적습니다. 번역·설명·요약을 붙이지 말고, 일본어 외의 말은 넣지 마세요.
+- 화면에 적힌 글자가 아니라 말한 내용을 적습니다.
+- 잘 안 들리는 부분은 지어내지 말고 그 줄을 빼세요.
+- 다른 말 없이 받아 적은 줄만 출력하세요.`;
+
+/* 유튜브 주소를 Gemini에 넘겨 말한 내용을 받아 적게 한다.
+ *
+ * 유튜브가 가진 자막 파일을 그대로 내려받는 게 아니다 — 그 주소는 브라우저에서
+ * 부를 수 없고(CORS), 서버 없는 앱이라 대신 불러 줄 곳도 없다. 그래서 주소를
+ * 구글에 넘기고 구글이 영상을 열어 듣는다. 대신 화면은 거의 안 보고(fps),
+ * 앞부분만 본다(offset) — 필요한 건 소리뿐이고, 나머지는 그냥 요금이다.
+ *
+ * 받아 온 글을 바로 학습에 쓰지는 않는다. 이건 사람이 만든 자막이 아니라 모델이
+ * 듣고 옮긴 것이라 틀릴 수 있고, 틀린 문장으로 공부하면 틀린 걸 외운다. 그래서
+ * 입력칸에 채워 넣고 눈으로 확인한 뒤 저장하게 한다 — 배우는 건 사용자가
+ * 받아들인 글이다. */
+export async function fetchTranscript({ apiKey, model, videoId, minutes = TRANSCRIBE_MINUTES }) {
+  if (!apiKey) throw new Error('구글 API 키가 필요해요');
+  if (!videoId) throw new Error('영상 주소를 확인해 주세요');
+  const name = model || DEFAULT_GEMINI_MODEL;
+  const url = `${GEMINI_BASE}/models/${encodeURIComponent(name)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const ask = (thrifty) => fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [
+          {
+            file_data: { file_uri: `https://www.youtube.com/watch?v=${videoId}` },
+            ...(thrifty ? {
+              video_metadata: {
+                start_offset: { seconds: 0 },
+                end_offset: { seconds: Math.round(minutes * 60) },
+                fps: TRANSCRIBE_FPS,
+              },
+            } : {}),
+          },
+          { text: TRANSCRIBE },
+        ],
+      }],
+      generationConfig: { maxOutputTokens: 32768 },
+    }),
+  });
+
+  /* 아껴 쓰는 설정(길이·화면 수)을 못 알아듣는 모델도 있다. 그때 400을 그대로
+     내면 "왜 안 되지"로 끝나니, 설정만 빼고 한 번 더 해 본다 — 비싸지지만 된다. */
+  let res = await ask(true);
+  if (res.status === 400) res = await ask(false);
+  if (!res.ok) throw await failure(res, 'Gemini');
+  const data = await res.json();
+  const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
+  if (!text) throw new Error(geminiReason(data));
+
+  /* 영상을 진짜로 봤는지 확인한다.
+   *
+   * 주소만 넘겼는데 모델이 영상을 못 읽으면, 오류를 내는 대신 그럴듯한 일본어를
+   * 지어낼 수 있다. 겉보기에는 잘 된 것과 구별이 안 되고, 그걸로 공부하면 세상에
+   * 없는 문장을 외운다. 답이 유난히 빨리 오면 대개 이 경우다.
+   *
+   * 증거는 입력 토큰 수다. 영상이 실제로 들어갔으면 1분만 돼도 천 단위로 뛴다.
+   * 지시문만 세면 수백이다. 그래서 아주 낮은 바닥선만 두고, 그 아래면 받아 온
+   * 글을 버린다 — 지어낸 자막을 넘겨주는 것보다 못 가져왔다고 하는 편이 낫다. */
+  const tokens = data.usageMetadata?.promptTokenCount;
+  if (typeof tokens === 'number' && tokens < VIDEO_TOKEN_FLOOR) {
+    throw new Error(
+      `영상을 읽지 못했어요 (입력 ${tokens.toLocaleString()}토큰). `
+      + '받아 온 글이 지어낸 것일 수 있어 버렸어요. 자막을 직접 붙여넣어 주세요',
+    );
+  }
+  return { text, tokens };
+}
+
 /* Gemini 앱(사람이 직접 쓰는 쪽)에 붙여넣을 프롬프트.
  *
  * 앱의 Gemini는 유튜브 링크를 주면 유튜브에 등록된 자막을 그대로 가져온다 —
  * 영상을 듣는 게 아니라 글을 읽는 것이라 빠르고, 사람이 만든 자막이면 정확하고,
  * 무엇보다 API 요금이 0이다. 그 기능은 API로는 열려 있지 않다.
  *
- * API로 영상을 직접 듣게 해 봤지만(fetchTranscript, 커밋 1a30c80) 접었다.
- * 되기는 되는데 긴 영상 하나에 십만 토큰이 나가서, 무료 한도로는 하루 몇 개가
- * 끝이다. 자막이 이미 유튜브에 있는데 음성을 다시 받아 적게 하는 건 낭비다.
+ * API로 영상을 직접 듣는 길(fetchTranscript)도 있지만 기본은 이쪽이다. 그건
+ * 긴 영상 하나에 수만 토큰이 나가서 무료 한도가 금방 닳는다 — 설정에서 켠
+ * 사람만 쓴다.
  *
  * 그래서 다리를 놓는다. 앱에서 받아 온 글을 아래 입력칸에 붙여넣으면 그만이다.
  * 형식을 여기서 못 박는 이유는 parseScript가 읽을 수 있어야 하기 때문이다 —

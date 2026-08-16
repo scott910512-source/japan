@@ -6,7 +6,8 @@ import BottomSheet from '../components/BottomSheet.jsx';
 import MicButton from '../components/MicButton.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import {
-  ANALYZE_CHAR_LIMIT, analyzeScript, resolveProvider, transcriptPrompt, youtubeId,
+  ANALYZE_CHAR_LIMIT, PROVIDERS, TRANSCRIBE_MINUTES,
+  analyzeScript, fetchTranscript, resolveProvider, transcriptPrompt, youtubeId,
 } from '../lib/videoTutor.js';
 import VideoLesson, { buildSteps } from './VideoLesson.jsx';
 import ScriptLesson from './ScriptLesson.jsx';
@@ -189,6 +190,34 @@ export default function Videos({
   const say = (text) => speakJapanese(text, settings.speechRate);
   const ai = resolveProvider(settings);
   const aiKey = ai.apiKey;
+
+  /* 영상을 직접 듣게 하는 길. 요금이 많이 들어 설정에서 켠 사람만 쓴다.
+     유튜브를 볼 수 있는 건 Gemini뿐이라 Claude에서는 아예 안 보인다. */
+  const canGrab = Boolean(settings.videoTranscribe) && ai.provider === PROVIDERS.GEMINI && Boolean(aiKey);
+
+  /* 받아 온 글을 바로 저장하지 않고 입력칸에 채운다. 사람이 만든 자막이 아니라
+     모델이 듣고 옮긴 것이라 틀릴 수 있고, 틀린 문장으로 공부하면 틀린 걸
+     외운다. 눈으로 확인하고 저장하는 건 사용자 몫이다. */
+  const grabScript = async () => {
+    if (busy) return;
+    setBusy(true);
+    const began = Date.now();
+    try {
+      const { text, tokens } = await fetchTranscript({ apiKey: aiKey, model: ai.model, videoId: open.id });
+      const got = parseScript(text).length;
+      if (!got) throw new Error('받아 적은 게 없어요');
+      setScript(text);
+      /* 걸린 시간과 토큰 수를 같이 보여 준다 — 영상을 진짜로 들었는지 재는 자다.
+         몇 초 만에 적은 토큰으로 오면 듣지 않고 지어낸 것이다. */
+      const took = Math.max(1, Math.round((Date.now() - began) / 1000));
+      const how = [`${took}초`, tokens ? `영상 ${tokens.toLocaleString()}토큰` : ''].filter(Boolean).join(' · ');
+      onToast(`${got}줄을 받아 왔어요 (${how}). 확인하고 저장해 주세요`);
+    } catch (err) {
+      onToast(err.message || '자막을 받아오지 못했어요');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   /* Gemini 앱에 물어볼 말. 복사가 막힌 브라우저도 있으니(https가 아니거나 권한이
      없으면 clipboard가 거절한다) 글 자체를 늘 펼쳐 두고, 버튼은 편의로만 둔다. */
@@ -432,6 +461,11 @@ export default function Videos({
             </div>
           )}
           <div className="vd-scriptacts">
+            {canGrab && (
+              <button className="ghost-btn" disabled={busy} onClick={grabScript}>
+                {busy ? '영상 듣는 중…' : `영상에서 가져오기 (앞 ${TRANSCRIBE_MINUTES}분)`}
+              </button>
+            )}
             <button className="vd-run" disabled={busy || !script.trim()} onClick={() => { saveScript(); setMode(null); }}>
               자막으로 학습 준비하기
             </button>
@@ -452,6 +486,7 @@ export default function Videos({
             <p className="vd-note" style={{ marginTop: 10 }}>
               앱의 Gemini는 유튜브에 등록된 자막을 그대로 읽어 와요. 영상을 듣는 게
               아니라 글을 읽는 거라 빠르고, API 요금이 들지 않습니다.
+              {!canGrab && ' 설정 → 영상 학습에서 「영상에서 자막 직접 받아오기」를 켜면 앱을 안 거치고 바로 받을 수도 있어요(요금이 듭니다).'}
               {' '}자막이 없는 영상이면 못 가져와요 — 그때는 들으면서 직접 적어 주세요.
               {' '}한국어 번역이 섞여 오면 그 줄은 지우고 넣으세요. 일본어 줄만 있어야 해요.
             </p>
