@@ -90,3 +90,35 @@ export function withDurations(lines, tail = 6) {
 export function hasTimes(lines) {
   return lines.some((l) => l.at != null);
 }
+
+/* 자막의 분량. 시각 표기는 빼고 실제 말한 글자만 센다 — API에 실리는 것도,
+ * 공부할 거리도 그쪽이다. */
+export function scriptChars(text) {
+  return parseScript(text).reduce((n, l) => n + l.jp.length, 0);
+}
+
+/* 설명을 만들 때 쓸 앞부분만 잘라 낸다.
+ *
+ * 길다고 좋은 자료가 나오지 않는다. 튜터는 단어 5~10개, 문법 1~3개만 뽑는데
+ * 500문장을 통째로 주면 고를 거리만 늘고 결과는 오히려 흐려진다. 게다가 답이
+ * 길어져 중간에 잘리기도 한다. API도 그만큼 더 쓴다.
+ *
+ * 줄 중간에서 자르지 않는다 — 끊긴 문장으로는 설명을 만들 수 없다. 첫 줄이
+ * 한도보다 길어도 그 줄은 통째로 남긴다(빈손으로 보내는 것보다 낫다). */
+export function clipScript(text, limit) {
+  const all = parseScript(text);
+  const kept = [];
+  let chars = 0;
+  for (const line of all) {
+    if (kept.length && chars + line.jp.length > limit) break;
+    kept.push(line);
+    chars += line.jp.length;
+  }
+  return {
+    text: kept.map((l) => (l.at != null ? `[${formatTime(l.at)}] ${l.jp}` : l.jp)).join('\n'),
+    chars,
+    lines: kept.length,
+    total: all.length,
+    clipped: kept.length < all.length,
+  };
+}

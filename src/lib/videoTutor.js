@@ -19,6 +19,14 @@ export const DEFAULT_MODEL = 'claude-sonnet-5';
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 export const PROVIDERS = { CLAUDE: 'claude', GEMINI: 'gemini' };
 
+/* 설명을 만들 때 API에 실을 자막의 최대 글자 수.
+ *
+ * 비용만의 문제가 아니다. 튜터는 단어 5~10개, 문법 1~3개만 뽑으니 자막이 길다고
+ * 자료가 좋아지지 않는다 — 고를 거리만 늘고 결과가 흐려지며, 답이 길어져
+ * 중간에 잘리기도 한다. 4000자면 대략 10~15분어치 말이고, 한 번에 배울 분량으로도
+ * 그쯤이 맞다. 자막 학습 자체는 API를 쓰지 않으니 이 한도와 무관하다. */
+export const ANALYZE_CHAR_LIMIT = 4000;
+
 const SYSTEM = `당신은 한국인을 위한 일본어 회화 튜터입니다.
 학습자 수준은 JLPT N5 상위 ~ N4 초반이고, 목표는 일본인이 실제로 쓰는 자연스러운
 표현으로 10~15분 대화하는 것입니다.

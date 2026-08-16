@@ -1105,6 +1105,8 @@ button, input, select { font-family: inherit; }
 }
 
 .vd-scriptacts { display: flex; flex-direction: column; gap: 8px; }
+.vd-count { font-size: 12px; color: var(--ink-soft); margin: 8px 0 10px; line-height: 1.5; }
+.vd-count.over { color: var(--kon); }
 .vd-entry + .vd-entry { margin-top: 12px; }
 .vd-entry .vd-h { margin-bottom: 4px; }
 .vd-entrybar { height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 12px 0 14px; }
