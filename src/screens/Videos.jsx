@@ -5,8 +5,7 @@ import {
 import MicButton from '../components/MicButton.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import {
-  ANALYZE_CHAR_LIMIT, PROVIDERS, TRANSCRIBE_MINUTES,
-  analyzeScript, fetchTranscript, resolveProvider, transcriptPrompt, youtubeId,
+  ANALYZE_CHAR_LIMIT, analyzeScript, resolveProvider, transcriptPrompt, youtubeId,
 } from '../lib/videoTutor.js';
 import { SEED_VIDEOS } from '../data/videos.js';
 import {
@@ -102,7 +101,6 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   const [urlDraft, setUrlDraft] = useState('');
   const [script, setScript] = useState('');
   const [busy, setBusy] = useState(false);
-  const [prompt, setPrompt] = useState(''); // 복사가 막혔을 때만 펼쳐 보여 준다
 
   useEffect(() => saveVideos(videos), [videos]);
   useEffect(() => saveVideoAnalyses(analyses), [analyses]);
@@ -193,47 +191,16 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   const say = (text) => speakJapanese(text, settings.speechRate);
   const ai = resolveProvider(settings);
   const aiKey = ai.apiKey;
-  // 영상을 직접 보고 받아 적는 건 Gemini만 된다 — Claude는 유튜브를 못 본다
-  const canGrab = ai.provider === PROVIDERS.GEMINI && Boolean(aiKey);
 
-  /* 받아 온 글을 바로 저장하지 않고 입력칸에 채운다. 사람이 만든 자막이 아니라
-     모델이 듣고 옮긴 것이라 틀릴 수 있고, 틀린 문장으로 공부하면 틀린 걸
-     외운다. 눈으로 확인하고 저장하는 건 사용자 몫이다. */
-  const grabScript = async () => {
-    if (busy) return;
-    setBusy(true);
-    const began = Date.now();
-    try {
-      const { text, tokens } = await fetchTranscript({ apiKey: aiKey, model: ai.model, videoId: open.id });
-      const got = parseScript(text).length;
-      if (!got) throw new Error('받아 적은 게 없어요');
-      setScript(text);
-      /* 걸린 시간과 토큰 수를 같이 보여 준다 — 영상을 진짜로 들었는지 재는 자다.
-         정말 들었으면 시간이 걸리고 토큰이 뛴다. 몇 초 만에 적은 토큰으로 오면
-         듣지 않고 지어낸 것이다. */
-      const took = Math.max(1, Math.round((Date.now() - began) / 1000));
-      const how = [`${took}초`, tokens ? `영상 ${tokens.toLocaleString()}토큰` : ''].filter(Boolean).join(' · ');
-      onToast(`${got}줄을 받아 왔어요 (${how}). 확인하고 저장해 주세요`);
-    } catch (err) {
-      onToast(err.message || '자막을 받아오지 못했어요');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  /* Gemini 앱에 물어볼 말을 복사해 준다.
-     앱은 유튜브 자막을 그대로 읽어 오고 요금도 안 든다 — API로 영상을 듣게
-     하는 것보다 이 길이 낫다. 복사가 막힌 브라우저(https가 아니거나 권한이
-     없는 경우)에서는 글을 펼쳐 보여 주고 직접 복사하게 한다. */
+  /* Gemini 앱에 물어볼 말. 복사가 막힌 브라우저도 있으니(https가 아니거나 권한이
+     없으면 clipboard가 거절한다) 글 자체를 늘 펼쳐 두고, 버튼은 편의로만 둔다. */
+  const prompt = open ? transcriptPrompt(`https://youtu.be/${open.id}`) : '';
   const copyPrompt = async () => {
-    const text = transcriptPrompt(`https://youtu.be/${open.id}`);
     try {
-      await navigator.clipboard.writeText(text);
-      setPrompt('');
+      await navigator.clipboard.writeText(prompt);
       onToast('복사했어요. Gemini 앱에 붙여넣고, 받은 자막을 여기에 넣어 주세요');
     } catch {
-      setPrompt(text);
-      onToast('복사가 막혀 있어요. 아래 글을 직접 복사해 주세요');
+      onToast('복사가 막혀 있어요. 아래 글을 길게 눌러 직접 복사해 주세요');
     }
   };
 
@@ -437,21 +404,32 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
             </div>
           )}
           <div className="vd-scriptacts">
-            <button className="ghost-btn" onClick={copyPrompt}>Gemini 앱에 물어볼 말 복사</button>
-            {canGrab && (
-              <button className="ghost-btn" disabled={busy} onClick={grabScript}>
-                {busy ? '영상 듣는 중…' : '영상에서 가져오기'}
-              </button>
-            )}
             <button className="vd-run" disabled={busy || !script.trim()} onClick={() => { saveScript(); setMode(null); }}>
               자막으로 학습 준비하기
             </button>
           </div>
-          {prompt && <textarea className="vd-script vd-prompt" value={prompt} readOnly rows={6} />}
+
+          {/* 자막을 어디서 구하는지가 이 화면의 진짜 문턱이다. 다만 한 번 해 보면
+              그다음부터는 아는 일이라, 늘 펼쳐 두면 자리만 차지한다. 접어 둔다. */}
+          <details className="vd-how">
+            <summary>자막 가져오는 방법 보기</summary>
+            <ol className="vd-steps">
+              <li>아래 글을 복사합니다.</li>
+              <li>Gemini 앱(또는 gemini.google.com)에 붙여넣고 보냅니다.</li>
+              <li>나온 일본어 줄을 전부 복사합니다.</li>
+              <li>위 자막 칸에 붙여넣고 「자막으로 학습 준비하기」를 누릅니다.</li>
+            </ol>
+            <textarea className="vd-prompt" value={prompt} readOnly rows={7} />
+            <button className="ghost-btn" onClick={copyPrompt}>이 글 복사</button>
+            <p className="vd-note" style={{ marginTop: 10 }}>
+              앱의 Gemini는 유튜브에 등록된 자막을 그대로 읽어 와요. 영상을 듣는 게
+              아니라 글을 읽는 거라 빠르고, API 요금이 들지 않습니다.
+              {' '}자막이 없는 영상이면 못 가져와요 — 그때는 들으면서 직접 적어 주세요.
+              {' '}한국어 번역이 섞여 오면 그 줄은 지우고 넣으세요. 일본어 줄만 있어야 해요.
+            </p>
+          </details>
+
           <p className="vd-note" style={{ marginTop: 10 }}>
-            {'「Gemini 앱에 물어볼 말 복사」가 가장 싸고 정확해요 — 앱의 Gemini는 유튜브에 등록된 자막을 그대로 읽어 오고, API 요금이 들지 않습니다. 받은 글을 위 칸에 붙여넣으세요. '}
-            {canGrab
-              && `「영상에서 가져오기」는 앱을 거치지 않는 대신 Gemini가 영상을 ${TRANSCRIBE_MINUTES}분까지 직접 듣고 받아 적어요(화면은 거의 안 보고 소리만 들어 API를 아껴 씁니다). 사람이 만든 자막이 아니라 틀릴 수 있으니, 눈으로 훑어보고 저장해 주세요. `}
             자막은 이 기기에만 저장돼요. 뜻과 문법 설명은 학습을 시작한 뒤에 따로 붙일 수 있어요.
           </p>
         </Section>

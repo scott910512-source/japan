@@ -1038,8 +1038,24 @@ button, input, select { font-family: inherit; }
   width: 100%; margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line);
   border-radius: 12px; padding: 12px; color: var(--ink); font: inherit; line-height: 1.6; resize: vertical;
 }
-/* 복사가 막혔을 때만 나오는 칸 — 읽고 직접 복사하는 용도라 눈에 덜 걸리게. */
-.vd-prompt { font-size: 13px; color: var(--ink-soft); }
+/* 자막 구하는 법 — 처음 한 번만 필요한 안내라 접어 둔다. */
+.vd-how { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.vd-how > summary {
+  cursor: pointer; list-style: none; font-size: 13px; font-weight: 600; color: var(--kon);
+}
+.vd-how > summary::-webkit-details-marker { display: none; }
+.vd-how > summary::after { content: ' ▾'; font-weight: 400; }
+.vd-how[open] > summary::after { content: ' ▴'; }
+.vd-steps {
+  margin: 10px 0 0; padding-left: 20px; font-size: 13px; line-height: 1.9; color: var(--ink-soft);
+}
+/* 읽고 직접 복사하는 용도. 자막 입력칸(.vd-script)과 생김새는 같되 클래스는
+   따로 둔다 — 같이 쓰면 "자막 칸"을 가리키는 곳마다 둘 다 걸린다. */
+.vd-prompt {
+  width: 100%; margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px; color: var(--ink-soft); font: inherit; font-size: 13px;
+  line-height: 1.6; resize: vertical;
+}
 .vd-run {
   width: 100%; margin-top: 10px; padding: 13px; border: none; border-radius: 12px; cursor: pointer;
   background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14; font: inherit; font-weight: 700;
