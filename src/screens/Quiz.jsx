@@ -11,6 +11,10 @@ import {
 
 const COUNTS = [10, 20, 30, 50];
 
+// 맞힌 문제에서 다음으로 넘어가기까지 — 정답 표시를 눈으로 확인할 만큼만 둔다.
+const AUTO_NEXT_MS = 750;
+const AUTO_NEXT_SPEAK_MS = 1500;
+
 const TYPE_OPTS = [
   { id: QUIZ_TYPE.CHOICE, label: '객관식', sub: '4개 중 고르기' },
   { id: QUIZ_TYPE.TYPING, label: '주관식', sub: '직접 입력' },
@@ -204,6 +208,18 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
 
   const next = () => onRun({ ...run, index: index + 1 });
 
+  /* 맞혔으면 버튼을 한 번 더 누르게 하지 않는다. 맞은 문제에서 더 볼 것도 없는데
+   * 화면 아래 버튼까지 손을 내리는 게 스무 문제 내내 반복된다.
+   * 다만 눈으로 확인할 틈은 준다 — 바로 넘기면 맞았는지도 모르고 지나간다.
+   * 한→일 문제에서 답을 읽어 주는 중이면 그 소리가 끝날 때까지 기다린다. */
+  useEffect(() => {
+    if (!answered || answered.verdict !== 'correct') return undefined;
+    const speaking = settings.autoTTS && q?.dir === QUIZ_DIR.KO_JP;
+    const timer = setTimeout(next, speaking ? AUTO_NEXT_SPEAK_MS : AUTO_NEXT_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answered, index]);
+
   // 오타로 틀리는 건 실력이 아니다. 애매한 답은 내가 인정할 수 있게 둔다.
   const acceptClose = () => onRun({
     ...run,
@@ -296,6 +312,19 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
                 <span className="qo-body">
                   <b>{o.label}</b>
                   {o.sub && <span>{o.sub}</span>}
+                  {/* 설명은 정답 보기 안에 붙인다. 아래에 따로 상자를 띄우면
+                      그만큼 '다음 문제'가 화면 밖으로 밀려난다. */}
+                  {answered && isAnswer && answered.verdict !== 'correct' && (
+                    <span className="qo-why">
+                      {q.answerSub && q.answerSub !== o.label && <b>{q.answerSub}</b>}
+                      {word?.example && (
+                        <>
+                          <span className="qw-jp">{word.example}</span>
+                          <span className="qw-ko">{word.exampleKo}</span>
+                        </>
+                      )}
+                    </span>
+                  )}
                 </span>
                 {answered && isAnswer && <span className="qo-mark ok"><IconCheck /> 정답</span>}
                 {answered && isMine && !isAnswer && <span className="qo-mark no"><IconX /> 내가 고른 답</span>}
@@ -325,9 +354,10 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
         </div>
       )}
 
-      {answered && (
+      {/* 객관식은 정답 보기 안에서 설명하니 상자를 또 띄우지 않는다.
+          주관식은 보기가 없어서 여기 말고는 설명할 자리가 없다. */}
+      {answered && q.type !== QUIZ_TYPE.CHOICE && answered.verdict !== 'correct' && (
         <div className={`qverdict ${answered.verdict}`}>
-          {answered.verdict === 'correct' && <><IconCheck /> 정답이에요</>}
           {answered.verdict === 'close' && <>거의 맞았어요 — 정답은 <b>{q.answer}</b></>}
           {answered.verdict === 'wrong' && <><IconX /> 정답은 <b>{q.answer}</b>{q.answerSub && q.answerSub !== q.answer && ` (${q.answerSub})`}</>}
           {word?.example && (
@@ -339,7 +369,8 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
         </div>
       )}
 
-      {answered && (
+      {/* 맞힌 문제는 알아서 넘어가므로 버튼을 내지 않는다 — 눌러야 할 게 없어야 빠르다. */}
+      {answered && answered.verdict !== 'correct' && (
         <div className="qnext">
           {answered.verdict === 'close' && (
             <button className="ghost-btn" onClick={acceptClose}>맞게 처리하기</button>
