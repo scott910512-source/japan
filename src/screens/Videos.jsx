@@ -5,7 +5,7 @@ import {
 import MicButton from '../components/MicButton.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import {
-  PROVIDERS, analyzeScript, fetchTranscript, resolveProvider, youtubeId,
+  ANALYZE_CHAR_LIMIT, PROVIDERS, analyzeScript, fetchTranscript, resolveProvider, youtubeId,
 } from '../lib/videoTutor.js';
 import { SEED_VIDEOS } from '../data/videos.js';
 import {
@@ -14,7 +14,7 @@ import {
 } from '../lib/storage.js';
 import VideoLesson, { buildSteps } from './VideoLesson.jsx';
 import ScriptLesson from './ScriptLesson.jsx';
-import { hasTimes, parseScript } from '../lib/script.js';
+import { clipScript, hasTimes, parseScript, scriptChars } from '../lib/script.js';
 
 /* 영상으로 배우기.
  *
@@ -116,6 +116,9 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
   useEffect(() => { setScript(openId ? loadVideoScripts()[openId] || '' : ''); setMode(null); }, [openId]);
 
   const lines = useMemo(() => parseScript(savedScript), [savedScript]);
+  /* 설명에 실을 몫. 자막 학습은 API를 안 쓰니 전부 그대로 돌고, 이 한도는
+     설명을 만들 때만 걸린다. */
+  const clip = useMemo(() => clipScript(savedScript, ANALYZE_CHAR_LIMIT), [savedScript]);
   const steps = useMemo(() => buildSteps(analysis), [analysis]);
 
   /* 설명이 있으면 줄마다 뜻을 붙여 준다. 자막 문장과 똑같이 적힌 것만 쓴다 —
@@ -174,7 +177,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
         ...resolveProvider(settings),
         title: info?.title,
         channel: info?.channel,
-        script: savedScript || script,
+        script: clip.text || savedScript || script,
       });
       setAnalyses((prev) => ({ ...prev, [open.id]: { ...result, at: Date.now() } }));
       onToast('학습자료를 만들었어요');
@@ -209,6 +212,23 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
       setBusy(false);
     }
   };
+
+  /* 설명 카드에 적을 한 줄. 급한 것부터 말한다 — 키가 없으면 그게 먼저고,
+     이미 만들었으면 진도, 자막이 길면 얼마만 쓰는지. */
+  const lessonNote = (() => {
+    if (!aiKey) return '설정 → 영상 학습에서 API 키를 넣으면, 이 자막에서 단어와 문법 설명을 뽑아 줘요. 없어도 위 자막 학습은 됩니다.';
+    if (analysis) {
+      if (lessonMark.step > 0) return `${steps.length}단계 중 ${lessonMark.step + 1}단계까지 왔어요.`;
+      if (lessonMark.done) return '한 번 마친 설명이에요. 다시 볼 수 있어요.';
+      return `핵심 단어·문법·실제 회화 표현을 ${steps.length}단계로 봅니다.`;
+    }
+    if (clip.clipped) {
+      return `자막이 ${clip.total}줄 ${scriptChars(savedScript).toLocaleString()}자예요.`
+        + ` 설명은 앞 ${clip.lines}줄(${clip.chars.toLocaleString()}자)로 만듭니다`
+        + ' — 한 번에 배울 분량이 그쯤이고, 더 넣는다고 좋아지지 않아요.';
+    }
+    return '자막에서 핵심 단어와 문법을 뽑아 설명으로 만들어요. 한 번 만들면 그대로 남습니다.';
+  })();
 
   /* 이미 단어장에 있는 단어를 또 만들지 않는다. 結構는 N3에 이미 있는데
    * 영상에서 담았다고 새 카드를 만들면, 같은 단어를 두 번 외우면서 회독 기록도
@@ -385,6 +405,13 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
             placeholder={'[00:00]\nこんにちは。今日は…'}
             rows={7}
           />
+          {script.trim() && (
+            <div className={`vd-count${scriptChars(script) > ANALYZE_CHAR_LIMIT ? ' over' : ''}`}>
+              {parseScript(script).length}줄 · {scriptChars(script).toLocaleString()}자
+              {scriptChars(script) > ANALYZE_CHAR_LIMIT
+                && ` — 줄 학습은 전부 되고, 설명은 앞 ${ANALYZE_CHAR_LIMIT.toLocaleString()}자로 만들어요`}
+            </div>
+          )}
           <div className="vd-scriptacts">
             {canGrab && (
               <button className="ghost-btn" disabled={busy} onClick={grabScript}>
@@ -437,17 +464,7 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
       {savedScript && mode !== 'edit' && (
         <div className="card vd-entry">
           <h3 className="vd-h">뜻·문법 설명</h3>
-          <p className="vd-sub">
-            {analysis
-              ? (lessonMark.step > 0
-                ? `${steps.length}단계 중 ${lessonMark.step + 1}단계까지 왔어요.`
-                : lessonMark.done
-                  ? '한 번 마친 설명이에요. 다시 볼 수 있어요.'
-                  : `핵심 단어·문법·실제 회화 표현을 ${steps.length}단계로 봅니다.`)
-              : aiKey
-                ? '자막에서 핵심 단어와 문법을 뽑아 설명으로 만들어요. 한 번 만들면 그대로 남습니다.'
-                : '설정 → 영상 학습에서 API 키를 넣으면, 이 자막에서 단어와 문법 설명을 뽑아 줘요. 없어도 위 자막 학습은 됩니다.'}
-          </p>
+          <p className="vd-sub">{lessonNote}</p>
           <div className="vd-entryacts">
             {analysis ? (
               <>
