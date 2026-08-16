@@ -193,6 +193,7 @@ export const DEFAULT_SETTINGS = {
   speakOnJudge: false, // 답을 고를 때 그 단어를 한 번 더 읽어주기
   // 영상 설명을 만들 곳. 키는 모두 이 기기에만 저장하고 서버로 보내지 않는다.
   aiProvider: 'gemini', // gemini | claude
+  videoTranscribe: false, // 영상을 직접 듣게 할지 — 요금이 많이 들어 기본은 끔
   geminiKey: '',        // 비워 두면 음성 키(gttsKey)를 그대로 쓴다 — 같은 형식이다
   geminiModel: '',      // 비우면 기본값, 설정에서 목록을 받아 고를 수 있다
   claudeKey: '',

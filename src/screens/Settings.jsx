@@ -10,7 +10,8 @@ import KeyVault from '../components/KeyVault.jsx';
 import VoicePicker from '../components/VoicePicker.jsx';
 import { usageSummary, formatChars } from '../lib/usage.js';
 import {
-  DEFAULT_GEMINI_MODEL, PROVIDERS, listGeminiModels, looksLikeGeminiKey, resolveProvider,
+  DEFAULT_GEMINI_MODEL, PROVIDERS, TRANSCRIBE_MINUTES,
+  listGeminiModels, looksLikeGeminiKey, resolveProvider,
 } from '../lib/videoTutor.js';
 
 const MENU_LABELS = {
@@ -133,6 +134,28 @@ function VideoAI({ settings, onChange, onToast }) {
             onChange={(e) => onChange({ claudeKey: e.target.value.trim() })}
           />
         </div>
+      )}
+
+      {/* 영상을 직접 듣게 하는 건 요금이 많이 든다. 기본은 꺼 두고, 알고 켜는
+          사람만 쓰게 한다. Gemini만 유튜브를 볼 수 있어 Claude에서는 안 보인다. */}
+      {gemini && (
+        <>
+          <Toggle
+            label="영상에서 자막 직접 받아오기"
+            sub={`Gemini가 영상을 ${TRANSCRIBE_MINUTES}분까지 듣고 받아 적어요`}
+            on={Boolean(settings.videoTranscribe)}
+            onClick={() => onChange({ videoTranscribe: !settings.videoTranscribe })}
+          />
+          <div className="setrow col">
+            <div className="set-note">
+              끄면 「Gemini 앱에 물어볼 말 복사」로 하시면 돼요 — 유튜브 자막을 그대로
+              읽어 오고 요금이 안 듭니다.
+              {' '}켜면 앱을 왔다갔다 안 해도 되는 대신 영상 10분에 3만 토큰쯤 써요.
+              무료 한도가 금방 닳고, 사람이 만든 자막이 아니라 틀릴 수도 있습니다.
+              {' '}자막이 아예 없는 영상에는 이쪽이 유일한 방법이에요.
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
