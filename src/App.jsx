@@ -11,6 +11,7 @@ import WordDeck, { filterByLevel } from './screens/WordDeck.jsx';
 import Situations from './screens/Situations.jsx';
 import Quiz from './screens/Quiz.jsx';
 import Jlpt from './screens/Jlpt.jsx';
+import Videos from './screens/Videos.jsx';
 import GrammarHub from './screens/GrammarHub.jsx';
 import Gate from './screens/Gate.jsx';
 import NewPassword from './screens/NewPassword.jsx';
@@ -44,6 +45,8 @@ const SUB_TITLES = {
   manage: '내 단어장',
   worddeck: '단어암기',
   quiz: '단어 시험',
+  jlpt: 'JLPT 단어',
+  videos: '영상으로 배우기',
 };
 
 export default function App() {
@@ -519,6 +522,13 @@ export default function App() {
                 review={review}
                 settings={settings}
                 onReviewChange={applyReview}
+                onToast={showToast}
+              />
+            )}
+            {sub === 'videos' && (
+              <Videos
+                settings={settings}
+                onAddWord={(w) => setCustomWords((prev) => [...prev, w])}
                 onToast={showToast}
               />
             )}

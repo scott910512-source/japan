@@ -9,6 +9,8 @@ const KEYS = {
   vault: 'jp_manabu_vault_v1',     // 계정 비밀번호에서 파생한 금고 열쇠 (비밀번호 자체는 저장하지 않는다)
   seen: 'jp_manabu_signed_in_v1',  // 이 기기에서 로그인한 적이 있는지 (오프라인 잠김 방지)
   memos: 'jp_manabu_memos_v1',     // 단어별 암기 메모 { 카드id: { text, at } }
+  videos: 'jp_manabu_videos_v1',   // 영상으로 배우기 — 담아 둔 영상 목록
+  videoAnalyses: 'jp_manabu_video_analyses_v1', // 영상별 학습자료 (자막은 저작물이라 담지 않는다)
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -36,6 +38,19 @@ function write(key, value) {
     onWriteError?.(full ? '저장 공간이 가득 찼어요. 설정에서 백업 후 정리해 주세요.' : '학습 기록을 저장하지 못했어요.');
     return false;
   }
+}
+
+export function loadVideos() {
+  return read(KEYS.videos, []);
+}
+export function saveVideos(list) {
+  write(KEYS.videos, list);
+}
+export function loadVideoAnalyses() {
+  return read(KEYS.videoAnalyses, {});
+}
+export function saveVideoAnalyses(map) {
+  write(KEYS.videoAnalyses, map);
 }
 
 export function loadCustomWords() {
@@ -137,6 +152,7 @@ export const DEFAULT_SETTINGS = {
     grammar: true,    // 기초문법
     words: true,      // 단어암기
     jlpt: true,       // JLPT 레벨별 단어
+    videos: true,     // 영상으로 배우기
     sentences: true,  // 상황별 문장암기
     quiz: true,       // 단어 시험
     rpg: false,       // 실전연습(여행 RPG) — 아직 이관 전이라 기본 off
@@ -145,6 +161,8 @@ export const DEFAULT_SETTINGS = {
   // 학습 기능
   autoTTS: true,      // 카드가 뜨면 자동으로 읽어주기
   speakOnJudge: false, // 답을 고를 때 그 단어를 한 번 더 읽어주기
+  claudeKey: '',       // 영상 자막 분석용 (이 기기에만 저장, 서버로 보내지 않는다)
+  claudeModel: '',     // 비우면 기본 모델
   showKana: false,    // 앞면에 히라가나 함께 표시
   showExample: true,  // 뒷면에 예문 표시
   hangulPron: false,  // 한글 근사 발음 표기

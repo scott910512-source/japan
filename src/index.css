@@ -947,3 +947,102 @@ button, input, select { font-family: inherit; }
 .jl-bar { height: 5px; border-radius: 3px; background: var(--surface-2); margin-top: 8px; overflow: hidden; }
 .jl-bar span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--kon), var(--kon-deep)); transition: width .3s ease; }
 .jl-pct { flex: 0 0 auto; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* ── 영상으로 배우기 ── */
+.vd-note { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+.vd-note svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.vd-add { display: flex; gap: 8px; margin-top: 14px; }
+.vd-add input {
+  flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px; color: var(--ink); font: inherit;
+}
+.vd-addbtn {
+  flex: 0 0 auto; width: 46px; border-radius: 12px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14;
+}
+.vd-addbtn svg { width: 20px; height: 20px; }
+
+.vd-item { display: flex; align-items: stretch; gap: 8px; padding: 10px; }
+.vd-open {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+  background: none; border: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.vd-thumb { width: 96px; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; flex: 0 0 auto; background: var(--surface-2); }
+.vd-body { flex: 1; min-width: 0; }
+.vd-title { font-size: 14px; font-weight: 600; line-height: 1.4; }
+.vd-meta { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+.vd-del { flex: 0 0 auto; background: none; border: none; color: var(--ink-soft); cursor: pointer; padding: 0 4px; }
+.vd-del svg { width: 18px; height: 18px; }
+
+.vd-player { margin-top: 14px; border-radius: 16px; overflow: hidden; background: #000; }
+.vd-player iframe { width: 100%; aspect-ratio: 16/9; border: 0; display: block; }
+
+.vd-sec { margin-top: 12px; }
+.vd-h { font-size: 15px; font-weight: 700; }
+.vd-sub { font-size: 12px; color: var(--ink-soft); margin-top: 4px; line-height: 1.5; }
+.vd-p { font-size: 13px; line-height: 1.65; margin-top: 8px; }
+.vd-dim { color: var(--ink-soft); }
+.vd-ul { margin: 8px 0 0 18px; font-size: 13px; line-height: 1.7; }
+.vd-badges { margin-top: 8px; }
+.vd-badge {
+  display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14;
+}
+
+.vd-script {
+  width: 100%; margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px; color: var(--ink); font: inherit; line-height: 1.6; resize: vertical;
+}
+.vd-run {
+  width: 100%; margin-top: 10px; padding: 13px; border: none; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14; font: inherit; font-weight: 700;
+}
+.vd-run:disabled { opacity: .45; cursor: default; }
+
+.vd-word { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.vd-wordmain { flex: 1; min-width: 0; background: none; border: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.vd-jp { font-size: 17px; font-weight: 600; margin-right: 8px; }
+.vd-yomi { font-size: 12px; color: var(--ink-soft); }
+.vd-ko { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
+.vd-point { display: block; font-size: 12px; color: var(--kon); margin-top: 3px; }
+.vd-keep {
+  flex: 0 0 auto; font-size: 12px; font-weight: 700; padding: 7px 12px; border-radius: 10px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
+}
+
+.vd-line {
+  display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 8px;
+  background: none; border: none; color: var(--ink); font: inherit; font-size: 15px;
+  line-height: 1.6; text-align: left; cursor: pointer;
+}
+.vd-line svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--kon); }
+.vd-quote, .vd-ex, .vd-real, .vd-break, .vd-lit, .vd-shadow, .vd-take {
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+.vd-realhead { font-size: 16px; font-weight: 700; color: var(--kon); }
+.vd-parts { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.vd-part { font-size: 13px; color: var(--ink-soft); }
+.vd-part b { color: var(--ink); margin-right: 6px; }
+.vd-warn { font-size: 13px; color: var(--shu); margin-top: 8px; line-height: 1.6; }
+.vd-litko { font-size: 14px; color: var(--ink-soft); }
+.vd-litjp { font-size: 15px; margin-top: 4px; }
+.vd-shadowbtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.vd-shadowbtns button {
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
+  border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.vd-shadowbtns button svg { width: 15px; height: 15px; }
+.vd-take { font-size: 14px; line-height: 1.6; }
+.vd-q { font-size: 16px; font-weight: 600; }
+.vd-redo {
+  width: 100%; margin: 14px 0 24px; padding: 12px; border-radius: 12px; cursor: pointer;
+  background: none; border: 1px solid var(--line); color: var(--ink-soft); font: inherit;
+}
+
+/* 화면 안에서 한 단계만 뒤로 가는 버튼. 상단의 '홈' 버튼과 섞이지 않게 따로 둔다. */
+.inner-back {
+  display: flex; align-items: center; gap: 2px; background: none; border: none;
+  color: var(--kon); font: inherit; font-size: 14px; font-weight: 600; padding: 6px; cursor: pointer;
+}
+.inner-back svg { width: 18px; height: 18px; }

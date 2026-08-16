@@ -90,7 +90,7 @@ export default function Jlpt({ words, review, onStartSet, onToast }) {
 
   return (
     <>
-      <button className="sub-back" onClick={() => setLevel(null)}>
+      <button className="inner-back" onClick={() => setLevel(null)}>
         <IconArrowLeft /> 레벨 다시 고르기
       </button>
       <div className="navtitle"><small>{LEVEL_NOTE[level]}</small>{level} · {counts[level]}개</div>
