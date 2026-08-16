@@ -203,8 +203,6 @@ export const DEFAULT_SETTINGS = {
   autoMic: false,     // 뜻을 연 순간 마이크를 자동으로 켜기 (권한을 한 번 준 뒤부터)
 
   // 하루 분량 — 복습 섞기 + 신규로 끊어서 학습한다
-  newPerDay: 50,      // 하루에 새로 볼 단어 수
-  reviewMix: 15,      // 그날 함께 섞을 복습(틀린 것) 수
   levels: ['N5'],     // 학습할 JLPT 레벨. 비우면 전체
 
   // 시험 — 회독과 따로 돈다. 마지막에 고른 설정을 기억해 둔다.
@@ -213,7 +211,7 @@ export const DEFAULT_SETTINGS = {
   quizDir: 'jp-ko',     // 'jp-ko' | 'ko-jp' | 'mix'
   quizScope: 'all',     // 'all' | 'seen' | 'weak'
 
-  dailyGoal: 20,      // 남겨 둔 예전 설정 (복습 덱·취약 덱에서 쓴다)
+  dailyGoal: 20,      // 하루에 볼 카드 수 — 이 안에서 신규:복습을 나눈다
   shuffle: true,
   direction: 'kanji-mean', // 'kanji-mean' | 'mean-kanji' | 'kanji-kana'
 
