@@ -200,6 +200,8 @@ export default function Settings({
       <div className="card">
         <Toggle label="자동 음성" sub="카드가 나오면 바로 읽어줘요"
           on={settings.autoTTS} onClick={() => onChange({ autoTTS: !settings.autoTTS })} />
+        <Toggle label="판정할 때 읽어주기" sub="몰라요·애매해요·알아요를 고르면 그 단어를 한 번 더 읽어줘요"
+          on={settings.speakOnJudge} onClick={() => onChange({ speakOnJudge: !settings.speakOnJudge })} />
         <Toggle label="히라가나 항상 보기" sub="앞면에 읽는 법을 함께 표시해요"
           on={settings.showKana} onClick={() => onChange({ showKana: !settings.showKana })} />
         <Toggle label="한글 발음 표기" sub="가나를 한글로 옮겨 적어요 (근사값)"

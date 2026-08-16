@@ -144,6 +144,7 @@ export const DEFAULT_SETTINGS = {
 
   // 학습 기능
   autoTTS: true,      // 카드가 뜨면 자동으로 읽어주기
+  speakOnJudge: false, // 답을 고를 때 그 단어를 한 번 더 읽어주기
   showKana: false,    // 앞면에 히라가나 함께 표시
   showExample: true,  // 뒷면에 예문 표시
   hangulPron: false,  // 한글 근사 발음 표기

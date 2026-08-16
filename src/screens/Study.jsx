@@ -56,6 +56,9 @@ function facesOf(word, settings) {
   };
 }
 
+/* 판정 음성이 끝나기를 기다리는 시간. 단어 한 개 길이면 충분하다. */
+const JUDGE_SPEAK_GAP = 950;
+
 export default function Study({
   deck, review, settings, session, bookmarks, memos, onSaveMemo,
   onReviewChange, onSessionChange, onSettingsChange, onBookmark, onClose, onToast,
@@ -130,12 +133,23 @@ export default function Study({
    * 그래서 "이번에 넘긴 카드"마다 한 번만 읽도록 표시를 남긴다.
    * done을 함께 쓰는 이유는 몰라요로 같은 카드가 다시 나왔을 때는 또 읽어야 하기 때문이다. */
   const spokenFor = useRef(null);
+  // 판정할 때 읽어 준 시각. 다음 카드의 자동 음성이 그 소리를 끊지 않게 잠깐 양보시킨다.
+  const judgeSpokeAt = useRef(0);
   useEffect(() => {
     if (!word || !settings.autoTTS) return;
     if (settings.direction === 'mean-kanji' && !revealed) return;
     if (spokenFor.current === visitKey) return;   // 한 방문에 한 번만
     spokenFor.current = visitKey;
+
+    // 방금 판정 음성이 나갔다면 그게 끝날 때까지 기다렸다가 읽는다.
+    // 카드가 또 넘어가면 정리 함수가 예약을 지워서 뒤늦게 울리는 일이 없다.
+    const wait = JUDGE_SPEAK_GAP - (Date.now() - judgeSpokeAt.current);
+    if (wait > 0) {
+      const timer = setTimeout(speakCurrent, wait);
+      return () => clearTimeout(timer);
+    }
     speakCurrent();
+    return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visitKey, revealed]);
 
@@ -149,6 +163,12 @@ export default function Study({
     // 판정은 언제든 누를 수 있다. 아는 단어를 확인시키려고 한 번 더 두드리게 하면
     // 아는 것만 많은 회독에서 그 두드림이 전부 마찰이 된다. 내 기록은 내가 정한다.
     setLocked(true);
+
+    // 답을 고른 순간의 발음 확인. 아는 줄 알았는데 소리가 다른 경우를 여기서 잡는다.
+    if (settings.speakOnJudge) {
+      speakCurrent();
+      judgeSpokeAt.current = Date.now();
+    }
 
     history.current.push({
       cardId: word.id,
