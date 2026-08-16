@@ -148,7 +148,7 @@ export const N3_WORDS_F = [
     example: '基本の重要性が分かりました。', exampleKana: 'きほんのじゅうようせいがわかりました。', exampleKo: '기본의 중요성을 알게 됐습니다.', tags: ['공부'] },
   { id: 'n3f-0074', kanji: '効果', kana: 'こうか', mean: '효과', type: 'noun', level: 'N3',
     example: '薬の効果が出ました。', exampleKana: 'くすりのこうかがでました。', exampleKo: '약의 효과가 나타났습니다.', tags: ['건강'] },
-  { id: 'n3f-0075', kanji: '影響', kana: 'えいきょうか', mean: '영향의 정도', type: 'noun', level: 'N3',
+  { id: 'n3f-0075', kanji: '影響下', kana: 'えいきょうか', mean: '영향 아래', type: 'noun', level: 'N3',
     example: '台風の影響下にあります。', exampleKana: 'たいふうのえいきょうかにあります。', exampleKo: '태풍의 영향 아래에 있습니다.', tags: ['날씨'] },
   { id: 'n3f-0076', kanji: '結果的に', kana: 'けっかてきに', mean: '결과적으로', type: 'adv', level: 'N3',
     example: '結果的にうまくいきました。', exampleKana: 'けっかてきにうまくいきました。', exampleKo: '결과적으로 잘 됐습니다.', tags: ['추상'] },

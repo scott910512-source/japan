@@ -87,11 +87,15 @@ function shuffled(list, rng) {
   return out;
 }
 
-// 오답 후보는 같은 레벨·같은 품사에서 먼저 고른다.
-// 동사 문제에 명사만 섞이면 뜻을 몰라도 답이 보인다.
+/* 오답 후보는 같은 레벨·같은 품사에서 먼저 고른다.
+ * 동사 문제에 명사만 섞이면 뜻을 몰라도 답이 보인다.
+ *
+ * 뜻이 한 조각이라도 겹치면 후보에서 뺀다. 뜻 전체가 같을 때만 걸러내면
+ * 尋ねる(묻다) 문제에 聞く(듣다/묻다)가 보기로 붙는다 — 둘 다 맞는데 하나만
+ * 정답으로 세니, 아는 사람이 틀리는 문제가 된다.
+ * 후보끼리도 겹치지 않게 같은 자리에서 걸러 둔다. */
 export function pickDistractors(word, pool, count, rng = Math.random) {
-  const answerKey = (w) => `${w.mean}`;
-  const taken = new Set([answerKey(word)]);
+  const taken = new Set(meaningsOf(word));
   const out = [];
 
   const tiers = [
@@ -103,9 +107,9 @@ export function pickDistractors(word, pool, count, rng = Math.random) {
   for (const tier of tiers) {
     for (const cand of shuffled(tier, rng)) {
       if (out.length >= count) return out;
-      const key = answerKey(cand);
-      if (taken.has(key)) continue;
-      taken.add(key);
+      const parts = meaningsOf(cand);
+      if (!parts.length || parts.some((m) => taken.has(m))) continue;
+      parts.forEach((m) => taken.add(m));
       out.push(cand);
     }
   }

@@ -86,7 +86,7 @@ export function mergeProgress(local = {}, remote = {}) {
 const SYNCED_SETTINGS = [
   'canReadKana', 'tripDay', 'menus', 'levels',
   'newPerDay', 'reviewMix', 'dailyGoal', 'direction',
-  'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice',
+  'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope',
 ];
 
