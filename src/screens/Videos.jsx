@@ -201,11 +201,12 @@ export default function Videos({ active, settings, words, onAddWord, onStartSet,
     if (busy) return;
     setBusy(true);
     try {
-      const text = await fetchTranscript({ apiKey: aiKey, model: ai.model, videoId: open.id });
+      const { text, tokens } = await fetchTranscript({ apiKey: aiKey, model: ai.model, videoId: open.id });
       const got = parseScript(text).length;
       if (!got) throw new Error('받아 적은 게 없어요');
       setScript(text);
-      onToast(`${got}줄을 받아 왔어요. 확인하고 저장해 주세요`);
+      // 토큰 수를 같이 보여 준다 — 영상을 진짜로 봤는지 눈으로 확인할 수 있게
+      onToast(`${got}줄을 받아 왔어요${tokens ? ` (영상 ${tokens.toLocaleString()}토큰)` : ''}. 확인하고 저장해 주세요`);
     } catch (err) {
       onToast(err.message || '자막을 받아오지 못했어요');
     } finally {
