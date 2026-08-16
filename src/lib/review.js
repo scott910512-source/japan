@@ -28,7 +28,7 @@ export const MASTER_STREAK = 4;
 export const DAILY_REVIEW_CAP = 100;
 
 export function emptyState() {
-  return { box: BOX.NEW, streak: 0, lastSeen: null, rounds: 0, wrongCount: 0, vagueCount: 0 };
+  return { box: BOX.NEW, streak: 0, lastSeen: null, seenAt: 0, rounds: 0, wrongCount: 0, vagueCount: 0 };
 }
 
 export function stateOf(progress, id) {
@@ -58,10 +58,14 @@ export function daysBetween(from, to) {
 
 /* ── 판정 적용 ── */
 
-// 카드 한 장에 판정을 적용한 새 상태를 돌려준다. 입력은 변경하지 않는다.
-export function applyVerdict(prev, verdict, today = todayKey()) {
+/* 카드 한 장에 판정을 적용한 새 상태를 돌려준다. 입력은 변경하지 않는다.
+ *
+ * seenAt은 "몇 시 몇 분에 눌렀는가"다. 복습 날짜 계산은 lastSeen(날짜)만 쓰지만,
+ * 기기 두 대를 합칠 때는 이게 필요하다 — 같은 날 같은 카드를 아이폰과 아이패드에서
+ * 다르게 판정하면 날짜만으로는 어느 쪽이 나중인지 알 수가 없다. */
+export function applyVerdict(prev, verdict, today = todayKey(), at = Date.now()) {
   const s = { ...emptyState(), ...prev };
-  const next = { ...s, rounds: s.rounds + 1, lastSeen: today };
+  const next = { ...s, rounds: s.rounds + 1, lastSeen: today, seenAt: at };
 
   if (verdict === VERDICT.MASTER) {
     // 졸업 기준까지 한 번에 올린다 — 복습 큐에서도 바로 빠진다.

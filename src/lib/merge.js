@@ -4,6 +4,19 @@
  * 카드 단위로 "더 최근에 본 쪽"을 남기고, 누적 카운터는 둘 중 큰 값을 쓴다.
  * 큰 값을 쓰는 이유는 합치면 같은 데이터를 두 번 동기화할 때마다 불어나기 때문이다. */
 
+/* 카드 한 장의 상태(box·streak)는 나중에 본 쪽을 남긴다.
+ *
+ * 날짜(lastSeen)가 다르면 그것으로 정해진다. 같은 날이면 시각(seenAt)으로
+ * 가른다 — 같은 날 같은 카드를 두 기기에서 다르게 판정하는 일이 실제로 있고,
+ * 날짜만 보면 먼저 올린 쪽이 이겨서 나중에 한 공부가 묻혔다.
+ * seenAt이 없는 건 이 기능 이전에 쌓인 기록이라 있는 쪽을 나중으로 본다. */
+function laterOf(l, r) {
+  const dl = l.lastSeen || '';
+  const dr = r.lastSeen || '';
+  if (dl !== dr) return dl > dr ? l : r;
+  return (l.seenAt || 0) > (r.seenAt || 0) ? l : r;
+}
+
 export function mergeReview(local = {}, remote = {}) {
   const out = { ...remote };
 
@@ -11,12 +24,11 @@ export function mergeReview(local = {}, remote = {}) {
     const r = remote[id];
     if (!r) { out[id] = l; continue; }
 
-    // 마지막으로 본 날이 늦은 쪽의 상태(box·streak)를 채택한다
-    const localNewer = (l.lastSeen || '') > (r.lastSeen || '');
-    const base = localNewer ? l : r;
+    const base = laterOf(l, r);
 
     out[id] = {
       ...base,
+      seenAt: Math.max(l.seenAt || 0, r.seenAt || 0),
       rounds: Math.max(l.rounds || 0, r.rounds || 0),
       wrongCount: Math.max(l.wrongCount || 0, r.wrongCount || 0),
       vagueCount: Math.max(l.vagueCount || 0, r.vagueCount || 0),
