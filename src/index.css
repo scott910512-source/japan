@@ -809,6 +809,19 @@ button, input, select { font-family: inherit; }
 
 .ob-next:disabled { opacity: .45; cursor: default; }
 
+/* 영상 설명을 만들 곳 고르기 */
+.pickrow-group { display: flex; gap: 8px; margin-top: 10px; }
+.ai-pick { flex: 1; flex-direction: column; align-items: flex-start; gap: 2px; padding: 11px 13px; }
+.ai-pick b { font-size: 14px; font-weight: 700; }
+.ai-pick span { font-size: 11.5px; color: var(--ink-soft); }
+.modellist { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.modelpick {
+  font-size: 11.5px; font-weight: 600; padding: 7px 11px; border-radius: 9px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-soft);
+  word-break: break-all;
+}
+.modelpick.on { border-color: var(--kon); background: var(--kon-soft); color: var(--kon); }
+
 /* ── 단어 시험 ── */
 .pickstack { display: flex; flex-direction: column; gap: 8px; }
 .pickrow {
