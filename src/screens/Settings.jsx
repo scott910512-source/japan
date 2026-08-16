@@ -15,6 +15,7 @@ const MENU_LABELS = {
   grammar: '기초문법',
   words: '단어암기',
   jlpt: 'JLPT 단어',
+  videos: '영상으로 배우기',
   sentences: '상황별 문장암기',
   quiz: '단어 시험',
   rpg: '실전연습 (여행연습)',
@@ -237,6 +238,23 @@ export default function Settings({
           <div className="set-title">음성 속도 <span className="set-val">{settings.speechRate.toFixed(2)}x</span></div>
           <input type="range" min="0.6" max="1.2" step="0.05" value={settings.speechRate}
             onChange={(e) => onChange({ speechRate: Number(e.target.value) })} />
+        </div>
+      </div>
+
+      <div className="section-label">영상 학습</div>
+      <div className="card">
+        <div className="setrow col">
+          <div className="set-title">Claude API 키</div>
+          <div className="set-note">
+            영상 자막을 학습자료로 바꿀 때 씁니다. 이 기기에만 저장되고 서버로 보내지 않아요.
+            비워 두면 영상은 볼 수 있지만 자막 분석은 되지 않습니다.
+          </div>
+          <input
+            type="password"
+            value={settings.claudeKey || ''}
+            placeholder="sk-ant-..."
+            onChange={(e) => onChange({ claudeKey: e.target.value.trim() })}
+          />
         </div>
       </div>
 
