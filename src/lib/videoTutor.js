@@ -172,6 +172,49 @@ function geminiReason(data) {
   return why ? `Gemini가 글을 못 만들었어요 (${why})` : 'Gemini가 빈 응답을 보냈어요';
 }
 
+const TRANSCRIBE = `이 영상에서 일본어로 말하는 내용을 그대로 받아 적으세요.
+
+- 한 줄에 하나씩, [분:초] 뒤에 그 시각에 말한 일본어를 적습니다. 예: [1:23] やっぱり美味しいですね。
+- 시각은 그 말이 시작하는 지점으로 적습니다.
+- 들리는 대로만 적습니다. 번역·설명·요약을 붙이지 말고, 일본어 외의 말은 넣지 마세요.
+- 화면에 적힌 글자가 아니라 말한 내용을 적습니다.
+- 잘 안 들리는 부분은 지어내지 말고 그 줄을 빼세요.
+- 다른 말 없이 받아 적은 줄만 출력하세요.`;
+
+/* 유튜브 주소를 Gemini에 그대로 넘겨 말한 내용을 받아 적게 한다.
+ *
+ * 자막을 손으로 붙여넣는 단계를 없애려는 것이지만, 받아 온 글을 바로 학습에
+ * 쓰지는 않는다. 이건 사람이 만든 자막이 아니라 모델이 듣고 옮긴 것이라 틀릴
+ * 수 있고, 틀린 문장으로 공부하면 틀린 걸 외운다. 그래서 입력칸에 채워 넣고
+ * 눈으로 확인한 뒤 저장하게 한다 — 배우는 건 사용자가 받아들인 글이다. */
+export async function fetchTranscript({ apiKey, model, videoId }) {
+  if (!apiKey) throw new Error('구글 API 키가 필요해요');
+  if (!videoId) throw new Error('영상 주소를 확인해 주세요');
+  const name = model || DEFAULT_GEMINI_MODEL;
+  const res = await fetch(
+    `${GEMINI_BASE}/models/${encodeURIComponent(name)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            { file_data: { file_uri: `https://www.youtube.com/watch?v=${videoId}` } },
+            { text: TRANSCRIBE },
+          ],
+        }],
+        generationConfig: { maxOutputTokens: 32768 },
+      }),
+    },
+  );
+  if (!res.ok) throw await failure(res, 'Gemini');
+  const data = await res.json();
+  const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
+  if (!text) throw new Error(geminiReason(data));
+  return text;
+}
+
 async function analyzeWithGemini({ apiKey, model, title, channel, script }) {
   const name = model || DEFAULT_GEMINI_MODEL;
   const res = await fetch(
