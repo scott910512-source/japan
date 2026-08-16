@@ -258,7 +258,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     } else {
       setFinished({ done: result.session.done, carried: next.carried || 0 });
     }
-    if (verdict === VERDICT.MASTER) onToast('졸업 처리했어요 — 복습에도 안 나와요');
+    if (verdict === VERDICT.MASTER) onToast('졸업 처리했어요 — 한 달 뒤에 한 번만 다시 나와요');
     setTimeout(() => setLocked(false), 220);
   };
 

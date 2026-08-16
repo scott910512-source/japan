@@ -11,9 +11,17 @@ export const VERDICT = { UNKNOWN: 'unknown', VAGUE: 'vague', KNOWN: 'known', MAS
 // box: 0=미학습, 1=몰라요, 2=애매해요, 3=알아요
 export const BOX = { NEW: 0, UNKNOWN: 1, VAGUE: 2, KNOWN: 3 };
 
-// 알아요 연속 횟수(streak)별 다음 복습까지의 간격(일).
-// streak 4 이상이면 졸업 — 복습 큐에서 빠진다.
-const REVIEW_INTERVAL_DAYS = { 1: 1, 2: 3, 3: 7 };
+/* 알아요 연속 횟수(streak)별 다음 복습까지의 간격(일).
+ *
+ * 4연속이면 졸업으로 친다(화면에 그렇게 센다). 다만 졸업이 "다시는 안 나옴"은
+ * 아니다 — 예전엔 그랬는데, 그러면 11일 만에 졸업한 단어를 그 뒤로 한 번도 안
+ * 보게 된다. 2,330개를 그렇게 졸업시키면 복습할 게 0이 되고, 실제로는 다 잊는다.
+ * 오래 안 잊으려면 간격을 벌리면서 계속 만나야 한다.
+ *
+ * 그래서 졸업 뒤에도 한 달·석 달·반년으로 간격만 벌린다. 반년 간격이면
+ * 2,330개가 전부 졸업해도 하루 13장꼴이라 부담이 되지 않는다. */
+const REVIEW_INTERVAL_DAYS = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 90 };
+const LONG_INTERVAL_DAYS = 180;
 export const MASTER_STREAK = 4;
 
 // 하루에 처리할 복습 상한 — 복습 부채가 쌓여 이탈하는 것을 막는다.
@@ -89,12 +97,11 @@ export function isMastered(st) {
 
 /* ── 복습 큐 ── */
 
-// 다음 복습 예정일. 저장하지 않고 lastSeen + 간격으로 매번 계산한다.
-// null이면 복습 대상이 아님(미학습 또는 졸업).
+/* 다음 복습 예정일. 저장하지 않고 lastSeen + 간격으로 매번 계산한다.
+ * null이면 복습 대상이 아님 — 이제는 미학습(한 번도 안 본 것)뿐이다. */
 export function dueDate(st) {
   if (!st.lastSeen) return null;
-  if (isMastered(st)) return null;
-  const days = st.box < BOX.KNOWN ? 1 : (REVIEW_INTERVAL_DAYS[st.streak] ?? 7);
+  const days = st.box < BOX.KNOWN ? 1 : (REVIEW_INTERVAL_DAYS[st.streak] ?? LONG_INTERVAL_DAYS);
   return addDays(st.lastSeen, days);
 }
 
@@ -151,15 +158,35 @@ export function buildRound1(cardIds, progress, { size = 0, shuffle = true } = {}
   return shuffle ? shuffled(picked) : picked;
 }
 
+/* 여러 갈래에서 골고루 뽑는다.
+ *
+ * 앞 갈래부터 채우면 뒤는 영영 차례가 안 온다 — 실제로 몰라요가 복습 몫보다
+ * 많으면 복습일 지난 카드가 한 장도 안 나왔고, 그 카드들은 계속 밀리기만 했다.
+ * 몰라요를 더 자주 뽑되(weight), 나머지도 자리를 갖게 한다. */
+function drawMixed(groups, take) {
+  const at = groups.map(() => 0);
+  const out = [];
+  let moved = true;
+  while (out.length < take && moved) {
+    moved = false;
+    groups.forEach((g, i) => {
+      for (let k = 0; k < g.weight && out.length < take && at[i] < g.items.length; k++) {
+        out.push(g.items[at[i]++]);
+        moved = true;
+      }
+    });
+  }
+  return out;
+}
+
 /* 하루치 세션 구성 — "복습 섞기 + 신규".
  *
  * 매일 신규만 쌓으면 앞서 틀린 것이 영영 안 돌아오고, 복습만 하면 진도가 안 나간다.
- * 그래서 한 세션을 [이미 틀린 것 중 무작위 N개] + [처음 보는 M개]로 짠다.
+ * 그래서 한 세션을 [복습 N개] + [처음 보는 M개]로 짠다.
  *
- * 복습 쪽 우선순위:
- *   1) 몰라요·애매해요로 남은 카드 (box < KNOWN)
- *   2) 알아요지만 복습일이 된 카드
- * 둘 다 무작위로 섞어 뽑는다 — 항상 같은 카드만 도는 것을 막는다.
+ * 복습 쪽은 세 갈래를 섞는다 — 몰라요·애매해요로 남은 것(2), 복습일이 된
+ * 알아요(1), 졸업했지만 오래돼 한 번 확인할 것(1). 갈래마다 무작위로 섞어
+ * 뽑는다 — 항상 같은 카드만 도는 것을 막는다.
  */
 export function buildDailySession(cardIds, progress, {
   newCount = 50, reviewCount = 15, today = todayKey(), shuffle = true,
@@ -167,17 +194,26 @@ export function buildDailySession(cardIds, progress, {
   const fresh = [];
   const wrong = [];
   const dueKnown = [];
+  const refresh = [];
 
   for (const id of cardIds) {
     const st = stateOf(progress, id);
     if (!st.lastSeen) { fresh.push(id); continue; }
-    if (isMastered(st)) continue;
-    if (st.box < BOX.KNOWN) wrong.push(id);
-    else if (isDue(st, today)) dueKnown.push(id);
+    // 아직 몰라요·애매해요로 남은 카드는 날짜를 따지지 않는다 — 오늘 틀린 걸
+    // 내일까지 기다릴 이유가 없다. 나머지는 복습일이 됐을 때만 부른다.
+    if (st.box < BOX.KNOWN) { wrong.push(id); continue; }
+    if (!isDue(st, today)) continue;
+    if (isMastered(st)) refresh.push(id);
+    else dueKnown.push(id);
   }
 
-  const reviewPool = [...shuffled(wrong), ...shuffled(dueKnown)];
-  const review = reviewPool.slice(0, Math.max(0, reviewCount));
+  const groups = [
+    { items: shuffled(wrong), weight: 2 },
+    { items: shuffled(dueKnown), weight: 1 },
+    { items: shuffled(refresh), weight: 1 },
+  ];
+  const reviewPool = groups.flatMap((g) => g.items);
+  const review = drawMixed(groups, Math.max(0, reviewCount));
   const fresher = fresh.slice(0, Math.max(0, newCount));
 
   const picked = [...review, ...fresher];

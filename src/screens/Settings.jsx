@@ -304,13 +304,13 @@ export default function Settings({
       <div className="section-label">학습 메뉴</div>
       <div className="card">
         {Object.entries(MENU_LABELS).map(([id, label]) => (
-          <div key={id} className="toggle-row setrow">
-            <div>
-              <div className="set-title">{label}</div>
-              {id === 'rpg' && <div className="set-sub">기존 여행 RPG — 이관 준비 중</div>}
-            </div>
-            <button className={`toggle${menus[id] ? ' on' : ''}`} onClick={() => toggleMenu(id)} aria-label={label} />
-          </div>
+          <button key={id} className="toggle-row setrow" onClick={() => toggleMenu(id)} aria-pressed={Boolean(menus[id])}>
+            <span>
+              <span className="set-title">{label}</span>
+              {id === 'rpg' && <span className="set-sub">기존 여행 RPG — 이관 준비 중</span>}
+            </span>
+            <span className={`toggle${menus[id] ? ' on' : ''}`} aria-hidden="true" />
+          </button>
         ))}
         <div className="set-note">끈 메뉴의 학습 기록은 그대로 남아 있어요.</div>
       </div>
@@ -505,14 +505,16 @@ export default function Settings({
   );
 }
 
+/* 줄 전체가 눌린다. 44×26짜리 스위치만 받으면 폰에서 헛누름이 잦다 —
+   글씨를 눌렀는데 아무 일도 안 일어나면 고장 난 걸로 읽힌다. */
 function Toggle({ label, sub, on, onClick }) {
   return (
-    <div className="toggle-row setrow">
-      <div>
-        <div className="set-title">{label}</div>
-        {sub && <div className="set-sub">{sub}</div>}
-      </div>
-      <button className={`toggle${on ? ' on' : ''}`} onClick={onClick} aria-label={label} />
-    </div>
+    <button className="toggle-row setrow" onClick={onClick} aria-pressed={on}>
+      <span>
+        <span className="set-title">{label}</span>
+        {sub && <span className="set-sub">{sub}</span>}
+      </span>
+      <span className={`toggle${on ? ' on' : ''}`} aria-hidden="true" />
+    </button>
   );
 }

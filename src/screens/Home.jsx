@@ -97,6 +97,7 @@ export default function Home({
       <div className="set-note">
         졸업은 「알아요」가 {MASTER_STREAK}회독 연속 이어져야 붙어요.
         복습 간격이 1일 → 3일 → 7일이라 빨라도 2주쯤 걸려요.
+        졸업한 뒤에도 한 달·석 달·반년에 한 번씩만 다시 나와요 — 안 잊으려면 그게 필요해요.
       </div>
     </>
   );

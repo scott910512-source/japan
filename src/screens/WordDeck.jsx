@@ -123,6 +123,7 @@ export default function WordDeck({ words, review, settings, onChange, onStart })
       </div>
       <div className="set-note">
         졸업은 「알아요」가 {MASTER_STREAK}회독 연속 이어져야 붙어요 — 오늘 다 맞혀도 바로 오르진 않아요.
+        졸업 뒤에는 한 달·석 달·반년에 한 번씩만 다시 나옵니다.
       </div>
 
       <div className="statrow card" style={{ marginTop: 12 }}>
