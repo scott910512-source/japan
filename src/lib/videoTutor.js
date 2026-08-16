@@ -27,6 +27,13 @@ export const PROVIDERS = { CLAUDE: 'claude', GEMINI: 'gemini' };
  * 그쯤이 맞다. 자막 학습 자체는 API를 쓰지 않으니 이 한도와 무관하다. */
 export const ANALYZE_CHAR_LIMIT = 4000;
 
+/* 영상이 실제로 들어갔다고 볼 수 있는 최소 입력 토큰 수.
+ *
+ * 아주 낮게 잡는다. 몇 초짜리 영상도 천 단위는 되고, 지시문만 세면 수백이다.
+ * 이 사이에 선을 그으면 "영상을 안 봤다"는 것만 확실히 걸러진다 — 애매하게
+ * 높이 잡아 되는 것까지 막느니, 확실한 것만 막는다. */
+const VIDEO_TOKEN_FLOOR = 1000;
+
 const SYSTEM = `당신은 한국인을 위한 일본어 회화 튜터입니다.
 학습자 수준은 JLPT N5 상위 ~ N4 초반이고, 목표는 일본인이 실제로 쓰는 자연스러운
 표현으로 10~15분 대화하는 것입니다.
@@ -220,7 +227,24 @@ export async function fetchTranscript({ apiKey, model, videoId }) {
   const data = await res.json();
   const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
   if (!text) throw new Error(geminiReason(data));
-  return text;
+
+  /* 영상을 진짜로 봤는지 확인한다.
+   *
+   * 주소만 넘겼는데 모델이 영상을 못 읽으면, 오류를 내는 대신 그럴듯한 일본어를
+   * 지어낼 수 있다. 겉보기에는 잘 된 것과 구별이 안 되고, 그걸로 공부하면 세상에
+   * 없는 문장을 외운다. 답이 유난히 빨리 오면 대개 이 경우다.
+   *
+   * 증거는 입력 토큰 수다. 영상이 실제로 들어갔으면 1분만 돼도 만 단위로 뛴다.
+   * 지시문만 세면 수백이다. 그래서 아주 낮은 바닥선만 두고, 그 아래면 받아 온
+   * 글을 버린다 — 지어낸 자막을 넘겨주는 것보다 못 가져왔다고 하는 편이 낫다. */
+  const tokens = data.usageMetadata?.promptTokenCount;
+  if (typeof tokens === 'number' && tokens < VIDEO_TOKEN_FLOOR) {
+    throw new Error(
+      `영상을 읽지 못했어요 (입력 ${tokens.toLocaleString()}토큰). `
+      + '받아 온 글이 지어낸 것일 수 있어 버렸어요. 자막을 직접 붙여넣어 주세요',
+    );
+  }
+  return { text, tokens };
 }
 
 async function analyzeWithGemini({ apiKey, model, title, channel, script }) {
