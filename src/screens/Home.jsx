@@ -8,6 +8,7 @@ const MENUS = [
   { id: 'basics', label: '완전기초', sub: '히라가나 · 숫자 · 인사', Icon: IconSparkle },
   { id: 'grammar', label: '기초문법', sub: '생존 패턴부터 차근차근', Icon: IconGrid },
   { id: 'words', label: '단어암기', sub: '회독으로 반복해서 외우기', Icon: IconBook, primary: true },
+  { id: 'jlpt', label: 'JLPT 단어', sub: '레벨별 · 100개 세트로', Icon: IconList },
   { id: 'sentences', label: '상황별 문장암기', sub: '이동 · 식당 · 일상', Icon: IconChat },
   { id: 'quiz', label: '단어 시험', sub: '객관식 · 주관식으로 확인', Icon: IconList },
   { id: 'rpg', label: '실전연습 (여행연습)', sub: '역할극으로 실전처럼', Icon: IconMap },

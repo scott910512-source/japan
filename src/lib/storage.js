@@ -136,6 +136,7 @@ export const DEFAULT_SETTINGS = {
     basics: true,     // 완전기초
     grammar: true,    // 기초문법
     words: true,      // 단어암기
+    jlpt: true,       // JLPT 레벨별 단어
     sentences: true,  // 상황별 문장암기
     quiz: true,       // 단어 시험
     rpg: false,       // 실전연습(여행 RPG) — 아직 이관 전이라 기본 off
