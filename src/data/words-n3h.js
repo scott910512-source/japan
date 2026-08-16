@@ -46,7 +46,7 @@ export const N3_WORDS_H = [
     example: '裏口から入りました。', exampleKana: 'うらぐちからはいりました。', exampleKo: '뒷문으로 들어갔습니다.', tags: ['이동'] },
   { id: 'n3h-0023', kanji: '突き当たり', kana: 'つきあたり', mean: '막다른 곳', type: 'noun', level: 'N3',
     example: '廊下の突き当たりです。', exampleKana: 'ろうかのつきあたりです。', exampleKo: '복도 끝입니다.', tags: ['이동'] },
-  { id: 'n3h-0024', kanji: '曲がり角', kana: 'まがりかど', mean: '모퉁이', type: 'noun', level: 'N3',
+  { id: 'n3h-0024', kanji: '曲がり角', kana: 'まがりかど', mean: '모퉁이(꺾이는 길목)', type: 'noun', level: 'N3',
     example: '次の曲がり角を右です。', exampleKana: 'つぎのまがりかどをみぎです。', exampleKo: '다음 모퉁이에서 오른쪽입니다.', tags: ['이동'] },
   { id: 'n3h-0025', kanji: '歩道', kana: 'ほどう', mean: '인도', type: 'noun', level: 'N3',
     example: '歩道を歩いてください。', exampleKana: 'ほどうをあるいてください。', exampleKo: '인도로 걸어 주세요.', tags: ['이동','안전'] },

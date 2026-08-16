@@ -128,8 +128,6 @@ export const N3_WORDS_E = [
     example: '年末は忙しいです。', exampleKana: 'ねんまつはいそがしいです。', exampleKo: '연말은 바쁩니다.', tags: ['시간'] },
   { id: 'n3e-0064', kanji: '年始', kana: 'ねんし', mean: '연초', type: 'noun', level: 'N3',
     example: '年始に実家へ帰ります。', exampleKana: 'ねんしにじっかへかえります。', exampleKo: '연초에 본가로 갑니다.', tags: ['시간','가족'] },
-  { id: 'n3e-0065', kanji: '締切', kana: 'しめきり', mean: '마감', type: 'noun', level: 'N3',
-    example: '締切に間に合いました。', exampleKana: 'しめきりにまにあいました。', exampleKo: '마감에 맞췄습니다.', tags: ['일'] },
   { id: 'n3e-0066', kanji: '納期', kana: 'のうき', mean: '납기', type: 'noun', level: 'N3',
     example: '納期を守ってください。', exampleKana: 'のうきをまもってください。', exampleKo: '납기를 지켜 주세요.', tags: ['일'] },
   { id: 'n3e-0067', kanji: '実績', kana: 'じっせき', mean: '실적', type: 'noun', level: 'N3',
