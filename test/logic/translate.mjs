@@ -1,7 +1,7 @@
 /* 번역기 — 받아 온 답의 모양을 고정하는지, 이상한 답에 안 터지는지. */
 import {
-  parseTranslation, parseTrends, MAX_INPUT_CHARS, SAFE_LEVELS, TREND_COUNT,
-  fetchTrends, translate,
+  parseTranslation, parseTrends, shapeTranslation,
+  MAX_INPUT_CHARS, SAFE_LEVELS, TREND_COUNT, fetchTrends, translate,
 } from '../../src/lib/translate.js';
 import { PROVIDERS } from '../../src/lib/aiClient.js';
 import { kanaToHangul } from '../../src/lib/hangul.js';
@@ -142,6 +142,26 @@ const FULL = {
   // 여행지를 안 적었으면 그 줄이 아예 없다
   await translate({ provider: PROVIDERS.GEMINI, apiKey: 'k', korean: '고마워요' });
   ok('여행지가 없으면 안 보냄', !sent.body.contents[0].parts[0].text.includes('지금 있는 곳'));
+}
+
+/* ── 옛날에 받아 둔 기록 ──
+ *
+ * 기능을 더하면 저장해 둔 것에는 그 칸이 없다. 실제로 「요즘 말」을 더했더니
+ * 그 전에 받아 둔 기록에서 번역기가 흰 화면이 됐다. 읽을 때 맞춰 줘야 한다. */
+{
+  const old = {
+    id: 'tr-1', korean: '이거 얼마예요?', at: 1,
+    jp: 'これはいくらですか。', yomi: 'これわいくらですか。', ko: '이거 얼마예요?',
+    politeness: '정중체', alt: [], dialect: [], words: [],
+    // slang이 없다 — 이 칸이 생기기 전에 저장된 것
+  };
+  const r = shapeTranslation(old);
+  ok('없던 칸이 빈 배열로 채워짐', Array.isArray(r.slang) && r.slang.length === 0);
+  ok('있던 것은 그대로', r.jp.includes('いくら') && r.korean === '이거 얼마예요?');
+  ok('아무것도 없어도 안 터짐', shapeTranslation().slang.length === 0);
+  ok('빈 인자도 됨', shapeTranslation({}).words.length === 0);
+  const full = shapeTranslation({ jp: 'はい', slang: [{ jp: 'それな' }] });
+  ok('이미 있는 값은 안 건드림', full.slang[0].jp === 'それな');
 }
 
 // ── 요즘 일본어 알아보기 ──

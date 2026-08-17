@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { IconSpeaker, IconPlus, IconTrash } from '../components/Icons.jsx';
 import { speakJapanese, speakSlow, readingText } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
-import { MAX_INPUT_CHARS, TREND_COUNT, fetchTrends, translate } from '../lib/translate.js';
+import {
+  MAX_INPUT_CHARS, TREND_COUNT, fetchTrends, shapeTranslation, translate,
+} from '../lib/translate.js';
 import { resolveProvider } from '../lib/aiClient.js';
 
 /* 현지에서 바로 쓰는 번역기.
@@ -82,7 +84,10 @@ export default function Translate({
 
   const ai = useMemo(() => resolveProvider(settings), [settings]);
   const rate = settings.speechRate;
-  const shown = history.find((h) => h.id === openId) || history[0] || null;
+  /* 화면에 올리기 전에 모양을 한 번 맞춘다. 저장된 것이든 방금 받은 것이든
+     여기를 지나가므로, 칸이 하나 빠져서 화면이 죽는 일이 없다. */
+  const found = history.find((h) => h.id === openId) || history[0] || null;
+  const shown = found ? shapeTranslation(found) : null;
   // 언제 받았는지 적어 둔다 — 유행어는 낡는다
   const trendAt = trends?.at ? new Date(trends.at).toLocaleDateString('ko-KR', { dateStyle: 'short' }) : '';
 
