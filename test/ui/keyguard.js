@@ -34,7 +34,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   await p.waitForTimeout(700);
 
   const input = p.locator('input[name="gtts-api-key"]');
-  await input.fill('AQ.Ab8RN6JGEMINIKEYSAMPLEntmA');
+  await input.fill('AQ.SAMPLE-NOT-A-REAL-KEY-000000000000');
   await p.waitForTimeout(300);
   ok('Gemini 키를 알아봄', await p.locator('.set-warn').count() === 1);
   ok('어디에 넣어야 하는지 알려 줌', (await p.textContent('.set-warn')).includes('영상 학습'));
