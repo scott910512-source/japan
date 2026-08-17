@@ -58,8 +58,12 @@ const ls = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k
   ok('자막이 기기에 남음', Boolean(saved['8ZGXMjd6Z2E']), JSON.stringify(Object.keys(saved)));
 
   // 새로고침해도 남아 있다 (상태를 App으로 옮긴 뒤에도)
+  /* 다시 불러오기 전에는 잠깐 연결을 돌려놓는다. 끊긴 채로 불러오면
+     서비스워커가 자리를 안 잡았을 때 아무것도 안 뜬다. */
+  await page.context().setOffline(false);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
+  await page.context().setOffline(true);
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
@@ -96,8 +100,12 @@ const ls = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k
   ok('비었다고 알려 줌', (await page.textContent('.screen.active')).includes('담아 둔 영상이 없어요'));
   ok('그 자막도 지워짐', Object.keys(await ls(page, 'jp_manabu_video_scripts_v1')).length === 0);
 
+  /* 다시 불러오기 전에는 잠깐 연결을 돌려놓는다. 끊긴 채로 불러오면
+     서비스워커가 자리를 안 잡았을 때 아무것도 안 뜬다. */
+  await page.context().setOffline(false);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
+  await page.context().setOffline(true);
   const off2 = page.locator('.gate-offline');
   if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
   await openVideos(page);

@@ -146,8 +146,12 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   ok('아까 것이라고 알려 줌', t2.includes('아까'), t2);
 
   // ── 받아 둔 건 앱을 껐다 켜도 남는다 (비행기 모드) ──
+  /* 다시 불러오기 전에는 잠깐 연결을 돌려놓는다. 끊긴 채로 불러오면
+     서비스워커가 자리를 안 잡았을 때 아무것도 안 뜬다. */
+  await page.context().setOffline(false);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
+  await page.context().setOffline(true);
   const off2 = page.locator('.gate-offline');
   if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
   await openTranslate(page);

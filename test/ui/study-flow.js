@@ -120,8 +120,12 @@ const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp
 
   // 새로고침해도 기록이 남는다
   const beforeReload = Object.keys(await review(page)).length;
+  /* 다시 불러오기 전에는 잠깐 연결을 돌려놓는다. 끊긴 채로 불러오면
+     서비스워커가 자리를 안 잡았을 때 아무것도 안 뜬다. */
+  await page.context().setOffline(false);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
+  await page.context().setOffline(true);
   const off2 = page.locator('.gate-offline');
   if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
   ok('새로고침해도 기록이 남음', Object.keys(await review(page)).length === beforeReload, `${beforeReload}개`);

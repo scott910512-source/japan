@@ -63,8 +63,12 @@ const judge = async (page, label) => { await page.locator('.judgerow button', { 
   ok('처음 카드로 안 되돌아감', (await page.textContent('.studycard')) !== first);
 
   // ── 새로고침해도 이어진다 ──
+  /* 다시 불러오기 전에는 잠깐 연결을 돌려놓는다. 끊긴 채로 불러오면
+     서비스워커가 자리를 안 잡았을 때 아무것도 안 뜬다. */
+  await page.context().setOffline(false);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1300);
+  await page.context().setOffline(true);
   const off2 = page.locator('.gate-offline'); if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
   await page.locator('.tabbar .tab', { hasText: '학습' }).click();
   await page.waitForTimeout(1300);

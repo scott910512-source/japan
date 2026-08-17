@@ -63,6 +63,8 @@ CHROMIUM=/path/to/chrome npm test
 - 로그인 문을 지나가려면 **다 뜬 다음에** `setOffline(true)`를 한다. 끊고 나서
   불러오면 서비스워커가 아직 자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이
   되는 곳(CI)에서 이것 때문에 화면 검사가 통째로 죽은 적이 있다
+- 검사 도중에 다시 불러올 때도 마찬가지다. `setOffline(false)` → `reload` →
+  화면이 뜬 뒤 `setOffline(true)` 순서로 한다
 
 ## 못 보는 것
 
