@@ -175,6 +175,61 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   await page.locator('.tr-item .vd-del').first().click();
   await page.waitForTimeout(500);
   ok('지우면 사라짐', await page.locator('.tr-item').count() === 0);
+
+  /* ── 요즘 일본어 알아보기 ── */
+  await page.evaluate(() => {
+    window._calls = []; // 앞에서 새로고침했으니 다시 깐다
+    const orig = window.fetch;
+    window.fetch = (url, opt) => {
+      if (String(url).includes('generativelanguage')) {
+        window._calls.push({ url: String(url), body: JSON.parse(opt.body) });
+        return Promise.resolve(new Response(JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({
+            items: [
+              { jp: 'それな', yomi: 'それな', ko: '그니까', safe: '친구', when: '맞장구칠 때', ex: 'それな、まじで寒い。', exYomi: 'それな、まじでさむい。', exKo: '그니까, 진짜 춥다.' },
+              { jp: 'エモい', yomi: 'えもい', ko: '뭉클하다', safe: '안전', when: '분위기 좋을 때', ex: 'この景色エモい。', exYomi: 'このけしきえもい。', exKo: '이 풍경 뭉클하다.' },
+            ],
+          }) }] } }],
+        }), { status: 200 }));
+      }
+      return orig(url, opt);
+    };
+  });
+
+  const trend = page.locator('.tr-trend');
+  ok('요즘 일본어 자리가 있음', await trend.count() === 1);
+  ok('처음엔 접혀 있음', !(await trend.evaluate((el) => el.open)));
+  await page.locator('.tr-trend > summary').click();
+  await page.waitForTimeout(300);
+  ok('모델이 아는 범위라고 밝힘', (await trend.textContent()).includes('모델이 아는 범위'));
+
+  await page.locator('.tr-trend .ghost-btn', { hasText: '받아 오기' }).click();
+  await page.waitForTimeout(900);
+  const rows = page.locator('.tr-trendrow');
+  ok('받아 옴', await rows.count() === 2, `${await rows.count()}개`);
+  const first = await rows.first().textContent();
+  ok('뜻을 알려 줌', first.includes('그니까'));
+  ok('언제 쓰는지도', first.includes('맞장구칠 때'));
+  /* 응용해서 쓰려면 예문이 핵심이다 — 뜻만 알면 못 쓴다 */
+  ok('예문이 같이 옴', first.includes('まじで寒い'));
+  ok('예문 발음도 한글로', first.includes('마지데'), first.replace(/\s+/g, ' ').slice(0, 80));
+  ok('예문 뜻도 옴', first.includes('진짜 춥다'));
+  ok('예문 듣기 버튼', await page.locator('.tr-exsay').count() === 2);
+  const safes2 = await page.locator('.tr-trendrow .tr-safe').allTextContents();
+  ok('어디까지 써도 되는지 붙음', safes2.includes('또래끼리만') && safes2.includes('누구에게나 OK'), safes2.join(' · '));
+
+  // 담아서 회독으로 넘길 수 있다
+  await page.locator('.tr-trendkeep').first().click();
+  await page.waitForTimeout(600);
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_custom_words_v1') || '[]'));
+  ok('요즘 말도 단어장에 담김', kept.some((w) => w.kanji === 'それな'), JSON.stringify(kept.map((w) => w.kanji)));
+
+  // 언제 받았는지 남는다 — 유행어는 낡는다
+  const saved2 = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_trends_v1') || 'null'));
+  ok('받은 날이 남음', saved2 && saved2.at > 0);
+  ok('받은 것도 남음', saved2.items.length === 2);
+  ok('언제 받았는지 화면에도', (await trend.textContent()).includes('받음'));
+
   await page.close();
 
   // ── 키가 없으면 ──
