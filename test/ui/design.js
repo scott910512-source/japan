@@ -44,10 +44,14 @@ const boot = async (page) => {
     localStorage.setItem('jp_manabu_stats_v1', JSON.stringify({ '2026-08-16': { studied: 41, known: 22, vague: 11, unknown: 8 } }));
   });
   await page.waitForTimeout(1100);
-  await page.context().setOffline(true);
-  await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+  /* 켜진 채로 다시 불러온 뒤에 끊는다. 끊고 나서 불러오면 서비스워커가 아직
+     자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이것 때문에
+     화면 검사가 통째로 죽었다. 로그인 문을 지나가려면 오프라인이기만 하면 된다. */
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1000);
+  await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
+  await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
 };
 
@@ -178,9 +182,9 @@ const check = async (page, theme, name) => {
   await page.locator('.tabbar .tab', { hasText: '설정' }).click();
   await page.waitForTimeout(700); await check(page, theme, '05-설정');
   await page.locator('.tabbar .tab', { hasText: '학습' }).click();
-  await page.waitForTimeout(1200); await check(page, theme, '06-회독-앞면');
+  await page.waitForTimeout(1200); await check(page, theme, '07-회독-앞면');
   await page.locator('.studycard').first().click();
-  await page.waitForTimeout(600); await check(page, theme, '07-회독-뒷면');
+  await page.waitForTimeout(600); await check(page, theme, '08-회독-뒷면');
   await page.close();
   }
 

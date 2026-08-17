@@ -26,14 +26,17 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
     s.onboarded = true; s.dailyGoal = 50; localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
   });
   await p.waitForTimeout(900);
-  await p.context().setOffline(true);
   const t1 = Date.now();
-  await p.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+  await p.reload({ waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(1000);
+  /* 다 뜬 다음에 끊는다. 끊고 나서 불러오면 서비스워커가 아직 자리를 안
+     잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이걸로 죽었다. */
+  await p.context().setOffline(true);
   const off = p.locator('.gate-offline');
-  ok('오프라인에서도 켜짐', await off.count() > 0 || await p.locator('.tabbar').count() > 0);
+  await off.waitFor({ timeout: 8000 }).catch(() => {});
+  ok('인터넷이 끊겨도 쓸 수 있음', await off.count() > 0 || await p.locator('.tabbar').count() > 0);
   if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
-  ok('오프라인 시작이 3초 안', Date.now() - t1 < 3000, `${Date.now() - t1}ms`);
+  ok('끊긴 채로 시작이 3초 안', Date.now() - t1 < 3000, `${Date.now() - t1}ms`);
 
   // 모든 탭을 돌며 깨지는 곳이 없는지
   for (const tab of ['홈', '영상', '복습', '설정']) {

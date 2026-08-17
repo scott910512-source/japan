@@ -22,8 +22,11 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
   });
   await p.waitForTimeout(1000);
+  /* 켜진 채로 다시 불러온 뒤에 끊는다. 끊고 나서 불러오면 서비스워커가 아직
+     자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이것 때문에
+     화면 검사가 통째로 죽었다. 로그인 문을 지나가려면 오프라인이기만 하면 된다. */
+  await p.reload({ waitUntil: 'domcontentloaded' });
   await p.context().setOffline(true);
-  await p.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
   await p.waitForTimeout(900);
   const off = p.locator('.gate-offline'); if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
 

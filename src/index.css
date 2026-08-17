@@ -1082,6 +1082,72 @@ button, input, select { font-family: inherit; }
   width: 100%; margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line);
   border-radius: 12px; padding: 12px; color: var(--ink); font: inherit; line-height: 1.6; resize: vertical;
 }
+/* ── 번역기 ──
+   여행 중에 한 손으로 30초 안에 끝나야 한다. 한글 발음이 제일 크고,
+   나머지는 그 아래로 물러난다. */
+.tr-ask { display: flex; flex-direction: column; gap: 8px; }
+.tr-input {
+  width: 100%; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 13px; color: var(--ink); font: inherit;
+  font-size: 15px; line-height: 1.5; resize: vertical;
+}
+.tr-input:focus { outline: none; border-color: var(--kon); box-shadow: 0 0 0 3px var(--kon-soft); }
+.tr-go {
+  padding: 14px; border: none; border-radius: 14px; cursor: pointer;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep));
+  color: #0A0D14; font: inherit; font-weight: 700; font-size: 15px;
+}
+.tr-go:disabled { opacity: .4; cursor: default; }
+
+.tr-card { margin-top: 14px; }
+.tr-asked { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 10px; }
+.tr-line { margin: 4px 0; }
+.tr-jp { font-size: 17px; font-weight: 600; line-height: 1.5; word-break: keep-all; }
+.tr-line.big .tr-jp { font-size: 21px; }
+/* 여행 중에는 가나를 더듬을 틈이 없다. 보고 바로 말할 수 있어야 한다. */
+.tr-hangul { font-size: 16px; font-weight: 700; color: var(--kon); margin-top: 4px; letter-spacing: -.01em; }
+.tr-line.big .tr-hangul { font-size: 19px; }
+.tr-yomi { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+.tr-say { display: flex; gap: 6px; margin-top: 8px; }
+.tr-say .ghost-btn { flex: 0 0 auto; padding: 8px 12px; font-size: 12.5px; }
+.tr-ko { font-size: 13.5px; color: var(--ink-soft); margin-top: 10px; }
+.tr-tag {
+  display: inline-block; margin-top: 8px; padding: 3px 9px; border-radius: 100px;
+  background: var(--surface-2); color: var(--ink-soft); font-size: 11px; font-weight: 700;
+}
+.tr-note { font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; margin: 8px 0 0; }
+
+.tr-sec { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.tr-sec h4 { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin: 0 0 8px; }
+.tr-sub { margin-bottom: 12px; }
+.tr-sub:last-child { margin-bottom: 0; }
+.tr-when { font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.55; }
+.tr-area {
+  display: inline-block; margin-bottom: 4px; padding: 2px 8px; border-radius: 100px;
+  background: var(--shu-soft); color: var(--shu); font-size: 11px; font-weight: 700;
+}
+
+.tr-word { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.tr-wordmain {
+  flex: 1; min-width: 0; background: none; border: none; color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer; padding: 4px 0;
+}
+.tr-wjp { font-size: 16px; font-weight: 600; margin-right: 8px; }
+.tr-wyomi { font-size: 12.5px; color: var(--kon); margin-right: 8px; }
+.tr-wko { font-size: 12.5px; color: var(--ink-soft); }
+.tr-keep {
+  flex: 0 0 auto; width: 36px; height: 36px; border-radius: 10px; cursor: pointer;
+  background: var(--kon-soft); border: none; color: var(--kon);
+  display: flex; align-items: center; justify-content: center;
+}
+.tr-keep svg { width: 18px; height: 18px; }
+
+.tr-item { display: flex; align-items: stretch; gap: 8px; padding: 10px 12px; }
+.tr-item.on { border-color: var(--kon); }
+.tr-open { flex: 1; min-width: 0; background: none; border: none; text-align: left; cursor: pointer; padding: 2px 0; }
+.tr-ik { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.tr-ij { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* 영상 빼기 — 되돌릴 수 없으니 "삭제"를 치게 한다. */
 .vd-delwhat { font-size: 14px; font-weight: 600; margin: 2px 0 10px; word-break: break-all; }
 .vd-delword {

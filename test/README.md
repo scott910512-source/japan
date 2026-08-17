@@ -26,6 +26,7 @@ CHROMIUM=/path/to/chrome npm test
 | | 무엇을 지키나 |
 |---|---|
 | `logic.mjs` | 회독 규칙 전반 — 판정·간격·졸업·세션·취약 단어 |
+| `translate.mjs` | 번역기 — 받아 온 답의 모양 고정, 이상한 답에 안 터지기 |
 | `goal.mjs` | 설정한 학습량과 실제 세션 장수가 같은가 |
 | `twosync.mjs` | 아이폰·아이패드를 합칠 때 한 장도 안 잃는가, 순서를 바꿔도 같은가 |
 | `syncwire.mjs` | 서버로 뭘 보내는가 (음성 키가 안 실리는지 포함) |
@@ -48,6 +49,7 @@ CHROMIUM=/path/to/chrome npm test
 | `video-ui.js` `lesson.js` `script-lesson.js` | 영상 목록·설명 학습·자막 학습 |
 | `grab.js` `grabtoggle.js` | 자막 구하는 길, 직접 받아오기 스위치 |
 | `vidsync.js` | 영상 상태가 기기에 남는가, 뺀 영상이 안 돌아오는가 |
+| `translate-ui.js` | 번역기 — 한글 발음, 사투리, 단어 담기, 받아 둔 것 다시 보기 |
 | `gemini.js` `keyguard.js` | Gemini 호출 모양·실패 안내, 키 잘못 넣는 것 막기 |
 | `jlpt-ui.js` | JLPT 레벨·세트 숫자 |
 
@@ -58,6 +60,9 @@ CHROMIUM=/path/to/chrome npm test
 - 파일을 `logic/`(`.mjs`)이나 `ui/`(`.js`)에 넣는다
 - 마지막에 `` console.log(`\n통과 ${pass} / 실패 ${fail}`) `` 를 찍고 실패면 `exit(1)`
 - `ui/`에서는 주소를 `BASE`, 크롬을 `CHROME`으로 받는다 (러너가 환경변수로 준다)
+- 로그인 문을 지나가려면 **다 뜬 다음에** `setOffline(true)`를 한다. 끊고 나서
+  불러오면 서비스워커가 아직 자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이
+  되는 곳(CI)에서 이것 때문에 화면 검사가 통째로 죽은 적이 있다
 
 ## 못 보는 것
 

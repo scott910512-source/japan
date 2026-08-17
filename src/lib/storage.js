@@ -14,6 +14,7 @@ const KEYS = {
   videoScripts: 'jp_manabu_video_scripts_v1',   // 붙여넣은 자막 — 이걸로 학습하니 기기에 남긴다
   videoProgress: 'jp_manabu_video_progress_v1', // 영상별 학습 진도 — 어디까지 했는지
   videoRemoved: 'jp_manabu_video_removed_v1',   // 뺀 영상의 묘비 — 아래 설명 참고
+  translations: 'jp_manabu_translations_v1',    // 번역기에서 받아 둔 것 — 현지에서 다시 본다
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -77,6 +78,20 @@ export function saveVideoProgress(map) {
  * 기기 두 대를 합칠 때 목록을 그냥 합치면, 아이폰에서 뺀 영상이 아이패드에
  * 남아 있다가 다음 동기화에 되살아난다. "뺐다"도 기록해야 사라진 채로 있는다.
  * 다시 담으면 addedAt이 묘비보다 새로워져서 되살아난다. */
+/* 번역기에서 받아 둔 것.
+ *
+ * 여행 중에는 인터넷이 끊기거나 아까운 데이터를 아껴야 할 때가 있다. 한 번
+ * 받아 둔 건 비행기 모드에서도 다시 볼 수 있어야 한다. 오래된 것부터 버려서
+ * 저장 공간이 넘치지 않게 한다 — 여행 하루치면 충분하다. */
+const TRANSLATION_KEEP = 50;
+
+export function loadTranslations() {
+  return read(KEYS.translations, []);
+}
+export function saveTranslations(list) {
+  write(KEYS.translations, list.slice(0, TRANSLATION_KEEP));
+}
+
 export function loadVideoRemoved() {
   return read(KEYS.videoRemoved, {});
 }
@@ -185,7 +200,7 @@ export const DEFAULT_SETTINGS = {
     jlpt: true,       // JLPT 레벨별 단어
     sentences: true,  // 상황별 문장암기
     quiz: true,       // 단어 시험
-    rpg: false,       // 실전연습(여행 RPG) — 아직 이관 전이라 기본 off
+    translate: true,  // 번역기 — 현지에서 바로 쓰는 것
   },
 
   // 학습 기능
@@ -194,6 +209,7 @@ export const DEFAULT_SETTINGS = {
   // 영상 설명을 만들 곳. 키는 모두 이 기기에만 저장하고 서버로 보내지 않는다.
   aiProvider: 'gemini', // gemini | claude
   videoTranscribe: false, // 영상을 직접 듣게 할지 — 요금이 많이 들어 기본은 끔
+  tripPlace: '',      // 어디로 가는지 (예: 오사카) — 번역기가 그 지역 사투리도 봐 준다
   geminiKey: '',        // 비워 두면 음성 키(gttsKey)를 그대로 쓴다 — 같은 형식이다
   geminiModel: '',      // 비우면 기본값, 설정에서 목록을 받아 고를 수 있다
   claudeKey: '',

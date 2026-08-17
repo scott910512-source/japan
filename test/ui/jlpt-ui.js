@@ -24,10 +24,14 @@ const ok = (label, cond, extra) => {
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(() => localStorage.setItem('jp_manabu_signed_in_v1', '1'));
   await page.waitForTimeout(1200); // 서비스워커 프리캐시
-  await page.context().setOffline(true);
-  await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+  /* 켜진 채로 다시 불러온 뒤에 끊는다. 끊고 나서 불러오면 서비스워커가 아직
+     자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이것 때문에
+     화면 검사가 통째로 죽었다. 로그인 문을 지나가려면 오프라인이기만 하면 된다. */
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
+  await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
+  await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
   // 온보딩이 뜨면 넘긴다
   for (let i = 0; i < 6; i++) {

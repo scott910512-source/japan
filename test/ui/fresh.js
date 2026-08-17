@@ -22,19 +22,20 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
 
   // 로그인 문 — 처음 온 사람은 여기부터 본다
   ok('로그인 화면이 뜸', (await page.textContent('body')).includes('로그인'));
-  const offline = page.locator('.gate-offline');
-  ok('오프라인으로도 들어갈 길이 있음', await offline.count() >= 0);
-
   ok('가입 길이 보임', (await page.textContent('body')).includes('가입하기'));
   ok('비밀번호 찾기도 있음', (await page.textContent('body')).includes('비밀번호를 잊었어요'));
 
   /* 진짜 계정을 만들 수는 없으니, 로그인한 뒤 상태로 들어간다.
      여기서 보려는 건 "처음 켠 사람이 첫 회독까지 가는가"다. */
   await page.evaluate(() => localStorage.setItem('jp_manabu_signed_in_v1', '1'));
-  await page.context().setOffline(true);
+  /* 켜진 채로 다시 불러온 뒤에 끊는다. 끊고 나서 불러오면 서비스워커가 아직
+     자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이것 때문에
+     화면 검사가 통째로 죽었다. 로그인 문을 지나가려면 오프라인이기만 하면 된다. */
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
+  await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
+  await off.waitFor({ timeout: 8000 }).catch(() => {});
   ok('인터넷이 없으면 그냥 쓸 길을 줌', await off.count() === 1);
   await off.click();
   await page.waitForTimeout(900);
