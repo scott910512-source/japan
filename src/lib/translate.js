@@ -83,10 +83,24 @@ level은 N5 / N4 / N3 / N2 / N1 중 그 단어 자체의 난이도로 적으세�
  * 「요즘 말(slang)」을 더했더니, 그 전에 받아 둔 기록에는 그 칸이 없어서
  * 번역기가 흰 화면이 됐다. 저장해 둔 것은 옛날 모양일 수 있다고 보고
  * 읽을 때 맞춰 주는 게 맞다. */
+/* 목록에서 같은 말이 두 번 오면 화면이 같은 열쇠를 두 번 쓰게 된다.
+   모델이 실제로 그럴 때가 있어서 여기서 한 번만 남긴다. */
+function uniqueBy(items, key) {
+  const seen = new Set();
+  return items.filter((x) => {
+    const k = x?.[key];
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 export function shapeTranslation(t = {}) {
-  const list = (v) => (Array.isArray(v) ? v : []);
+  const list = (v) => uniqueBy(Array.isArray(v) ? v : [], 'jp');
   return {
     ...t,
+    // 옛 기록에는 이 칸이 없다. 없으면 같은 걸 또 물어볼 때 다시 부르게 된다
+    place: String(t.place || ''),
     jp: String(t.jp || ''),
     yomi: String(t.yomi || t.jp || ''),
     ko: String(t.ko || ''),
@@ -121,7 +135,7 @@ export function parseTranslation(text) {
 
   /* 모양을 여기서 고정한다. 빠진 칸이 있으면 화면에서 매번 확인해야 하고,
      한 군데라도 빠뜨리면 흰 화면이 된다. */
-  const list = (v) => (Array.isArray(v) ? v : []);
+  const list = (v) => uniqueBy(Array.isArray(v) ? v : [], 'jp');
   return {
     jp: String(data.jp),
     yomi: String(data.yomi || data.jp),
@@ -237,8 +251,7 @@ export function parseTrends(text) {
       throw new Error('답을 읽지 못했어요');
     }
   }
-  const items = (Array.isArray(data.items) ? data.items : [])
-    .filter((t) => t?.jp)
+  const items = uniqueBy(Array.isArray(data.items) ? data.items : [], 'jp')
     .map((t) => ({
       jp: String(t.jp),
       yomi: String(t.yomi || t.jp),

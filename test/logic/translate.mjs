@@ -162,6 +162,24 @@ const FULL = {
   ok('빈 인자도 됨', shapeTranslation({}).words.length === 0);
   const full = shapeTranslation({ jp: 'はい', slang: [{ jp: 'それな' }] });
   ok('이미 있는 값은 안 건드림', full.slang[0].jp === 'それな');
+  // 옛 기록에는 여행지 칸이 없다 — 없으면 같은 걸 또 물어볼 때 다시 부르게 된다
+  ok('여행지 칸이 없으면 빈 문자로', shapeTranslation({ jp: 'はい' }).place === '');
+}
+
+/* 모델이 같은 말을 두 번 줄 때가 있다. 그대로 그리면 화면이 같은 열쇠를
+   두 번 쓰게 되니 한 번만 남긴다. */
+{
+  const r = parseTranslation(JSON.stringify({
+    jp: 'はい',
+    words: [{ jp: 'いくら', ko: '얼마' }, { jp: 'いくら', ko: '얼마(중복)' }, { jp: 'これ', ko: '이것' }],
+    slang: [{ jp: 'それな' }, { jp: 'それな' }],
+  }));
+  ok('겹친 단어는 하나만', r.words.length === 2, r.words.map((w) => w.jp).join(','));
+  ok('먼저 온 것을 남김', r.words[0].ko === '얼마');
+  ok('겹친 요즘 말도 하나만', r.slang.length === 1);
+
+  const t = parseTrends(JSON.stringify({ items: [{ jp: 'それな' }, { jp: 'それな' }, { jp: 'エモい' }] }));
+  ok('요즘 일본어도 안 겹침', t.length === 2, t.map((x) => x.jp).join(','));
 }
 
 // ── 요즘 일본어 알아보기 ──
