@@ -241,6 +241,39 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   ok('키가 없으면 버튼이 잠김', await p2.locator('.tr-go').isDisabled());
   await p2.close();
 
+  /* ── 옛날에 받아 둔 기록이 있어도 화면이 뜬다 ──
+     기능을 더하면 저장해 둔 것에는 그 칸이 없다. 실제로 이것 때문에
+     번역기가 흰 화면이 됐다. */
+  const p4 = await browser.newPage({ viewport: { width: 375, height: 667 } });
+  const oldErrors = [];
+  p4.on('pageerror', (e) => oldErrors.push(e.message));
+  await p4.goto(BASE, { waitUntil: 'networkidle' });
+  await p4.evaluate(() => {
+    localStorage.setItem('jp_manabu_signed_in_v1', '1');
+    const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
+    s.onboarded = true; s.autoTTS = false; s.geminiKey = 'AIzaTESTKEY'; s.aiProvider = 'gemini';
+    localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
+    // 「요즘 말」이 생기기 전 모양 — slang 칸이 없다
+    localStorage.setItem('jp_manabu_translations_v1', JSON.stringify([{
+      id: 'tr-old', korean: '이거 얼마예요?', place: '', at: Date.now(),
+      jp: 'これはいくらですか。', yomi: 'これわいくらですか。', ko: '이거 얼마예요?',
+      politeness: '정중체', note: '', alt: [], dialect: [], words: [],
+    }]));
+  });
+  await p4.waitForTimeout(1100);
+  await p4.reload({ waitUntil: 'domcontentloaded' });
+  await p4.waitForTimeout(1200);
+  await p4.context().setOffline(true);
+  const off4 = p4.locator('.gate-offline');
+  await off4.waitFor({ timeout: 8000 }).catch(() => {});
+  if (await off4.count()) { await off4.click(); await p4.waitForTimeout(700); }
+  await openTranslate(p4);
+  ok('옛 기록이 있어도 화면이 뜸', await p4.locator('.tr-input').count() === 1);
+  ok('탭바도 살아 있음', await p4.locator('.tabbar').count() === 1);
+  ok('옛 기록을 보여 줌', (await p4.textContent('.tr-card')).includes('いくら'));
+  ok('옛 기록 때문에 안 죽음', oldErrors.length === 0, oldErrors.slice(0, 2).join(' | '));
+  await p4.close();
+
   // ── AI가 이상한 답을 줘도 ──
   const p3 = await browser.newPage({ viewport: { width: 375, height: 667 } });
   p3.on('pageerror', (e) => errors.push(e.message));

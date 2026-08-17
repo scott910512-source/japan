@@ -1,3 +1,5 @@
+import { shapeTranslation } from './translate.js';
+
 const KEYS = {
   customWords: 'jp_manabu_custom_words_v1',
   progress: 'jp_manabu_progress_v1',
@@ -87,7 +89,9 @@ export function saveVideoProgress(map) {
 const TRANSLATION_KEEP = 50;
 
 export function loadTranslations() {
-  return read(KEYS.translations, []);
+  /* 옛날에 받아 둔 것은 지금 화면이 기대하는 칸이 없을 수 있다. 읽을 때
+     맞춰 준다 — 안 그러면 기능을 더할 때마다 옛 기록이 화면을 죽인다. */
+  return read(KEYS.translations, []).map(shapeTranslation);
 }
 export function saveTranslations(list) {
   write(KEYS.translations, list.slice(0, TRANSLATION_KEEP));

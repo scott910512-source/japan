@@ -77,6 +77,28 @@ const SYSTEM = `당신은 일본 여행 중인 한국인 옆에 있는 통역사
 level은 N5 / N4 / N3 / N2 / N1 중 그 단어 자체의 난이도로 적으세요.
 이 둘은 그대로 단어장에 들어갑니다.`;
 
+/* 받아 둔 번역 하나를 지금 화면이 기대하는 모양으로 맞춘다.
+ *
+ * 이게 없으면 기능을 더할 때마다 옛 기록이 앱을 죽인다. 실제로 그랬다 —
+ * 「요즘 말(slang)」을 더했더니, 그 전에 받아 둔 기록에는 그 칸이 없어서
+ * 번역기가 흰 화면이 됐다. 저장해 둔 것은 옛날 모양일 수 있다고 보고
+ * 읽을 때 맞춰 주는 게 맞다. */
+export function shapeTranslation(t = {}) {
+  const list = (v) => (Array.isArray(v) ? v : []);
+  return {
+    ...t,
+    jp: String(t.jp || ''),
+    yomi: String(t.yomi || t.jp || ''),
+    ko: String(t.ko || ''),
+    politeness: String(t.politeness || ''),
+    note: String(t.note || ''),
+    alt: list(t.alt),
+    dialect: list(t.dialect),
+    slang: list(t.slang),
+    words: list(t.words),
+  };
+}
+
 /* 모델이 펜스를 붙이거나 앞뒤에 말을 얹는 경우가 있어 중괄호만 뽑아 다시 시도한다. */
 export function parseTranslation(text) {
   if (!text) throw new Error('빈 응답');
