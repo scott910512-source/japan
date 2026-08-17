@@ -223,6 +223,11 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   await page.waitForTimeout(600);
   const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_custom_words_v1') || '[]'));
   ok('요즘 말도 단어장에 담김', kept.some((w) => w.kanji === 'それな'), JSON.stringify(kept.map((w) => w.kanji)));
+  /* 예문 없이 「それな」만 남으면 나중에 봐도 어디에 쓸지를 모른다 */
+  const sorena = kept.find((w) => w.kanji === 'それな');
+  ok('담을 때 예문도 같이', sorena?.example === 'それな、まじで寒い。', sorena?.example);
+  ok('예문 읽는 법도', sorena?.exampleKana === 'それな、まじでさむい。', sorena?.exampleKana);
+  ok('예문 뜻도', sorena?.exampleKo === '그니까, 진짜 춥다.', sorena?.exampleKo);
 
   // 언제 받았는지 남는다 — 유행어는 낡는다
   const saved2 = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_trends_v1') || 'null'));

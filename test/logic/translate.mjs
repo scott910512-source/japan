@@ -133,6 +133,12 @@ const FULL = {
   ok('소리 나는 대로 적으라고 함', sent.body.system_instruction.parts[0].text.includes('조사 は는 わ로'));
   const sys = sent.body.system_instruction.parts[0].text;
   ok('요즘 말도 물어봄', sys.includes('요즘 말(slang)'));
+  /* 「아아 하나요」처럼 우리끼리 쓰는 줄임말로 적는 게 오히려 자연스럽다.
+     글자대로 옮기면 일본 가게에서 안 통하는 말이 나온다. */
+  ok('한국 줄임말도 알아들으라고 함', sys.includes('한국 줄임말·유행어'));
+  ok('보기까지 들어 줌', sys.includes('아아') && sys.includes('영끌'));
+  ok('글자대로 옮기지 말라고 함', sys.includes('글자 그대로 옮기지 마세요'));
+  ok('일본에 없는 말이면 밝히라고 함', sys.includes('일본에는 같은 말이 없어요'));
   ok('한물간 말은 빼라고 함', sys.includes('한물간'));
   ok('어디까지 써도 되는지 적으라고 함', sys.includes('safe에'));
   ok('욕설은 빼라고 함', sys.includes('욕설'));
@@ -162,6 +168,24 @@ const FULL = {
   ok('빈 인자도 됨', shapeTranslation({}).words.length === 0);
   const full = shapeTranslation({ jp: 'はい', slang: [{ jp: 'それな' }] });
   ok('이미 있는 값은 안 건드림', full.slang[0].jp === 'それな');
+  // 옛 기록에는 여행지 칸이 없다 — 없으면 같은 걸 또 물어볼 때 다시 부르게 된다
+  ok('여행지 칸이 없으면 빈 문자로', shapeTranslation({ jp: 'はい' }).place === '');
+}
+
+/* 모델이 같은 말을 두 번 줄 때가 있다. 그대로 그리면 화면이 같은 열쇠를
+   두 번 쓰게 되니 한 번만 남긴다. */
+{
+  const r = parseTranslation(JSON.stringify({
+    jp: 'はい',
+    words: [{ jp: 'いくら', ko: '얼마' }, { jp: 'いくら', ko: '얼마(중복)' }, { jp: 'これ', ko: '이것' }],
+    slang: [{ jp: 'それな' }, { jp: 'それな' }],
+  }));
+  ok('겹친 단어는 하나만', r.words.length === 2, r.words.map((w) => w.jp).join(','));
+  ok('먼저 온 것을 남김', r.words[0].ko === '얼마');
+  ok('겹친 요즘 말도 하나만', r.slang.length === 1);
+
+  const t = parseTrends(JSON.stringify({ items: [{ jp: 'それな' }, { jp: 'それな' }, { jp: 'エモい' }] }));
+  ok('요즘 일본어도 안 겹침', t.length === 2, t.map((x) => x.jp).join(','));
 }
 
 // ── 요즘 일본어 알아보기 ──
@@ -212,6 +236,12 @@ const FULL = {
   ok('누구나 아는 말도 빼라고 함', sys.includes('교과서'));
   ok('개수 채우려 지어내지 말라고 함', sys.includes('개수를 채우려고'));
   ok('예문을 달라고 함', sys.includes('그대로 따라 하면'));
+  /* 한 종류만 6개 오면 「맞장구 6개」 같은 게 된다. 줄임말·리액션·신조어를 섞어야
+     한국의 대박/아아/영끌 같은 폭이 나온다. */
+  ok('줄임말도 넣으라고 함', sys.includes('줄임말'));
+  ok('리액션도 넣으라고 함', sys.includes('리액션'));
+  ok('요즘 생긴 말도 넣으라고 함', sys.includes('SNS'));
+  ok('한 종류만 주지 말라고 함', sys.includes('골고루 섞으세요'));
   ok('소리 나는 대로 적으라고 함', sys.includes('조사 は는 わ'));
   ok('욕설은 빼라고 함', sys.includes('욕설'));
   ok(`${TREND_COUNT}개를 물어봄`, sent.body.contents[0].parts[0].text.includes(String(TREND_COUNT)));

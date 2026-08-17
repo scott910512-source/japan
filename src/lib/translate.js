@@ -33,6 +33,15 @@ const SYSTEM = `당신은 일본 여행 중인 한국인 옆에 있는 통역사
 - 사전 나열이 아니라 "이 상황에서 실제로 이렇게 말한다" 한 문장을 줍니다.
 - 기본은 처음 만난 사람에게 쓰는 정중체(です·ます)입니다. 사용자가 반말로
   적었거나 친구에게 하는 말이 분명하면 그에 맞춥니다.
+- 사용자는 한국 줄임말·유행어로 적을 수 있습니다(대박 / 아아 / 영끌 / 존맛 /
+  갑분싸 / 마라맛 …). 먼저 그게 무슨 뜻인지 알아듣고, 일본에서 같은 자리에
+  실제로 쓰는 말로 옮기세요. 글자 그대로 옮기지 마세요.
+  · 가게에서 쓰는 줄임말은 일본 가게에서 통하는 주문 표현으로 바꿉니다.
+    (아아 → アイスコーヒー / 아이스 라떼는 アイスラテ)
+  · 한국에서만 쓰는 신조어라 일본에 딱 맞는 말이 없으면, 뜻이 가장 가까운
+    실제 표현을 주고 note에 "일본에는 같은 말이 없어요"라고 한 줄 적으세요.
+    없는 일본어를 만들어 내지 마세요.
+  · 알아들은 뜻이 애매하면 ko에 "이런 뜻으로 봤어요"가 드러나게 적으세요.
 - 상황이 애매하면 가장 흔한 쪽 하나만 고르고, 다른 쪽은 alt에 넣습니다.
 - yomi에는 한자를 쓰지 말고 가나로만 적되, 글자가 아니라 소리 나는 대로 적으세요.
   조사 は는 わ로, 조사 へ는 え로 적습니다. (これは → これわ / 学校へ → がっこうえ)
@@ -83,10 +92,24 @@ level은 N5 / N4 / N3 / N2 / N1 중 그 단어 자체의 난이도로 적으세�
  * 「요즘 말(slang)」을 더했더니, 그 전에 받아 둔 기록에는 그 칸이 없어서
  * 번역기가 흰 화면이 됐다. 저장해 둔 것은 옛날 모양일 수 있다고 보고
  * 읽을 때 맞춰 주는 게 맞다. */
+/* 목록에서 같은 말이 두 번 오면 화면이 같은 열쇠를 두 번 쓰게 된다.
+   모델이 실제로 그럴 때가 있어서 여기서 한 번만 남긴다. */
+function uniqueBy(items, key) {
+  const seen = new Set();
+  return items.filter((x) => {
+    const k = x?.[key];
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 export function shapeTranslation(t = {}) {
-  const list = (v) => (Array.isArray(v) ? v : []);
+  const list = (v) => uniqueBy(Array.isArray(v) ? v : [], 'jp');
   return {
     ...t,
+    // 옛 기록에는 이 칸이 없다. 없으면 같은 걸 또 물어볼 때 다시 부르게 된다
+    place: String(t.place || ''),
     jp: String(t.jp || ''),
     yomi: String(t.yomi || t.jp || ''),
     ko: String(t.ko || ''),
@@ -121,7 +144,7 @@ export function parseTranslation(text) {
 
   /* 모양을 여기서 고정한다. 빠진 칸이 있으면 화면에서 매번 확인해야 하고,
      한 군데라도 빠뜨리면 흰 화면이 된다. */
-  const list = (v) => (Array.isArray(v) ? v : []);
+  const list = (v) => uniqueBy(Array.isArray(v) ? v : [], 'jp');
   return {
     jp: String(data.jp),
     yomi: String(data.yomi || data.jp),
@@ -192,6 +215,12 @@ const TREND_SYSTEM = `당신은 일본에 사는 20대 친구입니다.
 
 원칙
 - 지금 일본 젊은 사람들이 실제로 주고받는 말만 고르세요.
+- 한국의 "대박 / 아아 / 영끌 / 존맛"에 해당하는 자리를 생각하세요.
+  즉 이런 것들을 섞어 주세요.
+  · 줄임말 — 긴 말을 젊은 사람들끼리 줄여 부르는 것
+  · 리액션·맞장구 — 대화 중에 툭 던지는 말
+  · 요즘 생긴 말 — SNS·방송에서 퍼져 지금 쓰이는 말
+  한 종류만 6개 주지 말고 골고루 섞으세요.
 - 이미 한물간 말, 유행이 지난 지 오래된 말은 넣지 마세요.
 - 교과서에 나오는 말, 누구나 아는 기본 표현(すごい, かわいい 같은)은 빼세요.
 - 확실하지 않으면 그 항목을 빼세요. 개수를 채우려고 지어내지 마세요.
@@ -237,8 +266,7 @@ export function parseTrends(text) {
       throw new Error('답을 읽지 못했어요');
     }
   }
-  const items = (Array.isArray(data.items) ? data.items : [])
-    .filter((t) => t?.jp)
+  const items = uniqueBy(Array.isArray(data.items) ? data.items : [], 'jp')
     .map((t) => ({
       jp: String(t.jp),
       yomi: String(t.yomi || t.jp),
