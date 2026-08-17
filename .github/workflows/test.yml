@@ -11,9 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # 22 이상이어야 한다. supabase-js가 붙자마자 native WebSocket을 찾는데
+      # 20에는 없어서, sync를 부르는 검사가 시작도 못 하고 죽는다.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
 

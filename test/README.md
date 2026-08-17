@@ -10,6 +10,9 @@ npm run test:ui     # 화면만
 눌러 본다. **개발 서버가 아니라 배포될 결과물 그대로**를 본다 — 경로도 배포와 같은
 `/japan/`이다.
 
+Node는 **22 이상**이 필요하다. supabase-js가 불러오자마자 native WebSocket을 찾는데
+20에는 없어서, 서버 주고받기 검사(`syncwire.mjs`)가 시작도 못 하고 죽는다.
+
 크롬 경로가 다르면:
 
 ```bash
