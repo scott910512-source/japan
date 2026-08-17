@@ -133,6 +133,12 @@ const FULL = {
   ok('소리 나는 대로 적으라고 함', sent.body.system_instruction.parts[0].text.includes('조사 は는 わ로'));
   const sys = sent.body.system_instruction.parts[0].text;
   ok('요즘 말도 물어봄', sys.includes('요즘 말(slang)'));
+  /* 「아아 하나요」처럼 우리끼리 쓰는 줄임말로 적는 게 오히려 자연스럽다.
+     글자대로 옮기면 일본 가게에서 안 통하는 말이 나온다. */
+  ok('한국 줄임말도 알아들으라고 함', sys.includes('한국 줄임말·유행어'));
+  ok('보기까지 들어 줌', sys.includes('아아') && sys.includes('영끌'));
+  ok('글자대로 옮기지 말라고 함', sys.includes('글자 그대로 옮기지 마세요'));
+  ok('일본에 없는 말이면 밝히라고 함', sys.includes('일본에는 같은 말이 없어요'));
   ok('한물간 말은 빼라고 함', sys.includes('한물간'));
   ok('어디까지 써도 되는지 적으라고 함', sys.includes('safe에'));
   ok('욕설은 빼라고 함', sys.includes('욕설'));
@@ -230,6 +236,12 @@ const FULL = {
   ok('누구나 아는 말도 빼라고 함', sys.includes('교과서'));
   ok('개수 채우려 지어내지 말라고 함', sys.includes('개수를 채우려고'));
   ok('예문을 달라고 함', sys.includes('그대로 따라 하면'));
+  /* 한 종류만 6개 오면 「맞장구 6개」 같은 게 된다. 줄임말·리액션·신조어를 섞어야
+     한국의 대박/아아/영끌 같은 폭이 나온다. */
+  ok('줄임말도 넣으라고 함', sys.includes('줄임말'));
+  ok('리액션도 넣으라고 함', sys.includes('리액션'));
+  ok('요즘 생긴 말도 넣으라고 함', sys.includes('SNS'));
+  ok('한 종류만 주지 말라고 함', sys.includes('골고루 섞으세요'));
   ok('소리 나는 대로 적으라고 함', sys.includes('조사 は는 わ'));
   ok('욕설은 빼라고 함', sys.includes('욕설'));
   ok(`${TREND_COUNT}개를 물어봄`, sent.body.contents[0].parts[0].text.includes(String(TREND_COUNT)));

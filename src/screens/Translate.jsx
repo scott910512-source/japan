@@ -42,9 +42,10 @@ function toCard(w) {
     mean: w.ko,
     type: WORD_TYPES.includes(w.type) ? w.type : 'etc',
     level: WORD_LEVELS.includes(w.level) ? w.level : 'N4',
-    example: '',
-    exampleKana: '',
-    exampleKo: '',
+    // 요즘 말은 예문 없이 「それな」만 남으면 나중에 봐도 쓸 자리를 모른다
+    example: w.ex || '',
+    exampleKana: w.ex ? (w.exYomi || w.ex) : '',
+    exampleKo: w.ex ? (w.exKo || '') : '',
     custom: true,
     source: { from: '번역기' },
   };
@@ -153,7 +154,7 @@ export default function Translate({
           value={korean}
           onChange={(e) => setKorean(e.target.value.slice(0, MAX_INPUT_CHARS))}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) run(); }}
-          placeholder="한국어로 적으세요 — 예: 이거 얼마예요?"
+          placeholder="한국어로 적으세요 — 예: 이거 얼마예요? / 아아 하나요"
           rows={2}
         />
         <button className="tr-go" disabled={busy || !korean.trim() || !ai.apiKey} onClick={run}>
@@ -169,6 +170,7 @@ export default function Translate({
       {ai.apiKey && !shown && (
         <p className="vd-note">
           지금 그 자리에서 말할 문장으로 알려 줘요. 한글 발음이 같이 나오니 보고 바로 말하면 돼요.
+          «대박», «아아», «영끌» 같은 줄임말·유행어로 적어도 알아들어요.
           {settings.tripPlace
             ? ` 지금 «${settings.tripPlace}»로 맞춰져 있어서 그 지역 사투리도 같이 봐요.`
             : ' 설정에서 여행지를 적어 두면 그 지역 사투리도 같이 알려 줘요.'}
@@ -273,7 +275,13 @@ export default function Translate({
                 </span>
               </div>
             )}
-            <button className="ghost-btn tr-trendkeep" onClick={() => keep({ jp: t.jp, yomi: t.yomi, ko: t.ko, type: 'expr', level: 'N3' })}>
+            <button
+              className="ghost-btn tr-trendkeep"
+              onClick={() => keep({
+                jp: t.jp, yomi: t.yomi, ko: t.ko, type: 'expr', level: 'N3',
+                ex: t.ex, exYomi: t.exYomi, exKo: t.exKo,
+              })}
+            >
               단어장에 담기
             </button>
           </div>
