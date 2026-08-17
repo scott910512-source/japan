@@ -32,7 +32,7 @@ import {
   loadVideos, saveVideos, loadVideoAnalyses, saveVideoAnalyses,
   loadVideoScripts, saveVideoScripts, loadVideoProgress, saveVideoProgress,
   loadVideoRemoved, saveVideoRemoved,
-  loadTranslations, saveTranslations,
+  loadTranslations, saveTranslations, loadTrends, saveTrends,
 } from './lib/storage.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
@@ -77,6 +77,7 @@ export default function App() {
   const [videoRemoved, setVideoRemoved] = useState(() => loadVideoRemoved());
   // 번역기에서 받아 둔 것 — 비행기 모드에서도 다시 봐야 해서 기기에 남긴다
   const [translations, setTranslations] = useState(() => loadTranslations());
+  const [trends, setTrends] = useState(() => loadTrends());
   const [streak, setStreak] = useState({ count: 0, lastDate: null });
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -122,6 +123,7 @@ export default function App() {
   useEffect(() => saveVideoProgress(videoProgress), [videoProgress]);
   useEffect(() => saveVideoRemoved(videoRemoved), [videoRemoved]);
   useEffect(() => saveTranslations(translations), [translations]);
+  useEffect(() => { if (trends) saveTrends(trends); }, [trends]);
 
   /* 동기화에 실을 영상 묶음. 묘비(removed)까지 같이 올려야 한 기기에서 뺀
      영상이 다른 기기에서 되살아나지 않는다. */
@@ -643,6 +645,8 @@ export default function App() {
                 settings={settings}
                 history={translations}
                 onHistory={setTranslations}
+                trends={trends}
+                onTrends={setTrends}
                 onAddWord={(w) => setCustomWords((prev) => (
                   prev.some((x) => x.id === w.id) ? prev : [...prev, w]
                 ))}

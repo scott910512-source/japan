@@ -1,6 +1,7 @@
 /* 번역기 — 받아 온 답의 모양을 고정하는지, 이상한 답에 안 터지는지. */
 import {
-  parseTranslation, MAX_INPUT_CHARS, SAFE_LEVELS, translate,
+  parseTranslation, parseTrends, MAX_INPUT_CHARS, SAFE_LEVELS, TREND_COUNT,
+  fetchTrends, translate,
 } from '../../src/lib/translate.js';
 import { PROVIDERS } from '../../src/lib/aiClient.js';
 import { kanaToHangul } from '../../src/lib/hangul.js';
@@ -141,6 +142,64 @@ const FULL = {
   // 여행지를 안 적었으면 그 줄이 아예 없다
   await translate({ provider: PROVIDERS.GEMINI, apiKey: 'k', korean: '고마워요' });
   ok('여행지가 없으면 안 보냄', !sent.body.contents[0].parts[0].text.includes('지금 있는 곳'));
+}
+
+// ── 요즘 일본어 알아보기 ──
+{
+  const raw = {
+    items: [
+      {
+        jp: 'それな', yomi: 'それな', ko: '그니까', safe: '친구',
+        when: '맞장구칠 때', ex: 'それな、まじで寒い。', exYomi: 'それな、まじでさむい。', exKo: '그니까, 진짜 춥다.',
+      },
+      { jp: 'ヤバい', yomi: 'やばい', ko: '대박' },
+      { ko: '일본어가 없다' },
+    ],
+  };
+  const r = parseTrends(JSON.stringify(raw));
+  ok('요즘 말을 읽음', r.length === 2, `${r.length}개`);
+  ok('일본어 없는 건 버림', r.every((t) => t.jp));
+  ok('예문이 같이 옴', r[0].ex.includes('寒い'));
+  ok('예문 읽기와 뜻도 옴', r[0].exYomi.includes('さむい') && r[0].exKo.includes('춥다'));
+  // 응용해서 쓰려면 예문이 있어야 한다 — 없으면 빈 값이지 터지지 않는다
+  ok('예문이 없어도 안 터짐', r[1].ex === '' && r[1].exKo === '');
+  ok('어디까지 써도 되는지 빠지면 좁게', r[1].safe === '친구', r[1].safe);
+  ok('제대로 온 값은 그대로', r[0].safe === '친구');
+
+  const boom = (text, expect, label) => {
+    let msg = '';
+    try { parseTrends(text); } catch (e) { msg = e.message; }
+    ok(label, msg.includes(expect), msg || '(안 터짐)');
+  };
+  boom('', '빈 응답', '빈 답이면 그렇게 말함');
+  boom('{"items":[]}', '받아 온 게 없', '하나도 없으면 그렇게 말함');
+  boom('{"items":[{"jp":"そ', '잘렸', '중간에 잘리면 그렇게 말함');
+}
+
+// 실제로 나가는 요청
+{
+  let sent = null;
+  globalThis.fetch = async (url, opt) => {
+    sent = { url: String(url), body: JSON.parse(opt.body) };
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: JSON.stringify({ items: [{ jp: 'それな' }] }) }] } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const r = await fetchTrends({ provider: PROVIDERS.GEMINI, apiKey: 'k' });
+  const sys = sent.body.system_instruction.parts[0].text;
+  ok('요즘 쓰는 말만 고르라고 함', sys.includes('실제로 주고받는 말만'));
+  ok('한물간 말은 빼라고 함', sys.includes('한물간'));
+  ok('누구나 아는 말도 빼라고 함', sys.includes('교과서'));
+  ok('개수 채우려 지어내지 말라고 함', sys.includes('개수를 채우려고'));
+  ok('예문을 달라고 함', sys.includes('그대로 따라 하면'));
+  ok('소리 나는 대로 적으라고 함', sys.includes('조사 は는 わ'));
+  ok('욕설은 빼라고 함', sys.includes('욕설'));
+  ok(`${TREND_COUNT}개를 물어봄`, sent.body.contents[0].parts[0].text.includes(String(TREND_COUNT)));
+  ok('받아서 돌려줌', r[0].jp === 'それな');
+
+  let msg = '';
+  try { await fetchTrends({ apiKey: '' }); } catch (e) { msg = e.message; }
+  ok('키가 없으면 안 부름', msg.includes('API 키'), msg);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

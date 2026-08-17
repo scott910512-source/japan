@@ -15,6 +15,7 @@ const KEYS = {
   videoProgress: 'jp_manabu_video_progress_v1', // 영상별 학습 진도 — 어디까지 했는지
   videoRemoved: 'jp_manabu_video_removed_v1',   // 뺀 영상의 묘비 — 아래 설명 참고
   translations: 'jp_manabu_translations_v1',    // 번역기에서 받아 둔 것 — 현지에서 다시 본다
+  trends: 'jp_manabu_trends_v1',                // 요즘 일본어 — 받아 둔 목록과 받은 날
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -90,6 +91,17 @@ export function loadTranslations() {
 }
 export function saveTranslations(list) {
   write(KEYS.translations, list.slice(0, TRANSLATION_KEEP));
+}
+
+/* 요즘 일본어. { at: 받은시각, items: [...] }
+ *
+ * 언제 받았는지를 같이 남긴다 — 유행어는 낡는다. 석 달 전에 받은 걸
+ * 오늘 것처럼 보여 주면 안 알려 주느니만 못하다. */
+export function loadTrends() {
+  return read(KEYS.trends, null);
+}
+export function saveTrends(data) {
+  write(KEYS.trends, data);
 }
 
 export function loadVideoRemoved() {

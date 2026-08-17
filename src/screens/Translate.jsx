@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { IconSpeaker, IconPlus, IconTrash } from '../components/Icons.jsx';
 import { speakJapanese, speakSlow, readingText } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
-import { MAX_INPUT_CHARS, translate } from '../lib/translate.js';
+import { MAX_INPUT_CHARS, TREND_COUNT, fetchTrends, translate } from '../lib/translate.js';
 import { resolveProvider } from '../lib/aiClient.js';
 
 /* 현지에서 바로 쓰는 번역기.
@@ -72,14 +72,19 @@ function Line({ jp, yomi, big, rate }) {
   );
 }
 
-export default function Translate({ settings, onAddWord, onToast, history, onHistory }) {
+export default function Translate({
+  settings, onAddWord, onToast, history, onHistory, trends, onTrends,
+}) {
   const [korean, setKorean] = useState('');
   const [busy, setBusy] = useState(false);
+  const [trendBusy, setTrendBusy] = useState(false);
   const [openId, setOpenId] = useState(history[0]?.id || null);
 
   const ai = useMemo(() => resolveProvider(settings), [settings]);
   const rate = settings.speechRate;
   const shown = history.find((h) => h.id === openId) || history[0] || null;
+  // 언제 받았는지 적어 둔다 — 유행어는 낡는다
+  const trendAt = trends?.at ? new Date(trends.at).toLocaleDateString('ko-KR', { dateStyle: 'short' }) : '';
 
   useEffect(() => { if (!openId && history[0]) setOpenId(history[0].id); }, [history, openId]);
 
@@ -113,6 +118,21 @@ export default function Translate({ settings, onAddWord, onToast, history, onHis
   const keep = (w) => {
     onAddWord(toCard(w));
     onToast(`${w.jp} — 단어장에 담았어요`);
+  };
+
+  /* 요즘 말은 목록을 코드에 박아 두지 않는다. 적어 두는 순간 낡기 시작하고,
+     낡은 유행어를 자신 있게 알려 주는 건 안 알려 주느니만 못하다. */
+  const loadTrend = async () => {
+    if (trendBusy) return;
+    setTrendBusy(true);
+    try {
+      const items = await fetchTrends(ai);
+      onTrends({ at: Date.now(), items });
+    } catch (err) {
+      onToast(err.message || '받아오지 못했어요');
+    } finally {
+      setTrendBusy(false);
+    }
   };
 
   const drop = (id) => {
@@ -218,6 +238,42 @@ export default function Translate({ settings, onAddWord, onToast, history, onHis
           )}
         </div>
       )}
+
+      {/* 물어볼 말이 없어도 미리 알아 두는 자리. 접어 둔다 — 번역이 본업이다. */}
+      <details className="tr-trend">
+        <summary>요즘 일본어 알아보기</summary>
+        <p className="vd-note">
+          지금 젊은 사람들이 쓰는 말을 {TREND_COUNT}개씩 받아 와요. 예문이 같이 오니 그날 바로 써 볼 수 있어요.
+          {' '}<b>모델이 아는 범위</b>라 진짜 요즘 것인지는 현지에서 확인하세요.
+          {trendAt && ` (${trendAt}에 받음)`}
+        </p>
+        <button className="ghost-btn" disabled={trendBusy || !ai.apiKey} onClick={loadTrend}>
+          {trendBusy ? '받는 중…' : (trends?.items?.length ? '다시 받기' : '받아 오기')}
+        </button>
+
+        {(trends?.items || []).map((t) => (
+          <div key={t.jp} className="tr-trendrow">
+            <span className={`tr-safe s-${t.safe}`}>{SAFE_HINT[t.safe] || t.safe}</span>
+            <Line jp={t.jp} yomi={t.yomi} rate={rate} />
+            <div className="tr-when"><b>{t.ko}</b>{t.when ? ` — ${t.when}` : ''}</div>
+            {t.ex && (
+              <div className="tr-ex">
+                <button className="tr-exsay" onClick={() => speakJapanese(readingText(t.exYomi, t.ex), rate)}>
+                  <IconSpeaker />
+                </button>
+                <span>
+                  <b>{t.ex}</b>
+                  <i>{readable(kanaToHangul(t.exYomi || t.ex))}</i>
+                  {t.exKo && <em>{t.exKo}</em>}
+                </span>
+              </div>
+            )}
+            <button className="ghost-btn tr-trendkeep" onClick={() => keep({ jp: t.jp, yomi: t.yomi, ko: t.ko, type: 'expr', level: 'N3' })}>
+              단어장에 담기
+            </button>
+          </div>
+        ))}
+      </details>
 
       {history.length > 0 && (
         <>

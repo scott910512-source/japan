@@ -149,3 +149,96 @@ export async function translate({
 
   return parseTranslation(text);
 }
+
+/* ── 요즘 일본어 알아보기 ──
+ *
+ * 번역은 "이 말을 뭐라고 해요?"인데, 이건 반대다. 물어볼 말이 없어도 지금
+ * 젊은 사람들이 뭘 쓰는지 먼저 알아 두는 것이다. 알아듣는 것만으로도 다르고,
+ * 예문이 있으면 그날 바로 써 볼 수 있다.
+ *
+ * 목록을 코드에 박아 두지 않는다. 유행어는 적어 두는 순간 낡기 시작하고,
+ * 낡은 유행어를 자신 있게 알려 주는 건 안 알려 주느니만 못하다. 그래서 쓸
+ * 때마다 물어보고, 언제 받았는지를 같이 적어 둔다.
+ *
+ * 그렇다고 "진짜 최신"이 보장되지는 않는다 — 모델이 아는 범위일 뿐이다.
+ * 그 사실도 화면에 적는다. 확인은 현지에서 하는 것이다. */
+
+export const TREND_COUNT = 6;
+
+const TREND_SYSTEM = `당신은 일본에 사는 20대 친구입니다.
+한국인 친구에게 "요즘 우리끼리 이런 말 써"라고 알려 주세요.
+
+원칙
+- 지금 일본 젊은 사람들이 실제로 주고받는 말만 고르세요.
+- 이미 한물간 말, 유행이 지난 지 오래된 말은 넣지 마세요.
+- 교과서에 나오는 말, 누구나 아는 기본 표현(すごい, かわいい 같은)은 빼세요.
+- 확실하지 않으면 그 항목을 빼세요. 개수를 채우려고 지어내지 마세요.
+- 욕설·비하·성적인 표현은 넣지 마세요.
+- yomi에는 한자를 쓰지 말고 가나로만, 소리 나는 대로 적으세요
+  (조사 は는 わ, へ는 え).
+- ex는 그 말을 실제로 쓰는 짧은 문장 하나입니다. 그대로 따라 하면 되게.
+- safe에 "친구"/"점원"/"안전" 중 하나를 적습니다.
+  친구 = 또래끼리만. 점원이나 윗사람에게 쓰면 무례합니다.
+  점원 = 가게에서 젊은 점원에게 써도 이상하지 않습니다.
+  안전 = 누구에게 써도 괜찮습니다.
+
+아래 JSON 하나만 출력하세요. 마크다운 펜스나 다른 텍스트를 붙이지 마세요.
+{
+  "items": [
+    {
+      "jp": "それな",
+      "yomi": "それな",
+      "ko": "그니까 / 인정",
+      "safe": "친구",
+      "when": "상대 말에 맞장구칠 때. 제일 많이 쓰는 맞장구예요",
+      "ex": "それな、まじで寒い。",
+      "exYomi": "それな、まじでさむい。",
+      "exKo": "그니까, 진짜 춥다."
+    }
+  ]
+}`;
+
+export function parseTrends(text) {
+  if (!text) throw new Error('빈 응답');
+  const trimmed = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  let data;
+  try {
+    data = JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf('{');
+    const end = trimmed.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try { data = JSON.parse(trimmed.slice(start, end + 1)); } catch { /* 아래에서 처리 */ }
+    }
+    if (!data) {
+      if (start >= 0 && end <= start) throw new Error('답이 중간에 잘렸어요. 다시 받아 보세요');
+      throw new Error('답을 읽지 못했어요');
+    }
+  }
+  const items = (Array.isArray(data.items) ? data.items : [])
+    .filter((t) => t?.jp)
+    .map((t) => ({
+      jp: String(t.jp),
+      yomi: String(t.yomi || t.jp),
+      ko: String(t.ko || ''),
+      // 모르면 제일 좁게 — 모르는 채로 점원에게 던지는 것보다 낫다
+      safe: SAFE_LEVELS.includes(t.safe) ? String(t.safe) : '친구',
+      when: String(t.when || ''),
+      ex: String(t.ex || ''),
+      exYomi: String(t.exYomi || t.ex || ''),
+      exKo: String(t.exKo || ''),
+    }));
+  if (!items.length) throw new Error('받아 온 게 없어요');
+  return items;
+}
+
+export async function fetchTrends({
+  provider, apiKey, model, count = TREND_COUNT,
+}) {
+  if (!apiKey) throw new Error('API 키가 필요해요');
+  const user = `요즘 쓰는 말 ${count}개를 알려 주세요.`;
+  const text = provider === PROVIDERS.GEMINI
+    ? await callGemini({ apiKey, model, system: TREND_SYSTEM, user, maxTokens: 8192 })
+    : await callClaude({ apiKey, model, system: TREND_SYSTEM, user, maxTokens: 3000 });
+  return parseTrends(text);
+}

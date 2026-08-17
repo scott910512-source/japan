@@ -1183,6 +1183,34 @@ button, input, select { font-family: inherit; }
 .tr-ik { font-size: 13.5px; font-weight: 600; color: var(--ink); }
 .tr-ij { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* 요즘 일본어 알아보기 — 번역이 본업이라 접어 둔다. */
+.tr-trend { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+.tr-trend > summary {
+  cursor: pointer; list-style: none; font-size: 13px; font-weight: 700; color: var(--kon);
+  padding: 11px 2px;
+}
+.tr-trend > summary::-webkit-details-marker { display: none; }
+.tr-trend > summary::after { content: ' ▾'; font-weight: 400; }
+.tr-trend[open] > summary::after { content: ' ▴'; }
+.tr-trendrow { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.tr-trendkeep { margin-top: 10px; padding: 8px 12px; font-size: 12.5px; }
+
+/* 예문이 핵심이다 — 뜻만 알면 못 쓰고, 문장이 있어야 그날 따라 한다. */
+.tr-ex {
+  display: flex; align-items: flex-start; gap: 9px; margin-top: 10px;
+  background: var(--surface-2); border-radius: 12px; padding: 11px 12px;
+}
+.tr-exsay {
+  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); color: var(--kon);
+  display: flex; align-items: center; justify-content: center;
+}
+.tr-exsay svg { width: 15px; height: 15px; }
+.tr-ex span { min-width: 0; }
+.tr-ex b { display: block; font-size: 14.5px; font-weight: 600; line-height: 1.5; }
+.tr-ex i { display: block; font-size: 12.5px; font-style: normal; color: var(--kon); margin-top: 3px; }
+.tr-ex em { display: block; font-size: 12px; font-style: normal; color: var(--ink-soft); margin-top: 3px; }
+
 /* 영상 빼기 — 되돌릴 수 없으니 "삭제"를 치게 한다. */
 .vd-delwhat { font-size: 14px; font-weight: 600; margin: 2px 0 10px; word-break: break-all; }
 .vd-delword {
