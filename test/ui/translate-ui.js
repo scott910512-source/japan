@@ -21,6 +21,10 @@ const ANSWER = {
   note: '가게에서 값을 물을 때 가장 무난해요.',
   alt: [{ jp: 'これ、いくら？', yomi: 'これ、いくら？', when: '편한 자리에서' }],
   dialect: [{ area: '오사카', jp: 'これなんぼ？', yomi: 'これなんぼ？', note: 'いくら 대신 なんぼ' }],
+  slang: [
+    { jp: 'これいくら？', yomi: 'これいくら？', ko: '이거 얼마임?', safe: '친구', note: '점원에게는 쓰지 마세요' },
+    { jp: 'ヤバい', yomi: 'やばい', ko: '대박', safe: '안전', note: '좋을 때도 나쁠 때도' },
+  ],
   words: [{ jp: 'いくら', yomi: 'いくら', ko: '얼마', type: 'noun', level: 'N5' }],
 };
 
@@ -60,7 +64,7 @@ const stub = (page, reply, status = 200) => page.evaluate(({ r, st }) => {
 }, { r: reply, st: status });
 
 const openTranslate = async (page) => {
-  await page.locator('.menucard', { hasText: '번역기' }).click();
+  await page.locator('.menutile', { hasText: '번역기' }).click();
   await page.waitForTimeout(700);
 };
 
@@ -85,7 +89,7 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   await stub(page, good);
 
   // ── 홈에서 들어간다 ──
-  ok('홈에 번역기가 있음', await page.locator('.menucard', { hasText: '번역기' }).count() === 1);
+  ok('홈에 번역기가 있음', await page.locator('.menutile', { hasText: '번역기' }).count() === 1);
   await openTranslate(page);
   ok('번역기가 열림', await page.locator('.tr-input').count() === 1);
   ok('여행지가 맞춰져 있다고 알려 줌', (await page.textContent('.sub-body')).includes('오사카'));
@@ -118,6 +122,15 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   ok('언제 쓰는지 한 줄', body.includes('무난해요'));
   ok('다른 말투도 보여 줌', body.includes('これ、いくら'));
   ok('사투리를 보여 줌', body.includes('なんぼ') && body.includes('오사카'));
+
+  /* 요즘 말은 알아듣는 것만으로도 값이 있지만, 모르고 점원에게 던지면 무례하다.
+     그래서 어디까지 써도 되는지가 말보다 먼저 보여야 한다. */
+  ok('요즘 말을 보여 줌', body.includes('요즘은 이렇게도'));
+  const safes = await page.locator('.tr-safe').allTextContents();
+  ok('어디까지 써도 되는지 붙어 있음', safes.length === 2, safes.join(' · '));
+  ok('또래끼리만인 걸 알려 줌', safes.includes('또래끼리만'), safes.join(' · '));
+  ok('누구에게나 되는 것도 구분함', safes.includes('누구에게나 OK'), safes.join(' · '));
+  ok('조심하라는 말도 보여 줌', body.includes('점원에게는 쓰지 마세요'));
 
   ok('듣기 버튼이 있음', await page.locator('.tr-say button', { hasText: '듣기' }).count() >= 1);
   ok('천천히도 있음', await page.locator('.tr-say button', { hasText: '천천히' }).count() >= 1);

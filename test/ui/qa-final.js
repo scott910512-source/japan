@@ -51,10 +51,10 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   // 홈의 메뉴를 모두 열어 본다
   await p.locator('.tabbar .tab', { hasText: '홈' }).click();
   await p.waitForTimeout(600);
-  const menus = await p.locator('.menucard').count();
+  const menus = await p.locator('.menutile').count();
   ok('홈에 메뉴가 있음', menus > 0, `${menus}개`);
   for (let i = 0; i < menus; i++) {
-    const card = p.locator('.menucard').nth(i);
+    const card = p.locator('.menutile').nth(i);
     const label = (await card.textContent()).trim().slice(0, 12);
     if (await card.isDisabled()) { ok(`아직 안 여는 메뉴는 잠김 · ${label}`, true); continue; }
     await card.click();
@@ -63,7 +63,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
     ok(`메뉴 열림 · ${label}`, shown > 100, `${shown}자`);
     const back = p.locator('.sub-back, .sh-close').first();
     if (await back.count()) { await back.click(); await p.waitForTimeout(600); }
-    if (await p.locator('.menucard').count() === 0) {
+    if (await p.locator('.menutile').count() === 0) {
       await p.locator('.tabbar .tab', { hasText: '홈' }).click(); await p.waitForTimeout(600);
     }
   }

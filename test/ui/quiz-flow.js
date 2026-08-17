@@ -34,7 +34,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
 
-  await page.locator('.menucard', { hasText: '단어 시험' }).first().click();
+  await page.locator('.menutile', { hasText: '단어 시험' }).first().click();
   await page.waitForTimeout(700);
   await page.locator('button', { hasText: '시험 시작' }).first().click().catch(async () => {
     await page.locator('.submit-btn').first().click();

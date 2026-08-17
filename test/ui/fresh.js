@@ -67,7 +67,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   const home = await page.textContent('.screen.active');
   ok('오늘 할 일을 알려 줌', /오늘|시작/.test(home), home.replace(/\s+/g, ' ').slice(0, 50));
   ok('깨진 숫자가 없음', !home.includes('undefined') && !home.includes('NaN'));
-  ok('학습 메뉴가 보임', await page.locator('.menucard').count() >= 3, `${await page.locator('.menucard').count()}개`);
+  ok('학습 메뉴가 보임', await page.locator('.menutile').count() >= 3, `${await page.locator('.menutile').count()}개`);
 
   // ── 바로 회독 ──
   await page.locator('.tabbar .tab', { hasText: '학습' }).click();

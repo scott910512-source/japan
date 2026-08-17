@@ -42,7 +42,7 @@ const ok = (label, cond, extra) => {
   await page.waitForTimeout(600);
 
   // 홈에 JLPT 메뉴 카드가 있는가
-  const card = page.locator('.menucard', { hasText: 'JLPT 단어' });
+  const card = page.locator('.menutile', { hasText: 'JLPT 단어' });
   ok('홈에 JLPT 단어 메뉴 노출', await card.count() > 0);
   await card.first().click();
   await page.waitForTimeout(500);
@@ -83,7 +83,7 @@ const ok = (label, cond, extra) => {
   // 뒤로 → 레벨 재선택
   const homeTab = page.locator('.tabbar button').first();
   if (await homeTab.count()) { await homeTab.click(); await page.waitForTimeout(500); }
-  const card2 = page.locator('.menucard', { hasText: 'JLPT 단어' });
+  const card2 = page.locator('.menutile', { hasText: 'JLPT 단어' });
   if (await card2.count()) {
     await card2.first().click();
     await page.waitForTimeout(400);

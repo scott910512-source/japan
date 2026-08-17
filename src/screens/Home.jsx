@@ -45,12 +45,12 @@ export default function Home({
         오늘도 한 걸음
       </div>
 
-      <div className="streak">
+      {/* 연속일은 자랑이 아니라 확인이다. 크게 차지할 자리가 아니라 한 줄이면 된다 —
+          자리는 오늘 할 일과 메뉴에 준다. */}
+      <div className="streakline">
         <IconFlame />
-        <div>
-          <div className="num">{streak.count}일째</div>
-          <div className="cap">오늘 {today.studied}장 학습 · 공부한 단어 {stat.seen}개</div>
-        </div>
+        <b>{streak.count}일째</b>
+        <span>오늘 {today.studied}장 · 공부한 단어 {stat.seen}개</span>
       </div>
 
       <button className="bigstart" onClick={onStartStudy}>
@@ -70,18 +70,17 @@ export default function Home({
         </button>
       )}
 
+      {/* 바둑판으로 둔다. 한 줄에 하나씩 늘어놓으면 일곱 개가 화면을 넘어가서
+          아래쪽 메뉴는 있는 줄도 모른다. 두 칸이면 한눈에 다 들어온다. */}
       <div className="section-label">학습 메뉴</div>
-      <div className="stack">
+      <div className="menugrid">
         {visible.map(({ id, label, sub, Icon, primary }) => (
-          <button key={id} className={`menucard${primary ? ' primary' : ''}`} onClick={() => onOpen(id)}>
-            <span className="mc-icon"><Icon /></span>
-            <span className="mc-body">
-              <span className="mc-title">{label}</span>
-              <span className="mc-sub">
-                {id === 'words' ? `${stat.seen} / ${stat.total} 공부함` : sub}
-              </span>
+          <button key={id} className={`menutile${primary ? ' primary' : ''}`} onClick={() => onOpen(id)}>
+            <span className="mt-icon"><Icon /></span>
+            <span className="mt-title">{label}</span>
+            <span className="mt-sub">
+              {id === 'words' ? `${stat.seen} / ${stat.total}` : sub}
             </span>
-            <IconChevron className="chev" />
           </button>
         ))}
         {visible.length === 0 && (
