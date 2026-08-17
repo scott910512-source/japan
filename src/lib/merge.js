@@ -154,7 +154,7 @@ export function mergeVideos(local = {}, remote = {}) {
 // 음성 API 키는 자격 증명이라 서버에 올리지 않는다.
 const SYNCED_SETTINGS = [
   'canReadKana', 'tripDay', 'menus', 'levels',
-  'dailyGoal', 'direction',
+  'dailyGoal', 'direction', 'tripPlace',
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
 ];

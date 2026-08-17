@@ -12,7 +12,7 @@ const MENUS = [
   { id: 'jlpt', label: 'JLPT 단어', sub: '레벨별 · 100개 세트로', Icon: IconList },
   { id: 'sentences', label: '상황별 문장암기', sub: '이동 · 식당 · 일상', Icon: IconChat },
   { id: 'quiz', label: '단어 시험', sub: '객관식 · 주관식으로 확인', Icon: IconList },
-  { id: 'rpg', label: '실전연습 (여행연습)', sub: '역할극으로 실전처럼', Icon: IconMap },
+  { id: 'translate', label: '번역기', sub: '현지에서 바로 — 발음까지', Icon: IconMap },
 ];
 
 const TRIP_LABEL = { d3: '여행까지 3일', d7: '여행까지 일주일', d14: '여행까지 2주' };

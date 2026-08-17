@@ -21,7 +21,7 @@ const MENU_LABELS = {
   jlpt: 'JLPT 단어',
   sentences: '상황별 문장암기',
   quiz: '단어 시험',
-  rpg: '실전연습 (여행연습)',
+  translate: '번역기',
 };
 
 const DIRECTIONS = [
@@ -329,7 +329,7 @@ export default function Settings({
           <button key={id} className="toggle-row setrow" onClick={() => toggleMenu(id)} aria-pressed={Boolean(menus[id])}>
             <span>
               <span className="set-title">{label}</span>
-              {id === 'rpg' && <span className="set-sub">기존 여행 RPG — 이관 준비 중</span>}
+              {id === 'translate' && <span className="set-sub">한국어로 적으면 지금 말할 일본어로 — 발음까지</span>}
             </span>
             <span className={`toggle${menus[id] ? ' on' : ''}`} aria-hidden="true" />
           </button>
@@ -353,6 +353,19 @@ export default function Settings({
           on={settings.showExample} onClick={() => onChange({ showExample: !settings.showExample })} />
         <Toggle label="카드 섞기" sub="순서를 외워버리는 걸 막아요"
           on={settings.shuffle} onClick={() => onChange({ shuffle: !settings.shuffle })} />
+
+        <div className="setrow col">
+          <div className="set-title">여행지</div>
+          <div className="set-sub">
+            적어 두면 번역기가 그 지역에서 실제로 쓰는 말(사투리)도 같이 알려 줘요.
+          </div>
+          <input
+            type="text"
+            value={settings.tripPlace || ''}
+            placeholder="예: 오사카 · 후쿠오카"
+            onChange={(e) => onChange({ tripPlace: e.target.value })}
+          />
+        </div>
 
         <div className="setrow col">
           <div className="set-title">오늘 학습량</div>

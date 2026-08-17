@@ -2,29 +2,20 @@
  *
  * 자막 전체를 번역하거나 통째로 외우게 하지 않는다. 지금 수준에서 실제로
  * 쓸 값이 있는 것만 골라 낸다 — 새 문법 1~3개, 단어 5~10개가 한 번의 한계다.
- * 그 이상은 배운 게 아니라 읽은 것이 된다.
+ * 그 이상은 배운 게 아니라 읽은 것이다.
  *
- * 호출은 브라우저에서 바로 한다. 키는 사용자가 설정에 넣은 자기 키이고
- * 기기 밖으로 나가지 않는다 — 음성 키와 같은 방식이다. */
+ * 부르는 일은 aiClient가 한다. 여기는 "무엇을 물어볼지"만 정한다. */
 
-const API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_VERSION = '2023-06-01';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+import {
+  PROVIDERS, callClaude, callGemini, geminiGenerate, geminiReason, geminiText,
+} from './aiClient.js';
 
-export const DEFAULT_MODEL = 'claude-sonnet-5';
+/* 화면들이 예전부터 여기서 가져다 쓰고 있다. 옮겼다고 전부 고치게 하지 않는다. */
+export {
+  DEFAULT_MODEL, DEFAULT_GEMINI_MODEL, PROVIDERS,
+  listGeminiModels, looksLikeGeminiKey, resolveProvider,
+} from './aiClient.js';
 
-/* 제미나이 모델 이름은 자주 바뀐다. 여기 적어 둔 값이 낡으면 404가 나는데,
- * 그때 "왜 안 되지"로 끝나면 안 되니 키로 목록을 직접 받아 고를 수 있게 해 둔다
- * (listGeminiModels). 여기 값은 그 전까지 쓰는 첫 후보일 뿐이다. */
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
-export const PROVIDERS = { CLAUDE: 'claude', GEMINI: 'gemini' };
-
-/* 설명을 만들 때 API에 실을 자막의 최대 글자 수.
- *
- * 비용만의 문제가 아니다. 튜터는 단어 5~10개, 문법 1~3개만 뽑으니 자막이 길다고
- * 자료가 좋아지지 않는다 — 고를 거리만 늘고 결과가 흐려지며, 답이 길어져
- * 중간에 잘리기도 한다. 4000자면 대략 10~15분어치 말이고, 한 번에 배울 분량으로도
- * 그쯤이 맞다. 자막 학습 자체는 API를 쓰지 않으니 이 한도와 무관하다. */
 export const ANALYZE_CHAR_LIMIT = 4000;
 
 /* 받아 적을 영상의 최대 길이(분).
@@ -164,45 +155,6 @@ function userText({ title, channel, script }) {
   return `${head ? `[영상 정보]\n${head}\n\n` : ''}[자막]\n${script.trim()}`;
 }
 
-/* 어느 쪽이 실패했는지 알 수 있게 오류를 그대로 꺼내 준다. "실패했어요"만 뜨면
- * 키가 틀린 건지, 모델 이름이 낡은 건지, 한도를 넘은 건지 알 수가 없다. */
-async function failure(res, who) {
-  let msg = `${who} HTTP ${res.status}`;
-  try {
-    const body = await res.json();
-    const detail = body?.error?.message;
-    if (detail) msg += ` — ${detail}`;
-  } catch { /* 본문 파싱 실패는 무시 */ }
-  return new Error(msg);
-}
-
-/* 이 키로 실제로 쓸 수 있는 모델을 받아 온다. 내가 적어 둔 이름이 맞는지
- * 짐작하지 않고 물어보는 쪽이 확실하다. */
-export async function listGeminiModels(apiKey) {
-  if (!apiKey) throw new Error('구글 API 키가 필요해요');
-  const res = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(apiKey)}`);
-  if (!res.ok) throw await failure(res, 'Gemini');
-  const data = await res.json();
-  return (data.models || [])
-    .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
-    .map((m) => String(m.name).replace(/^models\//, ''))
-    .sort();
-}
-
-/* 글이 안 왔을 때 왜 안 왔는지 말해 준다.
- *
- * "빈 응답"만 뜨면 자막이 막힌 건지, 길어서 잘린 건지, 모델이 이상한 건지
- * 알 수가 없다. 구글이 이유를 finishReason으로 알려 주니 그대로 옮긴다. */
-function geminiReason(data) {
-  const blocked = data?.promptFeedback?.blockReason;
-  if (blocked) return `자막이 안전 필터에 걸렸어요 (${blocked})`;
-  const why = data?.candidates?.[0]?.finishReason;
-  if (why === 'MAX_TOKENS') return '설명이 너무 길어 잘렸어요. 자막을 나눠서 넣어 보세요';
-  if (why === 'SAFETY' || why === 'PROHIBITED_CONTENT') return `안전 필터에 걸렸어요 (${why})`;
-  if (why === 'RECITATION') return '자막이 저작물로 판단돼 거절됐어요 (RECITATION)';
-  return why ? `Gemini가 글을 못 만들었어요 (${why})` : 'Gemini가 빈 응답을 보냈어요';
-}
-
 const TRANSCRIBE = `이 영상에서 일본어로 말하는 내용을 그대로 받아 적으세요.
 
 - 한 줄에 하나씩, [분:초] 뒤에 그 시각에 말한 일본어를 적습니다. 예: [1:23] やっぱり美味しいですね。
@@ -224,41 +176,37 @@ const TRANSCRIBE = `이 영상에서 일본어로 말하는 내용을 그대로 
  * 입력칸에 채워 넣고 눈으로 확인한 뒤 저장하게 한다 — 배우는 건 사용자가
  * 받아들인 글이다. */
 export async function fetchTranscript({ apiKey, model, videoId, minutes = TRANSCRIBE_MINUTES }) {
-  if (!apiKey) throw new Error('구글 API 키가 필요해요');
   if (!videoId) throw new Error('영상 주소를 확인해 주세요');
-  const name = model || DEFAULT_GEMINI_MODEL;
-  const url = `${GEMINI_BASE}/models/${encodeURIComponent(name)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-  const ask = (thrifty) => fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        role: 'user',
-        parts: [
-          {
-            file_data: { file_uri: `https://www.youtube.com/watch?v=${videoId}` },
-            ...(thrifty ? {
-              video_metadata: {
-                start_offset: { seconds: 0 },
-                end_offset: { seconds: Math.round(minutes * 60) },
-                fps: TRANSCRIBE_FPS,
-              },
-            } : {}),
-          },
-          { text: TRANSCRIBE },
-        ],
-      }],
-      generationConfig: { maxOutputTokens: 32768 },
-    }),
+  const body = (thrifty) => ({
+    contents: [{
+      role: 'user',
+      parts: [
+        {
+          file_data: { file_uri: `https://www.youtube.com/watch?v=${videoId}` },
+          ...(thrifty ? {
+            video_metadata: {
+              start_offset: { seconds: 0 },
+              end_offset: { seconds: Math.round(minutes * 60) },
+              fps: TRANSCRIBE_FPS,
+            },
+          } : {}),
+        },
+        { text: TRANSCRIBE },
+      ],
+    }],
+    generationConfig: { maxOutputTokens: 32768 },
   });
 
-  /* 아껴 쓰는 설정(길이·화면 수)을 못 알아듣는 모델도 있다. 그때 400을 그대로
+  /* 아껴 쓰는 설정(길이·화면 수)을 못 알아듣는 모델도 있다. 그때 오류를 그대로
      내면 "왜 안 되지"로 끝나니, 설정만 빼고 한 번 더 해 본다 — 비싸지지만 된다. */
-  let res = await ask(true);
-  if (res.status === 400) res = await ask(false);
-  if (!res.ok) throw await failure(res, 'Gemini');
-  const data = await res.json();
-  const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
+  let data;
+  try {
+    data = await geminiGenerate({ apiKey, model, body: body(true) });
+  } catch (err) {
+    if (!/HTTP 400/.test(err.message)) throw err;
+    data = await geminiGenerate({ apiKey, model, body: body(false) });
+  }
+  const text = geminiText(data).trim();
   if (!text) throw new Error(geminiReason(data));
 
   /* 영상을 진짜로 봤는지 확인한다.
@@ -303,91 +251,14 @@ export function transcriptPrompt(url) {
 - 자막에 없는 말은 지어내지 마세요. 자막을 못 가져오면 그렇다고만 말해 주세요.`;
 }
 
-async function analyzeWithGemini({ apiKey, model, title, channel, script }) {
-  const name = model || DEFAULT_GEMINI_MODEL;
-  const res = await fetch(
-    `${GEMINI_BASE}/models/${encodeURIComponent(name)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: 'user', parts: [{ text: userText({ title, channel, script }) }] }],
-        /* JSON으로 달라고 형식을 직접 지정한다 — 펜스나 앞말이 붙지 않는다.
-         *
-         * 한도를 넉넉히 잡는다. Gemini 2.5부터는 생각하는 토큰도 이 한도에서
-         * 깎아 먹는데, 우리가 받는 JSON은 항목이 아홉 개라 그것만으로도 수천
-         * 토큰이다. 빠듯하게 잡으면 생각하다 한도를 다 써서 JSON이 중간에
-         * 잘리고, 잘린 JSON은 읽을 수가 없다. */
-        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 32768 },
-      }),
-    },
-  );
-  if (!res.ok) throw await failure(res, 'Gemini');
-  const data = await res.json();
-  const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
-  if (!text) throw new Error(geminiReason(data));
-  return parseAnalysis(text);
-}
-
 export async function analyzeScript({ provider, apiKey, model, title, channel, script }) {
   if (!apiKey) throw new Error('API 키가 필요해요');
   if (!script?.trim()) throw new Error('자막을 먼저 붙여넣어 주세요');
-  if (provider === PROVIDERS.GEMINI) {
-    return analyzeWithGemini({ apiKey, model, title, channel, script });
-  }
-
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': ANTHROPIC_VERSION,
-      'content-type': 'application/json',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: model || DEFAULT_MODEL,
-      max_tokens: 8000,
-      system: SYSTEM,
-      messages: [{ role: 'user', content: userText({ title, channel, script }) }],
-    }),
-  });
-
-  if (!res.ok) throw await failure(res, 'Claude');
-
-  const data = await res.json();
-  const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+  const user = userText({ title, channel, script });
+  const text = provider === PROVIDERS.GEMINI
+    ? await callGemini({ apiKey, model, system: SYSTEM, user })
+    : await callClaude({ apiKey, model, system: SYSTEM, user });
   return parseAnalysis(text);
-}
-
-/* AI Studio에서 받은 Gemini 키인지 본다.
- *
- * 음성(Cloud TTS)과 Gemini는 둘 다 구글이지만 키가 다르다. Cloud 키는 AIza로
- * 시작하고, AI Studio 키는 AQ.로 시작한다. 생김새가 비슷해서 음성 칸에 Gemini
- * 키를 넣는 일이 실제로 일어나는데, 그러면 구글이 "Expected OAuth2 access
- * token…"이라는 알 수 없는 말로 거절한다. 넣는 순간 알려 주는 게 낫다.
- *
- * AIza로 시작하는 키는 양쪽 다 가능해서 판단하지 않는다 — 확실할 때만 말한다. */
-export function looksLikeGeminiKey(key = '') {
-  return /^AQ\./.test(String(key).trim());
-}
-
-/* 설정에서 실제로 쓸 제공처와 키를 정한다.
- *
- * Gemini 키는 음성(TTS/STT) 키와 같은 구글 API 키 형식이라, 따로 넣지 않았으면
- * 그 키를 그대로 쓴다 — 키를 두 번 넣게 하지 않는다. 다만 그 키가 붙은 구글
- * 프로젝트에서 Generative Language API가 켜져 있어야 통한다. */
-export function resolveProvider(settings = {}) {
-  const provider = settings.aiProvider === PROVIDERS.CLAUDE ? PROVIDERS.CLAUDE : PROVIDERS.GEMINI;
-  if (provider === PROVIDERS.CLAUDE) {
-    return { provider, apiKey: settings.claudeKey || '', model: settings.claudeModel || '' };
-  }
-  return {
-    provider,
-    apiKey: settings.geminiKey || settings.gttsKey || '',
-    model: settings.geminiModel || '',
-    borrowed: !settings.geminiKey && Boolean(settings.gttsKey),
-  };
 }
 
 /* 유튜브 주소에서 영상 id만 뽑는다. youtu.be, watch?v=, shorts, embed 모두 받는다. */
