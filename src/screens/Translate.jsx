@@ -19,6 +19,14 @@ import { resolveProvider } from '../lib/aiClient.js';
  *   - 단어는 그 자리에서 단어장에 담긴다. 여행에서 쓴 말이 제일 잘 붙는다.
  */
 
+/* 요즘 말은 알아듣는 것만으로도 값이 있지만, 아무 데나 쓰면 무례해진다.
+   딱지에 그 선을 적어 둔다. */
+const SAFE_HINT = {
+  친구: '또래끼리만',
+  점원: '젊은 점원에게도 OK',
+  안전: '누구에게나 OK',
+};
+
 const WORD_TYPES = ['verb', 'noun', 'adj-i', 'adj-na', 'adv', 'conj', 'etc'];
 const WORD_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'];
 
@@ -170,6 +178,22 @@ export default function Translate({ settings, onAddWord, onToast, history, onHis
                   <span className="tr-area">{d.area}</span>
                   <Line jp={d.jp} yomi={d.yomi} rate={rate} />
                   {d.note && <div className="tr-when">{d.note}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {shown.slang.length > 0 && (
+            <div className="tr-sec">
+              <h4>요즘은 이렇게도</h4>
+              {shown.slang.map((g) => (
+                <div key={g.jp} className="tr-sub">
+                  {/* 어디까지 써도 되는지를 말보다 먼저 보여 준다. 모르고 점원에게
+                      던지면 무례하게 들리는 말이 섞여 있다. */}
+                  <span className={`tr-safe s-${g.safe}`}>{SAFE_HINT[g.safe] || g.safe}</span>
+                  <Line jp={g.jp} yomi={g.yomi} rate={rate} />
+                  {g.ko && <div className="tr-when">{g.ko}</div>}
+                  {g.note && <div className="tr-when">{g.note}</div>}
                 </div>
               ))}
             </div>

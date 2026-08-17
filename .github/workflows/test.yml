@@ -1,9 +1,12 @@
 name: 검사
 
+# 작업 브랜치 푸시에서도 돌린다. PR로만 걸어 뒀더니 PR이 머지돼 닫힌 뒤로는
+# 아무리 올려도 검사가 안 돌았다 — 안 도는 걸 모르는 게 제일 나쁘다.
+# PR이 열려 있으면 두 번 도는데, 그 낭비가 조용히 건너뛰는 것보다 낫다.
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
   workflow_dispatch:
 
 jobs:

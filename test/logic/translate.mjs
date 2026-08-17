@@ -1,5 +1,7 @@
 /* 번역기 — 받아 온 답의 모양을 고정하는지, 이상한 답에 안 터지는지. */
-import { parseTranslation, MAX_INPUT_CHARS, translate } from '../../src/lib/translate.js';
+import {
+  parseTranslation, MAX_INPUT_CHARS, SAFE_LEVELS, translate,
+} from '../../src/lib/translate.js';
 import { PROVIDERS } from '../../src/lib/aiClient.js';
 import { kanaToHangul } from '../../src/lib/hangul.js';
 
@@ -16,6 +18,7 @@ const FULL = {
   note: '가게에서 값을 물을 때.',
   alt: [{ jp: 'これ、いくら？', yomi: 'これ、いくら？', when: '편한 자리' }],
   dialect: [{ area: '오사카', jp: 'これなんぼ？', yomi: 'これなんぼ？', note: 'なんぼ를 씁니다' }],
+  slang: [{ jp: 'これいくら？', yomi: 'これいくら？', ko: '이거 얼마임?', safe: '친구', note: '점원에게는 쓰지 마세요' }],
   words: [{ jp: 'いくら', yomi: 'いくら', ko: '얼마', type: 'noun', level: 'N5' }],
 };
 
@@ -25,6 +28,21 @@ const FULL = {
   ok('일본어를 읽음', r.jp.includes('いくら'));
   ok('사투리를 읽음', r.dialect[0].area === '오사카');
   ok('단어를 읽음', r.words[0].ko === '얼마');
+  ok('요즘 말을 읽음', r.slang[0].jp.includes('いくら'));
+  ok('어디까지 써도 되는지 같이 옴', r.slang[0].safe === '친구');
+}
+
+/* 요즘 말은 알아듣는 것만으로도 값이 있지만, 모르고 점원에게 던지면 무례하다.
+   그래서 "어디까지"가 빠지거나 이상하면 제일 좁게 잡는다. */
+{
+  const r = parseTranslation(JSON.stringify({
+    jp: 'はい',
+    slang: [{ jp: 'それな' }, { jp: 'マジ？', safe: '아무나' }, { jp: 'ヤバい', safe: '안전' }],
+  }));
+  ok('빠지면 또래끼리만으로', r.slang[0].safe === '친구', r.slang[0].safe);
+  ok('모르는 값도 또래끼리만으로', r.slang[1].safe === '친구', r.slang[1].safe);
+  ok('제대로 온 값은 그대로', r.slang[2].safe === '안전');
+  ok('쓸 수 있는 값은 셋뿐', SAFE_LEVELS.length === 3, SAFE_LEVELS.join('/'));
 }
 
 // ── 펜스가 붙어 와도 ──
@@ -44,6 +62,7 @@ const FULL = {
   ok('없는 목록은 빈 배열', Array.isArray(r.alt) && r.alt.length === 0);
   ok('사투리도 빈 배열', Array.isArray(r.dialect) && r.dialect.length === 0);
   ok('단어도 빈 배열', Array.isArray(r.words) && r.words.length === 0);
+  ok('요즘 말도 빈 배열', Array.isArray(r.slang) && r.slang.length === 0);
 }
 
 // 목록에 쓰레기가 섞여 와도 걸러 낸다
@@ -111,6 +130,11 @@ const FULL = {
   ok('통역사로 시킴', sent.body.system_instruction.parts[0].text.includes('통역사'));
   ok('사투리를 지어내지 말라고 함', sent.body.system_instruction.parts[0].text.includes('지어내지 마세요'));
   ok('소리 나는 대로 적으라고 함', sent.body.system_instruction.parts[0].text.includes('조사 は는 わ로'));
+  const sys = sent.body.system_instruction.parts[0].text;
+  ok('요즘 말도 물어봄', sys.includes('요즘 말(slang)'));
+  ok('한물간 말은 빼라고 함', sys.includes('한물간'));
+  ok('어디까지 써도 되는지 적으라고 함', sys.includes('safe에'));
+  ok('욕설은 빼라고 함', sys.includes('욕설'));
   ok('JSON으로 달라고 함', sent.body.generationConfig.responseMimeType === 'application/json');
   ok('답을 읽어 돌려줌', r.dialect[0].jp.includes('なんぼ'));
 
