@@ -46,6 +46,18 @@ export function conjugate(kana, group) {
   if (!kana) return null;
 
   if (group === '3') {
+    /* 3형은 する·くる 둘뿐인 게 아니라, 勉強する처럼 앞에 말이 붙은 게 훨씬 많다.
+       표만 보고 답하면 앞말이 통째로 날아가서 「勉強する의 ます형」이 「します」가
+       된다 — 활용이 아니라 다른 단어가 나오는 셈이다. 앞말을 떼었다 다시 붙인다. */
+    for (const tail of ['する', 'くる']) {
+      if (kana.endsWith(tail) && kana.length > tail.length) {
+        const head = kana.slice(0, -tail.length);
+        const base = IRREGULAR[tail];
+        return buildForms(Object.fromEntries(
+          Object.entries(base).map(([k, v]) => [k, head + v]),
+        ));
+      }
+    }
     const base = IRREGULAR[kana] || IRREGULAR['する'];
     return buildForms(base);
   }
