@@ -15,16 +15,17 @@ const ok = (l, c, e) => {
   if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); }
 };
 
-async function boot(browser, seed) {
+async function boot(browser, seed, settings) {
   const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate((s) => {
+  await page.evaluate(([s, extra]) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const st = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     st.onboarded = true; st.autoTTS = false;
+    Object.assign(st, extra || {});
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(st));
     if (s) for (const [k, v] of Object.entries(s)) localStorage.setItem(k, JSON.stringify(v));
-  }, seed);
+  }, [seed, settings]);
   await page.waitForTimeout(1100);
   /* 켜진 채로 다시 부르고 나서 끊는다. 끊고 부르면 서비스워커가 자리를 못 잡아
      아무것도 안 뜬다 — 인터넷 되는 곳(CI)에서 이것 때문에 검사가 통째로 죽었다. */
@@ -35,16 +36,6 @@ async function boot(browser, seed) {
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
   return page;
-}
-
-/* 다시 부르면 로그인 문이 또 나온다. 끊긴 채로는 「그냥 쓰기」로 지나간다 —
-   설정을 바꿔 보려면 다시 불러야 해서 여기가 매번 필요하다. */
-async function relaunch(page) {
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1200);
-  const off = page.locator('.gate-offline');
-  await off.waitFor({ timeout: 8000 }).catch(() => {});
-  if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
 }
 
 const open = async (page) => {
@@ -68,6 +59,7 @@ const open = async (page) => {
   ok('기초 시제 다섯이 적혀 있음',
     ['정중형', '정중 과거', '과거', '부정', '과거 부정'].every((t) => body.includes(t)));
   ok('몇 개 봤는지 알려 줌', /동사 \d+개 중 \d+개/.test(body), body.match(/동사 \d+개 중 \d+개/)?.[0]);
+  const onlyN5 = body.match(/동사 (\d+)개/)?.[1]; // 기본은 N5만 — 아래 레벨 검사에서 견준다
 
   /* 안 물어본 자리를 0%로 그리면 틀린 것처럼 읽힌다 */
   ok('아직 안 본 자리는 점으로', await page.locator('.cj-cell.none').count() > 0);
@@ -154,6 +146,13 @@ const open = async (page) => {
   await page.waitForTimeout(400);
   ok('없으면 없다고 함', (await page.textContent('.cj-look')).includes('찾는 동사가 없어요'));
 
+  /* 기초문법도 열어 본다 — 활용표를 같이 쓰는 자리라 여기가 깨지면 거기도 깨진다 */
+  await page.locator('.sub-back').click();
+  await page.waitForTimeout(600);
+  await page.locator('.menutile', { hasText: '기초문법' }).click();
+  await page.waitForTimeout(900);
+  ok('기초문법도 열림', (await page.textContent('.subscreen')).trim().length > 50);
+
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
   await page.close();
 
@@ -176,47 +175,24 @@ const open = async (page) => {
   // ── 활용 칸이 아예 없던 옛 기록 ──
   {
     const errs = [];
-    const p3 = await boot(browser, { jp_manabu_progress_v1: { bookmarks: ['n5-0001'], grammarDone: {} } });
+    /* 레벨도 같이 본다 — 설정을 바꾸려면 다시 불러야 하는데, 끊긴 채로 다시 부르면
+       서비스워커가 자리를 못 잡아 인터넷 되는 곳(CI)에서 통째로 멈춘다. 켜기 전에 넣는다. */
+    const p3 = await boot(browser,
+      { jp_manabu_progress_v1: { bookmarks: ['n5-0001'], grammarDone: {} } },
+      { levels: ['N5', 'N4'] });
     p3.on('pageerror', (e) => errs.push(e.message));
     await open(p3);
     ok('옛 기록으로도 화면이 뜸', await p3.locator('.cj-grid').count() === 1);
     ok('옛 기록에서 안 죽음', errs.length === 0, errs.slice(0, 2).join(' | '));
+
+    /* N5만 켜 두고 N3 동사가 나오면 아직 안 배운 걸 물어보는 셈이다 */
+    const n54 = (await p3.textContent('.subscreen .bs-s')).match(/동사 (\d+)개/)?.[1];
+    ok('레벨을 넓히면 동사도 늘어남', Number(n54) > Number(onlyN5), `N5 ${onlyN5}개 → N5+N4 ${n54}개`);
+
     await p3.locator('.subscreen .bigstart').click();
     await p3.waitForTimeout(800);
     ok('옛 기록으로도 문제가 나옴', await p3.locator('.qopt').count() === 4);
     await p3.close();
-  }
-
-  /* 설정에서 고른 레벨을 따라야 한다. N5만 켜 두고 N3 동사가 나오면
-     아직 안 배운 걸 물어보는 셈이다. */
-  {
-    const p5 = await boot(browser);
-    await p5.evaluate(() => {
-      const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1'));
-      s.levels = ['N5']; localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
-    });
-    await relaunch(p5);
-    await open(p5);
-    const n5 = (await p5.textContent('.subscreen .bs-s')).match(/동사 (\d+)개/)?.[1];
-
-    await p5.evaluate(() => {
-      const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1'));
-      s.levels = ['N5', 'N4']; localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
-    });
-    await relaunch(p5);
-    await open(p5);
-    const n54 = (await p5.textContent('.subscreen .bs-s')).match(/동사 (\d+)개/)?.[1];
-    ok('레벨을 넓히면 동사도 늘어남', Number(n54) > Number(n5), `N5 ${n5}개 → N5+N4 ${n54}개`);
-    await p5.close();
-  }
-
-  // ── 기초문법도 같이 (앞말이 날아가던 자리) ──
-  {
-    const p4 = await boot(browser);
-    await p4.locator('.menutile', { hasText: '기초문법' }).click();
-    await p4.waitForTimeout(800);
-    ok('기초문법이 열림', (await p4.textContent('.subscreen')).trim().length > 50);
-    await p4.close();
   }
 
   await browser.close();
