@@ -21,6 +21,7 @@ const MENU_LABELS = {
   jlpt: 'JLPT 단어',
   sentences: '상황별 문장암기',
   quiz: '단어 시험',
+  conjugate: '동사 활용',
   translate: '번역기',
 };
 

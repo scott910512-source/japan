@@ -83,6 +83,30 @@ export function mergeCustomWords(local = [], remote = []) {
   return out;
 }
 
+/* 맞고 틀린 횟수는 더하지 않고 큰 쪽을 쓴다.
+ *
+ * 더하면 같은 기기에서 동기화를 두 번만 눌러도 숫자가 두 배가 된다 —
+ * 일별 집계(mergeStats)에서 이미 겪은 자리라 같은 방식으로 둔다. */
+function mergeCounts(local = {}, remote = {}) {
+  const out = {};
+  for (const k of new Set([...Object.keys(local || {}), ...Object.keys(remote || {})])) {
+    const a = local?.[k] || {}; const b = remote?.[k] || {};
+    out[k] = {
+      right: Math.max(a.right || 0, b.right || 0),
+      wrong: Math.max(a.wrong || 0, b.wrong || 0),
+    };
+  }
+  return out;
+}
+
+/* 동사 활용 성적 — { forms: {'1|masu': {right,wrong}}, words: {단어id: {…}} } */
+export function mergeConj(local = {}, remote = {}) {
+  return {
+    forms: mergeCounts(local?.forms, remote?.forms),
+    words: mergeCounts(local?.words, remote?.words),
+  };
+}
+
 export function mergeProgress(local = {}, remote = {}) {
   return {
     ...remote,
@@ -90,6 +114,8 @@ export function mergeProgress(local = {}, remote = {}) {
     bookmarks: [...new Set([...(remote.bookmarks || []), ...(local.bookmarks || [])])],
     grammarDone: { ...(remote.grammarDone || {}), ...(local.grammarDone || {}) },
     sentenceDone: { ...(remote.sentenceDone || {}), ...(local.sentenceDone || {}) },
+    // 활용 성적은 두 기기에서 푼 게 다 남아야 한다 — local이 통째로 덮으면 사라진다
+    conj: mergeConj(local.conj, remote.conj),
   };
 }
 

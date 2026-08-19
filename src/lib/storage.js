@@ -122,9 +122,20 @@ export function saveCustomWords(words) {
   write(KEYS.customWords, words);
 }
 
-const DEFAULT_PROGRESS = { known: [], unknown: [], grammarDone: {}, sentenceDone: {}, bookmarks: [] };
+const DEFAULT_PROGRESS = {
+  known: [], unknown: [], grammarDone: {}, sentenceDone: {}, bookmarks: [],
+  // 동사 활용 성적 — forms는 그룹×모양별, words는 동사별
+  conj: { forms: {}, words: {} },
+};
 export function loadProgress() {
-  return { ...DEFAULT_PROGRESS, ...read(KEYS.progress, {}) };
+  const saved = read(KEYS.progress, {});
+  /* 활용 성적은 나중에 생겼다. 그 전에 저장된 기록에는 칸이 없거나 반만 있어서,
+     화면에서 바로 꺼내 쓰면 터진다 — 번역기에서 똑같이 당했다. */
+  return {
+    ...DEFAULT_PROGRESS,
+    ...saved,
+    conj: { forms: saved?.conj?.forms || {}, words: saved?.conj?.words || {} },
+  };
 }
 export function saveProgress(progress) {
   write(KEYS.progress, progress);
@@ -216,6 +227,7 @@ export const DEFAULT_SETTINGS = {
     jlpt: true,       // JLPT 레벨별 단어
     sentences: true,  // 상황별 문장암기
     quiz: true,       // 단어 시험
+    conjugate: true,  // 동사 활용 — 기초 시제
     translate: true,  // 번역기 — 현지에서 바로 쓰는 것
   },
 
