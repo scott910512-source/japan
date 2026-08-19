@@ -37,6 +37,16 @@ async function boot(browser, seed) {
   return page;
 }
 
+/* 다시 부르면 로그인 문이 또 나온다. 끊긴 채로는 「그냥 쓰기」로 지나간다 —
+   설정을 바꿔 보려면 다시 불러야 해서 여기가 매번 필요하다. */
+async function relaunch(page) {
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  const off = page.locator('.gate-offline');
+  await off.waitFor({ timeout: 8000 }).catch(() => {});
+  if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
+}
+
 const open = async (page) => {
   await page.locator('.menutile', { hasText: '동사 활용' }).click();
   await page.waitForTimeout(700);
@@ -175,6 +185,29 @@ const open = async (page) => {
     await p3.waitForTimeout(800);
     ok('옛 기록으로도 문제가 나옴', await p3.locator('.qopt').count() === 4);
     await p3.close();
+  }
+
+  /* 설정에서 고른 레벨을 따라야 한다. N5만 켜 두고 N3 동사가 나오면
+     아직 안 배운 걸 물어보는 셈이다. */
+  {
+    const p5 = await boot(browser);
+    await p5.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1'));
+      s.levels = ['N5']; localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
+    });
+    await relaunch(p5);
+    await open(p5);
+    const n5 = (await p5.textContent('.subscreen .bs-s')).match(/동사 (\d+)개/)?.[1];
+
+    await p5.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1'));
+      s.levels = ['N5', 'N4']; localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
+    });
+    await relaunch(p5);
+    await open(p5);
+    const n54 = (await p5.textContent('.subscreen .bs-s')).match(/동사 (\d+)개/)?.[1];
+    ok('레벨을 넓히면 동사도 늘어남', Number(n54) > Number(n5), `N5 ${n5}개 → N5+N4 ${n54}개`);
+    await p5.close();
   }
 
   // ── 기초문법도 같이 (앞말이 날아가던 자리) ──

@@ -213,6 +213,39 @@ console.log('\n── 한 판 짜기');
   ok('있는 만큼만 나옴', few.length > 0 && few.length <= 200, `${few.length}개`);
 }
 
+console.log('\n── 계속 풀면 N5를 다 도는지 (「다 외운다」가 되려면)');
+{
+  /* 성적을 보고 줄을 세우는 게 실제로 커버가 되는지. 앞쪽 몇 개만 돌면
+     「105개 중 12개」에서 영영 안 늘어난다 — 눌러 보기 전엔 모르는 종류의 고장이다. */
+  const n5 = ALL_WORDS.filter((w) => w.type === 'verb' && w.level === 'N5');
+  const stats = {};
+  const met = new Set();
+  let rounds = 0;
+  while (met.size < n5.length && rounds < 40) {
+    rounds++;
+    const plan = planDrill(n5, { count: 10, wordStats: stats, seed: met.size });
+    if (!plan.length) break;
+    for (const q of plan) {
+      met.add(q.word.id);
+      const s = stats[q.word.id] || { right: 0, wrong: 0 };
+      stats[q.word.id] = { right: s.right + 1, wrong: s.wrong };
+    }
+  }
+  ok('N5 동사를 하나도 안 빼고 다 만남', met.size === n5.length,
+    met.size === n5.length ? `${rounds}판 · ${rounds * 10}문제` : `${met.size}/${n5.length}만 나옴`);
+  ok('돌다가 멈추지 않음', rounds < 40, `${rounds}판`);
+
+  /* 틀린 동사는 다음 판에 다시 나와야 한다 */
+  const good = {};
+  for (const w of n5) good[w.id] = { right: 5, wrong: 0 };
+  good['v-hashiru'] = { right: 0, wrong: 4 };
+  good['v-kaeru'] = { right: 1, wrong: 3 };
+  const back = planDrill(n5, { count: 10, wordStats: good });
+  ok('많이 틀린 동사가 다시 나옴', back.some((q) => q.word.id === 'v-hashiru'),
+    back.slice(0, 4).map((q) => q.word.kanji).join(' '));
+  ok('조금 틀린 것도', back.some((q) => q.word.id === 'v-kaeru'));
+}
+
 console.log('\n── 어디서 틀리는지 남기기');
 {
   let s = {};

@@ -1,5 +1,5 @@
 /* 기기 두 대 합치기 — 순서를 바꿔도 같은 결과가 나오는가. */
-import { mergeReview, mergeStats, mergeStreak, mergeCustomWords, mergeMemos } from '../../src/lib/merge.js';
+import { mergeReview, mergeStats, mergeStreak, mergeCustomWords, mergeMemos, mergeProgress, mergeConj } from '../../src/lib/merge.js';
 import { applyVerdict, emptyState, VERDICT } from '../../src/lib/review.js';
 
 let pass = 0, fail = 0;
@@ -50,6 +50,38 @@ ok('연속일은 큰 쪽', mergeStreak({ count: 3, lastDate: '2026-08-16' }, { c
 ok('내 단어는 양쪽 다', mergeCustomWords([{ id: 'a' }], [{ id: 'b' }]).length === 2);
 ok('메모는 나중에 고친 쪽',
   mergeMemos({ x: { text: '새것', at: '2026-08-17' } }, { x: { text: '옛것', at: '2026-08-10' } }).x.text === '새것');
+
+/* 동사 활용 성적 — 아이폰에서 1형을 풀고 아이패드에서 2형을 풀었으면 둘 다 남아야 한다.
+   그리고 더하면 안 된다: 같은 기기에서 동기화를 두 번만 눌러도 숫자가 두 배가 된다. */
+{
+  const phone = { forms: { '1|masu': { right: 8, wrong: 2 } }, words: { 'v-nomu': { right: 3, wrong: 1 } } };
+  const pad = { forms: { '2|ta': { right: 4, wrong: 0 } }, words: { 'v-taberu': { right: 2, wrong: 0 } } };
+  const m = mergeConj(phone, pad);
+  ok('두 기기에서 푼 게 다 남는다', Boolean(m.forms['1|masu'] && m.forms['2|ta']), Object.keys(m.forms).join(','));
+  ok('동사별 성적도 둘 다', Object.keys(m.words).length === 2, Object.keys(m.words).join(','));
+
+  const same = mergeConj(phone, phone);
+  ok('같은 걸 두 번 합쳐도 안 늘어난다', same.forms['1|masu'].right === 8, String(same.forms['1|masu'].right));
+
+  const both = mergeConj(
+    { forms: { '1|masu': { right: 8, wrong: 2 } } },
+    { forms: { '1|masu': { right: 3, wrong: 9 } } },
+  );
+  ok('겹치면 각각 큰 쪽', both.forms['1|masu'].right === 8 && both.forms['1|masu'].wrong === 9,
+    JSON.stringify(both.forms['1|masu']));
+
+  /* progress를 통째로 덮으면 다른 기기 성적이 사라진다 — 그게 이 갈래를 만든 이유다 */
+  const merged = mergeProgress(
+    { bookmarks: ['a'], conj: phone },
+    { bookmarks: ['b'], conj: pad },
+  );
+  ok('progress로 합쳐도 안 사라짐', Object.keys(merged.conj.forms).length === 2, Object.keys(merged.conj.forms).join(','));
+  ok('책갈피는 그대로 합쳐짐', merged.bookmarks.length === 2);
+
+  /* 활용 칸이 아예 없던 옛 기록 */
+  ok('한쪽에 칸이 없어도 안 깨짐', Object.keys(mergeConj(undefined, pad).forms).length === 1);
+  ok('양쪽 다 없어도 빈 것으로', Object.keys(mergeProgress({}, {}).conj.forms).length === 0);
+}
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);
