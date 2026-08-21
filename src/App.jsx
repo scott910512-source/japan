@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TabBar from './components/TabBar.jsx';
 import Onboarding from './components/Onboarding.jsx';
-import Home from './screens/Home.jsx';
+import Today from './screens/Today.jsx';
+import StudyHub from './screens/StudyHub.jsx';
+import Log from './screens/Log.jsx';
+import Listen from './screens/Listen.jsx';
 import Study from './screens/Study.jsx';
 import ReviewTab from './screens/ReviewTab.jsx';
 import Settings from './screens/Settings.jsx';
@@ -20,6 +23,8 @@ import NewPassword from './screens/NewPassword.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { ALL_WORDS } from './data/allWords.js';
 import { ALL_SITUATIONS as SITUATIONS } from './data/allSituations.js';
+import { allSentenceCards, dailyPool, cardsForQueue } from './lib/cards.js';
+import { buildDailyStudyQueue } from './lib/daily.js';
 import {
   loadCustomWords, saveCustomWords,
   loadProgress, saveProgress,
@@ -53,11 +58,12 @@ const SUB_TITLES = {
   worddeck: '단어암기',
   quiz: '단어 시험',
   conjugate: '동사 활용',
+  listen: '듣기 · 따라 말하기',
   jlpt: 'JLPT 단어',
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('today');
   const [videosSeen, setVideosSeen] = useState(false); // 영상 탭에 한 번이라도 들어갔는지
   const [sub, setSub] = useState(null);
   const [deck, setDeck] = useState(null); // 학습 중인 덱 (있으면 회독 화면이 전체를 덮는다)
@@ -377,6 +383,45 @@ export default function App() {
   }, []);
 
   // 오늘 학습 덱만 daily로 표시한다 — 복습 섞기 + 신규로 세션을 짜라는 뜻.
+  /* 오늘의 학습 — 앱이 짜 준 큐 하나로 단어와 문장을 같이 돈다.
+     문장은 카드 모양으로 감싸 두면 회독 화면이 그대로 받는다. */
+  const sentenceCards = useMemo(() => allSentenceCards(), []);
+  const todayPool = useMemo(
+    () => dailyPool(filterByLevel(words, settings.levels), sentenceCards),
+    [words, settings.levels, sentenceCards],
+  );
+
+  const startToday = useCallback(() => {
+    const built = buildDailyStudyQueue(todayPool, review, { goal: settings.dailyGoal || 20 });
+    if (!built.queue.length) {
+      showToast('지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
+      return;
+    }
+    const cards = cardsForQueue(built.queue, filterByLevel(words, settings.levels), sentenceCards);
+    setSub(null);
+    /* daily를 켜지 않는다 — 큐를 여기서 이미 짰다. 회독 화면이 또 짜면
+       복습·약점 비율이 통째로 어긋난다. */
+    setDeck({
+      id: 'today',
+      label: '오늘의 학습',
+      cards,
+      queue: built.queue.map((q) => q.id),
+      intro: { total: cards.length, review: built.review, weak: built.weak, fresh: built.fresh, minutes: built.minutes },
+    });
+  }, [todayPool, review, settings.dailyGoal, settings.levels, words, sentenceCards, showToast]);
+
+  /* 하다 만 걸 이어서. 세션은 카드 id만 들고 있으니, 덱에는 단어와 문장을
+     전부 실어 준다 — 어느 쪽에서 온 카드든 찾을 수 있어야 한다. */
+  const resumeSession = useCallback(() => {
+    if (!session?.deckId || !session.queue?.length) return;
+    setSub(null);
+    setDeck({
+      id: session.deckId,
+      label: session.label || '이어서 학습',
+      cards: [...words, ...sentenceCards],
+    });
+  }, [session, words, sentenceCards]);
+
   const startWordDeck = useCallback(() => {
     const pool = filterByLevel(words, settings.levels);
     if (pool.length === 0) {
@@ -422,18 +467,18 @@ export default function App() {
   const openMenu = useCallback((id) => {
     if (id === 'words') { setSub('worddeck'); return; }
     if (id === 'review') { setActiveTab('review'); return; }
+    if (id === 'videos') { setVideosSeen(true); setActiveTab('videos'); return; }
     setSub(id);
-  }, [startWordDeck, showToast]);
+  }, []);
 
   const finishOnboarding = (patch) => {
     patchSettings(patch);
     setOnboardingOpen(false);
   };
 
-  // 학습 탭은 화면이 아니라 바로 회독으로 들어가는 통로다
+  /* 학습 탭은 예전엔 화면이 아니라 바로 회독으로 들어가는 통로였다.
+     이제 「오늘」이 그 자리를 맡으니, 학습은 골라 들어가는 목록으로 돌린다. */
   const selectTab = (id) => {
-    if (id === 'study') { startWordDeck(); return; }
-    if (id === 'videos') setVideosSeen(true);
     setSub(null);
     setActiveTab(id);
   };
@@ -503,8 +548,8 @@ export default function App() {
             찾아야 했는데, 그건 이 앱에서 여기 한 곳만 다른 규칙이었다.
             진도는 session에 남으니 나갔다 와도 이어진다. */}
         <TabBar
-          active="study"
-          onChange={(id) => { if (id === 'study') return; setDeck(null); selectTab(id); }}
+          active="today"
+          onChange={(id) => { setDeck(null); selectTab(id); }}
           reviewCount={due.length + sentenceDue}
         />
         <Toast message={toast} />
@@ -517,17 +562,37 @@ export default function App() {
       <Onboarding open={onboardingOpen} onFinish={finishOnboarding} />
 
       <div className="screens">
-        <section className={`screen${activeTab === 'home' && !sub ? ' active' : ''}`}>
-          <Home
-            words={words}
+        <section className={`screen${activeTab === 'today' && !sub ? ' active' : ''}`}>
+          <Today
+            pool={todayPool}
             review={review}
-            streak={streak}
             settings={settings}
             stats={stats}
-            dueCount={due.length}
+            streak={streak}
             session={session}
+            resumeLabel={session?.label}
+            onStart={startToday}
+            onResume={resumeSession}
+            onOpenReview={() => setActiveTab('review')}
+          />
+        </section>
+
+        <section className={`screen${activeTab === 'study' && !sub ? ' active' : ''}`}>
+          <StudyHub
+            words={words}
+            review={review}
+            settings={settings}
             onOpen={openMenu}
-            onStartStudy={startWordDeck}
+          />
+        </section>
+
+        <section className={`screen${activeTab === 'log' && !sub ? ' active' : ''}`}>
+          <Log
+            words={words}
+            review={review}
+            stats={stats}
+            streak={streak}
+            onOpenReview={() => setActiveTab('review')}
           />
         </section>
 
@@ -558,6 +623,7 @@ export default function App() {
             progress={videoProgress}
             setProgress={setVideoProgress}
             onRemoveVideo={removeVideo}
+            onBack={() => setActiveTab('study')}
           />
           )}
         </section>
@@ -575,7 +641,7 @@ export default function App() {
           />
         </section>
 
-        <section className={`screen${activeTab === 'settings' && !sub ? ' active' : ''}`}>
+        <section className={`screen${activeTab === 'more' && !sub ? ' active' : ''}`}>
           <Settings
             settings={settings}
             onChange={patchSettings}
@@ -600,7 +666,8 @@ export default function App() {
       {sub && (
         <div className="subscreen open">
           <div className="sub-header">
-            <button className="sub-back" onClick={() => setSub(null)}><IconArrowLeft /> 홈</button>
+            {/* 메뉴는 이제 학습 탭에서 열린다. 「홈」이라고 적어 두면 안 맞는다. */}
+            <button className="sub-back" onClick={() => setSub(null)}><IconArrowLeft /> 뒤로</button>
             <div className="sub-title">{SUB_TITLES[sub]}</div>
           </div>
           <div className="sub-body">
@@ -665,6 +732,17 @@ export default function App() {
                 onRetryWrong={startQuizWrongDeck}
               />
             )}
+            {sub === 'listen' && (
+              <Listen
+                pool={todayPool}
+                words={words}
+                sentences={sentenceCards}
+                review={review}
+                settings={settings}
+                onClose={() => setSub(null)}
+                onToast={showToast}
+              />
+            )}
             {sub === 'conjugate' && (
               <Conjugate
                 words={words}
@@ -687,7 +765,11 @@ export default function App() {
         </div>
       )}
 
-      <TabBar active={activeTab} onChange={selectTab} reviewCount={due.length + sentenceDue} />
+      <TabBar
+        active={activeTab === 'videos' ? 'study' : activeTab}
+        onChange={selectTab}
+        reviewCount={due.length + sentenceDue}
+      />
       <Toast message={toast} />
     </div>
   );

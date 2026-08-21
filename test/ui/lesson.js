@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { openVideos } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -78,7 +79,7 @@ const TOTAL = 12;
     };
   }, FAKE);
 
-  await page.locator('.tabbar .tab', { hasText: '영상' }).first().click();
+  await openVideos(page);
   await page.waitForTimeout(900);
   await page.locator('.vd-open').first().click();
   await page.waitForTimeout(600);

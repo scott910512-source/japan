@@ -75,6 +75,9 @@ export default function Study({
   const [showExample, setShowExample] = useState(false);
   const [locked, setLocked] = useState(false);   // 카드 전환 중 연타로 오판정되는 것을 막는다
   const [finished, setFinished] = useState(null);
+  /* 시작하자마자 문제가 뜨면 뭘 하는 판인지 모른 채로 들어간다.
+     오늘의 학습처럼 앱이 짜 준 판은 한 장 먼저 보여 준다. */
+  const [introSeen, setIntroSeen] = useState(false);
   const history = useRef([]);
   const micTrigger = useRef(null);   // M키로 단어 마이크를 켜고 끈다
   const hasKeyboard = useHasKeyboard();
@@ -89,15 +92,21 @@ export default function Study({
     // 오늘 학습 덱만 "복습 섞기 + 신규"로 짠다.
     // 복습 덱·취약 덱은 이미 추려진 목록이라 그대로 다 돈다.
     const ids = cards.map((w) => w.id);
-    const queue = deck.daily
-      ? buildDailySession(ids, review, {
-        goal: settings.dailyGoal,
-        shuffle: settings.shuffle,
-      }).queue
-      : buildRound1(ids, review, { size: 0, shuffle: settings.shuffle });
+    /* 큐를 밖에서 짜서 넘겨줄 수 있다. 「오늘의 학습」이 그렇다 —
+       복습·약점·신규를 섞고 순서까지 잡아 놓은 걸 여기서 다시 섞으면
+       그 계산이 통째로 헛것이 된다. */
+    const queue = deck.queue
+      ? deck.queue.filter((id) => byId.has(id))
+      : deck.daily
+        ? buildDailySession(ids, review, {
+          goal: settings.dailyGoal,
+          shuffle: settings.shuffle,
+        }).queue
+        : buildRound1(ids, review, { size: 0, shuffle: settings.shuffle });
 
     onSessionChange({
       deckId: deck.id,
+      label: deck.label,
       round: 1,
       queue,
       roundIds: queue,
@@ -252,6 +261,28 @@ export default function Study({
 
   // 훅을 모두 부른 뒤에 그린다 — 세션 준비 전에 일찍 빠져나가면 훅 순서가 어긋난다.
   if (!session || session.deckId !== deck.id) return null;
+
+  if (deck.intro && !introSeen && session.done === 0) {
+    const { total, review: rv, weak, fresh, minutes } = deck.intro;
+    return (
+      <div className="study intro">
+        <div className="si-wrap">
+          <div className="si-label">{deck.label}</div>
+          <div className="si-total"><b>{total}</b>개</div>
+          <div className="td-mix">
+            <div className="td-cell"><b>{rv}</b><span>복습</span></div>
+            <div className="td-cell"><b>{weak}</b><span>약점</span></div>
+            <div className="td-cell"><b>{fresh}</b><span>신규</span></div>
+          </div>
+          <div className="si-time">약 {minutes}분</div>
+          <button className="bigstart" onClick={() => setIntroSeen(true)}>
+            <span className="bs-t">시작하기</span>
+          </button>
+          <button className="ghost-btn si-back" onClick={onClose}>나중에</button>
+        </div>
+      </div>
+    );
+  }
 
   if (!word) {
     return (

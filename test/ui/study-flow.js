@@ -2,6 +2,7 @@
    판정 → 회독 넘어가기 → 되돌리기 → 이어하기 → 기록 저장까지. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { startStudy } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -42,7 +43,7 @@ const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp
   await boot(page);
 
   // 학습 탭 → 회독 시작
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(900);
   ok('회독 화면 진입', await page.locator('.sh-bar').count() > 0);
 
@@ -113,7 +114,7 @@ const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp
   const mid = await head();
   await page.locator('.sh-close, .sub-back').first().click();
   await page.waitForTimeout(600);
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(900);
   const resumed = await head();
   ok('나갔다 와도 진도가 이어짐', resumed !== '1 / 1' && /\d+\s*\/\s*\d+/.test(resumed), `${mid} → ${resumed}`);

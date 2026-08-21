@@ -1,6 +1,7 @@
 /* 디자인·UX 점검 — 실제로 그려 보고 넘치는 곳, 안 눌리는 곳, 안 보이는 글자를 찾는다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab, openVideos, startStudy } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -173,15 +174,15 @@ const check = async (page, theme, name) => {
   await check(page, theme, '01-홈');
   await page.locator('.tabbar .tab', { hasText: '복습' }).click();
   await page.waitForTimeout(700); await check(page, theme, '02-복습');
-  await page.locator('.tabbar .tab', { hasText: '영상' }).click();
+  await openVideos(page);
   await page.waitForTimeout(900); await check(page, theme, '03-영상목록');
   await page.locator('.vd-open').first().click();
   await page.waitForTimeout(700);
   await page.locator('.vd-how > summary').click();
   await page.waitForTimeout(300); await check(page, theme, '04-영상-방법보기');
-  await page.locator('.tabbar .tab', { hasText: '설정' }).click();
+  await goTab(page, '더보기');
   await page.waitForTimeout(700); await check(page, theme, '05-설정');
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(1200); await check(page, theme, '07-회독-앞면');
   await page.locator('.studycard').first().click();
   await page.waitForTimeout(600); await check(page, theme, '08-회독-뒷면');

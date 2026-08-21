@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -39,7 +40,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   ok('끊긴 채로 시작이 3초 안', Date.now() - t1 < 3000, `${Date.now() - t1}ms`);
 
   // 모든 탭을 돌며 깨지는 곳이 없는지
-  for (const tab of ['홈', '영상', '복습', '설정']) {
+  for (const tab of ['오늘', '학습', '복습', '기록', '더보기']) {
     await p.locator('.tabbar .tab', { hasText: tab }).click();
     await p.waitForTimeout(700);
     const txt = (await p.textContent('.screen.active').catch(() => '')) || '';
@@ -49,8 +50,9 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   }
 
   // 홈의 메뉴를 모두 열어 본다
-  await p.locator('.tabbar .tab', { hasText: '홈' }).click();
+  await goTab(p, '오늘');
   await p.waitForTimeout(600);
+  await goTab(p, '학습');
   const menus = await p.locator('.menutile').count();
   ok('홈에 메뉴가 있음', menus > 0, `${menus}개`);
   for (let i = 0; i < menus; i++) {
@@ -61,15 +63,15 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
     await p.waitForTimeout(800);
     const shown = (await p.textContent('body')).trim().length;
     ok(`메뉴 열림 · ${label}`, shown > 100, `${shown}자`);
-    const back = p.locator('.sub-back, .sh-close').first();
+    const back = p.locator('.subscreen .sub-back, .subscreen .sh-close').first();
     if (await back.count()) { await back.click(); await p.waitForTimeout(600); }
     if (await p.locator('.menutile').count() === 0) {
-      await p.locator('.tabbar .tab', { hasText: '홈' }).click(); await p.waitForTimeout(600);
+      await goTab(p, '오늘'); await p.waitForTimeout(600);
     }
   }
 
   // 접근성: 아이콘만 있는 버튼에 이름이 있는지
-  await p.locator('.tabbar .tab', { hasText: '홈' }).click();
+  await goTab(p, '오늘');
   await p.waitForTimeout(500);
   const nameless = await p.evaluate(() => {
     const out = [];

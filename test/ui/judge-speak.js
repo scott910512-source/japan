@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab, startStudy } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -45,7 +46,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   });
 
   // 설정에서 "판정할 때 읽어주기"를 켠다
-  await page.locator('.tabbar button', { hasText: '설정' }).click();
+  await goTab(page, '더보기');
   await page.waitForTimeout(500);
   const toggle = page.locator('.setrow', { hasText: '판정할 때 읽어주기' });
   ok('설정에 옵션이 생김', await toggle.count() > 0);
@@ -57,7 +58,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   ok('설정이 저장됨', on === true, String(on));
 
   // 학습으로 들어가 판정해 본다
-  await page.locator('.tabbar button', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(1200);
   const card = await page.locator('.judge.known').count();
   ok('학습 카드 진입', card > 0);

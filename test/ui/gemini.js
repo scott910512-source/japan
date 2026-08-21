@@ -1,6 +1,7 @@
 /* Gemini 경로 — 음성 키를 그대로 쓰는지, 요청이 맞는 모양인지. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab, openVideos } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -72,7 +73,7 @@ const FAKE = {
   }, FAKE);
 
   // 설정 화면
-  await page.locator('.tabbar .tab', { hasText: '설정' }).click();
+  await goTab(page, '더보기');
   await page.waitForTimeout(700);
   const body = await page.textContent('.screen.active');
   ok('설명을 만들 곳을 고를 수 있음', body.includes('설명을 만들 곳'));
@@ -93,7 +94,7 @@ const FAKE = {
   ok('고른 모델이 저장됨', saved === 'gemini-3-flash', saved);
 
   // 영상 → 자막 → 설명 만들기
-  await page.locator('.tabbar .tab', { hasText: '영상' }).click();
+  await openVideos(page);
   await page.waitForTimeout(900);
   await page.locator('.vd-open').first().click();
   await page.waitForTimeout(700);

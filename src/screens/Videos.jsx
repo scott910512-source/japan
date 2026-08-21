@@ -89,6 +89,7 @@ function toCard(w, videoId, title) {
 /* 영상 상태는 App이 들고 있다 — 기기 간 동기화에 실어야 해서다.
    여기서만 들고 있으면 App이 무엇이 바뀌었는지 알 방법이 없다. */
 export default function Videos({
+  onBack,
   active, settings, words, signedIn, onAddWord, onStartSet, onToast,
   videos, setVideos, analyses, setAnalyses, scripts, setScripts, progress, setProgress, onRemoveVideo,
 }) {
@@ -303,6 +304,14 @@ export default function Videos({
   if (!open) {
     return (
       <>
+        {/* 영상은 예전엔 제 탭이었는데 학습 탭에서 여는 화면이 됐다. 돌아가는 길을
+            목록 화면에만 둔다 — 영상을 열거나 학습에 들어가면 그 화면에 제 뒤로가기가
+            있어서, 여기까지 남기면 뒤로가기가 둘이 된다. */}
+        {onBack && (
+          <button className="inner-back" onClick={onBack}>
+            <IconArrowLeft /> 학습
+          </button>
+        )}
         <div className="navtitle"><small>영상으로 배우기</small>보고 듣고 따라 말하기</div>
         <p className="vd-note">
           영상을 보고 자막을 붙여넣으면, 지금 수준에서 쓸 값이 있는 표현만 골라

@@ -1,6 +1,7 @@
 /* 번역기 화면 — 여행 중에 한 손으로 끝나는가. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { openMenu } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -64,7 +65,7 @@ const stub = (page, reply, status = 200) => page.evaluate(({ r, st }) => {
 }, { r: reply, st: status });
 
 const openTranslate = async (page) => {
-  await page.locator('.menutile', { hasText: '번역기' }).click();
+  await openMenu(page, '번역기');
   await page.waitForTimeout(700);
 };
 
