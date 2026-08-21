@@ -1498,7 +1498,8 @@ button, input, select { font-family: inherit; }
 .lc-day.lv1 { background: color-mix(in srgb, var(--kon) 18%, var(--surface)); color: var(--ink); }
 .lc-day.lv2 { background: color-mix(in srgb, var(--kon) 42%, var(--surface)); color: var(--ink); border-color: transparent; }
 .lc-day.lv3 { background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #fff; border-color: transparent; }
-.lc-day.today { outline: 2px solid var(--shu); outline-offset: 1px; }
+/* 이름을 .today로 두면 「오늘」 화면 카드(.today)와 겹쳐서 서로 잡힌다 */
+.lc-day.is-today { outline: 2px solid var(--shu); outline-offset: 1px; }
 
 /* 영상은 탭이 아니라 학습에서 여는 화면이 됐다 — 돌아가는 줄을 위에 붙인다 */
 .sub-header.inline { position: static; padding: 4px 0 8px; background: none; border: 0; }

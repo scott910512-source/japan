@@ -109,7 +109,7 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
           return (
             <div
               key={c.key}
-              className={`lc-day lv${lv}${c.key === today ? ' today' : ''}`}
+              className={`lc-day lv${lv}${c.key === today ? ' is-today' : ''}`}
               title={n ? `${c.d}일 · ${n}개` : `${c.d}일`}
             >
               {c.d}
