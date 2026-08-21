@@ -1527,3 +1527,15 @@ button, input, select { font-family: inherit; }
 .ls-controls .ghost-btn { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .ls-controls .ghost-btn svg { width: 16px; height: 16px; }
 .ls-note { text-align: center; }
+
+/* 회독 단계 — 몇 번째로 만나는 카드인지에 따라 단서를 뺀다 */
+.sc-step {
+  padding: 3px 9px; border-radius: 100px; font-size: 10.5px; font-weight: 700;
+  background: var(--kon-soft); color: var(--kon);
+}
+/* 듣기 단계에서 글자 대신 놓이는 자리. 글자가 없으니 여기가 유일한 단서다. */
+.sc-hear {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 96px; color: var(--kon);
+}
+.sc-hear svg { width: 44px; height: 44px; opacity: .75; }

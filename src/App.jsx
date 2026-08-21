@@ -406,6 +406,9 @@ export default function App() {
       label: '오늘의 학습',
       cards,
       queue: built.queue.map((q) => q.id),
+      /* 앱이 짜 준 판이니 방식도 앱이 정한다 — 맞힐수록 단서를 하나씩 뺀다.
+         골라 들어간 판에서는 사용자가 정한 방향을 그대로 지킨다. */
+      stepped: true,
       intro: { total: cards.length, review: built.review, weak: built.weak, fresh: built.fresh, minutes: built.minutes },
     });
   }, [todayPool, review, settings.dailyGoal, settings.levels, words, sentenceCards, showToast]);

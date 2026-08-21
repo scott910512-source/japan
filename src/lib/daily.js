@@ -41,7 +41,10 @@ export function classifyDaily(pool, review, today = todayKey()) {
   const weak = []; const due = []; const fresh = [];
   for (const { id, kind } of pool) {
     const st = stateOf(review, id);
-    if (isMastered(st)) continue;
+    /* 졸업한 카드도 한참 뒤에는 한 번 다시 나와야 한다 — 안 그러면 외운 게
+       조용히 새어 나간다. 통째로 빼 뒀더니 180일 재확인이 영영 안 왔다.
+       복습일이 안 됐을 때만 뺀다. */
+    if (isMastered(st) && !isDue(st, today)) continue;
     if (!st.lastSeen) { fresh.push(item(id, kind, 'fresh')); continue; }
     if (st.wrongCount + st.vagueCount >= WEAK_THRESHOLD) { weak.push(item(id, kind, 'weak')); continue; }
     if (isDue(st, today)) due.push(item(id, kind, 'review'));

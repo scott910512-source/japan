@@ -85,15 +85,24 @@ console.log('\n── 데이터가 적으면 자동으로 맞춘다');
   ok('단어가 없어도 안 죽음', planToday([], {}, { goal: 20, today: TODAY }).total === 0);
 }
 
-console.log('\n── 졸업한 건 안 나온다');
+console.log('\n── 졸업한 건 한참 뒤에 한 번만');
 {
-  const review = {};
-  let st = emptyState();
-  for (let i = 0; i < 5; i++) st = applyVerdict(st, VERDICT.KNOWN, addDays(TODAY, -400), 1000);
-  review.w0 = { ...st, lastSeen: addDays(TODAY, -400) };
-  const g = classifyDaily(W(3), review, TODAY);
-  const all = [...g.due, ...g.weak, ...g.fresh].map((x) => x.id);
-  ok('졸업한 카드는 빠짐', !all.includes('w0'), all.join(','));
+  /* 졸업했다고 영영 빼면 외운 게 조용히 새어 나간다. 그렇다고 매일 내보내면
+     졸업한 뜻이 없다. 복습일이 될 때까지만 뺀다. */
+  const grad = (daysAgo) => {
+    let st = emptyState();
+    for (let i = 0; i < 5; i++) st = applyVerdict(st, VERDICT.KNOWN, addDays(TODAY, -daysAgo), 1000);
+    return { ...st, lastSeen: addDays(TODAY, -daysAgo) };
+  };
+
+  const soon = classifyDaily(W(3), { w0: grad(10) }, TODAY);
+  const all1 = [...soon.due, ...soon.weak, ...soon.fresh].map((x) => x.id);
+  ok('졸업한 지 얼마 안 됐으면 안 나옴', !all1.includes('w0'), all1.join(','));
+
+  const late = classifyDaily(W(3), { w0: grad(400) }, TODAY);
+  const all2 = [...late.due, ...late.weak, ...late.fresh].map((x) => x.id);
+  ok('한참 지나면 복습으로 다시 나옴', late.due.some((x) => x.id === 'w0'), all2.join(','));
+  ok('그때도 신규로는 안 셈', !late.fresh.some((x) => x.id === 'w0'));
 }
 
 console.log('\n── 순서 (시작하자마자 모르는 게 나오면 그날은 끝난다)');

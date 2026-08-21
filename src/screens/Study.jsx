@@ -7,6 +7,7 @@ import MemoBox from '../components/MemoBox.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
+import { STEP, STEP_HINT, STEP_LABEL, hidesFront, needsSound, settingsForStep, stepFor } from '../lib/steps.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import {
   VERDICT, advanceSession, buildDailySession, buildRound1, nextRoundOf, stateOf, todayKey,
@@ -122,7 +123,16 @@ export default function Study({
 
   const currentId = session?.queue?.[0];
   const word = currentId ? byId.get(currentId) : null;
-  const faces = word ? facesOf(word, settings) : null;
+
+  /* 앱이 짜 준 판(오늘의 학습)에서만 단계를 올린다. 골라 들어간 판에서는
+     사용자가 설정한 방향을 그대로 지킨다 — 「나는 한→일로만 볼래」를
+     앱이 마음대로 바꾸면 안 된다. */
+  const step = deck.stepped && word
+    ? stepFor(stateOf(review, word.id).streak, { canListen: settings.autoTTS !== false })
+    : null;
+  const view = step ? settingsForStep(settings, step) : settings;
+  const faces = word ? facesOf(word, view) : null;
+  const covered = step ? hidesFront(step) : false;
 
   // 같은 카드가 몰라요로 다시 나오면 done이 달라져 새 방문으로 친다
   const visitKey = `${currentId}:${session?.done ?? 0}`;
@@ -144,8 +154,9 @@ export default function Study({
   // 판정할 때 읽어 준 시각. 다음 카드의 자동 음성이 그 소리를 끊지 않게 잠깐 양보시킨다.
   const judgeSpokeAt = useRef(0);
   useEffect(() => {
-    if (!word || !settings.autoTTS) return;
-    if (settings.direction === 'mean-kanji' && !revealed) return;
+    // 듣기 단계는 소리가 전부다 — 안 내면 화면에 아무것도 없다
+    if (!word || (!settings.autoTTS && !needsSound(step))) return;
+    if (view.direction === 'mean-kanji' && !revealed) return;
     if (spokenFor.current === visitKey) return;   // 한 방문에 한 번만
     spokenFor.current = visitKey;
 
@@ -309,6 +320,7 @@ export default function Study({
 
       <div className="studycard" onClick={() => !revealed && reveal()}>
         <div className="sc-top">
+          {step && <span className="sc-step">{STEP_LABEL[step]}</span>}
           {st.wrongCount + st.vagueCount >= 3 && <span className="sc-weak">취약</span>}
           <button
             className="sc-speak"
@@ -320,19 +332,28 @@ export default function Study({
           </button>
         </div>
 
-        <div className={`sc-main${faces.front.isKo ? ' ko' : ''}`}>{faces.front.main}</div>
+        {covered && !revealed ? (
+          /* 듣기 단계 — 글자를 보여 주면 듣기가 아니라 읽기가 된다.
+             여기를 버튼으로 두면 카드 탭을 먹어서 안 뒤집힌다.
+             다시 듣기는 위 모서리 버튼이 이미 맡고 있다. */
+          <div className="sc-main sc-hear" aria-label="소리를 듣고 뜻을 떠올려 보세요">
+            <IconSpeaker />
+          </div>
+        ) : (
+          <div className={`sc-main${faces.front.isKo ? ' ko' : ''}`}>{faces.front.main}</div>
+        )}
 
         {/* 앞면에서 읽는 법만 살짝 확인 — 뜻을 보기 전 단계.
             앞면이 이미 가나면 확인할 게 없으므로 한글 발음만 붙인다. */}
         {!revealed && faces.front.isKana && hangul && (
           <div className="sc-kana"><span className="sc-hangul">{hangul}</span></div>
         )}
-        {!revealed && !faces.front.isKana && settings.direction !== 'mean-kanji' && !settings.showKana && !peekKana && (
+        {!revealed && !covered && !faces.front.isKana && view.direction !== 'mean-kanji' && !view.showKana && !peekKana && (
           <button className="sc-peek" onClick={(e) => { e.stopPropagation(); setPeekKana(true); }}>
             <IconEye /> 히라가나 보기{hasKeyboard && <kbd className="inline-key">K</kbd>}
           </button>
         )}
-        {!revealed && !faces.front.isKana && (peekKana || settings.showKana) && (
+        {!revealed && !covered && !faces.front.isKana && (peekKana || view.showKana) && (
           <div className="sc-kana">
             {word.kana}
             {hangul && <span className="sc-hangul"> · {hangul}</span>}
@@ -371,7 +392,10 @@ export default function Study({
           </div>
         ) : (
           <div className="sc-hint">
-            탭해서 뜻 확인하기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}
+            {/* 단계가 있으면 무엇을 하라는 판인지 먼저 적는다 —
+                글자가 안 보이는데 안내가 없으면 고장으로 읽힌다 */}
+            {step ? STEP_HINT[step] : '탭해서 뜻 확인하기'}
+            {hasKeyboard && <kbd className="inline-key">Enter</kbd>}
           </div>
         )}
       </div>
@@ -379,7 +403,7 @@ export default function Study({
       {/* 읽는 법이 입에서 나오는지 확인한다. 뜻→한자 방향은 정답을 소리로 흘리게 되므로 뺀다.
           무엇을 말해야 하는지 버튼에 그대로 적는다 — "읽어보기"만 있으면 단어인지 예문인지 모른다.
           짧은 단어는 인식이 잘 빗나가서, 예문으로도 해볼 수 있게 따로 둔다. */}
-      {revealed && settings.direction !== 'mean-kanji' && (
+      {revealed && view.direction !== 'mean-kanji' && (
         <>
           <MicButton
             label={`「${word.kana}」 말해보기`}
