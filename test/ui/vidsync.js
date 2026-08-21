@@ -1,6 +1,7 @@
 /* 영상 상태가 기기에 제대로 남는지 — 뺀 영상이 되살아나지 않는지가 핵심. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { openVideos } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -29,11 +30,6 @@ const boot = async (page) => {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
-};
-
-const openVideos = async (page) => {
-  await page.locator('.tabbar .tab', { hasText: '영상' }).click();
-  await page.waitForTimeout(900);
 };
 
 const ls = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key);

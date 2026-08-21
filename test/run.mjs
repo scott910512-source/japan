@@ -25,7 +25,9 @@ const CHROME = process.env.CHROMIUM || (existsSync(LOCAL_CHROME) ? LOCAL_CHROME 
 const only = process.argv.includes('--logic') ? 'logic' : process.argv.includes('--ui') ? 'ui' : 'all';
 
 const list = (dir, ext) => (existsSync(join(HERE, dir))
-  ? readdirSync(join(HERE, dir)).filter((f) => f.endsWith(ext)).sort()
+  /* 밑줄로 시작하는 건 검사가 아니라 검사들이 같이 쓰는 것이다 —
+     화면 사이를 다니는 길(_nav.js) 같은 것. 돌리면 0개 통과로 죽는다. */
+  ? readdirSync(join(HERE, dir)).filter((f) => f.endsWith(ext) && !f.startsWith('_')).sort()
   : []);
 
 /* 검사 하나를 돌리고 "통과 N / 실패 M"을 읽어 온다.

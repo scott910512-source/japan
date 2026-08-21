@@ -1,6 +1,7 @@
 /* 회독 중 탭바가 남는지, 영상 삭제가 확인 없이 지워지지 않는지. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { openVideos, startStudy } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -42,12 +43,12 @@ const boot = async (page) => {
   await boot(page);
 
   // ── 회독 중에도 탭바 ──
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(900);
   ok('회독으로 들어감', await page.locator('.judgerow').count() === 1);
   ok('탭바가 남아 있음', await page.locator('.tabbar').isVisible());
   ok('탭 다섯 개 그대로', await page.locator('.tabbar .tab').count() === 5);
-  ok('학습 탭이 켜져 있음', await page.locator('.tabbar .tab.active').textContent() === '학습');
+  ok('시작한 자리(오늘)가 켜져 있음', await page.locator('.tabbar .tab.active').textContent() === '오늘');
 
   const box = await page.locator('.judgerow').boundingBox();
   const bar = await page.locator('.tabbar').boundingBox();
@@ -56,12 +57,12 @@ const boot = async (page) => {
 
   // 회독 중에 학습 탭을 또 눌러도 세션이 안 깨진다
   const before = await page.textContent('.studyhead');
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(500);
   ok('학습 탭을 또 눌러도 그대로', (await page.textContent('.studyhead')) === before);
 
   // 다른 탭으로 나갈 수 있다
-  await page.locator('.tabbar .tab', { hasText: '영상' }).click();
+  await openVideos(page);
   await page.waitForTimeout(900);
   ok('탭바로 회독을 빠져나옴', await page.locator('.judgerow').count() === 0);
   ok('영상 화면이 열림', await page.locator('.vd-item').count() >= 1);

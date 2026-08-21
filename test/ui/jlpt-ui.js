@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -42,6 +43,7 @@ const ok = (label, cond, extra) => {
   await page.waitForTimeout(600);
 
   // 홈에 JLPT 메뉴 카드가 있는가
+  await goTab(page, '학습');
   const card = page.locator('.menutile', { hasText: 'JLPT 단어' });
   ok('홈에 JLPT 단어 메뉴 노출', await card.count() > 0);
   await card.first().click();
@@ -81,8 +83,7 @@ const ok = (label, cond, extra) => {
   ok('세트 시작 시 학습 화면 진입', /N3 1세트/.test(body), body.slice(0, 80).replace(/\s+/g, ' '));
 
   // 뒤로 → 레벨 재선택
-  const homeTab = page.locator('.tabbar button').first();
-  if (await homeTab.count()) { await homeTab.click(); await page.waitForTimeout(500); }
+  await goTab(page, '학습');
   const card2 = page.locator('.menutile', { hasText: 'JLPT 단어' });
   if (await card2.count()) {
     await card2.first().click();

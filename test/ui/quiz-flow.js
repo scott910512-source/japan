@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { openMenu } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -34,7 +35,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
 
-  await page.locator('.menutile', { hasText: '단어 시험' }).first().click();
+  await openMenu(page, '단어 시험');
   await page.waitForTimeout(700);
   await page.locator('button', { hasText: '시험 시작' }).first().click().catch(async () => {
     await page.locator('.submit-btn').first().click();

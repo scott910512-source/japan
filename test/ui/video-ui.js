@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -78,10 +79,11 @@ const FAKE = {
     };
   }, FAKE);
 
-  // 홈 → 영상으로 배우기
-  const tab = page.locator('.tabbar .tab', { hasText: '영상' });
-  ok('영상 탭이 생김', await tab.count() === 1);
-  await tab.first().click();
+  // 학습 → 영상으로 배우기 (예전엔 탭이었는데 학습 탭의 카드로 옮겼다)
+  await goTab(page, '학습');
+  const entry = page.locator('.hubcard', { hasText: '영상' });
+  ok('학습 탭에 영상이 있음', await entry.count() === 1);
+  await entry.click();
   await page.waitForTimeout(900);
 
   ok('기본 영상이 담겨 있음', await page.locator('.vd-item').count() === 1);

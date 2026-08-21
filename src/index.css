@@ -298,7 +298,13 @@ button, input, select { font-family: inherit; }
 .subscreen { position: absolute; inset: 0; z-index: 60; background: var(--paper); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .32s cubic-bezier(.2,.9,.25,1); }
 .subscreen.open { transform: translateX(0); }
 .sub-header { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px 8px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 85%, transparent); backdrop-filter: blur(16px); }
-.sub-back { display: flex; align-items: center; gap: 2px; background: none; border: none; color: var(--kon); font-size: 14px; font-weight: 600; padding: 6px; cursor: pointer; }
+/* 손가락으로 짚는 것은 44px는 돼야 한다. 글자 높이만 두면 30px밖에 안 되는데,
+   하필 화면마다 있는 뒤로가기라 제일 자주 빗나가는 자리가 된다. */
+.sub-back {
+  display: flex; align-items: center; gap: 2px; background: none; border: none;
+  color: var(--kon); font-size: 14px; font-weight: 600; padding: 6px 10px 6px 6px;
+  min-height: 44px; cursor: pointer;
+}
 .sub-back svg { width: 18px; height: 18px; }
 .sub-title { font-size: 15px; font-weight: 700; margin-right: auto; margin-left: 2px; }
 .sub-body { flex: 1; overflow-y: auto; padding: 16px 18px 28px; }
@@ -1354,6 +1360,8 @@ button, input, select { font-family: inherit; }
 .inner-back {
   display: flex; align-items: center; gap: 2px; background: none; border: none;
   color: var(--kon); font: inherit; font-size: 14px; font-weight: 600; padding: 6px; cursor: pointer;
+  /* 손가락으로 짚는 것은 44px는 돼야 한다. 글자 높이만 두면 30px밖에 안 된다. */
+  min-height: 44px;
 }
 .inner-back svg { width: 18px; height: 18px; }
 
@@ -1412,3 +1420,128 @@ button, input, select { font-family: inherit; }
 .cj-lookhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .cj-lookhead b { font-size: 17px; }
 .cj-lookhead span { font-size: 12.5px; color: var(--ink-soft); }
+
+/* ── 오늘 화면 ──
+   앱을 켠 사람이 3초 안에 알아야 하는 건 셋뿐이다 — 몇 개인가, 얼마나
+   걸리는가, 어디를 누르는가. 그래서 이 카드 하나에 그 셋만 담는다. */
+.today {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+  padding: 18px 16px 16px; margin-top: 14px;
+}
+.td-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.td-label { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.td-count { font-size: 14px; color: var(--ink-soft); }
+.td-count b { font-size: 26px; font-weight: 800; color: var(--ink); }
+.td-bar { height: 6px; border-radius: 100px; background: var(--surface-2); overflow: hidden; margin: 10px 0 16px; }
+.td-bar i { display: block; height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--kon), var(--kon-deep)); transition: width .25s ease; }
+.td-mix { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.td-cell {
+  background: var(--bg); border-radius: 12px; padding: 10px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.td-cell b { font-size: 20px; font-weight: 800; }
+.td-cell span { font-size: 11.5px; color: var(--ink-soft); font-weight: 600; }
+.td-time { text-align: center; font-size: 12.5px; color: var(--ink-soft); margin-top: 12px; }
+.td-go { margin-top: 12px; }
+.td-go .bs-t { display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+.td-go .bs-t svg { width: 18px; height: 18px; }
+.td-empty { font-size: 13.5px; color: var(--ink-soft); line-height: 1.65; margin: 4px 0 0; }
+
+/* 오늘 화면 아래에 붙는 한 줄짜리 카드 — 이어하기, 남은 복습 */
+.rowcard {
+  width: 100%; margin-top: 10px; display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  padding: 14px 14px; text-align: left; color: inherit; font: inherit; cursor: pointer;
+  min-height: 56px;
+}
+.rc-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--kon-soft); color: var(--kon); flex: 0 0 auto; }
+.rc-icon svg { width: 18px; height: 18px; }
+.rc-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.rc-body b { font-size: 14.5px; font-weight: 700; }
+.rc-body span { font-size: 12.5px; color: var(--ink-soft); }
+.rowcard .chev { width: 18px; height: 18px; color: var(--ink-soft); flex: 0 0 auto; }
+
+/* ── 학습 탭 위쪽의 결이 다른 둘 ── */
+.hubrow { display: grid; gap: 10px; margin-top: 14px; }
+.hubcard {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  padding: 12px 14px; text-align: left; color: inherit; font: inherit; cursor: pointer;
+}
+.hc-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--kon-soft); color: var(--kon); flex: 0 0 auto; }
+.hc-icon svg { width: 20px; height: 20px; }
+.hc-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hc-body b { font-size: 14.5px; font-weight: 700; }
+.hc-body span { font-size: 12.5px; color: var(--ink-soft); }
+
+/* ── 기록 ── */
+.logweek { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lw-cell {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.lw-cell b { font-size: 22px; font-weight: 800; }
+.lw-cell span { font-size: 11.5px; color: var(--ink-soft); font-weight: 600; text-align: center; }
+
+.logmonth-nav {
+  background: none; border: 0; color: var(--ink-soft); cursor: pointer;
+  width: 32px; height: 32px; display: inline-grid; place-items: center; vertical-align: middle;
+}
+.logmonth-nav svg { width: 16px; height: 16px; }
+.logmonth-nav:disabled { opacity: .3; cursor: default; }
+
+/* minmax(0, ...)이어야 한 칸이 줄어든다. 그냥 1fr로 두면 최소 크기가 내용에
+   묶여서 일곱 칸이 화면을 넘어가고, 넘친 만큼 아래 글과 겹친다. */
+.logcal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.lc-dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--ink-soft); padding-bottom: 2px; }
+.lc-day {
+  aspect-ratio: 1; border-radius: 9px; display: grid; place-items: center;
+  font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+  background: var(--surface); border: 1px solid var(--line);
+}
+.lc-day.empty { background: none; border-color: transparent; }
+/* 한 날에 얼마나 했는지를 세 단계로만. 더 잘게 나눠 봐야 못 읽는다. */
+.lc-day.lv1 { background: color-mix(in srgb, var(--kon) 18%, var(--surface)); color: var(--ink); }
+.lc-day.lv2 { background: color-mix(in srgb, var(--kon) 42%, var(--surface)); color: var(--ink); border-color: transparent; }
+.lc-day.lv3 { background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #fff; border-color: transparent; }
+/* 이름을 .today로 두면 「오늘」 화면 카드(.today)와 겹쳐서 서로 잡힌다 */
+.lc-day.is-today { outline: 2px solid var(--shu); outline-offset: 1px; }
+
+/* 영상은 탭이 아니라 학습에서 여는 화면이 됐다 — 돌아가는 줄을 위에 붙인다 */
+.sub-header.inline { position: static; padding: 4px 0 8px; background: none; border: 0; }
+
+/* 학습 시작 한 장 — 뭘 하는 판인지 알고 들어가게. 과한 연출은 안 넣는다. */
+.study.intro { display: grid; place-items: center; min-height: 70vh; }
+.si-wrap { width: 100%; max-width: 340px; text-align: center; }
+.si-label { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.si-total { margin: 6px 0 20px; }
+.si-total b { font-size: 44px; font-weight: 800; letter-spacing: -1px; }
+.si-time { font-size: 13px; color: var(--ink-soft); margin: 14px 0 18px; }
+.si-back { margin-top: 10px; width: 100%; }
+
+/* ── 듣기 · 따라 말하기 ──
+   손이 안 비는 시간에 쓰는 화면이라, 글자는 크게 두고 버튼은 몇 개 안 둔다. */
+.listen.play { display: flex; flex-direction: column; min-height: 72vh; }
+.ls-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 20px 0; }
+.ls-jp { font-size: 34px; font-weight: 800; line-height: 1.35; word-break: keep-all; }
+.ls-jp.long { font-size: 24px; }
+.ls-yomi { font-size: 15px; color: var(--kon); font-weight: 600; }
+.ls-ko { font-size: 17px; color: var(--ink-soft); min-height: 26px; margin-top: 10px; }
+.ls-ko.on { color: var(--ink); font-weight: 600; }
+.ls-phase { margin-top: 14px; font-size: 12px; font-weight: 700; color: var(--ink-soft); letter-spacing: .04em; }
+.ls-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ls-controls .ghost-btn { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.ls-controls .ghost-btn svg { width: 16px; height: 16px; }
+.ls-note { text-align: center; }
+
+/* 회독 단계 — 몇 번째로 만나는 카드인지에 따라 단서를 뺀다 */
+.sc-step {
+  padding: 3px 9px; border-radius: 100px; font-size: 10.5px; font-weight: 700;
+  background: var(--kon-soft); color: var(--kon);
+}
+/* 듣기 단계에서 글자 대신 놓이는 자리. 글자가 없으니 여기가 유일한 단서다. */
+.sc-hear {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 96px; color: var(--kon);
+}
+.sc-hear svg { width: 44px; height: 44px; opacity: .75; }

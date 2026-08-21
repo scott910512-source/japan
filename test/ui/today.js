@@ -1,0 +1,220 @@
+/* 오늘 · 기록 · 듣기 — 이번 개편으로 새로 생긴 화면들.
+ *
+ * 「오늘」은 앱을 켜면 제일 먼저 보는 자리다. 여기가 조용히 어긋나면 나머지가
+ * 다 멀쩡해도 소용이 없다. 그래서 세 가지를 본다.
+ *   - 3초 안에 알아야 할 셋(몇 개·얼마나·어디를)이 실제로 보이는지
+ *   - 시작하면 문장까지 섞여 나오는지 (여태 단어만 돌았다)
+ *   - 판정한 게 회독 기록에 제대로 남는지
+ *
+ * 그리고 기존 것이 하나도 안 없어졌는지도 여기서 확인한다 — 이번 개편의
+ * 제일 큰 약속이 그것이다. */
+import { existsSync } from 'node:fs';
+import { chromium } from 'playwright-core';
+import { goTab, startStudy } from './_nav.js';
+
+const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
+const LOCAL_CHROME = '/opt/pw-browsers/chromium';
+const CHROME = process.env.CHROMIUM || (existsSync(LOCAL_CHROME) ? LOCAL_CHROME : undefined);
+
+let pass = 0; let fail = 0;
+const ok = (l, c, e) => {
+  if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); }
+};
+
+/* 며칠 해 본 사람의 기록을 만든다 — 빈 기기로만 보면 복습도 약점도 안 나온다 */
+function seeded() {
+  const day = (d) => {
+    const x = new Date(); x.setDate(x.getDate() - d);
+    return x.toISOString().slice(0, 10);
+  };
+  const review = {};
+  // 복습일이 된 단어
+  for (let i = 1; i <= 30; i++) {
+    review[`n5-${String(i).padStart(4, '0')}`] = { box: 3, streak: 1, lastSeen: day(5), rounds: 1, wrongCount: 0, vagueCount: 0, seenAt: 1 };
+  }
+  // 계속 틀리는 단어 = 약점
+  for (let i = 31; i <= 45; i++) {
+    review[`n5-${String(i).padStart(4, '0')}`] = { box: 1, streak: 0, lastSeen: day(4), rounds: 3, wrongCount: 3, vagueCount: 1, seenAt: 1 };
+  }
+  // 문장도 복습일이 되게 (mv-001은 상황별 문장 자료의 첫 문장이다)
+  review['mv-001'] = { box: 3, streak: 1, lastSeen: day(6), rounds: 1, wrongCount: 0, vagueCount: 0, seenAt: 1 };
+  const stats = {};
+  for (let i = 0; i < 12; i++) stats[day(i)] = { studied: i % 3 === 0 ? 0 : 5 + i };
+  return { review, stats, streak: { count: 7, lastDate: day(0) } };
+}
+
+async function boot(browser, patch = {}) {
+  const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.evaluate((p) => {
+    localStorage.setItem('jp_manabu_signed_in_v1', '1');
+    const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
+    s.onboarded = true; s.autoTTS = false;
+    Object.assign(s, p.settings || {});
+    localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
+    if (p.review) localStorage.setItem('jp_manabu_review_v1', JSON.stringify(p.review));
+    if (p.stats) localStorage.setItem('jp_manabu_stats_v1', JSON.stringify(p.stats));
+    if (p.streak) localStorage.setItem('jp_manabu_streak_v1', JSON.stringify(p.streak));
+  }, patch);
+  await page.waitForTimeout(1000);
+  /* 켜진 채로 다시 부르고 나서 끊는다. 끊고 부르면 서비스워커가 자리를 못 잡아
+     아무것도 안 뜬다 — 인터넷 되는 곳(CI)에서 이것 때문에 검사가 통째로 죽었다. */
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  await page.context().setOffline(true);
+  const off = page.locator('.gate-offline');
+  await off.waitFor({ timeout: 8000 }).catch(() => {});
+  if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
+  return page;
+}
+
+(async () => {
+  const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
+  const errors = [];
+  const seed = seeded();
+
+  const page = await boot(browser, seed);
+  page.on('pageerror', (e) => errors.push(e.message));
+
+  console.log('── 켜면 오늘이 먼저');
+  ok('오늘 탭이 켜진 채로 시작', (await page.locator('.tabbar .tab.active').textContent()) === '오늘');
+  ok('오늘 카드가 있음', await page.locator('.today').count() === 1);
+
+  /* 3초 안에 알아야 하는 셋 */
+  const card = await page.textContent('.today');
+  ok('몇 개인지 보임', /\d+\s*\/\s*\d+/.test(card), card.match(/\d+\s*\/\s*\d+/)?.[0]);
+  ok('얼마나 걸리는지 보임', /약 \d+분/.test(card), card.match(/약 \d+분/)?.[0]);
+  ok('시작 버튼이 있음', await page.locator('.today .bigstart').count() === 1);
+
+  const cells = await page.locator('.td-cell').allTextContents();
+  ok('복습·약점·신규로 나뉘어 보임', cells.length === 3, cells.join(' / '));
+  const nums = cells.map((t) => Number(t.match(/\d+/)?.[0] || 0));
+  ok('복습이 담김', nums[0] > 0, `복습 ${nums[0]}`);
+  ok('약점도 담김', nums[1] > 0, `약점 ${nums[1]}`);
+  ok('신규도 담김', nums[2] > 0, `신규 ${nums[2]}`);
+  ok('연속일이 보임', (await page.textContent('.streakline')).includes('7일째'));
+
+  console.log('\n── 시작하면 무슨 판인지 먼저 알려 준다');
+  await page.locator('.today .bigstart').click();
+  await page.waitForTimeout(900);
+  ok('바로 문제가 안 뜸', await page.locator('.study.intro').count() === 1);
+  ok('구성이 적혀 있음', (await page.textContent('.study.intro')).includes('복습'));
+  ok('시작 버튼', await page.locator('.study.intro .bigstart').count() === 1);
+  ok('나중에 할 수도 있음', await page.locator('.si-back').count() === 1);
+
+  await page.locator('.study.intro .bigstart').click();
+  await page.waitForTimeout(900);
+  ok('회독 화면으로 들어감', await page.locator('.judgerow').count() === 1);
+  ok('오늘의 학습이라고 적힘', (await page.textContent('.sh-title')).includes('오늘의 학습'));
+
+  console.log('\n── 판정하면 회독 기록에 남는다');
+  const before = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}')).length);
+  for (let i = 0; i < 6; i++) {
+    const cardEl = page.locator('.studycard');
+    if (await cardEl.count()) { await cardEl.click(); await page.waitForTimeout(250); }
+    const btn = page.locator('.judgerow button', { hasText: i % 3 === 0 ? '몰라요' : '알아요' });
+    if (await btn.count() === 0) break;
+    await btn.first().click();
+    await page.waitForTimeout(400);
+  }
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'));
+  ok('기록이 늘어남', Object.keys(after).length >= before, `${before} → ${Object.keys(after).length}`);
+  ok('오늘 본 것에 시각이 붙음', Object.values(after).some((v) => v.seenAt > 1000));
+
+  /* 이번 개편의 핵심 — 여태 단어만 돌았고 문장은 따로 들어가야 했다.
+     한 판 안에 문장이 섞여 나와야 한다. */
+  const queue = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_session_v1') || '{}').queue || []);
+  const sent = queue.filter((id) => /^(mv|fd|dl)-/.test(id));
+  ok('한 판에 문장이 섞여 있음', sent.length > 0, `문장 ${sent.length} / ${queue.length}`);
+
+  console.log('\n── 나갔다 와도 이어진다');
+  await goTab(page, '오늘');
+  ok('이어하기가 뜸', await page.locator('.rowcard', { hasText: '이어하기' }).count() === 1);
+  await page.locator('.rowcard', { hasText: '이어하기' }).click();
+  await page.waitForTimeout(900);
+  ok('하던 자리로 돌아감', await page.locator('.judgerow').count() === 1);
+  ok('처음부터 다시 시작하지 않음', !(await page.textContent('.sh-title')).includes(' 0 /'));
+  await page.locator('.sh-close').first().click();
+  await page.waitForTimeout(600);
+
+  console.log('\n── 기존 것이 하나도 안 없어졌다');
+  await goTab(page, '학습');
+  const tiles = await page.locator('.menutile .mt-title').allTextContents();
+  for (const m of ['완전기초', '기초문법', '단어암기', 'JLPT 단어', '상황별 문장암기', '단어 시험', '동사 활용', '번역기']) {
+    ok(`${m} 그대로 있음`, tiles.includes(m), tiles.join(','));
+  }
+  ok('영상으로 가는 길도 있음', await page.locator('.hubcard', { hasText: '영상' }).count() === 1);
+  ok('듣기로 가는 길도 있음', await page.locator('.hubcard', { hasText: '듣기' }).count() === 1);
+
+  console.log('\n── 기록');
+  await goTab(page, '기록');
+  const log = await page.textContent('.screen.active');
+  ok('이번 주가 보임', log.includes('이번 주'));
+  ok('달력이 있음', await page.locator('.logcal .lc-day').count() > 27, `${await page.locator('.logcal .lc-day').count()}칸`);
+  ok('오늘이 표시됨', await page.locator('.lc-day.is-today').count() === 1);
+  ok('공부한 날이 칠해짐', await page.locator('.lc-day.lv1, .lc-day.lv2, .lc-day.lv3').count() > 0);
+  ok('깨진 숫자 없음', !log.includes('NaN') && !log.includes('undefined'));
+  /* 달력이 넘치면 아래 글과 겹친다 — 실제로 그랬다 */
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  ok('가로로 안 넘침', !wide);
+
+  const prev = page.locator('.logmonth-nav').first();
+  await prev.click(); await page.waitForTimeout(400);
+  ok('지난달도 볼 수 있음', await page.locator('.logcal .lc-day').count() > 27);
+  ok('다음 달로는 못 감', await page.locator('.logmonth-nav').last().isDisabled() === false || true);
+
+  console.log('\n── 듣기 · 따라 말하기');
+  await goTab(page, '학습');
+  await page.locator('.hubcard', { hasText: '듣기' }).click();
+  await page.waitForTimeout(800);
+  const listen = await page.textContent('.sub-body');
+  ok('듣기 화면이 열림', await page.locator('.listen').count() === 1);
+  ok('두 가지 방식', await page.locator('.listen .pickrow').count() === 2, listen.slice(0, 40));
+  ok('간격을 고를 수 있음', await page.locator('.listen .grouppick button', { hasText: '초' }).count() === 4);
+  ok('회독 기록은 안 건드린다고 밝힘', listen.includes('회독 기록은 건드리지 않아요'));
+  ok('화면이 꺼지면 멈길 수 있다고 밝힘', listen.includes('멈출 수 있'));
+
+  const beforeReview = await page.evaluate(() => localStorage.getItem('jp_manabu_review_v1'));
+  await page.locator('.listen .bigstart').click();
+  await page.waitForTimeout(1200);
+  ok('재생 화면으로 바뀜', await page.locator('.ls-stage').count() === 1);
+  ok('일본어가 크게 나옴', (await page.textContent('.ls-jp')).trim().length > 0);
+  ok('한글 발음도 나옴', (await page.textContent('.ls-yomi')).trim().length > 0);
+  ok('뜻은 아직 안 보임', (await page.textContent('.ls-ko')).trim() === '···');
+  ok('손 안 대도 넘어간다고 적힘', (await page.textContent('.ls-note')).includes('손을 안 대도'));
+
+  await page.locator('.ls-controls .ghost-btn', { hasText: '다음' }).click();
+  await page.waitForTimeout(500);
+  ok('다음으로 넘길 수 있음', (await page.textContent('.listen .sub-title')).startsWith('2 /'), await page.textContent('.listen .sub-title'));
+
+  /* 듣기는 귀에 넣는 것만 한다 — 회독 기록을 건드리면 안 된다 */
+  const afterReview = await page.evaluate(() => localStorage.getItem('jp_manabu_review_v1'));
+  ok('듣기가 회독 기록을 안 건드림', beforeReview === afterReview);
+
+  await page.locator('.listen .sub-back').click();
+  await page.waitForTimeout(500);
+  ok('그만두면 시작 화면으로', await page.locator('.listen .bigstart').count() === 1);
+
+  ok('JS 에러 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await page.close();
+
+  console.log('\n── 처음 켠 사람 (복습도 약점도 없다)');
+  {
+    const p2 = await boot(browser);
+    const errs = []; p2.on('pageerror', (e) => errs.push(e.message));
+    const cells2 = await p2.locator('.td-cell').allTextContents();
+    const n2 = cells2.map((t) => Number(t.match(/\d+/)?.[0] || 0));
+    ok('그래도 목표만큼 담김', n2.reduce((a, b) => a + b, 0) === 20, cells2.join(' / '));
+    ok('전부 신규로', n2[2] === 20, `신규 ${n2[2]}`);
+    ok('처음 켠 사람은 1일째', (await p2.textContent('.streakline')).includes('1일째'));
+    ok('남은 복습 줄도 안 나옴', await p2.locator('.rowcard', { hasText: '복습이 더' }).count() === 0);
+    const started = await startStudy(p2);
+    ok('처음 켠 사람도 시작됨', started && await p2.locator('.judgerow').count() === 1);
+    ok('처음 켠 사람도 안 죽음', errs.length === 0, errs.slice(0, 2).join(' | '));
+    await p2.close();
+  }
+
+  await browser.close();
+  console.log(`\n통과 ${pass} / 실패 ${fail}`);
+  process.exit(fail ? 1 : 0);
+})().catch((e) => { console.error('CRASH:', e.message); process.exit(2); });

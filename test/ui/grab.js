@@ -2,6 +2,7 @@
    API로 영상을 듣는 건 기본이 꺼짐 — 여기선 꺼진 상태만 본다(켠 뒤는 grabtoggle.js). */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { openVideos } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -63,7 +64,7 @@ const toast = async (page) => {
     };
   });
 
-  await page.locator('.tabbar .tab', { hasText: '영상' }).click();
+  await openVideos(page);
   await page.waitForTimeout(900);
   await page.locator('.vd-open').first().click();
   await page.waitForTimeout(700);

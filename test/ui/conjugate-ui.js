@@ -5,6 +5,7 @@
  * 여기서는 화면이 그 답을 제대로 쓰는지, 성적이 남는지, 표가 펼쳐지는지를 본다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { openMenu } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -39,7 +40,7 @@ async function boot(browser, seed, settings) {
 }
 
 const open = async (page) => {
-  await page.locator('.menutile', { hasText: '동사 활용' }).click();
+  await openMenu(page, '동사 활용');
   await page.waitForTimeout(700);
 };
 
@@ -149,7 +150,7 @@ const open = async (page) => {
   /* 기초문법도 열어 본다 — 활용표를 같이 쓰는 자리라 여기가 깨지면 거기도 깨진다 */
   await page.locator('.sub-back').click();
   await page.waitForTimeout(600);
-  await page.locator('.menutile', { hasText: '기초문법' }).click();
+  await openMenu(page, '기초문법');
   await page.waitForTimeout(900);
   ok('기초문법도 열림', (await page.textContent('.subscreen')).trim().length > 50);
 

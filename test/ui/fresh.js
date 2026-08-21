@@ -1,6 +1,7 @@
 /* 아무것도 없는 상태에서 처음 켠 사람 — 여기서 막히면 다른 게 다 소용없다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab, startStudy } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -67,10 +68,11 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   const home = await page.textContent('.screen.active');
   ok('오늘 할 일을 알려 줌', /오늘|시작/.test(home), home.replace(/\s+/g, ' ').slice(0, 50));
   ok('깨진 숫자가 없음', !home.includes('undefined') && !home.includes('NaN'));
+  await goTab(page, '학습');
   ok('학습 메뉴가 보임', await page.locator('.menutile').count() >= 3, `${await page.locator('.menutile').count()}개`);
 
   // ── 바로 회독 ──
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(1500);
   ok('회독이 바로 열림', await page.locator('.judgerow').count() === 1);
   const head = await page.textContent('.sh-title');

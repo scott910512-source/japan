@@ -8,6 +8,7 @@
  * 낡은/망가진 모양을 넣고 모든 화면을 한 바퀴 돈다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab, openVideos, startStudy } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -77,7 +78,7 @@ const OLD = {
   ok('낡은 기록으로도 앱이 켜짐', await page.locator('.tabbar').count() === 1);
 
   // 탭을 한 바퀴
-  for (const tab of ['홈', '영상', '복습', '설정']) {
+  for (const tab of ['오늘', '학습', '복습', '기록', '더보기']) {
     await page.locator('.tabbar .tab', { hasText: tab }).click();
     await page.waitForTimeout(800);
     const body = (await page.textContent('.screen.active')).trim();
@@ -86,8 +87,9 @@ const OLD = {
   }
 
   // 홈 메뉴를 하나씩
-  await page.locator('.tabbar .tab', { hasText: '홈' }).click();
+  await goTab(page, '오늘');
   await page.waitForTimeout(700);
+  await goTab(page, '학습');
   const tiles = await page.locator('.menutile').count();
   ok('메뉴가 보임', tiles >= 5, `${tiles}개`);
   for (let i = 0; i < tiles; i++) {
@@ -98,16 +100,16 @@ const OLD = {
     await page.waitForTimeout(800);
     const shown = (await page.textContent('body')).trim().length;
     ok(`메뉴가 열림 · ${label}`, shown > 200 && await page.locator('.tabbar').count() === 1, `${shown}자`);
-    const back = page.locator('.sub-back, .sh-close').first();
+    const back = page.locator('.subscreen .sub-back, .subscreen .sh-close').first();
     if (await back.count()) { await back.click(); await page.waitForTimeout(600); }
     if (await page.locator('.menutile').count() === 0) {
-      await page.locator('.tabbar .tab', { hasText: '홈' }).click();
+      await goTab(page, '오늘');
       await page.waitForTimeout(600);
     }
   }
 
   // 영상 — 설명이 모자란 채로 학습까지
-  await page.locator('.tabbar .tab', { hasText: '영상' }).click();
+  await openVideos(page);
   await page.waitForTimeout(900);
   await page.locator('.vd-open').first().click();
   await page.waitForTimeout(800);
@@ -117,12 +119,12 @@ const OLD = {
     await lesson.first().click();
     await page.waitForTimeout(800);
     ok('모자란 설명으로도 학습이 열림', (await page.textContent('body')).trim().length > 200);
-    const close = page.locator('.sh-close, .sub-back').first();
+    const close = page.locator('.subscreen .sh-close, .subscreen .sub-back').first();
     if (await close.count()) { await close.click(); await page.waitForTimeout(500); }
   }
 
   // 회독 — seenAt 없는 기록으로 판정까지
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(1400);
   ok('낡은 회독 기록으로도 학습이 열림', await page.locator('.judgerow').count() === 1);
   await page.locator('.judgerow button', { hasText: '알아요' }).click();

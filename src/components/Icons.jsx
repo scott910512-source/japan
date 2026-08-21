@@ -104,3 +104,20 @@ export const IconMap = (p) => (
 export const IconDownload = (p) => (
   <svg {...base} {...p}><path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
 );
+
+/* 오늘 화면과 새 탭에서 쓰는 것들 — 나머지와 같은 굵기(1.7)로 맞춘다 */
+export const IconPlay = (p) => (
+  <svg {...base} {...p}><path d="M8 5.5v13l11-6.5-11-6.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg>
+);
+export const IconChart = (p) => (
+  <svg {...base} {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+);
+export const IconDots = (p) => (
+  <svg {...base} {...p}><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+);
+export const IconSun = (p) => (
+  <svg {...base} {...p}><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.7"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+);
+export const IconHeadphone = (p) => (
+  <svg {...base} {...p}><path d="M4 14v-2a8 8 0 0 1 16 0v2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><rect x="2.5" y="13" width="4.5" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7"/><rect x="17" y="13" width="4.5" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7"/></svg>
+);

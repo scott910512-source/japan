@@ -1,6 +1,7 @@
 /* 실제로 쓰는 길을 따라 걸어 본다 — 나갔다 오면 진도가 남는가, 되돌리기는 되는가. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab, startStudy } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -42,7 +43,7 @@ const judge = async (page, label) => { await page.locator('.judgerow button', { 
   await boot(page);
 
   // ── 회독을 하다가 다른 탭에 갔다 오면 ──
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(1200);
   const first = await page.textContent('.sc-front, .studycard');
   await judge(page, '알아요');
@@ -50,13 +51,13 @@ const judge = async (page, label) => { await page.locator('.judgerow button', { 
   const after2 = await head(page);
   ok('두 장 하면 진도가 오름', after2.includes('2 /'), after2);
 
-  await page.locator('.tabbar .tab', { hasText: '홈' }).click();
+  await goTab(page, '오늘');
   await page.waitForTimeout(800);
   ok('탭으로 회독을 나감', await page.locator('.judgerow').count() === 0);
   const home = await page.textContent('.screen.active');
   ok('홈에서 이어하기를 안내함', /이어|남은|계속/.test(home), home.replace(/\s+/g, ' ').slice(0, 70));
 
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(1200);
   const back = await head(page);
   ok('돌아오면 진도가 그대로', back === after2, `${back} vs ${after2}`);
@@ -70,7 +71,7 @@ const judge = async (page, label) => { await page.locator('.judgerow button', { 
   await page.waitForTimeout(1300);
   await page.context().setOffline(true);
   const off2 = page.locator('.gate-offline'); if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await startStudy(page);
   await page.waitForTimeout(1300);
   ok('앱을 다시 켜도 이어짐', (await head(page)) === after2, await head(page));
 

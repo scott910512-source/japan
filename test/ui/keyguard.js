@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { goTab } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -30,7 +31,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   await p.waitForTimeout(900);
   const off = p.locator('.gate-offline'); if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
 
-  await p.locator('.tabbar .tab', { hasText: '설정' }).click();
+  await goTab(p, '더보기');
   await p.waitForTimeout(700);
 
   const input = p.locator('input[name="gtts-api-key"]');
