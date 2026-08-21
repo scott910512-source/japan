@@ -298,7 +298,13 @@ button, input, select { font-family: inherit; }
 .subscreen { position: absolute; inset: 0; z-index: 60; background: var(--paper); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .32s cubic-bezier(.2,.9,.25,1); }
 .subscreen.open { transform: translateX(0); }
 .sub-header { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px 8px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 85%, transparent); backdrop-filter: blur(16px); }
-.sub-back { display: flex; align-items: center; gap: 2px; background: none; border: none; color: var(--kon); font-size: 14px; font-weight: 600; padding: 6px; cursor: pointer; }
+/* 손가락으로 짚는 것은 44px는 돼야 한다. 글자 높이만 두면 30px밖에 안 되는데,
+   하필 화면마다 있는 뒤로가기라 제일 자주 빗나가는 자리가 된다. */
+.sub-back {
+  display: flex; align-items: center; gap: 2px; background: none; border: none;
+  color: var(--kon); font-size: 14px; font-weight: 600; padding: 6px 10px 6px 6px;
+  min-height: 44px; cursor: pointer;
+}
 .sub-back svg { width: 18px; height: 18px; }
 .sub-title { font-size: 15px; font-weight: 700; margin-right: auto; margin-left: 2px; }
 .sub-body { flex: 1; overflow-y: auto; padding: 16px 18px 28px; }

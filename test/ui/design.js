@@ -171,7 +171,22 @@ const check = async (page, theme, name) => {
   await page.addInitScript((t) => { window.__THEME = t; }, theme);
   await boot(page);
 
-  await check(page, theme, '01-홈');
+  await check(page, theme, '01-오늘');
+  /* 개편으로 새로 생긴 화면들. 검사가 안 보던 자리라 여기가 제일 위험하다. */
+  await goTab(page, '학습');
+  await page.waitForTimeout(700); await check(page, theme, '01b-학습허브');
+  await goTab(page, '기록');
+  await page.waitForTimeout(700); await check(page, theme, '01c-기록');
+  await goTab(page, '학습');
+  await page.locator('.hubcard', { hasText: '듣기' }).click();
+  await page.waitForTimeout(800); await check(page, theme, '01d-듣기');
+  await page.locator('.listen .bigstart').click();
+  await page.waitForTimeout(1200); await check(page, theme, '01e-듣기-재생중');
+  await page.locator('.listen .sub-back').click();
+  await page.waitForTimeout(500);
+  await page.locator('.subscreen .sub-back').first().click();
+  await page.waitForTimeout(500);
+
   await page.locator('.tabbar .tab', { hasText: '복습' }).click();
   await page.waitForTimeout(700); await check(page, theme, '02-복습');
   await openVideos(page);
