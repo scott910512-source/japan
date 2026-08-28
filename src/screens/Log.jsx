@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { IconFlame, IconChevron } from '../components/Icons.jsx';
-import { addDays, todayKey, summarize, isMastered, stateOf } from '../lib/review.js';
+import { addDays, summarize, isMastered, stateOf } from '../lib/review.js';
+import { useToday } from '../lib/useToday.js';
 
 /* 기록 — 이미 쌓이고 있던 걸 이제야 보여 준다.
  *
@@ -24,8 +25,11 @@ function monthGrid(year, month) {
 }
 
 export default function Log({ words, review, stats, streak, onOpenReview }) {
-  const today = todayKey();
-  const now = useMemo(() => new Date(), []);
+  /* 자정을 넘기면 이 값이 바뀌고 화면이 다시 그려진다. 예전엔 마운트 때
+     한 번 잡아 둬서, 8/31에 켜 놓고 9/1이 되면 달력이 8월에 머물렀다 —
+     오늘 칸이 없고 「다음 달」 버튼도 비활성이었다. */
+  const today = useToday();
+  const now = useMemo(() => new Date(), [today]);
   const [shift, setShift] = useState(0); // 0이면 이번 달, -1이면 지난달
 
   const shown = useMemo(

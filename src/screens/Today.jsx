@@ -67,6 +67,10 @@ export default function Today({
           </p>
         ) : (
           <>
+            {/* 이 세 숫자는 오늘 담은 것의 구성이지 내가 가진 양이 아니다.
+                예전엔 여기 「약점」과 여덟 픽셀 아래 「약점 N개」가 같은 낱말로
+                다른 수를 말했다 — 그러면 둘 다 못 믿는다. */}
+            <div className="td-mixcap">오늘 담은 {plan.total}개</div>
             <div className="td-mix">
               <div className="td-cell">
                 <b>{plan.review}</b>
@@ -112,7 +116,7 @@ export default function Today({
           <span className="rc-body">
             <b>복습이 더 남았어요</b>
             <span>
-              {plan.left.review > 0 && `복습 ${plan.left.review}개`}
+              {plan.left.review > 0 && `오늘 안 담은 복습 ${plan.left.review}개`}
               {plan.left.review > 0 && plan.left.weak > 0 && ' · '}
               {plan.left.weak > 0 && `약점 ${plan.left.weak}개`}
             </span>

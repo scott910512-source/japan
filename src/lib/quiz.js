@@ -1,3 +1,4 @@
+import { isWeak } from './review.js';
 /* 시험 출제 · 채점.
  *
  * 회독(review.js)과는 목적이 다르다. 회독은 "다시 볼지"를 내가 정하는 곳이고,
@@ -146,10 +147,9 @@ export function scopeWords(words, review = {}, scope = QUIZ_SCOPE.ALL) {
     return words.filter((w) => review[w.id]?.lastSeen);
   }
   if (scope === QUIZ_SCOPE.WEAK) {
-    return words.filter((w) => {
-      const st = review[w.id];
-      return st && (st.wrongCount || 0) + (st.vagueCount || 0) >= 1;
-    });
+    /* 약점 기준은 회독 쪽 한 군데서 정한다. 예전엔 여기 ≥1을 손으로 적어 둬서
+       같은 「약점」이 시험에서만 56개, 복습에서는 25개였다. */
+    return words.filter((w) => isWeak(review[w.id]));
   }
   return words;
 }

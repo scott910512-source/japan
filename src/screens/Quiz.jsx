@@ -30,7 +30,8 @@ const DIR_OPTS = [
 const SCOPE_OPTS = [
   { id: QUIZ_SCOPE.ALL, label: '전체', sub: '고른 레벨 전부' },
   { id: QUIZ_SCOPE.SEEN, label: '외운 것', sub: '회독에서 본 단어만' },
-  { id: QUIZ_SCOPE.WEAK, label: '틀린 것', sub: '몰라요·애매해요 했던 것' },
+  // 「약점」의 기준은 회독 쪽 한 군데에서 정한다 — 여기서 따로 세면 같은 낱말이 다른 수가 된다
+  { id: QUIZ_SCOPE.WEAK, label: '약점', sub: '몰라요·애매해요를 세 번 넘게 한 것' },
 ];
 
 /* 시험 화면.

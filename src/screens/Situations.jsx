@@ -296,9 +296,11 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     return (
       <div className="finish">
         <div className="fin-badge">🎉</div>
-        <h2>{part.label} 완주!</h2>
+        {/* 남은 게 있는데 「완주!」라고 쓰면 한 문장 안에서 자기모순이 된다.
+            회독 화면(Study.jsx)이 이미 제대로 가르고 있어서 같은 방식으로 맞춘다. */}
+        <h2>{finished.carried > 0 ? '오늘은 여기까지' : `${part.label} 완주!`}</h2>
         <p className="fin-lines">
-          <span>{finished.done}문장 학습</span>
+          <span>{part.label} · {finished.done}번 봤어요</span>
           {finished.carried > 0 && <span>남은 {finished.carried}개는 내일 복습해요</span>}
         </p>
         <button className="submit-btn" onClick={onExit}>돌아가기</button>

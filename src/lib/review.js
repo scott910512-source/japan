@@ -124,16 +124,26 @@ export function dueCards(cardIds, progress, today = todayKey(), cap = DAILY_REVI
     .map(({ id }) => id);
 }
 
-/* ── 취약 단어 ── */
+/* ── 취약 단어 ──
+ *
+ * 「약점」이 무엇인지는 여기 한 군데서만 정한다.
+ *
+ * 예전엔 화면마다 제 나름대로 셌다. 같은 화면 안에서 8px 떨어진 두 자리가
+ * 「약점 14」와 「약점 6개」였고, 복습 탭은 25, 카드 배지는 53, 시험은 56이었다.
+ * 두 곳은 이 상수를 안 가져다 쓰고 숫자를 손으로 적어 뒀다. 이름이 같으면
+ * 값도 같아야 한다 — 아니면 어느 것도 못 믿는다. */
 
 export const WEAK_THRESHOLD = 3;
 
-// 몰라요+애매해요 누적이 기준 이상인 카드 — "내 취약 단어" 가상 덱.
+/* 이 카드가 약점인가. 졸업한 카드는 아니다 —
+   다 외운 것에 「취약」이 붙으면 졸업이라는 말이 취소된다. */
+export function isWeak(st, threshold = WEAK_THRESHOLD) {
+  if (!st) return false;
+  return (st.wrongCount || 0) + (st.vagueCount || 0) >= threshold && !isMastered(st);
+}
+
 export function weakCards(cardIds, progress, threshold = WEAK_THRESHOLD) {
-  return cardIds.filter((id) => {
-    const st = stateOf(progress, id);
-    return st.wrongCount + st.vagueCount >= threshold && !isMastered(st);
-  });
+  return cardIds.filter((id) => isWeak(stateOf(progress, id), threshold));
 }
 
 /* ── 세션 큐 만들기 ── */
@@ -292,17 +302,24 @@ export function advanceSession(session, progress, cardId, verdict, today = today
   const nextProgress = { ...progress, [cardId]: nextState };
 
   const queue = session.queue.filter((id) => id !== cardId);
-  const reinserted = session.reinserted || [];
 
-  // 몰라요는 방금 본 답을 한 번 더 확인하도록 같은 회독 안에서 1회만 재삽입한다.
-  const shouldReinsert = verdict === VERDICT.UNKNOWN && !reinserted.includes(cardId);
-  if (shouldReinsert) queue.push(cardId);
+  /* 몰라요를 이 회독 안에 도로 넣지 않는다 — 다음 회독에서 만난다.
+   *
+   * 예전엔 여기서 큐 맨 뒤에 도로 넣었다. 그런데 몰라요는 어차피 box가 낮아
+   * 다음 회독 큐에도 들어간다. 두 군데서 한 번씩, 그러니까 같은 카드를 두 규칙이
+   * 각각 집행했고 그 곱이 최악 판정 수를 목표의 여섯 배로 만들었다.
+   * 스무 장을 고르면 백스무 번을 눌러야 끝났다 — 그러고도 오늘 정리된 카드는 0장.
+   *
+   * 재삽입을 없애는 게 아니라 옮기는 것이다. 못 외운 건 오늘 안에 다시 나온다.
+   * 다만 이번 바퀴가 아니라 다음 바퀴에 나온다. 그래서 1회독이 정확히 고른 장수가
+   * 되고, 「남은 N개」가 줄기만 한다. 최악은 목표의 세 배(3회독)로 준다. */
 
   return {
     session: {
       ...session,
       queue,
-      reinserted: shouldReinsert ? [...reinserted, cardId] : reinserted,
+      // 옛 세션이 들고 있을 수 있어 칸은 남겨 둔다. 이제 아무도 안 채운다.
+      reinserted: session.reinserted || [],
       done: (session.done || 0) + 1,
     },
     progress: nextProgress,

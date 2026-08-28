@@ -88,11 +88,13 @@ const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp
   await page.waitForTimeout(500);
   ok('몰라요가 기록됨', Object.values(await review(page)).some((s) => s.box === 1 && s.wrongCount >= 1));
 
-  // 몰라요는 이번 회독 큐 끝에 한 번 더 들어가야 한다
+  /* 몰라요는 이 회독에서 빠지고 다음 회독에서 만난다.
+     예전엔 여기 도로 넣었는데, 그러면 회독 반복과 겹쳐 집행돼서 스무 장을
+     고른 사람이 백스무 번을 눌러야 끝났다. */
   const sess = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_session_v1') || '{}'));
   const wrongId = Object.entries(await review(page)).find(([, s]) => s.box === 1)?.[0];
-  ok('몰라요는 이번 회독에 다시 들어감', sess.queue?.includes(wrongId), `큐 ${sess.queue?.length}장, 재삽입 ${JSON.stringify(sess.reinserted)}`);
-  ok('한 번만 다시 넣음', sess.queue?.filter((x) => x === wrongId).length === 1);
+  ok('몰라요는 이번 회독에서 빠짐', !sess.queue?.includes(wrongId), `큐 ${sess.queue?.length}장`);
+  ok('그래도 회독 목록에는 남음', sess.roundIds?.includes(wrongId));
 
   // 25장을 돌려 진행이 계속되는지 본다
   for (let i = 0; i < 25; i++) {
