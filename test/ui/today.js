@@ -206,7 +206,21 @@ async function boot(browser, patch = {}) {
     const n2 = cells2.map((t) => Number(t.match(/\d+/)?.[0] || 0));
     ok('그래도 목표만큼 담김', n2.reduce((a, b) => a + b, 0) === 20, cells2.join(' / '));
     ok('전부 신규로', n2[2] === 20, `신규 ${n2[2]}`);
-    ok('처음 켠 사람은 1일째', (await p2.textContent('.streakline')).includes('1일째'));
+    /* 공부하기 전에는 연속일이 없다. 예전엔 앱을 켜기만 해도 1일째가 붙었는데,
+       그건 아무것도 안 한 사람에게 했다고 말하는 것이다. */
+    ok('공부 전에는 연속일 줄이 없음', await p2.locator('.streakline').count() === 0);
+
+    // 한 장 하면 그때 1일째가 된다
+    await p2.locator('.today .bigstart').click();
+    await p2.waitForTimeout(900);
+    const go2 = p2.locator('.intro-go, .bigstart').first();
+    if (await go2.count()) { await go2.click(); await p2.waitForTimeout(900); }
+    const card2 = p2.locator('.studycard');
+    if (await card2.count()) { await card2.click(); await p2.waitForTimeout(400); }
+    const known2 = p2.locator('.judgerow button', { hasText: '알아요' });
+    if (await known2.count()) { await known2.click(); await p2.waitForTimeout(800); }
+    const st2 = await p2.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_streak_v1') || '{}'));
+    ok('한 장 하면 1일째가 됨', st2.count === 1, JSON.stringify(st2));
     ok('남은 복습 줄도 안 나옴', await p2.locator('.rowcard', { hasText: '복습이 더' }).count() === 0);
     const started = await startStudy(p2);
     ok('처음 켠 사람도 시작됨', started && await p2.locator('.judgerow').count() === 1);

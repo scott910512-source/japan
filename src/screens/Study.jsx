@@ -10,7 +10,7 @@ import { kanaToHangul } from '../lib/hangul.js';
 import { STEP, STEP_HINT, STEP_LABEL, hidesFront, needsSound, settingsForStep, stepFor } from '../lib/steps.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import {
-  VERDICT, advanceSession, buildDailySession, buildRound1, nextRoundOf, stateOf, todayKey,
+  VERDICT, advanceSession, buildDailySession, buildRound1, isWeak, nextRoundOf, stateOf, todayKey,
 } from '../lib/review.js';
 
 const ROUND_LABEL = (round) => (round === 1 ? '1회독 (전체)' : `${round}회독 (틀린 것만 복습)`);
@@ -59,6 +59,19 @@ function facesOf(word, settings) {
 
 /* 판정 음성이 끝나기를 기다리는 시간. 단어 한 개 길이면 충분하다. */
 const JUDGE_SPEAK_GAP = 950;
+
+/* 글자 수에 따라 카드 앞면 크기를 고른다.
+ *
+ * 앞면은 단어 한두 글자를 크게 보여 주려고 52px 한 줄로 못 박혀 있었다.
+ * 그 자리에 문장이 들어오자 「子供料金はありますか。」가 좌우로 삐져나갔다 —
+ * 390px 화면에서 양쪽으로 306px씩, 가로 스크롤도 안 돼서 앞글자를 못 읽었다.
+ * 2.6배라 크기만 줄여서는 안 되고 줄바꿈이 같이 필요하다. */
+function sizeOf(text) {
+  const n = String(text || '').length;
+  if (n <= 6) return 'len-s';
+  if (n <= 12) return 'len-m';
+  return 'len-l';
+}
 
 export default function Study({
   deck, review, settings, session, bookmarks, memos, onSaveMemo,
@@ -321,7 +334,7 @@ export default function Study({
       <div className="studycard" onClick={() => !revealed && reveal()}>
         <div className="sc-top">
           {step && <span className="sc-step">{STEP_LABEL[step]}</span>}
-          {st.wrongCount + st.vagueCount >= 3 && <span className="sc-weak">취약</span>}
+          {isWeak(st) && <span className="sc-weak">취약</span>}
           <button
             className="sc-speak"
             onClick={(e) => { e.stopPropagation(); speakCurrent(); }}
@@ -340,7 +353,9 @@ export default function Study({
             <IconSpeaker />
           </div>
         ) : (
-          <div className={`sc-main${faces.front.isKo ? ' ko' : ''}`}>{faces.front.main}</div>
+          <div className={`sc-main${faces.front.isKo ? ' ko' : ''} ${sizeOf(faces.front.main)}`}>
+            {faces.front.main}
+          </div>
         )}
 
         {/* 앞면에서 읽는 법만 살짝 확인 — 뜻을 보기 전 단계.
@@ -433,7 +448,9 @@ export default function Study({
           {hasKeyboard && <kbd className="judge-key">1</kbd>}
           <IconX />
           <b>몰라요</b>
-          <span>오늘 다시</span>
+          {/* 이제 이번 바퀴가 아니라 다음 바퀴에 나온다. 애매해요와 때가 같아서
+              같은 말을 쓴다 — 다르게 적으면 안 그런 것처럼 읽힌다. */}
+          <span>다음 회독에</span>
         </button>
         <button className="judge vague" disabled={locked} onClick={() => judge(VERDICT.VAGUE)}>
           {hasKeyboard && <kbd className="judge-key">2</kbd>}

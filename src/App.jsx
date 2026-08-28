@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TabBar from './components/TabBar.jsx';
+import BottomSheet from './components/BottomSheet.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import Today from './screens/Today.jsx';
 import StudyHub from './screens/StudyHub.jsx';
@@ -32,7 +33,7 @@ import {
   loadReview, saveReview,
   loadSession, saveSession,
   loadStats, saveStats,
-  touchStreak, setStorageErrorHandler,
+  touchStreak, loadStreak, setStorageErrorHandler,
   loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce,
   loadMemos, saveMemos,
   loadVideos, saveVideos, loadVideoAnalyses, saveVideoAnalyses,
@@ -45,6 +46,7 @@ import { configureSTT } from './lib/stt.js';
 import { dueCards, todayKey, weakCards } from './lib/review.js';
 import { supabase, supabaseConfigured } from './lib/supabase.js';
 import { syncNow, pushMerged } from './lib/sync.js';
+import { useToday } from './lib/useToday.js';
 import { pickSyncedSettings } from './lib/merge.js';
 import { SEED_VIDEOS } from './data/videos.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from './lib/crypto.js';
@@ -105,7 +107,9 @@ export default function App() {
   useEffect(() => {
     setStorageErrorHandler(showToast);
     setTTSErrorHandler(showToast);
-    setStreak(touchStreak());
+    /* 연속일은 여기서 올리지 않는다 — 앱을 켠 것과 공부한 것은 다르다.
+       올리는 자리는 오늘 첫 판정(applyReview)이다. */
+    setStreak(loadStreak());
     setOnboardingOpen(!loadSettings().onboarded);
 
     // iOS는 첫 사용자 제스처에서만 오디오를 열어준다.
@@ -178,15 +182,18 @@ export default function App() {
   const words = useMemo(() => [...ALL_WORDS, ...customWords], [customWords]);
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
   const byId = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
-  const due = useMemo(() => dueCards(wordIds, review, todayKey()), [wordIds, review]);
+  /* 오늘 날짜를 화면에 묶는다. 렌더 안에서 todayKey()를 부르기만 하면
+     자정을 넘겨도 리액트가 다시 안 그려서, 복습 배지가 어제 값에 머문다. */
+  const today = useToday();
+  const due = useMemo(() => dueCards(wordIds, review, today), [wordIds, review, today]);
 
   const sentenceIds = useMemo(
     () => SITUATIONS.flatMap((s) => s.parts.flatMap((p) => p.items.map((i) => i.id))),
     [],
   );
   const sentenceDue = useMemo(
-    () => dueCards(sentenceIds, review, todayKey()).length,
-    [sentenceIds, review],
+    () => dueCards(sentenceIds, review, today).length,
+    [sentenceIds, review, today],
   );
 
   const patchSettings = useCallback((patch) => setSettings((s) => ({ ...s, ...patch })), []);
@@ -347,6 +354,8 @@ export default function App() {
     setReview(nextReview);
     if (!verdict) return;
     const day = todayKey();
+    // 오늘 처음 판정한 순간에 연속일이 오른다. 같은 날 두 번째부터는 그대로 둔다.
+    setStreak((prev) => (prev.lastDate === day ? prev : touchStreak()));
     setStats((prev) => {
       const cur = prev[day] || { studied: 0, known: 0, vague: 0, unknown: 0 };
       return {
@@ -391,6 +400,20 @@ export default function App() {
     [words, settings.levels, sentenceCards],
   );
 
+  /* 세션 저장소가 한 칸이라, 새 판을 열면 하던 판이 말없이 사라진다.
+     한 번 묻고 연다 — 「조용히 삼키지 말고」가 이 저장소가 정한 원칙이다.
+     칸을 늘리지는 않는다. 그러면 완주 지점이 여러 개가 되어 더 나빠진다. */
+  const [askSwap, setAskSwap] = useState(null);   // { run, from, left }
+
+  const guardDeck = useCallback((run, deckId) => {
+    const live = session?.deckId && session.queue?.length > 0 && session.date === todayKey();
+    if (live && session.deckId !== deckId) {
+      setAskSwap({ run, from: session.label || '하던 학습', left: session.queue.length });
+      return;
+    }
+    run();
+  }, [session]);
+
   const startToday = useCallback(() => {
     const built = buildDailyStudyQueue(todayPool, review, { goal: settings.dailyGoal || 20 });
     if (!built.queue.length) {
@@ -422,6 +445,9 @@ export default function App() {
       id: session.deckId,
       label: session.label || '이어서 학습',
       cards: [...words, ...sentenceCards],
+      /* 오늘의 학습은 회독마다 방식이 달라진다. 이어하기에 이 칸을 안 실어서,
+         나갔다 들어온 순간부터 읽기·떠올리기·듣기 단계가 통째로 사라졌었다. */
+      stepped: session.deckId === 'today',
     });
   }, [session, words, sentenceCards]);
 
@@ -767,6 +793,28 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* 하던 판이 사라지기 전에 한 번 알린다 */}
+      <BottomSheet open={Boolean(askSwap)} onClose={() => setAskSwap(null)}>
+        {askSwap && (
+          <div className="swapask">
+            <h3>하던 학습을 접을까요?</h3>
+            <p>
+              «{askSwap.from}»이 {askSwap.left}개 남아 있어요.
+              새로 시작하면 그 진행은 접히고, 푼 만큼은 기록에 남아요.
+            </p>
+            <div className="swapask-acts">
+              <button className="ghost-btn" onClick={() => setAskSwap(null)}>그만두기</button>
+              <button
+                className="submit-btn"
+                onClick={() => { const go = askSwap.run; setAskSwap(null); go(); }}
+              >
+                접고 새로 시작
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
 
       <TabBar
         active={activeTab === 'videos' ? 'study' : activeTab}

@@ -27,8 +27,15 @@ const SLIDES = [
   },
 ];
 
-// 남은 날짜에 따라 하루 분량을 다르게 잡는다 — 벼락치기는 분량보다 완주가 중요하다.
-const GOAL_BY_TRIP = { d3: 15, d7: 20, d14: 30, none: 20 };
+/* 여행이 언제인지로 하루 분량을 바꾸지 않는다.
+ *
+ * 예전엔 「3일 이내」를 고르면 15장으로 줄었다. 급한 사람에게 더 적게 시키는
+ * 셈이라 거꾸로였다. 원래 기획에서 D-day가 하려던 일은 분량을 줄이는 게
+ * 아니라 무엇부터 볼지를 바꾸는 것(생존 문장 먼저)이었는데, 그건 안 만들어졌고
+ * 답이 갈 곳을 잃어 가장 가까운 숫자에 붙어 있었다. 그 연결을 끊는다.
+ *
+ * 답 자체는 계속 받는다 — 홈에 「여행까지 3일」로 뜨는 데 쓴다. */
+const DEFAULT_GOAL = 20;
 
 export default function Onboarding({ open, onFinish }) {
   const [step, setStep] = useState(0);
@@ -53,7 +60,7 @@ export default function Onboarding({ open, onFinish }) {
       onboarded: true,
       canReadKana: a.kana ?? true,
       tripDay: trip,
-      dailyGoal: GOAL_BY_TRIP[trip] ?? 20,
+      dailyGoal: DEFAULT_GOAL,
       hangulPron: a.kana === false,
       showKana: a.kana === false,
     });

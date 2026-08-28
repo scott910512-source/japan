@@ -27,8 +27,17 @@ export const WEAK_THRESHOLD = 3;
  * 정확할 수 없는 값이라 "약 8분"처럼 어림으로만 쓴다. */
 const SECONDS = { word: 9, sentence: 16 };
 
-export const GOAL_CHOICES = [10, 20, 30, 50];
 export const DEFAULT_GOAL = 20;
+
+/* 오늘 큐에서 문장이 차지할 수 있는 몫의 상한.
+ *
+ * 문장에는 레벨이 없다. 단어만 설정한 레벨로 걸러지니, N5만 켠 사람은 단어
+ * 후보가 534개로 줄고 문장은 600개가 그대로 남는다. 남은 수에 비례해 뽑는
+ * 규칙이라 스무 개 중 열한 개가 문장이 됐다 — 비율이 뒤집힌 것이다.
+ *
+ * 비례로 뽑는 것 자체는 남긴다. 그게 없으면 자료 차례대로 잘려서 문장이 아예
+ * 0개가 된다. 대신 위에 뚜껑을 씌운다. */
+export const SENTENCE_SHARE = 0.5;
 
 /* 큐에 담기는 한 개. 단어인지 문장인지를 들고 다녀야 화면이 다르게 그린다. */
 function item(id, kind, bucket) {
@@ -149,6 +158,36 @@ function arrange(picked) {
   return out;
 }
 
+/* 문장이 몫을 넘으면 그만큼을 단어로 바꿔 넣는다.
+ *
+ * 갈래별로 뽑고 나서 세는 게 맞다 — 갈래마다 따로 뚜껑을 씌우면 복습에 문장이
+ * 없는 날 신규 쪽 몫이 놀게 된다. 바꿔 넣을 단어가 모자라면 그만큼은 그냥
+ * 문장으로 둔다. 억지로 채우느라 개수를 줄이지는 않는다. */
+function capSentences(picked, groups, got, goal) {
+  const cap = Math.max(1, Math.floor(goal * SENTENCE_SHARE));
+  const sentences = picked.filter((x) => x.kind === 'sentence');
+  if (sentences.length <= cap) return picked;
+
+  const taken = new Set(picked.map((x) => x.id));
+  const spare = {
+    review: groups.due.filter((x) => x.kind === 'word' && !taken.has(x.id)),
+    weak: groups.weak.filter((x) => x.kind === 'word' && !taken.has(x.id)),
+    fresh: groups.fresh.filter((x) => x.kind === 'word' && !taken.has(x.id)),
+  };
+
+  /* 뒤에서부터 뺀다 — 앞쪽은 복습이라 화면을 여는 자리다 */
+  const out = [...picked];
+  let over = sentences.length - cap;
+  for (let i = out.length - 1; i >= 0 && over > 0; i--) {
+    if (out[i].kind !== 'sentence') continue;
+    const lane = spare[out[i].bucket];
+    if (!lane?.length) continue;
+    out[i] = lane.shift();
+    over--;
+  }
+  return out;
+}
+
 /* 오늘 큐를 짠다.
  *
  * pool: [{ id, kind }] — 단어와 문장을 한 배열에 담아 넘긴다.
@@ -159,11 +198,11 @@ export function buildDailyStudyQueue(pool, review, { goal = DEFAULT_GOAL, today 
   const sizes = { review: groups.due.length, weak: groups.weak.length, fresh: groups.fresh.length };
   const got = shareOut(sizes, target);
 
-  const picked = [
+  const picked = capSentences([
     ...takeMixed(groups.due, got.review),
     ...takeMixed(groups.weak, got.weak),
     ...takeMixed(groups.fresh, got.fresh),
-  ];
+  ], groups, got, target);
 
   return {
     queue: arrange(picked),
@@ -193,11 +232,11 @@ export function planToday(pool, review, { goal = DEFAULT_GOAL, today = todayKey(
   const groups = classifyDaily(pool, review, today);
   const sizes = { review: groups.due.length, weak: groups.weak.length, fresh: groups.fresh.length };
   const got = shareOut(sizes, target);
-  const picked = [
+  const picked = capSentences([
     ...takeMixed(groups.due, got.review),
     ...takeMixed(groups.weak, got.weak),
     ...takeMixed(groups.fresh, got.fresh),
-  ];
+  ], groups, got, target);
   return {
     total: picked.length,
     ...got,

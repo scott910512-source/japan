@@ -158,17 +158,16 @@ group('암기 · 세션 진행');
 
   let r = advanceSession(session, prog, 'a', VERDICT.UNKNOWN);
   session = r.session; prog = r.progress;
-  ok('몰라요는 이번 회독에 다시 나옴', session.queue.includes('a'));
-  ok('큐에서 한 번만 다시 넣음', session.queue.filter((x) => x === 'a').length === 1);
-
-  r = advanceSession(session, prog, 'a', VERDICT.UNKNOWN);
-  session = r.session; prog = r.progress;
-  ok('두 번째 몰라요는 다시 안 넣음', !session.queue.includes('a'));
+  /* 예전엔 이 회독 안에 도로 넣었다. 그러면 같은 카드를 재삽입과 회독 반복이
+     각각 한 번씩 집행해서, 스무 장을 고르면 백스무 번을 눌러야 끝났다.
+     이제 이 바퀴에서는 빠지고 다음 바퀴에서 만난다. */
+  ok('몰라요는 이번 회독에서 빠짐', !session.queue.includes('a'));
+  ok('그래도 회독 목록에는 남음', session.roundIds.includes('a'));
 
   r = advanceSession(session, prog, 'b', VERDICT.KNOWN);
   session = r.session; prog = r.progress;
   ok('알아요는 큐에서 빠짐', !session.queue.includes('b'));
-  ok('처리 수를 셈', session.done === 3, session.done);
+  ok('처리 수를 셈', session.done === 2, session.done);
 
   r = advanceSession(session, prog, 'c', VERDICT.KNOWN);
   session = r.session; prog = r.progress;
@@ -176,8 +175,29 @@ group('암기 · 세션 진행');
 
   const step = nextRoundOf(session, prog);
   ok('안 끝난 카드가 있으면 다음 회독', step.kind === 'next' && step.session.round === 2);
-  ok('다음 회독은 남은 것만', step.session.queue.length === 1 && step.session.queue[0] === 'a');
+  ok('몰라요 한 카드가 다음 회독에 나옴', step.session.queue.length === 1 && step.session.queue[0] === 'a');
   ok('다음 회독에서 재삽입 기록을 비움', step.session.reinserted.length === 0);
+
+  /* 판정 수가 목표의 몇 배까지 가는지 — 여기가 안 잡히면 조용히 되돌아온다.
+     전부 몰라요만 눌러도 회독당 딱 한 바퀴, 3회독까지 = 장수의 세 배다. */
+  {
+    const ids = Array.from({ length: 20 }, (_, i) => `q${i}`);
+    let ss = { queue: [...ids], roundIds: [...ids], round: 1, reinserted: [], done: 0 };
+    let pp = {};
+    let taps = 0;
+    for (let guard = 0; guard < 500; guard++) {
+      if (ss.queue.length === 0) {
+        const nx = nextRoundOf(ss, pp);
+        if (nx.kind !== 'next') break;
+        ss = nx.session;
+        continue;
+      }
+      const res = advanceSession(ss, pp, ss.queue[0], VERDICT.UNKNOWN);
+      ss = res.session; pp = res.progress; taps++;
+    }
+    ok('전부 몰라요여도 장수의 세 배에서 끝남', taps === 60, `${taps}번`);
+    ok('한 회독이 정확히 고른 장수', ss.round === 3 && taps / 3 === 20, `${taps / 3}장/회독`);
+  }
 
   // 다 맞히면 종료
   const done = advanceSession(step.session, prog, 'a', VERDICT.KNOWN);
@@ -278,12 +298,24 @@ group('시험 · 범위');
 {
   const words = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
   const review = {
-    a: { lastSeen: '2026-01-01', wrongCount: 2 },
+    a: { lastSeen: '2026-01-01', wrongCount: 3 },
     b: { lastSeen: '2026-01-01', wrongCount: 0, vagueCount: 0 },
   };
   ok('전체는 다 나옴', scopeWords(words, review, QUIZ_SCOPE.ALL).length === 3);
   ok('외운 것만', scopeWords(words, review, QUIZ_SCOPE.SEEN).map((w) => w.id).join() === 'a,b');
   ok('틀린 것만', scopeWords(words, review, QUIZ_SCOPE.WEAK).map((w) => w.id).join() === 'a');
+
+  /* 「약점」의 기준은 회독 쪽 한 군데(WEAK_THRESHOLD)에서만 정한다.
+     예전엔 시험이 ≥1을 손으로 적어 둬서, 같은 낱말이 시험에서만 56개이고
+     복습 탭에서는 25개였다. 이제 두 자리가 같은 수를 말한다. */
+  const twice = { a: { lastSeen: '2026-01-01', wrongCount: 2 } };
+  ok('두 번 틀린 건 아직 약점 아님', scopeWords(words, twice, QUIZ_SCOPE.WEAK).length === 0);
+  const mixed = { a: { lastSeen: '2026-01-01', wrongCount: 2, vagueCount: 1 } };
+  ok('몰라요와 애매해요를 같이 셈', scopeWords(words, mixed, QUIZ_SCOPE.WEAK).length === 1);
+  const grad = { a: { lastSeen: '2026-01-01', wrongCount: 5, box: 3, streak: 4 } };
+  ok('졸업한 카드는 약점이 아님', scopeWords(words, grad, QUIZ_SCOPE.WEAK).length === 0);
+  ok('회독 쪽과 같은 기준을 봄',
+    weakCards(['a'], mixed).length === scopeWords(words, mixed, QUIZ_SCOPE.WEAK).length);
 }
 
 /* ── 시험: 채점 ── */

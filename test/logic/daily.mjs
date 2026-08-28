@@ -7,7 +7,7 @@
  *   - 같은 게 두 번 들어가지 않는지 (약점이면서 복습일인 카드가 있다)
  *   - 첫 문제가 약점이 아닌지 (시작하자마자 모르는 게 나오면 그날은 거기서 끝난다) */
 import {
-  buildDailyStudyQueue, planToday, classifyDaily, estimateMinutes, MIX, WEAK_THRESHOLD,
+  buildDailyStudyQueue, planToday, classifyDaily, estimateMinutes, MIX, WEAK_THRESHOLD, SENTENCE_SHARE,
 } from '../../src/lib/daily.js';
 import { applyVerdict, emptyState, todayKey, addDays, VERDICT } from '../../src/lib/review.js';
 
@@ -155,6 +155,37 @@ console.log('\n── 단어와 문장을 한 큐에');
   /* 한 종류밖에 없으면 그냥 그것만 */
   ok('단어만 있으면 단어만', planToday(W(50), {}, { goal: 10, today: TODAY }).words === 10);
   ok('문장만 있으면 문장만', planToday(S(50), {}, { goal: 10, today: TODAY }).sentences === 10);
+}
+
+console.log('\n── 문장이 오늘을 다 차지하지 않게 (뚜껑)');
+{
+  /* 문장에는 레벨이 없어서, 레벨을 좁힐수록 단어만 줄고 문장은 그대로다.
+     남은 수에 비례해 뽑으니 스무 개 중 열한 개가 문장이 됐었다. */
+  const n5 = [...W(534), ...S(600)];      // N5만 켠 사람의 실제 후보 수
+  const p = planToday(n5, {}, { goal: 20, today: TODAY });
+  ok('문장이 절반을 안 넘음', p.sentences <= 10, `문장 ${p.sentences} / 단어 ${p.words}`);
+  ok('개수는 그대로 채움', p.total === 20, `${p.total}개`);
+
+  ok('목표가 커도 비율은 같음', planToday(n5, {}, { goal: 30, today: TODAY }).sentences <= 15);
+  ok('목표가 작아도', planToday(n5, {}, { goal: 10, today: TODAY }).sentences <= 5);
+
+  /* 뚜껑이 문장을 0으로 만들면 안 된다 — 그러려고 비례배분을 넣었다 */
+  ok('문장이 아예 빠지진 않음', planToday(n5, {}, { goal: 20, today: TODAY }).sentences >= 2);
+
+  /* 단어가 모자라면 억지로 채우느라 개수를 줄이지는 않는다 */
+  const few = [...W(5), ...S(600)];
+  const q = planToday(few, {}, { goal: 20, today: TODAY });
+  ok('바꿔 넣을 단어가 없으면 개수를 지킴', q.total === 20, `${q.total}개`);
+  ok('그때는 뚜껑을 넘겨도 둠', q.sentences > 10, `문장 ${q.sentences}`);
+
+  /* 큐에도 같은 수가 나와야 한다 — 미리 보여 준 숫자와 실제가 다르면 안 된다 */
+  const b = buildDailyStudyQueue(n5, {}, { goal: 20, today: TODAY });
+  ok('큐에도 뚜껑이 걸림', b.queue.filter((x) => x.kind === 'sentence').length <= 10,
+    `문장 ${b.queue.filter((x) => x.kind === 'sentence').length}`);
+  ok('큐에 같은 게 두 번 없음', new Set(b.queue.map((x) => x.id)).size === b.queue.length);
+  ok('앞머리는 여전히 복습으로 열림', b.queue[0].bucket !== 'weak');
+
+  ok('상수가 절반', SENTENCE_SHARE === 0.5);
 }
 
 console.log('\n── 예상 시간');

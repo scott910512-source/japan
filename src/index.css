@@ -482,8 +482,17 @@ button, input, select { font-family: inherit; }
 .sc-main {
   font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
   font-size: 52px; font-weight: 800; line-height: 1.2; text-align: center; word-break: keep-all;
+  /* 어떤 글자가 와도 상자 밖으로는 못 나간다 — 문장이 들어오면서 좌우로
+     306px씩 삐져나가 앞글자를 못 읽던 자리다 */
+  max-width: 100%; overflow-wrap: anywhere;
 }
+/* 일본어는 아무 데서나 줄이 바뀌어도 읽힌다. keep-all은 한국어 뜻에만 남긴다. */
+.sc-main.len-m, .sc-main.len-l { word-break: normal; line-height: 1.4; }
+.sc-main.len-m { font-size: 34px; }
+.sc-main.len-l { font-size: 25px; }
 .sc-main.ko { font-size: 30px; }
+.sc-main.ko.len-m { font-size: 24px; }
+.sc-main.ko.len-l { font-size: 19px; }
 .sc-peek {
   display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 100px; cursor: pointer;
   background: none; border: none; color: var(--ink-soft); font-size: 13px; font-weight: 600;
@@ -1545,3 +1554,14 @@ button, input, select { font-family: inherit; }
   min-height: 96px; color: var(--kon);
 }
 .sc-hear svg { width: 44px; height: 44px; opacity: .75; }
+
+/* 오늘 담은 것의 구성임을 밝히는 줄 — 이게 없으면 아래 「남은」 숫자와
+   같은 낱말이 다른 뜻으로 읽힌다. */
+.td-mixcap { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); margin: 14px 0 -4px; }
+
+/* 하던 판을 접을지 묻는 자리 — 말없이 덮이면 돌아갈 길이 없다 */
+.swapask { padding: 4px 20px 20px; }
+.swapask h3 { font-size: 17px; font-weight: 800; margin: 0 0 8px; }
+.swapask p { font-size: 13.5px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 16px; }
+.swapask-acts { display: flex; gap: 10px; }
+.swapask-acts button { flex: 1; min-height: 48px; }
