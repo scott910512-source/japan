@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconSpeaker, IconCheck, IconX, IconBulb, IconChevron } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
+import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { STAGES, COMING } from '../data/rpg.js';
 import {
   FORM, buildDrill, buildCheckpoint, reask, passed, masteryOf, MASTERY_LABEL,
   scoreForHints, gradeOf, expFor, levelOf, levelProgress, verdictsFrom, PASS,
 } from '../lib/rpg.js';
 
-/* 일본 생존.
+/* 실전 연습.
  *
  * 흐름은 하나다 — 익히기 → 반복 → 체크포인트 → 실전 → 결과.
  * 새 라우터를 넣지 않고 상태 하나로 넘긴다(활용·짝맞추기 화면과 같은 방식).
@@ -112,7 +113,10 @@ function Pick({ saved, onPick }) {
 
 /* ── 한 스테이지를 실제로 하는 곳 ── */
 function Play({ stage, phase, setPhase, review, saved, settings, onReview, onProgress, onToast, onQuit }) {
-  const canListen = settings.autoTTS !== false;
+  /* 자동 음성을 끈 사람에게는 안 읽어 준다. 듣기 문제만은 예외 —
+     거기서 소리를 안 내면 화면에 아무것도 없다. */
+  const auto = settings.autoTTS !== false;
+  const canListen = auto;
 
   // 익히기
   const [at, setAt] = useState(0);
@@ -170,6 +174,121 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
     setResult(out);
   }, [over]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* 지금 화면에 뜬 것. 단계별 화면이 각자 꺼내 쓰던 걸 위로 올렸다 —
+     자동 음성과 키보드가 어느 단계든 같은 것을 봐야 해서다. */
+  const learning = phase === 'learn' ? stage.expressions[at] : null;
+  const q = (phase === 'drill' || phase === 'check') ? queue[0] : null;
+  const sc = phase === 'live' && !result ? stage.scenes[scene] : null;
+
+  const pick = (opt) => {
+    if (answered || !q) return;
+    const good = q.form === FORM.REPLY ? opt.ok : opt.id === q.answerId;
+    setAnswered({ id: opt.id, good, why: opt.why });
+    setAsked((n) => n + 1);
+    if (good) setRight((n) => n + 1);
+
+    advance.current = setTimeout(() => {
+      setAnswered(null);
+      setQueue((rest) => {
+        const next = rest.slice(1);
+        if (!good) {
+          // 그대로 또 물으면 답을 외우지 뜻을 외우지 않는다
+          const again = reask(q, stage, review, asked + 1);
+          next.wrongIds = [...(rest.wrongIds || []), q.exprId].filter(Boolean);
+          if (again && phase === 'drill') next.splice(Math.min(3, next.length), 0, again);
+        } else {
+          next.wrongIds = rest.wrongIds || [];
+        }
+        return next;
+      });
+    }, FEEDBACK_MS);
+  };
+
+  const answer = (c) => {
+    if (answered || !sc) return;
+    const gain = c.ok ? scoreForHints(hints) : 0;
+    setAnswered({ id: c.jp, good: c.ok, why: c.why, note: c.note });
+    const nextCombo = c.ok ? combo + 1 : 0;
+    setCombo(nextCombo);
+    if (!c.ok) setHearts((h) => h - 1);
+    setLog((l) => ({
+      ...l,
+      score: l.score + gain,
+      hits: l.hits + (c.ok ? 1 : 0),
+      tries: l.tries + 1,
+      hintTotal: l.hintTotal + hints,
+      best: Math.max(l.best, nextCombo),
+      wrong: c.ok ? l.wrong : [...l.wrong, ...(sc.choices.find((x) => x.ok)?.uses || [])],
+      hinted: hints > 0 ? [...l.hinted, ...(c.uses || sc.choices.find((x) => x.ok)?.uses || [])] : l.hinted,
+    }));
+
+    advance.current = setTimeout(() => {
+      setAnswered(null);
+      setHints(0);
+      if (!c.ok && hearts - 1 <= 0) { setScene(stage.scenes.length); return; }
+      setScene((n) => n + 1);
+    }, c.ok ? FEEDBACK_MS + 300 : 1600);
+  };
+
+  /* ── 소리를 먼저 낸다 ──
+   *
+   * 실전은 점원이 말을 걸어 오는 자리다. 글자를 눈으로 읽고 고르는 것과
+   * 말을 듣고 답하는 것은 다른 일이고, 여행에서 막히는 쪽은 뒤엣것이다.
+   * 그래서 장면이 뜨면 바로 읽어 준다.
+   *
+   * 다만 「뜻 → 일본어」 문제는 안 읽는다. 그건 답을 소리로 불러 주는 것이라
+   * 문제가 아니게 된다. 듣기 문제는 반대로 소리가 문제 그 자체라, 자동 음성을
+   * 꺼 두었어도 낸다 — 안 내면 화면에 아무것도 없다. */
+  const saying = learning
+    ? { key: `learn:${learning.id}`, text: learning.kana || learning.jp, must: false }
+    : q
+      ? {
+        key: q.key,
+        text: q.form === FORM.KO_JP ? '' : q.speak,
+        must: q.form === FORM.LISTEN,
+      }
+      : sc
+        ? { key: `live:${sc.id}`, text: sc.npc.kana || sc.npc.jp, must: false }
+        : { key: '', text: '', must: false };
+
+  const said = useRef(null);
+  useEffect(() => {
+    if (!saying.key || !saying.text) return;
+    if (said.current === saying.key) return;      // 한 화면에 한 번만
+    said.current = saying.key;
+    if (!auto && !saying.must) return;
+    speakJapanese(saying.text, settings.speechRate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saying.key]);
+
+  const replay = () => { if (saying.text) speakJapanese(saying.text, settings.speechRate); };
+
+  /* ── 키보드 ──
+   *
+   * 보기가 셋이라 1·2·3이면 끝난다. 손을 화면으로 안 옮기면 한 판이 확 빨라진다.
+   * 답을 고른 뒤에는 알아서 넘어가니 「다음」 키는 안 만든다 — 익히기만
+   * 직접 넘겨야 해서 거기만 Enter를 받는다. */
+  const hasKeyboard = useHasKeyboard();
+  const hotPick = (i) => {
+    if (answered) return;
+    if (q) { const o = q.options[i]; if (o) pick(o); return; }
+    if (sc) { const c = sc.choices[i]; if (c) answer(c); }
+  };
+  useHotkeys({
+    1: () => hotPick(0),
+    2: () => hotPick(1),
+    3: () => hotPick(2),
+    Enter: () => {
+      if (phase !== 'learn') return;
+      if (at >= stage.expressions.length - 1) startDrill(); else setAt((n) => n + 1);
+    },
+    ' ': replay,
+    Space: replay,
+    h: () => { if (sc && !answered && hints < sc.hints.length) setHints((n) => n + 1); },
+    H: () => { if (sc && !answered && hints < sc.hints.length) setHints((n) => n + 1); },
+    Escape: onQuit,
+  });
+
   const startDrill = () => {
     const q = buildDrill(stage, review, { canListen });
     if (!q.length) { onToast('연습할 표현이 모자라요'); return; }
@@ -204,6 +323,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
           onClick={() => (last ? startDrill() : setAt((n) => n + 1))}
         >
           <span className="bs-t">{last ? '연습 시작' : '다음'}</span>
+          {hasKeyboard && <kbd className="inline-key">Enter</kbd>}
         </button>
       </div>
     );
@@ -211,7 +331,6 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
 
   /* ── 반복 · 체크포인트 ── */
   if (phase === 'drill' || phase === 'check') {
-    const q = queue[0];
     if (!q) {
       // 체크포인트가 끝났다
       if (phase === 'check') {
@@ -263,30 +382,6 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
       );
     }
 
-    const pick = (opt) => {
-      if (answered) return;
-      const good = q.form === FORM.REPLY ? opt.ok : opt.id === q.answerId;
-      setAnswered({ id: opt.id, good, why: opt.why });
-      setAsked((n) => n + 1);
-      if (good) setRight((n) => n + 1);
-
-      advance.current = setTimeout(() => {
-        setAnswered(null);
-        setQueue((rest) => {
-          const next = rest.slice(1);
-          if (!good) {
-            // 그대로 또 물으면 답을 외우지 뜻을 외우지 않는다
-            const again = reask(q, stage, review, asked + 1);
-            next.wrongIds = [...(rest.wrongIds || []), q.exprId].filter(Boolean);
-            if (again && phase === 'drill') next.splice(Math.min(3, next.length), 0, again);
-          } else {
-            next.wrongIds = rest.wrongIds || [];
-          }
-          return next;
-        });
-      }, FEEDBACK_MS);
-    };
-
     return (
       <div className="rp">
         <Head
@@ -311,7 +406,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
         </div>
 
         <div className="qoptions">
-          {q.options.map((o) => {
+          {q.options.map((o, i) => {
             const isAnswer = q.form === FORM.REPLY ? o.ok : o.id === q.answerId;
             const mine = answered?.id === o.id;
             let cls = 'qopt';
@@ -322,6 +417,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
             }
             return (
               <button key={o.id} className={cls} disabled={Boolean(answered)} onClick={() => pick(o)}>
+                {hasKeyboard && <span className="qo-num"><kbd>{i + 1}</kbd></span>}
                 <span className="qo-body"><b>{o.text}</b></span>
                 {answered && mine && (answered.good
                   ? <span className="qo-mark ok"><IconCheck /> 통했다</span>
@@ -350,34 +446,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
         />
       );
     }
-    const sc = stage.scenes[scene];
     if (!sc) return null;   // 정산 중 — 위 effect가 한 프레임 뒤에 결과를 넣는다
-
-    const answer = (c) => {
-      if (answered) return;
-      const gain = c.ok ? scoreForHints(hints) : 0;
-      setAnswered({ id: c.jp, good: c.ok, why: c.why, note: c.note });
-      const nextCombo = c.ok ? combo + 1 : 0;
-      setCombo(nextCombo);
-      if (!c.ok) setHearts((h) => h - 1);
-      setLog((l) => ({
-        ...l,
-        score: l.score + gain,
-        hits: l.hits + (c.ok ? 1 : 0),
-        tries: l.tries + 1,
-        hintTotal: l.hintTotal + hints,
-        best: Math.max(l.best, nextCombo),
-        wrong: c.ok ? l.wrong : [...l.wrong, ...(sc.choices.find((x) => x.ok)?.uses || [])],
-        hinted: hints > 0 ? [...l.hinted, ...(c.uses || sc.choices.find((x) => x.ok)?.uses || [])] : l.hinted,
-      }));
-
-      advance.current = setTimeout(() => {
-        setAnswered(null);
-        setHints(0);
-        if (!c.ok && hearts - 1 <= 0) { setScene(stage.scenes.length); return; }
-        setScene((n) => n + 1);
-      }, c.ok ? FEEDBACK_MS + 300 : 1600);
-    };
 
     return (
       <div className="rp live">
@@ -408,7 +477,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
         </div>
 
         <div className="qoptions">
-          {sc.choices.map((c) => {
+          {sc.choices.map((c, i) => {
             const mine = answered?.id === c.jp;
             let cls = 'qopt';
             if (answered) {
@@ -417,6 +486,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
             }
             return (
               <button key={c.jp} className={cls} disabled={Boolean(answered)} onClick={() => answer(c)}>
+                {hasKeyboard && <span className="qo-num"><kbd>{i + 1}</kbd></span>}
                 <span className="qo-body"><b>{c.jp}</b></span>
                 {answered && mine && (c.ok
                   ? <span className="qo-mark ok"><IconCheck /> 통했다</span>
@@ -429,6 +499,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
         {!answered && hints < sc.hints.length && (
           <button className="rp-hintbtn" onClick={() => setHints((n) => n + 1)}>
             <IconBulb /> 힌트 {hints > 0 ? `(${scoreForHints(hints + 1)}점)` : ''}
+            {hasKeyboard && <kbd className="inline-key">H</kbd>}
           </button>
         )}
         {answered && (

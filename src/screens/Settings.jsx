@@ -23,7 +23,7 @@ const MENU_LABELS = {
   quiz: '단어 시험',
   conjugate: '동사 활용',
   match: '짝 맞추기',
-  rpg: '일본 생존',
+  rpg: '실전 연습',
   translate: '번역기',
 };
 

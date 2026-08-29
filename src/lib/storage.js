@@ -127,7 +127,7 @@ const DEFAULT_PROGRESS = {
   known: [], unknown: [], grammarDone: {}, sentenceDone: {}, bookmarks: [],
   // 동사 활용 성적 — forms는 그룹×모양별, words는 동사별
   conj: { forms: {}, words: {} },
-  /* 일본 생존 — EXP와 스테이지별 기록.
+  /* 실전 연습 — EXP와 스테이지별 기록.
      표현의 숙련도는 여기 안 넣는다. 그건 회독 저장소에 들어간다 —
      두 벌로 갈라 놓으면 반드시 어긋난다. */
   rpg: { exp: 0, stages: {} },
@@ -246,7 +246,7 @@ export const DEFAULT_SETTINGS = {
     quiz: true,       // 단어 시험
     conjugate: true,  // 동사 활용 — 기초 시제
     match: true,      // 짝 맞추기 — 게임으로
-    rpg: true,        // 일본 생존 — 상황을 통째로
+    rpg: true,        // 실전 연습 — 상황을 통째로
     translate: true,  // 번역기 — 현지에서 바로 쓰는 것
   },
 

@@ -107,7 +107,7 @@ export function mergeConj(local = {}, remote = {}) {
   };
 }
 
-/* 일본 생존 — { exp, stages: {id: {learned, checkpoint, cleared, best}} }
+/* 실전 연습 — { exp, stages: {id: {learned, checkpoint, cleared, best}} }
  *
  * 큰 쪽을 남긴다. 더하면 안 된다 — 폰에서 두 번, 태블릿에서 두 번 깼을 때
  * 합치면 네 번이 되고, 같은 판을 두 기기가 다 본 것뿐인데 기록이 부풀어
@@ -220,7 +220,7 @@ export function pickSyncedSettings(settings = {}) {
  * 통째로 덮이는데, 서버에 저장된 건 그 메뉴가 생기기 전 것이다. 그래서
  * 로그인해서 동기화하는 순간 새로 만든 메뉴가 목록에서 사라진다. 켠 적도
  * 끈 적도 없는데 없어지니, 사용자 눈에는 그냥 기능이 안 만들어진 것으로 보인다.
- * 실제로 「일본 생존」과 「짝 맞추기」가 그렇게 사라졌다.
+ * 실제로 「실전 연습」과 「짝 맞추기」가 그렇게 사라졌다.
  *
  * 새로 생긴 메뉴는 켜진 채로 둔다. 끈 적이 없으면 끈 게 아니다 —
  * 서버에 그 칸이 아예 없는 것과 false로 적혀 있는 것은 다르다. */
