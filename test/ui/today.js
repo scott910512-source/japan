@@ -228,6 +228,97 @@ async function boot(browser, patch = {}) {
     await p2.close();
   }
 
+  /* ── 하다 말고 다시 시작을 눌렀을 때 ──
+   *
+   * 실제로 여기서 갇혔다. 하던 판이 있는데 「오늘의 학습 시작」을 다시 누르면
+   * 큐를 새로 짰고, 옛 세션의 남은 카드가 새 덱에 없어서 「학습할 카드가
+   * 없어요」만 뜬 채 나갈 수도 없었다. */
+  {
+    const p3 = await boot(browser, { dailyGoal: 10 });
+    const errs = []; p3.on('pageerror', (e) => errs.push(e.message));
+    await startStudy(p3);
+
+    // 몰라요를 섞어 2회독까지 밀어 둔 뒤 나간다
+    for (let i = 0; i < 16; i++) {
+      if (await p3.locator('.studycard').count() === 0) break;
+      await p3.locator('.studycard').click();
+      await p3.waitForTimeout(150);
+      const btn = p3.locator('.judgerow button', { hasText: i % 3 === 0 ? '몰라요' : '알아요' });
+      if (await btn.count() === 0) break;
+      await btn.click();
+      await p3.waitForTimeout(300);
+    }
+    const midRound = (await p3.locator('.sh-sub').textContent().catch(() => '')) || '';
+    ok('회독이 넘어간 상태로 나감', midRound.includes('회독'), midRound.replace(/\s+/g, ' ').trim());
+    await p3.locator('.sh-close').click();
+    await p3.waitForTimeout(700);
+
+    // 다시 시작을 누른다 — 갇히면 안 된다
+    await p3.locator('.today .bigstart').click();
+    await p3.waitForTimeout(900);
+    const intro = p3.locator('.intro-go, .bigstart').first();
+    if (await intro.count()) { await intro.click(); await p3.waitForTimeout(900); }
+
+    const body = await p3.textContent('body');
+    ok('빈 화면에 갇히지 않음', !body.includes('학습할 카드가 없어요'));
+    ok('하던 판이 이어짐',
+      await p3.locator('.studycard').count() > 0 || await p3.locator('.finish').count() > 0);
+
+    /* 어떤 이유로든 카드를 못 찾으면 나갈 길이 있어야 한다 —
+       세션 큐에 덱이 모르는 id를 심어서 확인한다 */
+    await p3.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('jp_manabu_session_v1'));
+      s.queue = ['없는카드-xyz'];
+      localStorage.setItem('jp_manabu_session_v1', JSON.stringify(s));
+    });
+    await p3.reload({ waitUntil: 'domcontentloaded' });
+    await p3.waitForTimeout(1200);
+    const off3 = p3.locator('.gate-offline');
+    await off3.waitFor({ timeout: 8000 }).catch(() => {});
+    if (await off3.count()) { await off3.click(); await p3.waitForTimeout(800); }
+    const resume = p3.locator('.rowcard', { hasText: '이어' }).first();
+    if (await resume.count()) {
+      await resume.click();
+      await p3.waitForTimeout(900);
+      ok('못 찾는 카드만 남아도 나갈 길이 있음', await p3.locator('.finish .submit-btn').count() > 0);
+      await p3.locator('.finish .submit-btn').click();
+      await p3.waitForTimeout(700);
+      ok('홈으로 돌아감', await p3.locator('.tabbar').count() === 1);
+    }
+    ok('그 사이에 안 죽음', errs.length === 0, errs.slice(0, 2).join(' | '));
+    await p3.close();
+  }
+
+  /* ── 끝내면 축하하고 결과를 보여 주고 홈으로 ── */
+  {
+    const p4 = await boot(browser, { dailyGoal: 10 });
+    await startStudy(p4);
+    for (let i = 0; i < 120; i++) {
+      if (await p4.locator('.finish').count()) break;
+      if (await p4.locator('.studycard').count() === 0) break;
+      await p4.locator('.studycard').click();
+      await p4.waitForTimeout(120);
+      const label = i % 4 === 0 ? '몰라요' : (i % 4 === 1 ? '애매해요' : '알아요');
+      const btn = p4.locator('.judgerow button', { hasText: label });
+      if (await btn.count() === 0) break;
+      await btn.click();
+      await p4.waitForTimeout(230);
+    }
+    ok('끝나면 축하 화면이 뜸', await p4.locator('.finish').count() === 1);
+    const fin = (await p4.textContent('.finish')).replace(/\s+/g, ' ');
+    ok('몇 장을 끝냈는지 보임', /\d+ ?\/ ?\d+장 끝냄/.test(fin), fin.slice(0, 40));
+    ok('판정 셋을 갈라 보여 줌', await p4.locator('.fin-cell').count() === 3);
+    /* 「장」과 「번」을 뭉뚱그리면 거짓이 된다 — 몰라요가 섞이면 둘이 다르다 */
+    ok('누른 횟수는 「번」으로 적음', fin.includes('번 봤어요'), fin);
+    ok('걸린 시간도', /약 \d+분/.test(fin));
+    ok('홈으로 버튼이 있음', await p4.locator('.finish .submit-btn').count() === 1);
+    await p4.locator('.finish .submit-btn').click();
+    await p4.waitForTimeout(800);
+    ok('눌러서 홈으로 감', await p4.locator('.today').count() === 1);
+    ok('세션이 정리됨', await p4.evaluate(() => localStorage.getItem('jp_manabu_session_v1')) === null);
+    await p4.close();
+  }
+
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);
   process.exit(fail ? 1 : 0);

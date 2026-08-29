@@ -415,6 +415,21 @@ export default function App() {
   }, [session]);
 
   const startToday = useCallback(() => {
+    /* 하던 판이 남아 있으면 그걸 잇는다.
+       예전엔 여기서 큐를 새로 짰다. 그러면 카드는 새로 뽑히는데 세션은 옛것을
+       그대로 써서, 남은 카드를 새 덱이 못 찾고 「학습할 카드가 없어요」에서
+       나갈 수도 없었다. */
+    if (session?.deckId === 'today' && session.date === todayKey() && session.queue?.length) {
+      setSub(null);
+      setDeck({
+        id: 'today',
+        label: session.label || '오늘의 학습',
+        cards: [...words, ...sentenceCards],
+        stepped: true,
+      });
+      return;
+    }
+
     const built = buildDailyStudyQueue(todayPool, review, { goal: settings.dailyGoal || 20 });
     if (!built.queue.length) {
       showToast('지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
@@ -434,7 +449,7 @@ export default function App() {
       stepped: true,
       intro: { total: cards.length, review: built.review, weak: built.weak, fresh: built.fresh, minutes: built.minutes },
     });
-  }, [todayPool, review, settings.dailyGoal, settings.levels, words, sentenceCards, showToast]);
+  }, [session, todayPool, review, settings.dailyGoal, settings.levels, words, sentenceCards, showToast]);
 
   /* 하다 만 걸 이어서. 세션은 카드 id만 들고 있으니, 덱에는 단어와 문장을
      전부 실어 준다 — 어느 쪽에서 온 카드든 찾을 수 있어야 한다. */
