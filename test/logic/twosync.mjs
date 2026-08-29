@@ -1,5 +1,5 @@
 /* 기기 두 대 합치기 — 순서를 바꿔도 같은 결과가 나오는가. */
-import { mergeReview, mergeStats, mergeStreak, mergeCustomWords, mergeMemos, mergeProgress, mergeConj } from '../../src/lib/merge.js';
+import { mergeReview, mergeStats, mergeStreak, mergeCustomWords, mergeMemos, mergeProgress, mergeConj, mergeRpg } from '../../src/lib/merge.js';
 import { applyVerdict, emptyState, VERDICT } from '../../src/lib/review.js';
 
 let pass = 0, fail = 0;
@@ -81,6 +81,33 @@ ok('메모는 나중에 고친 쪽',
   /* 활용 칸이 아예 없던 옛 기록 */
   ok('한쪽에 칸이 없어도 안 깨짐', Object.keys(mergeConj(undefined, pad).forms).length === 1);
   ok('양쪽 다 없어도 빈 것으로', Object.keys(mergeProgress({}, {}).conj.forms).length === 0);
+}
+
+/* ── 일본 생존 — 두 기기에서 깬 판 ──
+   여기서 더하면 폰에서 두 번 태블릿에서 두 번 깬 사람이 네 번 깬 걸로
+   기록된다. 같은 판을 두 기기가 본 것뿐인데 EXP도 두 배가 된다. */
+{
+  const phone = { exp: 400, stages: { conbini: { learned: true, checkpoint: 0.9, cleared: 2, best: 480 } } };
+  const pad = { exp: 250, stages: { conbini: { learned: true, checkpoint: 0.8, cleared: 3, best: 300 } } };
+  const m = mergeRpg(phone, pad);
+  ok('EXP는 큰 쪽 — 더하지 않는다', m.exp === 400, String(m.exp));
+  ok('깬 횟수도 큰 쪽', m.stages.conbini.cleared === 3, String(m.stages.conbini.cleared));
+  ok('최고점은 큰 쪽', m.stages.conbini.best === 480, String(m.stages.conbini.best));
+
+  const twice = mergeRpg(phone, phone);
+  ok('같은 걸 두 번 합쳐도 안 늘어난다', twice.exp === 400 && twice.stages.conbini.cleared === 2,
+    JSON.stringify(twice));
+
+  const one = mergeRpg({ exp: 0, stages: {} }, pad);
+  ok('한쪽만 했어도 남는다', one.stages.conbini.cleared === 3 && one.exp === 250);
+  ok('한쪽에서만 체크포인트를 넘겼으면 넘긴 것', mergeRpg(
+    { stages: { conbini: { learned: false, checkpoint: 0 } } },
+    { stages: { conbini: { learned: true, checkpoint: 0.85 } } },
+  ).stages.conbini.learned === true);
+
+  ok('칸이 아예 없던 옛 기록도 안 깨짐', mergeProgress({}, {}).rpg.exp === 0);
+  ok('progress로 합쳐도 안 사라짐',
+    mergeProgress({ rpg: phone }, { rpg: pad }).rpg.stages.conbini.best === 480);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
