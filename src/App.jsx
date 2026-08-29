@@ -29,6 +29,7 @@ import { ALL_SITUATIONS as SITUATIONS } from './data/allSituations.js';
 import { allSentenceCards, dailyPool, cardsForQueue } from './lib/cards.js';
 import { buildDailyStudyQueue } from './lib/daily.js';
 import {
+  DEFAULT_SETTINGS,
   loadCustomWords, saveCustomWords,
   loadProgress, saveProgress,
   loadSettings, saveSettings,
@@ -50,7 +51,7 @@ import { applyVerdict, dueCards, todayKey, weakCards } from './lib/review.js';
 import { supabase, supabaseConfigured } from './lib/supabase.js';
 import { syncNow, pushMerged } from './lib/sync.js';
 import { useToday } from './lib/useToday.js';
-import { pickSyncedSettings } from './lib/merge.js';
+import { mergeSyncedSettings, pickSyncedSettings } from './lib/merge.js';
 import { SEED_VIDEOS } from './data/videos.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from './lib/crypto.js';
 
@@ -235,8 +236,10 @@ export default function App() {
       setCustomWords(merged.customWords);
       setMemos(merged.memos);
       applyVideoBundle(merged.videos);
-      // 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다
-      setSettings((s) => ({ ...s, ...merged.settings }));
+      /* 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다.
+         메뉴 목록만은 얹지 않고 합친다. 서버에 저장된 건 새 메뉴가 생기기 전
+         것이라, 그냥 얹으면 만든 적도 없는 것처럼 사라진다. */
+      setSettings((s) => mergeSyncedSettings(s, merged.settings, DEFAULT_SETTINGS));
       setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
       /* 안내(note)와 오류(error)를 나눈다. 영상 칸이 없는 건 나머지가 다 올라간
          상태라, 이걸 오류 자리에 넣으면 "동기화가 안 되고 있어요"로 읽힌다. */

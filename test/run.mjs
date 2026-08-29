@@ -47,8 +47,19 @@ function runOne(cmd, args, label) {
   const crashed = !m;
   console.log(`\n── ${label}`);
   if (failed > 0 || crashed) {
-    process.stdout.write(out.trim().split('\n').slice(-25).join('\n'));
+    const tail = out.trim().split('\n').slice(-25).join('\n');
+    process.stdout.write(tail);
     console.log();
+    /* 깨진 줄을 깃허브 주석으로도 남긴다.
+     *
+     * 액션 로그는 조직에 따라 못 받는 경우가 있다 — 실제로 그랬고, 어느 검사가
+     * 왜 깨졌는지 알 길이 없어 짐작으로 고치게 됐다. 주석은 API로 읽히니
+     * 로그를 못 봐도 어디가 깨졌는지는 남는다. */
+    if (process.env.GITHUB_ACTIONS) {
+      const why = out.split('\n').filter((l) => l.includes('✗') || /Error|Timeout|CRASH/.test(l))
+        .slice(0, 6).map((l) => l.trim()).join(' | ');
+      console.log(`::error title=${label}::${(why || tail.split('\n').slice(-3).join(' ')).replace(/[\r\n]+/g, ' ').slice(0, 900)}`);
+    }
   } else {
     console.log(`   통과 ${passed}`);
   }
@@ -106,7 +117,9 @@ const broken = results.filter((r) => r.failed > 0 || r.crashed);
 console.log(`\n${'─'.repeat(46)}`);
 console.log(`검사 ${results.length}묶음 · 통과 ${passed} · 실패 ${failed}`);
 if (broken.length) {
-  console.log(`\n깨진 곳: ${broken.map((r) => r.label + (r.crashed ? '(멈춤)' : '')).join(', ')}`);
+  const list = broken.map((r) => r.label + (r.crashed ? '(멈춤)' : '')).join(', ');
+  console.log(`\n깨진 곳: ${list}`);
+  if (process.env.GITHUB_ACTIONS) console.log(`::error title=깨진 곳::${list}`);
   process.exit(1);
 }
 console.log('전부 통과');

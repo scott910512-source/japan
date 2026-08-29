@@ -213,3 +213,21 @@ export function pickSyncedSettings(settings = {}) {
   }
   return out;
 }
+
+/* 서버에서 온 설정을 지금 설정에 얹는다.
+ *
+ * 그냥 얹으면 안 되는 칸이 하나 있다 — menus다. 이건 { 메뉴id: 켬 } 꾸러미라
+ * 통째로 덮이는데, 서버에 저장된 건 그 메뉴가 생기기 전 것이다. 그래서
+ * 로그인해서 동기화하는 순간 새로 만든 메뉴가 목록에서 사라진다. 켠 적도
+ * 끈 적도 없는데 없어지니, 사용자 눈에는 그냥 기능이 안 만들어진 것으로 보인다.
+ * 실제로 「일본 생존」과 「짝 맞추기」가 그렇게 사라졌다.
+ *
+ * 새로 생긴 메뉴는 켜진 채로 둔다. 끈 적이 없으면 끈 게 아니다 —
+ * 서버에 그 칸이 아예 없는 것과 false로 적혀 있는 것은 다르다. */
+export function mergeSyncedSettings(local = {}, remote = {}, defaults = {}) {
+  const next = { ...local, ...remote };
+  if (defaults.menus || local.menus || remote.menus) {
+    next.menus = { ...defaults.menus, ...local.menus, ...remote.menus };
+  }
+  return next;
+}
