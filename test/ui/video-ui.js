@@ -185,6 +185,51 @@ const FAKE = {
   const deck = await page.textContent('body');
   ok('영상 단어로 회독 진입', deck.includes('영상 ·'), deck.slice(0, 80));
   ok('회독 덱에 두 단어가 들어감', deck.includes('/ 2'), deck.slice(0, 120));
+  /* ── 목록에서 바로 회독 ──
+     설명을 어제 만들어 놓고 오늘 그 단어만 돌고 싶은 게 보통인데, 그러려고
+     영상을 열어 아래까지 내려가는 건 이유가 없다. 설명이 있는 영상에만 붙는다. */
+  await page.evaluate(() => {
+    localStorage.setItem('jp_manabu_video_analyses_v1', JSON.stringify({
+      'ABCDEFGHIJK': {
+        overview: { jlpt: 'N4' },
+        words: [
+          { jp: '替え玉', yomi: 'かえだま', ko: '면 추가', type: 'noun', level: 'N3' },
+          { jp: '硬め', yomi: 'かため', ko: '조금 단단하게', type: 'noun', level: 'N3' },
+        ],
+        at: 1,
+      },
+    }));
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  const off3 = page.locator('.gate-offline');
+  if (await off3.count()) { await off3.click(); await page.waitForTimeout(700); }
+  await goTab(page, '학습');
+  await page.locator('.hubcard', { hasText: '영상' }).click();
+  await page.waitForTimeout(900);
+
+  /* 영상은 둘인데 설명은 하나에만 있다. 버튼도 하나여야 한다 —
+     설명이 없는 영상에 띄우면 눌러도 빈 덱이 뜬다. */
+  ok('목록에 영상이 둘', await page.locator('.vd-item').count() === 2);
+  const quick = page.locator('.vd-quickstudy');
+  ok('설명이 있는 영상에만 회독 버튼이 붙는다', await quick.count() === 1, `${await quick.count()}개`);
+  ok('몇 개인지 같이 보여 준다', (await quick.innerText()).includes('2'), await quick.innerText());
+
+  await quick.click();
+  await page.waitForTimeout(900);
+  ok('영상을 안 열고도 회독이 시작된다', await page.locator('.studycard, .study').count() > 0);
+  const deckName = await page.locator('.sh-title').innerText().catch(() => '');
+  ok('그 영상 이름이 덱에 붙는다', deckName.includes('영상'), deckName);
+  /* 오늘의 학습과 안 섞여야 한다 — 영상 단어만 도는 판이다 */
+  ok('영상에서 나온 단어만 돈다', /\b2\b/.test(deckName), deckName);
+
+  const kept = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('jp_manabu_custom_words_v1') || '[]'),
+  );
+  ok('돌기 전에 단어장에 담긴다',
+    kept.some((w) => w.kanji === '替え玉'), kept.map((w) => w.kanji).join(', ') || '없음');
+
+
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

@@ -278,26 +278,32 @@ export default function Videos({
     return sameKana?.length === 1 ? sameKana[0] : null;
   };
 
-  // 담을 카드를 돌려준다. 새 카드면 단어장에 넣고, 이미 있으면 그 카드를 쓴다.
-  const keepWord = (w) => {
+  /* 담을 카드를 돌려준다. 새 카드면 단어장에 넣고, 이미 있으면 그 카드를 쓴다.
+     영상 id를 받는다 — 목록에서도 열지 않고 바로 회독을 시작할 수 있어야 한다. */
+  const keepWord = (w, videoId, title) => {
     const found = findKnown(w);
     if (found) return { card: found, added: false };
-    const card = toCard(w, open.id, info?.title);
+    const card = toCard(w, videoId, title);
     onAddWord(card);
     return { card, added: true };
   };
 
   const keepAll = () => {
-    const results = (analysis?.words || []).map(keepWord);
+    const results = (analysis?.words || []).map((w) => keepWord(w, open.id, info?.title));
     const added = results.filter((r) => r.added).length;
     onToast(added ? `${added}개 담았어요` : '모두 이미 단어장에 있어요');
   };
 
-  // 영상에서 나온 단어만 모아 도는 덱. 오늘 학습 세션과 섞지 않는다.
-  const studyVideo = () => {
-    const cards = (analysis?.words || []).map((w) => keepWord(w).card);
+  /* 영상에서 나온 단어만 모아 도는 덱. 오늘 학습 세션과 섞지 않는다.
+   *
+   * 목록에서도 부른다. 설명을 이미 만들어 둔 영상은 열어서 아래까지 내려갈
+   * 이유가 없다 — 어제 만들어 놓고 오늘 그 단어만 돌고 싶은 게 보통이다. */
+  const studyVideo = (videoId = open?.id) => {
+    const got = analyses[videoId];
+    const title = titles[videoId]?.title;
+    const cards = (got?.words || []).map((w) => keepWord(w, videoId, title).card);
     if (!cards.length) { onToast('담을 단어가 없어요'); return; }
-    onStartSet(cards, `영상 · ${info?.title || open.id}`, `video-${open.id}`);
+    onStartSet(cards, `영상 · ${title || videoId}`, `video-${videoId}`);
   };
 
   /* ── 목록 ── */
@@ -339,6 +345,10 @@ export default function Videos({
               : p?.scriptStep > 0 ? `학습 중 · ${p.scriptStep + 1}/${total}줄`
                 : p?.scriptDone ? '학습 마침'
                   : `학습 준비됨 · ${total}줄`;
+            /* 설명을 이미 만들어 둔 영상이면 여기서 바로 회독을 시작한다.
+               어제 만들어 놓고 오늘 그 단어만 돌고 싶은 게 보통인데, 그러려고
+               영상을 열어 아래까지 내려가는 건 이유가 없다. */
+            const ready = analyses[v.id]?.words?.length || 0;
             return (
               <div key={v.id} className="card vd-item">
                 <button className="vd-open" onClick={() => setOpenId(v.id)}>
@@ -353,6 +363,11 @@ export default function Videos({
                   <IconChevron className="chev" />
                 </button>
                 <button className="vd-del" onClick={() => askRemove(v.id)} aria-label="영상 빼기"><IconTrash /></button>
+                {ready > 0 && (
+                  <button className="vd-quickstudy" onClick={() => studyVideo(v.id)}>
+                    <IconBook /> 이 단어로 회독하기 <span>{ready}개</span>
+                  </button>
+                )}
               </div>
             );
           })}
@@ -419,9 +434,9 @@ export default function Videos({
         step={lessonMark.step}
         settings={settings}
         findKnown={findKnown}
-        onKeep={(w) => { keepWord(w); onToast(`${w.jp} 담았어요`); }}
+        onKeep={(w) => { keepWord(w, open.id, info?.title); onToast(`${w.jp} 담았어요`); }}
         onKeepAll={keepAll}
-        onStudyWords={studyVideo}
+        onStudyWords={() => studyVideo(open.id)}
         onStep={(step) => patchMark({ step })}
         onQuit={() => setMode(null)}
         onDone={finish}
@@ -605,7 +620,7 @@ export default function Videos({
               })}
               <div className="vd-wordacts">
                 <button className="vd-keepall" onClick={keepAll}>전부 담기</button>
-                <button className="vd-study" onClick={studyVideo}>
+                <button className="vd-study" onClick={() => studyVideo(open.id)}>
                   <IconBook /> 이 단어로 회독하기
                 </button>
               </div>

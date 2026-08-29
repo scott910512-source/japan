@@ -140,6 +140,38 @@ const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp
   ok('복습 탭이 열림', body.length > 50);
   ok('복습 탭에 숫자가 보임', /\d/.test(body));
 
+  /* ── 키보드로 한 바퀴 ──
+     판정이 1·2·3이라 손이 거기 있다. 뒤집으려고 매번 Enter까지 건너가면
+     그 거리가 카드마다 쌓인다 — 그래서 4에도 걸어 뒀다. */
+  await page.locator('.tabbar .tab', { hasText: '오늘' }).click();
+  await page.waitForTimeout(700);
+  await startStudy(page);
+  await page.waitForTimeout(700);
+
+  if (await page.locator('.studycard').count()) {
+    ok('뒤집기 전에는 뜻이 안 보인다', await page.locator('.sc-back').count() === 0);
+    await page.keyboard.press('4');
+    await page.waitForTimeout(400);
+    ok('4를 누르면 뒤집힌다', await page.locator('.sc-back').count() === 1);
+
+    /* 화면이 Enter를 안내하면 손은 계속 Enter로 간다. 안내도 4여야 한다. */
+    await page.locator('.judge.known').click();
+    await page.waitForTimeout(700);
+    const hint = await page.locator('.sc-hint').innerText().catch(() => '');
+    ok('화면 안내도 4다', !hint.includes('Enter'), hint.replace(/\n/g, ' '));
+
+    /* Enter도 그대로 된다 — 두 번 누르면 뒤집고 알아요다.
+       빠른 사람이 쓰던 길이라 뺏지 않는다. */
+    const n0 = Object.keys(await review(page)).length;
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(350);
+    ok('Enter 한 번은 뒤집기만 한다', Object.keys(await review(page)).length === n0, `${n0}개 그대로`);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(600);
+    ok('Enter 두 번이면 「알아요」로 넘어간다',
+      Object.keys(await review(page)).length === n0 + 1, `${n0} → ${Object.keys(await review(page)).length}`);
+  }
+
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

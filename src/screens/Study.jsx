@@ -288,6 +288,9 @@ export default function Study({
     0: () => judge(VERDICT.MASTER),
     ArrowLeft: undo,
     Backspace: undo,
+    /* 뒤집기를 4에도 건다. 판정이 1·2·3이라 손이 거기 가 있는데, 뒤집으려고
+       매번 Enter까지 건너가면 그 거리가 카드마다 쌓인다. */
+    4: reveal,
     ArrowDown: reveal,
     s: () => faces && speakSlow(faces.speak),
     S: () => faces && speakSlow(faces.speak),
@@ -445,6 +448,9 @@ export default function Study({
                 {hangul && <span className="sc-hangul"> · {hangul}</span>}
               </div>
             )}
+            {/* 「얘는 왜 한자가 없지?」처럼 카드를 보면 반드시 나오는 물음이 있다.
+                매번 밖에서 찾게 두느니 한 줄로 적어 둔다 — 있는 카드에만 나온다. */}
+            {word.note && <div className="sc-note">{word.note}</div>}
             <MemoBox
               memo={memos?.[word.id]}
               placeholder={`예) ${word.kana} → 소리로 외우는 나만의 방법`}
@@ -471,7 +477,9 @@ export default function Study({
             {/* 단계가 있으면 무엇을 하라는 판인지 먼저 적는다 —
                 글자가 안 보이는데 안내가 없으면 고장으로 읽힌다 */}
             {step ? STEP_HINT[step] : '탭해서 뜻 확인하기'}
-            {hasKeyboard && <kbd className="inline-key">Enter</kbd>}
+            {/* 판정이 1·2·3이라 손이 거기 있다. 뒤집기도 그 옆에 있어야
+                손을 안 옮긴다 — Enter도 그대로 되지만 안내는 4로 한다. */}
+            {hasKeyboard && <kbd className="inline-key">4</kbd>}
           </div>
         )}
       </div>

@@ -1086,7 +1086,16 @@ button, input, select { font-family: inherit; }
 }
 .vd-addbtn svg { width: 20px; height: 20px; }
 
-.vd-item { display: flex; align-items: stretch; gap: 8px; padding: 10px; }
+.vd-item { display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; padding: 10px; }
+
+/* 설명을 이미 만들어 둔 영상에만 붙는다. 줄을 따로 잡아 영상 줄과 안 섞이게 한다 */
+.vd-quickstudy {
+  flex: 1 0 100%; display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer;
+  padding: 11px; border-radius: 12px; font-size: 13px; font-weight: 700;
+  background: var(--kon-soft); border: 1px solid var(--line); color: var(--kon);
+}
+.vd-quickstudy svg { width: 15px; height: 15px; }
+.vd-quickstudy span { font-weight: 600; opacity: .75; font-variant-numeric: tabular-nums; }
 .vd-open {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
   background: none; border: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
@@ -1724,6 +1733,13 @@ button, input, select { font-family: inherit; }
 .rp-backone b { font-size: 15px; font-weight: 700; }
 .rp-backone i { font-style: normal; font-size: 11.5px; color: var(--kon); }
 .rp-backone span { margin-left: auto; font-size: 12.5px; color: var(--ink-soft); }
+
+/* 카드에 붙는 한 줄 설명 — 「얘는 왜 한자가 없지?」 같은 물음에 미리 답한다 */
+.sc-note {
+  margin-top: 10px; padding: 9px 12px; border-radius: 12px;
+  font-size: 12px; line-height: 1.6; color: var(--ink-soft);
+  background: var(--surface-2); text-align: left;
+}
 
 /* ── 공부하다 물어보기 ──
    창이 카드를 덮으니 짧아야 한다. 길면 답을 읽다가 뭘 공부하던 중인지 잊는다. */
