@@ -24,7 +24,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   await p.evaluate(() => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
-    s.onboarded = true; s.dailyGoal = 50; localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
+    s.onboarded = true; s.goals = { fresh: 50, review: 50, weak: 50 }; localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
   });
   await p.waitForTimeout(900);
   const t1 = Date.now();

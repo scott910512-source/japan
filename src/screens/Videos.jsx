@@ -47,7 +47,8 @@ function useTitles(videos, active) {
     if (!active) return undefined;
     let alive = true;
     videos.forEach((v) => {
-      if (titles[v.id]) return;
+      // 자막만 넣은 것(넷플릭스 등)은 유튜브에 있을 리가 없다
+      if (v.kind === 'sub' || titles[v.id]) return;
       fetch(`https://www.youtube.com/oembed?url=https://youtu.be/${v.id}&format=json`)
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => {
@@ -99,7 +100,17 @@ export default function Videos({
   const [script, setScript] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const titles = useTitles(videos, active);
+  const fetched = useTitles(videos, active);
+  /* 제목을 꺼내는 자리를 하나로 둔다. 자막만 넣은 것은 손으로 적은 제목이
+     그 자체고, 유튜브는 받아온 제목이다 — 화면 곳곳에서 각자 고르게 두면
+     한 군데를 빠뜨려 「youtu.be/sub-…」 같은 게 뜬다. */
+  const titles = useMemo(() => {
+    const out = { ...fetched };
+    for (const v of videos) {
+      if (v.kind === 'sub') out[v.id] = { title: v.title || '자막', channel: '자막으로 배우기' };
+    }
+    return out;
+  }, [fetched, videos]);
   const open = videos.find((v) => v.id === openId) || null;
   const info = open ? titles[open.id] : null;
   const analysis = open ? analyses[open.id] : null;
@@ -151,6 +162,38 @@ export default function Videos({
     if (videos.some((v) => v.id === id)) { onToast('이미 담아 둔 영상이에요'); setUrlDraft(''); return; }
     setVideos((prev) => [...prev, { id, addedAt: Date.now() }]);
     setUrlDraft('');
+  };
+
+  /* 넷플릭스·드라마·영화 — 영상은 못 붙이고 자막만 붙인다.
+   *
+   * 넷플릭스는 임베드가 없고 영상이 DRM으로 잠겨 있어서 다른 사이트 안에서
+   * 재생이 안 된다. 자막도 로그인 뒤 내부 API로만 나오고 그걸 긁는 건
+   * 이용약관 위반이다. 그래서 영상은 포기하고 자막만 받는다 — 학습에 쓰는
+   * 건 어차피 자막이라, 영상이 없어도 나머지는 전부 똑같이 돈다. */
+  const [addKind, setAddKind] = useState('yt');   // 목록에서 보고 있는 갈래
+  const [subTitle, setSubTitle] = useState('');
+  const [subText, setSubText] = useState('');
+  const shown = useMemo(
+    () => videos.filter((v) => (addKind === 'sub' ? v.kind === 'sub' : v.kind !== 'sub')),
+    [videos, addKind],
+  );
+
+  const addSub = () => {
+    const name = subTitle.trim();
+    const body = subText.trim();
+    if (!name) { onToast('제목을 적어 주세요'); return; }
+    if (!body) { onToast('자막을 붙여넣어 주세요'); return; }
+    const count = parseScript(body).length;
+    if (!count) { onToast('자막에서 읽을 줄을 못 찾았어요'); return; }
+
+    /* id를 시각으로 만든다. 제목으로 만들면 같은 드라마의 1화와 2화를 같은
+       것으로 보고 앞엣것을 덮어쓴다. */
+    const id = `sub-${Date.now().toString(36)}`;
+    setVideos((prev) => [...prev, { id, addedAt: Date.now(), kind: 'sub', title: name }]);
+    setScripts((prev) => ({ ...prev, [id]: body }));
+    setSubTitle(''); setSubText('');
+    setOpenId(id);
+    onToast(`${count}줄을 담았어요`);
   };
 
   /* 영상을 빼면 자막·설명·진도가 같이 사라진다. 자막은 손으로 넣은 것이고
@@ -278,26 +321,32 @@ export default function Videos({
     return sameKana?.length === 1 ? sameKana[0] : null;
   };
 
-  // 담을 카드를 돌려준다. 새 카드면 단어장에 넣고, 이미 있으면 그 카드를 쓴다.
-  const keepWord = (w) => {
+  /* 담을 카드를 돌려준다. 새 카드면 단어장에 넣고, 이미 있으면 그 카드를 쓴다.
+     영상 id를 받는다 — 목록에서도 열지 않고 바로 회독을 시작할 수 있어야 한다. */
+  const keepWord = (w, videoId, title) => {
     const found = findKnown(w);
     if (found) return { card: found, added: false };
-    const card = toCard(w, open.id, info?.title);
+    const card = toCard(w, videoId, title);
     onAddWord(card);
     return { card, added: true };
   };
 
   const keepAll = () => {
-    const results = (analysis?.words || []).map(keepWord);
+    const results = (analysis?.words || []).map((w) => keepWord(w, open.id, info?.title));
     const added = results.filter((r) => r.added).length;
     onToast(added ? `${added}개 담았어요` : '모두 이미 단어장에 있어요');
   };
 
-  // 영상에서 나온 단어만 모아 도는 덱. 오늘 학습 세션과 섞지 않는다.
-  const studyVideo = () => {
-    const cards = (analysis?.words || []).map((w) => keepWord(w).card);
+  /* 영상에서 나온 단어만 모아 도는 덱. 오늘 학습 세션과 섞지 않는다.
+   *
+   * 목록에서도 부른다. 설명을 이미 만들어 둔 영상은 열어서 아래까지 내려갈
+   * 이유가 없다 — 어제 만들어 놓고 오늘 그 단어만 돌고 싶은 게 보통이다. */
+  const studyVideo = (videoId = open?.id) => {
+    const got = analyses[videoId];
+    const title = titles[videoId]?.title;
+    const cards = (got?.words || []).map((w) => keepWord(w, videoId, title).card);
     if (!cards.length) { onToast('담을 단어가 없어요'); return; }
-    onStartSet(cards, `영상 · ${info?.title || open.id}`, `video-${open.id}`);
+    onStartSet(cards, `영상 · ${title || videoId}`, `video-${videoId}`);
   };
 
   /* ── 목록 ── */
@@ -313,24 +362,73 @@ export default function Videos({
           </button>
         )}
         <div className="navtitle"><small>영상으로 배우기</small>보고 듣고 따라 말하기</div>
-        <p className="vd-note">
-          영상을 보고 자막을 붙여넣으면, 지금 수준에서 쓸 값이 있는 표현만 골라
-          학습자료로 만들어 줘요.
-        </p>
 
-        <div className="vd-add">
-          <input
-            value={urlDraft}
-            onChange={(e) => setUrlDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addVideo()}
-            placeholder="유튜브 주소 붙여넣기"
-            inputMode="url"
-          />
-          <button className="vd-addbtn" onClick={addVideo} aria-label="영상 담기"><IconPlus /></button>
+        {/* 담는 방법이 둘로 갈린다. 유튜브는 주소만 주면 영상까지 붙지만,
+            넷플릭스는 영상을 못 붙여서 자막만 받는다 — 한 칸에 섞어 두면
+            넷플릭스 주소를 넣어 보고 나서야 안 되는 걸 알게 된다. */}
+        <div className="segment" style={{ marginBottom: 14 }}>
+          <button className={addKind === 'yt' ? 'active' : ''} onClick={() => setAddKind('yt')}>유튜브</button>
+          <button className={addKind === 'sub' ? 'active' : ''} onClick={() => setAddKind('sub')}>넷플릭스 · 드라마</button>
         </div>
 
-        <div className="stack" style={{ marginTop: 14 }}>
-          {videos.map((v) => {
+        {addKind === 'yt' ? (
+          <>
+            <p className="vd-note">
+              영상을 보고 자막을 붙여넣으면, 지금 수준에서 쓸 값이 있는 표현만 골라
+              학습자료로 만들어 줘요.
+            </p>
+            <div className="vd-add">
+              <input
+                value={urlDraft}
+                onChange={(e) => setUrlDraft(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addVideo()}
+                placeholder="유튜브 주소 붙여넣기"
+                inputMode="url"
+              />
+              <button className="vd-addbtn" onClick={addVideo} aria-label="영상 담기"><IconPlus /></button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="vd-note">
+              넷플릭스는 영상을 앱 안에 못 띄워요 — 다른 사이트에서 재생되지 않게
+              잠겨 있어요. 대신 <b>자막만 붙여넣으면</b> 유튜브와 똑같이 배울 수 있어요.
+              보면서 마음에 든 대사만 골라 넣어도 돼요.
+            </p>
+            <div className="vd-subadd">
+              <input
+                className="search-input"
+                value={subTitle}
+                onChange={(e) => setSubTitle(e.target.value)}
+                placeholder="제목 — 예: 사랑은 비가 갠 뒤처럼 3화"
+              />
+              <textarea
+                className="search-input vd-script"
+                value={subText}
+                onChange={(e) => setSubText(e.target.value)}
+                placeholder={'일본어 자막을 붙여넣으세요\n\n[0:12] やっぱり外で食べると美味しいね\n[0:15] そうだね\n\n시간이 없어도 괜찮아요 — 대사만 줄바꿈해서 넣으면 돼요.'}
+                rows={7}
+              />
+              <button className="submit-btn" onClick={addSub} disabled={!subTitle.trim() || !subText.trim()}>
+                담고 바로 학습하기
+              </button>
+              {subText.trim() && (
+                <p className="set-note">읽을 줄 {parseScript(subText).length}개를 찾았어요</p>
+              )}
+            </div>
+          </>
+        )}
+
+        <div className="section-label">
+          {addKind === 'yt' ? '담아 둔 영상' : '담아 둔 자막'}
+        </div>
+        <div className="stack">
+          {shown.length === 0 && (
+            <div className="empty-state">
+              {addKind === 'yt' ? '담아 둔 영상이 없어요' : '담아 둔 자막이 없어요'}
+            </div>
+          )}
+          {shown.map((v) => {
             const t = titles[v.id];
             const p = progress[v.id];
             const total = parseScript(scripts[v.id] || '').length;
@@ -339,12 +437,18 @@ export default function Videos({
               : p?.scriptStep > 0 ? `학습 중 · ${p.scriptStep + 1}/${total}줄`
                 : p?.scriptDone ? '학습 마침'
                   : `학습 준비됨 · ${total}줄`;
+            /* 설명을 이미 만들어 둔 영상이면 여기서 바로 회독을 시작한다.
+               어제 만들어 놓고 오늘 그 단어만 돌고 싶은 게 보통인데, 그러려고
+               영상을 열어 아래까지 내려가는 건 이유가 없다. */
+            const ready = analyses[v.id]?.words?.length || 0;
             return (
               <div key={v.id} className="card vd-item">
                 <button className="vd-open" onClick={() => setOpenId(v.id)}>
-                  <img className="vd-thumb" src={`https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`} alt="" loading="lazy" />
+                  {v.kind === 'sub'
+                    ? <span className="vd-thumb vd-subthumb">字</span>
+                    : <img className="vd-thumb" src={`https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`} alt="" loading="lazy" />}
                   <div className="vd-body">
-                    <div className="vd-title">{t?.title || `youtu.be/${v.id}`}</div>
+                    <div className="vd-title">{t?.title || (v.kind === 'sub' ? v.title || '자막' : `youtu.be/${v.id}`)}</div>
                     <div className="vd-meta">
                       {t?.channel ? `${t.channel} · ` : ''}
                       {done}
@@ -353,10 +457,14 @@ export default function Videos({
                   <IconChevron className="chev" />
                 </button>
                 <button className="vd-del" onClick={() => askRemove(v.id)} aria-label="영상 빼기"><IconTrash /></button>
+                {ready > 0 && (
+                  <button className="vd-quickstudy" onClick={() => studyVideo(v.id)}>
+                    <IconBook /> 이 단어로 회독하기 <span>{ready}개</span>
+                  </button>
+                )}
               </div>
             );
           })}
-          {videos.length === 0 && <div className="empty-state">담아 둔 영상이 없어요</div>}
         </div>
 
         <BottomSheet open={Boolean(pendingDel)} onClose={() => setPendingDel(null)}>
@@ -397,7 +505,7 @@ export default function Videos({
     return (
       <ScriptLesson
         videoId={open.id}
-        title={info?.title || `youtu.be/${open.id}`}
+        title={info?.title || (open.kind === 'sub' ? '자막' : `youtu.be/${open.id}`)}
         lines={lines}
         step={scriptMark.step}
         settings={settings}
@@ -415,13 +523,13 @@ export default function Videos({
     return (
       <VideoLesson
         analysis={analysis}
-        title={info?.title || `youtu.be/${open.id}`}
+        title={info?.title || (open.kind === 'sub' ? '자막' : `youtu.be/${open.id}`)}
         step={lessonMark.step}
         settings={settings}
         findKnown={findKnown}
-        onKeep={(w) => { keepWord(w); onToast(`${w.jp} 담았어요`); }}
+        onKeep={(w) => { keepWord(w, open.id, info?.title); onToast(`${w.jp} 담았어요`); }}
         onKeepAll={keepAll}
-        onStudyWords={studyVideo}
+        onStudyWords={() => studyVideo(open.id)}
         onStep={(step) => patchMark({ step })}
         onQuit={() => setMode(null)}
         onDone={finish}
@@ -438,17 +546,20 @@ export default function Videos({
       </button>
       <div className="navtitle">
         <small>{info?.channel || '영상으로 배우기'}</small>
-        {info?.title || `youtu.be/${open.id}`}
+        {info?.title || (open.kind === 'sub' ? '자막' : `youtu.be/${open.id}`)}
       </div>
 
-      <div className="vd-player">
-        <iframe
-          src={`https://www.youtube-nocookie.com/embed/${open.id}`}
-          title="영상"
-          allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
+      {/* 자막만 넣은 것은 띄울 영상이 없다. 빈 검은 네모를 놔두면 고장으로 읽힌다 */}
+      {open.kind !== 'sub' && (
+        <div className="vd-player">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${open.id}`}
+            title="영상"
+            allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )}
 
       {(!savedScript || mode === 'edit') && (
         <Section
@@ -513,7 +624,7 @@ export default function Videos({
       {/* 학습의 바탕은 자막이다. 설명이 없어도 여기서 바로 시작한다. */}
       {savedScript && mode !== 'edit' && lines.length > 0 && (
         <div className="card vd-entry">
-          <h3 className="vd-h">자막으로 영상과 함께</h3>
+          <h3 className="vd-h">{open.kind === 'sub' ? '자막으로 배우기' : '자막으로 영상과 함께'}</h3>
           {/* 진행 중이 마침보다 먼저다. 마친 영상을 다시 시작해 중간에 멈추면
               지금 어디인지가 궁금하지, 예전에 끝냈다는 사실이 궁금한 게 아니다. */}
           <p className="vd-sub">
@@ -521,9 +632,13 @@ export default function Videos({
               ? `${lines.length}줄 중 ${scriptMark.step + 1}번째 줄까지 왔어요.`
               : scriptMark.done
                 ? '한 번 마친 영상이에요. 다시 처음부터 볼 수 있어요.'
-                : hasTimes(lines)
-                  ? `${lines.length}줄을 한 줄씩, 그 부분 영상과 같이 봅니다.`
-                  : `${lines.length}줄을 한 줄씩 봅니다. 시간이 없는 자막이라 영상은 따로 재생해 주세요.`}
+                /* 자막만 넣은 것은 띄울 영상이 자체가 없다. 「영상과 같이 봅니다」라고
+                   적어 두면 안 뜨는 걸 고장으로 읽는다. */
+                : open.kind === 'sub'
+                  ? `${lines.length}줄을 한 줄씩 봅니다. 넷플릭스는 따로 재생하면서 보세요.`
+                  : hasTimes(lines)
+                    ? `${lines.length}줄을 한 줄씩, 그 부분 영상과 같이 봅니다.`
+                    : `${lines.length}줄을 한 줄씩 봅니다. 시간이 없는 자막이라 영상은 따로 재생해 주세요.`}
           </p>
           <div className="vd-entrybar">
             <i style={{ width: `${Math.round(((scriptMark.step > 0 ? scriptMark.step : scriptMark.done ? lines.length : 0) / Math.max(lines.length, 1)) * 100)}%` }} />
@@ -605,7 +720,7 @@ export default function Videos({
               })}
               <div className="vd-wordacts">
                 <button className="vd-keepall" onClick={keepAll}>전부 담기</button>
-                <button className="vd-study" onClick={studyVideo}>
+                <button className="vd-study" onClick={() => studyVideo(open.id)}>
                   <IconBook /> 이 단어로 회독하기
                 </button>
               </div>

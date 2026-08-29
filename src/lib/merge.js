@@ -107,7 +107,7 @@ export function mergeConj(local = {}, remote = {}) {
   };
 }
 
-/* 일본 생존 — { exp, stages: {id: {learned, checkpoint, cleared, best}} }
+/* 실전 연습 — { exp, stages: {id: {learned, checkpoint, cleared, best}} }
  *
  * 큰 쪽을 남긴다. 더하면 안 된다 — 폰에서 두 번, 태블릿에서 두 번 깼을 때
  * 합치면 네 번이 되고, 같은 판을 두 기기가 다 본 것뿐인데 기록이 부풀어
@@ -155,10 +155,19 @@ export function mergeVideos(local = {}, remote = {}) {
     removed[id] = Math.max(local.removed?.[id] || 0, remote.removed?.[id] || 0);
   }
 
+  /* 담은 시각만 남기고 나머지를 버리면 안 된다. 자막만 넣은 것(넷플릭스·드라마)은
+     kind와 title이 그 항목의 전부라, 동기화 한 번에 제목이 사라지고 유튜브
+     영상인 척하게 된다 — 섬네일을 부르다 깨진 네모가 뜬다. */
   const byId = new Map();
   for (const v of [...(remote.list || []), ...(local.list || [])]) {
     if (!v?.id) continue;
-    byId.set(v.id, { id: v.id, addedAt: Math.max(byId.get(v.id)?.addedAt || 0, v.addedAt || 0) });
+    const had = byId.get(v.id);
+    byId.set(v.id, {
+      ...had,
+      ...v,
+      id: v.id,
+      addedAt: Math.max(had?.addedAt || 0, v.addedAt || 0),
+    });
   }
   const list = [...byId.values()]
     .filter((v) => !(removed[v.id] > v.addedAt))
@@ -200,8 +209,10 @@ export function mergeVideos(local = {}, remote = {}) {
 // 설정은 기기마다 다른 게 자연스럽다(음성 속도, 테마). 학습 범위에 관한 것만 가져온다.
 // 음성 API 키는 자격 증명이라 서버에 올리지 않는다.
 const SYNCED_SETTINGS = [
-  'canReadKana', 'tripDay', 'menus', 'levels',
-  'dailyGoal', 'direction', 'tripPlace',
+  /* onboarded도 같이 올린다. 답(canReadKana)만 올리고 이 표시를 안 올리면,
+     기기를 바꿀 때마다 「가타카나 읽을 줄 아세요?」를 다시 답하게 된다. */
+  'onboarded', 'canReadKana', 'tripDay', 'menus', 'levels',
+  'dailyGoal', 'goals', 'direction', 'tripPlace',
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
 ];
@@ -212,4 +223,27 @@ export function pickSyncedSettings(settings = {}) {
     if (settings[key] !== undefined) out[key] = settings[key];
   }
   return out;
+}
+
+/* 서버에서 온 설정을 지금 설정에 얹는다.
+ *
+ * 그냥 얹으면 안 되는 칸이 하나 있다 — menus다. 이건 { 메뉴id: 켬 } 꾸러미라
+ * 통째로 덮이는데, 서버에 저장된 건 그 메뉴가 생기기 전 것이다. 그래서
+ * 로그인해서 동기화하는 순간 새로 만든 메뉴가 목록에서 사라진다. 켠 적도
+ * 끈 적도 없는데 없어지니, 사용자 눈에는 그냥 기능이 안 만들어진 것으로 보인다.
+ * 실제로 「실전 연습」과 「짝 맞추기」가 그렇게 사라졌다.
+ *
+ * 새로 생긴 메뉴는 켜진 채로 둔다. 끈 적이 없으면 끈 게 아니다 —
+ * 서버에 그 칸이 아예 없는 것과 false로 적혀 있는 것은 다르다. */
+export function mergeSyncedSettings(local = {}, remote = {}, defaults = {}) {
+  const next = { ...local, ...remote };
+  if (defaults.menus || local.menus || remote.menus) {
+    next.menus = { ...defaults.menus, ...local.menus, ...remote.menus };
+  }
+  /* 목표도 꾸러미다. 갈래가 늘면 같은 일이 또 일어난다 — 서버에 없는 갈래는
+     기본값이 살아야 한다. */
+  if (defaults.goals || local.goals || remote.goals) {
+    next.goals = { ...defaults.goals, ...local.goals, ...remote.goals };
+  }
+  return next;
 }

@@ -29,6 +29,7 @@ import { ALL_SITUATIONS as SITUATIONS } from './data/allSituations.js';
 import { allSentenceCards, dailyPool, cardsForQueue } from './lib/cards.js';
 import { buildDailyStudyQueue } from './lib/daily.js';
 import {
+  DEFAULT_SETTINGS,
   loadCustomWords, saveCustomWords,
   loadProgress, saveProgress,
   loadSettings, saveSettings,
@@ -38,6 +39,7 @@ import {
   touchStreak, loadStreak, setStorageErrorHandler,
   loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce,
   loadMemos, saveMemos,
+  loadAsks, saveAsks,
   loadVideos, saveVideos, loadVideoAnalyses, saveVideoAnalyses,
   loadVideoScripts, saveVideoScripts, loadVideoProgress, saveVideoProgress,
   loadVideoRemoved, saveVideoRemoved,
@@ -49,9 +51,26 @@ import { applyVerdict, dueCards, todayKey, weakCards } from './lib/review.js';
 import { supabase, supabaseConfigured } from './lib/supabase.js';
 import { syncNow, pushMerged } from './lib/sync.js';
 import { useToday } from './lib/useToday.js';
-import { pickSyncedSettings } from './lib/merge.js';
+import { mergeSyncedSettings, pickSyncedSettings } from './lib/merge.js';
 import { SEED_VIDEOS } from './data/videos.js';
+import { GRAMMAR_MODULES } from './data/grammar.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from './lib/crypto.js';
+
+/* 갈래에 따라 판 이름이 달라진다. 이어하기 줄에 그대로 뜨니
+   「오늘의 학습」 하나로 두면 뭘 하다 말았는지 모른다. */
+/* 갈래마다 다른 판이다. 덱 id에 갈래를 넣어야 「단어 외우기」를 눌렀는데
+   하다 만 복습 판이 열리는 일이 없다 — 둘은 서로 다른 일이다. */
+function LANE_DECK(lanes) {
+  if (!lanes?.length || lanes.length === 3) return 'today';
+  return `today:${[...lanes].sort().join('+')}`;
+}
+
+function LANE_LABEL(lanes) {
+  if (!lanes?.length || lanes.length === 3) return '오늘의 학습';
+  if (lanes.length === 1 && lanes[0] === 'fresh') return '단어 외우기';
+  if (!lanes.includes('fresh')) return '복습하기';
+  return '오늘의 학습';
+}
 
 const SUB_TITLES = {
   basics: '완전기초',
@@ -63,7 +82,7 @@ const SUB_TITLES = {
   quiz: '단어 시험',
   conjugate: '동사 활용',
   match: '짝 맞추기',
-  rpg: '일본 생존',
+  rpg: '실전 연습',
   listen: '듣기 · 따라 말하기',
   jlpt: 'JLPT 단어',
 };
@@ -81,6 +100,7 @@ export default function App() {
   const [session, setSession] = useState(() => loadSession());
   const [stats, setStats] = useState(() => loadStats());
   const [memos, setMemos] = useState(() => loadMemos());
+  const [asks, setAsks] = useState(() => loadAsks());   // 공부하다 물어본 것
   /* 영상은 화면이 아니라 여기서 들고 있다 — 기기 간 동기화에 실어야 한다.
      처음 켠 사람에게만 기본 영상을 넣는다. 전부 뺀 사람에게 다시 넣으면
      지운 게 돌아오는 셈이다(loadVideos가 그래서 null을 돌려준다). */
@@ -114,7 +134,9 @@ export default function App() {
     /* 연속일은 여기서 올리지 않는다 — 앱을 켠 것과 공부한 것은 다르다.
        올리는 자리는 오늘 첫 판정(applyReview)이다. */
     setStreak(loadStreak());
-    setOnboardingOpen(!loadSettings().onboarded);
+    /* 온보딩은 여기서 열지 않는다. 로그인한 사람은 계정에 이미 답이 있는데,
+       동기화가 내려오기 전에 물어보면 기기를 바꿀 때마다 「가타카나 읽을 줄
+       아세요?」를 다시 답하게 된다. 아래 effect가 알 만해진 뒤에 정한다. */
 
     // iOS는 첫 사용자 제스처에서만 오디오를 열어준다.
     // 한 번에 성공하지 못할 수 있어 열릴 때까지 계속 시도한다.
@@ -126,6 +148,26 @@ export default function App() {
     return () => window.removeEventListener('pointerdown', unlock);
   }, [showToast]);
 
+  /* 온보딩을 열지 말지 정한다.
+   *
+   * 로그인한 사람은 첫 동기화가 끝날 때까지 기다린다 — 계정에 저장된 답이
+   * 내려오면 물어볼 이유가 없다. 로그인을 안 했거나 서버를 안 쓰는 사람은
+   * 기기에 있는 것만 보고 바로 정한다.
+   *
+   * 한 번 정하고 나면 다시 안 건드린다. 동기화가 두 번째로 돌 때 또 열리면
+   * 공부하던 중에 온보딩이 튀어나온다. */
+  const onboardingDecided = useRef(false);
+  useEffect(() => {
+    if (onboardingDecided.current) return;
+    if (!authReady) return;                                   // 로그인 상태를 아직 모른다
+    const signedIn = Boolean(authSession?.user);
+    if (signedIn && syncedFor.current !== authSession.user.id) return;  // 동기화를 기다린다
+    onboardingDecided.current = true;
+    /* 답이 이미 있으면 끝난 것으로 본다. onboarded 표시가 옛 기기에만 있고
+       계정에는 없을 수 있어서, 답(canReadKana)이 있는지도 같이 본다. */
+    setOnboardingOpen(!settings.onboarded && settings.canReadKana == null);
+  }, [authReady, authSession, settings.onboarded, settings.canReadKana, syncState.at]);
+
   useEffect(() => saveCustomWords(customWords), [customWords]);
   useEffect(() => saveProgress(progress), [progress]);
   useEffect(() => saveSettings(settings), [settings]);
@@ -133,6 +175,7 @@ export default function App() {
   useEffect(() => saveSession(session), [session]);
   useEffect(() => saveStats(stats), [stats]);
   useEffect(() => saveMemos(memos), [memos]);
+  useEffect(() => saveAsks(asks), [asks]);
   useEffect(() => saveVideos(videos), [videos]);
   useEffect(() => saveVideoAnalyses(videoAnalyses), [videoAnalyses]);
   useEffect(() => saveVideoScripts(videoScripts), [videoScripts]);
@@ -232,8 +275,10 @@ export default function App() {
       setCustomWords(merged.customWords);
       setMemos(merged.memos);
       applyVideoBundle(merged.videos);
-      // 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다
-      setSettings((s) => ({ ...s, ...merged.settings }));
+      /* 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다.
+         메뉴 목록만은 얹지 않고 합친다. 서버에 저장된 건 새 메뉴가 생기기 전
+         것이라, 그냥 얹으면 만든 적도 없는 것처럼 사라진다. */
+      setSettings((s) => mergeSyncedSettings(s, merged.settings, DEFAULT_SETTINGS));
       setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
       /* 안내(note)와 오류(error)를 나눈다. 영상 칸이 없는 건 나머지가 다 올라간
          상태라, 이걸 오류 자리에 넣으면 "동기화가 안 되고 있어요"로 읽힌다. */
@@ -375,7 +420,7 @@ export default function App() {
     });
   }, []);
 
-  /* 회독 화면 밖에서 판정이 들어올 때 — 지금은 일본 생존이 유일하다.
+  /* 회독 화면 밖에서 판정이 들어올 때 — 지금은 실전 연습이 유일하다.
    *
    * { 표현id: 판정 } 여러 개를 한꺼번에 받는다. 실전 한 판이 끝나야 결과가
    * 나오니 낱장으로 부를 자리가 없다. 여기를 거치면 그 표현은 회독 저장소에
@@ -450,15 +495,28 @@ export default function App() {
     run();
   }, [session]);
 
-  const startToday = useCallback(() => {
+  /* 오늘의 학습을 갈래별로 연다.
+   *
+   * 홈에서 「단어 외우기」와 「복습하기」를 따로 누른다. 큐를 갈래로 갈라
+   * 짜야 그 둘이 서로 다른 판이 된다 — 한 판에 다 섞으면 「복습만 하고 싶다」가
+   * 안 된다. 갈래를 안 주면 예전처럼 셋 다 담는다. */
+  /* 아직 한 번도 안 본 문법 꼭지 수. 오늘 화면이 「문법 배우기」에 적는다 —
+     숫자가 없으면 눌러 보고 나서야 할 게 있는지 알게 된다. */
+  const grammarLeft = useMemo(
+    () => GRAMMAR_MODULES.filter((m) => !(progress.grammarDone?.[m.id] > 0)).length,
+    [progress.grammarDone],
+  );
+
+  const startToday = useCallback((lanes = null) => {
     /* 하던 판이 남아 있으면 그걸 잇는다.
        예전엔 여기서 큐를 새로 짰다. 그러면 카드는 새로 뽑히는데 세션은 옛것을
        그대로 써서, 남은 카드를 새 덱이 못 찾고 「학습할 카드가 없어요」에서
        나갈 수도 없었다. */
-    if (session?.deckId === 'today' && session.date === todayKey() && session.queue?.length) {
+    const deckId = LANE_DECK(lanes);
+    if (session?.deckId === deckId && session.date === todayKey() && session.queue?.length) {
       setSub(null);
       setDeck({
-        id: 'today',
+        id: deckId,
         label: session.label || '오늘의 학습',
         cards: [...words, ...sentenceCards],
         stepped: true,
@@ -466,9 +524,11 @@ export default function App() {
       return;
     }
 
-    const built = buildDailyStudyQueue(todayPool, review, { goal: settings.dailyGoal || 20 });
+    const built = buildDailyStudyQueue(todayPool, review, { goals: settings.goals, lanes });
     if (!built.queue.length) {
-      showToast('지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
+      showToast(lanes?.length === 1 && lanes[0] === 'fresh'
+        ? '새로 배울 단어가 없어요 — 설정에서 레벨을 넓혀 보세요'
+        : '지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
       return;
     }
     const cards = cardsForQueue(built.queue, filterByLevel(words, settings.levels), sentenceCards);
@@ -476,8 +536,8 @@ export default function App() {
     /* daily를 켜지 않는다 — 큐를 여기서 이미 짰다. 회독 화면이 또 짜면
        복습·약점 비율이 통째로 어긋난다. */
     setDeck({
-      id: 'today',
-      label: '오늘의 학습',
+      id: deckId,
+      label: LANE_LABEL(lanes),
       cards,
       queue: built.queue.map((q) => q.id),
       /* 앱이 짜 준 판이니 방식도 앱이 정한다 — 맞힐수록 단서를 하나씩 뺀다.
@@ -485,7 +545,7 @@ export default function App() {
       stepped: true,
       intro: { total: cards.length, review: built.review, weak: built.weak, fresh: built.fresh, minutes: built.minutes },
     });
-  }, [session, todayPool, review, settings.dailyGoal, settings.levels, words, sentenceCards, showToast]);
+  }, [session, todayPool, review, settings.goals, settings.levels, words, sentenceCards, showToast]);
 
   /* 하다 만 걸 이어서. 세션은 카드 id만 들고 있으니, 덱에는 단어와 문장을
      전부 실어 준다 — 어느 쪽에서 온 카드든 찾을 수 있어야 한다. */
@@ -498,7 +558,9 @@ export default function App() {
       cards: [...words, ...sentenceCards],
       /* 오늘의 학습은 회독마다 방식이 달라진다. 이어하기에 이 칸을 안 실어서,
          나갔다 들어온 순간부터 읽기·떠올리기·듣기 단계가 통째로 사라졌었다. */
-      stepped: session.deckId === 'today',
+      /* 오늘의 학습은 회독마다 방식이 달라진다. 갈래별로 id가 갈렸으니
+         앞머리로 본다 — today:fresh도 앱이 짜 준 판이다. */
+      stepped: String(session.deckId || '').startsWith('today'),
     });
   }, [session, words, sentenceCards]);
 
@@ -615,6 +677,11 @@ export default function App() {
               bookmarks={progress.bookmarks || []}
               memos={memos}
               onSaveMemo={saveMemo}
+              asks={asks}
+              onAsks={setAsks}
+              onAddWord={(w) => setCustomWords((prev) => (
+                prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+              ))}
               onReviewChange={applyReview}
               onSessionChange={setSession}
               onSettingsChange={patchSettings}
@@ -651,7 +718,10 @@ export default function App() {
             streak={streak}
             session={session}
             resumeLabel={session?.label}
-            onStart={startToday}
+            grammarLeft={grammarLeft}
+            onStartWords={() => guardDeck(() => startToday(['fresh']), LANE_DECK(['fresh']))}
+            onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
+            onOpenGrammar={() => openMenu('grammar')}
             onResume={resumeSession}
             onOpenReview={() => setActiveTab('review')}
           />

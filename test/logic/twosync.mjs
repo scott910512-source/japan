@@ -1,5 +1,5 @@
 /* 기기 두 대 합치기 — 순서를 바꿔도 같은 결과가 나오는가. */
-import { mergeReview, mergeStats, mergeStreak, mergeCustomWords, mergeMemos, mergeProgress, mergeConj, mergeRpg } from '../../src/lib/merge.js';
+import { mergeReview, mergeStats, mergeStreak, mergeCustomWords, mergeMemos, mergeProgress, mergeConj, mergeRpg, mergeSyncedSettings } from '../../src/lib/merge.js';
 import { applyVerdict, emptyState, VERDICT } from '../../src/lib/review.js';
 
 let pass = 0, fail = 0;
@@ -108,6 +108,33 @@ ok('메모는 나중에 고친 쪽',
   ok('칸이 아예 없던 옛 기록도 안 깨짐', mergeProgress({}, {}).rpg.exp === 0);
   ok('progress로 합쳐도 안 사라짐',
     mergeProgress({ rpg: phone }, { rpg: pad }).rpg.stages.conbini.best === 480);
+}
+
+/* ── 서버 설정이 새 메뉴를 지우면 안 된다 ──
+ *
+ * 실제로 당한 자리다. 「일본 생존」을 만들어 올렸는데 폰에서 안 보였다.
+ * 서버에 저장된 menus는 그 메뉴가 생기기 전 것이라, 로그인해서 동기화하는
+ * 순간 로컬 menus를 통째로 갈아치웠다. 켠 적도 끈 적도 없는데 사라지니
+ * 사용자 눈에는 기능이 안 만들어진 것으로 보인다. */
+{
+  const DEFAULTS = { menus: { words: true, quiz: true, match: true, rpg: true } };
+  const local = { menus: { words: true, quiz: true, match: true, rpg: true }, dailyGoal: 20 };
+  // 서버에 저장된 건 match·rpg가 생기기 전 것
+  const remote = { menus: { words: true, quiz: false }, dailyGoal: 30 };
+
+  const m = mergeSyncedSettings(local, remote, DEFAULTS);
+  ok('새로 생긴 메뉴가 안 사라진다', m.menus.rpg === true && m.menus.match === true,
+    JSON.stringify(m.menus));
+  /* 끈 적이 있으면 그건 지킨다 — 없는 칸과 false는 다르다 */
+  ok('서버에서 끈 메뉴는 꺼진 채로', m.menus.quiz === false);
+  ok('나머지 설정은 서버 것이 이긴다', m.dailyGoal === 30, String(m.dailyGoal));
+
+  /* menus 칸이 아예 없던 옛 기록 */
+  ok('서버에 메뉴 칸이 없어도 안 깨진다',
+    mergeSyncedSettings(local, { dailyGoal: 50 }, DEFAULTS).menus.rpg === true);
+  ok('양쪽 다 없어도 기본값이 산다',
+    mergeSyncedSettings({}, {}, DEFAULTS).menus.rpg === true);
+  ok('기본값도 없으면 그냥 얹는다', mergeSyncedSettings({ a: 1 }, { b: 2 }).b === 2);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

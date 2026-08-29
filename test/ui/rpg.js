@@ -1,4 +1,4 @@
-/* 일본 생존이 진짜로 앱에 붙었는가.
+/* 실전 연습이 진짜로 앱에 붙었는가.
  *
  * 이 검사가 보는 건 화면이 예쁘게 뜨는지가 아니다. 마지막 줄 하나다 —
  * 실전에서 틀린 표현이 회독 저장소에 들어가는가. 거기까지 안 이어지면
@@ -57,10 +57,10 @@ const readProgress = (page) => page.evaluate(
     page.on('pageerror', (e) => errors.push(e.message));
 
     await goTab(page, '학습');
-    ok('학습 메뉴에 일본 생존이 있다',
-      await page.locator('.menutile', { hasText: '일본 생존' }).count() === 1);
+    ok('학습 메뉴에 실전 연습이 있다',
+      await page.locator('.menutile', { hasText: '실전 연습' }).count() === 1);
 
-    await openMenu(page, '일본 생존');
+    await openMenu(page, '실전 연습');
     ok('레벨 줄이 보인다', await page.locator('.rp-lv').count() === 1);
     ok('편의점 스테이지가 있다', await page.locator('.rp-stage', { hasText: '편의점' }).count() === 1);
     ok('아직 안 만든 곳도 보여 준다', await page.locator('.rp-soonone').count() >= 3);
@@ -109,7 +109,7 @@ const readProgress = (page) => page.evaluate(
     });
     page.on('pageerror', (e) => errors.push(e.message));
 
-    await openMenu(page, '일본 생존');
+    await openMenu(page, '실전 연습');
     ok('EXP가 남아 있다', (await page.locator('.rp-exp').innerText()).includes('120'));
     const live = page.locator('.rp-stage .submit-btn');
     ok('체크포인트를 넘겼으면 실전이 열린다', !(await live.isDisabled()));
@@ -170,7 +170,81 @@ const readProgress = (page) => page.evaluate(
     await page.close();
   }
 
-  /* ── 3. 메뉴를 끄면 사라져야 한다 ── */
+  /* ── 3. 키보드와 자동 음성 ──
+     보기가 셋이라 1·2·3이면 끝난다. 손을 화면으로 안 옮기면 한 판이 확 빨라진다. */
+  console.log('\n[ 키보드로 ]');
+  {
+    const page = await boot(browser, {
+      rpg: { exp: 0, stages: { conbini: { learned: true, checkpoint: 0.9 } } },
+    }, { autoTTS: true });
+    page.on('pageerror', (e) => errors.push(e.message));
+
+    /* 말을 소리로 냈는지 본다. 진짜 음성 엔진은 검사에서 못 쓰니
+       무엇을 읽으라고 넘겼는지만 가로채 둔다. */
+    await page.evaluate(() => {
+      window.__said = [];
+      const real = window.speechSynthesis?.speak?.bind(window.speechSynthesis);
+      if (window.speechSynthesis) {
+        window.speechSynthesis.speak = (u) => { window.__said.push(u?.text || ''); try { real?.(u); } catch { /* 무시 */ } };
+      }
+    });
+
+    await openMenu(page, '실전 연습');
+    await page.locator('.rp-stage .submit-btn').click();
+    await page.waitForTimeout(1200);
+
+    /* 실전은 점원이 말을 걸어 오는 자리다. 장면이 뜨면 바로 읽어 줘야 한다 */
+    const said = await page.evaluate(() => window.__said || []);
+    ok('장면이 뜨면 알아서 읽어 준다', said.length > 0, said.join(' / ') || '아무것도 안 읽음');
+    ok('점원 대사를 읽는다', said.some((t) => t.includes('いらっしゃいませ')), said.join(' / '));
+
+    /* 보기에 번호가 붙는다 — 키보드가 있다는 걸 알려면 화면에 보여야 한다 */
+    const scene0 = await page.locator('.rp-step').innerText();
+    await page.keyboard.press('1');
+    await page.waitForTimeout(1400);
+    ok('숫자 키로 답을 고른다', (await page.locator('.rp-step').innerText()) !== scene0,
+      `${scene0} → ${await page.locator('.rp-step').innerText()}`);
+
+    /* H로 힌트가 열린다 */
+    ok('처음엔 힌트가 닫혀 있다', await page.locator('.rp-hints').count() === 0);
+    await page.keyboard.press('h');
+    await page.waitForTimeout(400);
+    ok('H를 누르면 힌트가 열린다', await page.locator('.rp-hints p').count() === 1);
+
+    /* 스페이스로 다시 듣는다 */
+    const n0 = (await page.evaluate(() => window.__said || [])).length;
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(400);
+    ok('스페이스로 다시 듣는다', (await page.evaluate(() => window.__said || [])).length > n0);
+
+    await page.close();
+  }
+
+  /* ── 4. 자동 음성을 꺼 두면 ── */
+  console.log('\n[ 자동 음성을 껐으면 ]');
+  {
+    const page = await boot(browser, {
+      rpg: { exp: 0, stages: { conbini: { learned: true, checkpoint: 0.9 } } },
+    }, { autoTTS: false });
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.evaluate(() => {
+      window.__said = [];
+      if (window.speechSynthesis) window.speechSynthesis.speak = (u) => window.__said.push(u?.text || '');
+    });
+    await openMenu(page, '실전 연습');
+    await page.locator('.rp-stage .submit-btn').click();
+    await page.waitForTimeout(1200);
+    ok('꺼 두면 안 읽어 준다',
+      (await page.evaluate(() => window.__said || [])).length === 0,
+      (await page.evaluate(() => (window.__said || []).join(' / '))) || '조용함');
+    /* 그래도 눌러서 들을 수는 있어야 한다 */
+    await page.locator('.rp-scene .rp-say').click();
+    await page.waitForTimeout(400);
+    ok('눌러서는 들을 수 있다', (await page.evaluate(() => window.__said || [])).length > 0);
+    await page.close();
+  }
+
+  /* ── 5. 메뉴를 끄면 사라져야 한다 ── */
   console.log('\n[ 설정에서 끄면 ]');
   {
     /* 끈 채로 켠다. 켜고 나서 다시 부르면 오프라인이라 서비스워커가
@@ -179,7 +253,7 @@ const readProgress = (page) => page.evaluate(
     page.on('pageerror', (e) => errors.push(e.message));
     await goTab(page, '학습');
     ok('꺼 두면 메뉴에 안 나온다',
-      await page.locator('.menutile', { hasText: '일본 생존' }).count() === 0);
+      await page.locator('.menutile', { hasText: '실전 연습' }).count() === 0);
     await page.close();
   }
 

@@ -14,20 +14,54 @@ import {
   stateOf, isDue, isMastered, todayKey, dueDate, shuffled,
 } from './review.js';
 
-/* 복습 4 : 약점 3 : 신규 3.
+/* 갈래마다 제 목표를 가진다 — 신규 20 · 복습 20 · 약점 20.
  *
- * 복습이 제일 많은 건 이미 본 걸 안 잃는 게 먼저이기 때문이고, 약점이 신규와
- * 같은 몫인 건 계속 틀리는 걸 놔두면 아무리 새로 배워도 안 쌓이기 때문이다. */
-export const MIX = { review: 0.4, weak: 0.3, fresh: 0.3 };
+ * 예전에는 「하루 20장」 하나를 4:3:3으로 쪼갰다. 그러면 복습이 밀린 날
+ * 신규가 여섯 장으로 줄어서, 진도가 밀린 벌로 새로 배우는 걸 뺏겼다.
+ * 반대로 복습이 없는 날은 신규가 스무 장이 되어 다음 날 복습이 폭발했다.
+ *
+ * 갈래를 갈라 두면 서로 안 뺏는다. 복습이 밀려도 새 단어 스무 개는 그대로고,
+ * 복습할 게 없는 날은 그냥 복습이 0이다 — 그게 정직하다.
+ *
+ * 대신 몫을 서로 못 빌린다. 그게 이 방식의 값이다. */
+export const DEFAULT_GOALS = { fresh: 20, review: 20, weak: 20 };
+export const LANES = ['review', 'weak', 'fresh'];
 
 /* 몰라요·애매해요가 이만큼 쌓이면 약점으로 본다. 회독 쪽 기준과 같은 값이다. */
 export const WEAK_THRESHOLD = 3;
+
+/* 몰라요가 이만큼 쌓인 카드는 한 판에 두 번 만난다.
+ *
+ * 열 번 넘게 틀렸다는 건 그 카드를 만나는 방식이 안 통하고 있다는 뜻이다.
+ * 하루에 한 번 더 보는 것으로 될 일은 아니지만, 적어도 판마다 두 번은
+ * 마주쳐야 한다 — 스무 장 중 한 장으로 묻히면 영영 안 외워진다.
+ *
+ * 몫 안에서 두 자리를 차지한다. 목표를 넘겨서 늘리지 않는다 — 그러면 제일
+ * 안 외워지는 사람의 하루가 제일 길어진다. */
+export const HARD_WRONG = 10;
+
+export function isHardWeak(st) {
+  return (st?.wrongCount || 0) >= HARD_WRONG;
+}
+
+/* 옛 설정은 숫자 하나(dailyGoal)였다. 읽을 때 셋으로 펴 준다 —
+   기능을 더할 때마다 옛 기록이 화면을 죽이는 일을 여기서 막는다. */
+export function normalizeGoals(goals) {
+  if (typeof goals === 'number') {
+    const n = Math.max(0, Math.round(goals) || 0);
+    return { fresh: n, review: n, weak: n };
+  }
+  return {
+    fresh: Math.max(0, Math.round(goals?.fresh ?? DEFAULT_GOALS.fresh) || 0),
+    review: Math.max(0, Math.round(goals?.review ?? DEFAULT_GOALS.review) || 0),
+    weak: Math.max(0, Math.round(goals?.weak ?? DEFAULT_GOALS.weak) || 0),
+  };
+}
 
 /* 한 개에 걸리는 시간(초). 문장이 더 오래 걸린다 — 읽고 뜻을 떠올리는 양이 다르다.
  * 정확할 수 없는 값이라 "약 8분"처럼 어림으로만 쓴다. */
 const SECONDS = { word: 9, sentence: 16 };
 
-export const DEFAULT_GOAL = 20;
 
 /* 오늘 큐에서 문장이 차지할 수 있는 몫의 상한.
  *
@@ -73,29 +107,14 @@ export function classifyDaily(pool, review, today = todayKey()) {
   return { weak, due, fresh };
 }
 
-/* 몫을 나눈다. 한쪽이 모자라면 남은 자리를 다른 쪽이 가져간다 —
- * 어제 시작한 사람은 복습도 약점도 없어서, 비율만 지키면 큐가 텅 빈다. */
-function shareOut(sizes, goal) {
-  const want = {
-    review: Math.round(goal * MIX.review),
-    weak: Math.round(goal * MIX.weak),
-    fresh: goal - Math.round(goal * MIX.review) - Math.round(goal * MIX.weak),
+/* 갈래마다 제 목표까지만 가져간다. 서로 빌리지 않는다 —
+ * 복습이 없는 날 신규가 두 배가 되면, 다음 날 복습이 그만큼 폭발한다. */
+function shareOut(sizes, goals) {
+  return {
+    review: Math.min(goals.review, sizes.review),
+    weak: Math.min(goals.weak, sizes.weak),
+    fresh: Math.min(goals.fresh, sizes.fresh),
   };
-  const got = {
-    review: Math.min(want.review, sizes.review),
-    weak: Math.min(want.weak, sizes.weak),
-    fresh: Math.min(want.fresh, sizes.fresh),
-  };
-  /* 남은 자리를 순서대로 메운다. 복습 → 약점 → 신규 — 이미 본 걸 안 잃는 쪽이 먼저다. */
-  let left = goal - (got.review + got.weak + got.fresh);
-  for (const k of ['review', 'weak', 'fresh']) {
-    if (left <= 0) break;
-    const room = sizes[k] - got[k];
-    const take = Math.min(room, left);
-    got[k] += take;
-    left -= take;
-  }
-  return got;
 }
 
 /* 갈래 안에서 단어와 문장을 남은 양에 비례해 번갈아 뽑는다.
@@ -129,6 +148,22 @@ function takeMixed(items, count) {
   return out;
 }
 
+/* 약점 몫을 채운다 — 자리 수가 아니라 「만나는 횟수」로 센다.
+ *
+ * 몰라요가 열 번 넘은 카드는 두 자리를 쓴다. 그만큼 다른 약점이 덜 들어오는데,
+ * 그게 맞다 — 제일 안 외워지는 걸 놔두고 다음 것으로 넘어가면 목록만 길어진다.
+ * 목표를 넘겨서 늘리지는 않는다. 그러면 제일 안 외워지는 사람의 하루가
+ * 제일 길어진다. */
+function takeWeak(items, count, review) {
+  const out = [];
+  for (const it of items) {
+    if (out.length >= count) break;
+    out.push(it);
+    if (isHardWeak(stateOf(review, it.id)) && out.length < count) out.push({ ...it, again: true });
+  }
+  return out;
+}
+
 /* 순서를 짠다.
  *
  * 그냥 섞으면 첫 문제가 약점일 수 있다. 시작하자마자 모르는 게 나오면 그날
@@ -136,7 +171,11 @@ function takeMixed(items, count) {
  * 흩어 놓는다. 몰아 두면 그 구간에서 지친다. */
 function arrange(picked) {
   const easy = shuffled(picked.filter((x) => x.bucket === 'review'));
-  const hard = shuffled(picked.filter((x) => x.bucket === 'weak'));
+  /* 두 번 들어온 카드는 붙여 놓으면 두 번째가 그냥 따라 나온다 —
+     방금 본 걸 다시 보는 건 외운 게 아니다. 두 번째 것을 뒤로 몬다. */
+  const once = shuffled(picked.filter((x) => x.bucket === 'weak' && !x.again));
+  const twice = shuffled(picked.filter((x) => x.bucket === 'weak' && x.again));
+  const hard = [...once, ...twice];
   const rest = shuffled(picked.filter((x) => x.bucket === 'fresh'));
 
   // 앞머리는 복습으로 — 없으면 신규로 연다. 약점으로는 절대 열지 않는다.
@@ -191,19 +230,33 @@ function capSentences(picked, groups, got, goal) {
 /* 오늘 큐를 짠다.
  *
  * pool: [{ id, kind }] — 단어와 문장을 한 배열에 담아 넘긴다.
+ * lanes: 어느 갈래만 담을지. 홈 화면이 「단어 외우기(신규)」와 「복습하기
+ *        (복습+약점)」를 따로 열기 때문에 갈래를 골라 짤 수 있어야 한다.
  * 반환: { queue, review, weak, fresh, left, minutes } */
-export function buildDailyStudyQueue(pool, review, { goal = DEFAULT_GOAL, today = todayKey() } = {}) {
-  const target = Math.max(0, Math.round(goal) || 0);
+function draw(pool, review, { goals, lanes, today }) {
+  const want = normalizeGoals(goals);
+  const use = new Set(lanes?.length ? lanes : LANES);
   const groups = classifyDaily(pool, review, today);
   const sizes = { review: groups.due.length, weak: groups.weak.length, fresh: groups.fresh.length };
-  const got = shareOut(sizes, target);
+
+  // 안 고른 갈래는 목표를 0으로 — 큐에서 통째로 빠진다
+  const goal = { review: 0, weak: 0, fresh: 0 };
+  for (const k of LANES) if (use.has(k)) goal[k] = want[k];
+
+  const got = shareOut(sizes, goal);
+  const total = got.review + got.weak + got.fresh;
 
   const picked = capSentences([
     ...takeMixed(groups.due, got.review),
-    ...takeMixed(groups.weak, got.weak),
+    ...takeWeak(groups.weak, got.weak, review),
     ...takeMixed(groups.fresh, got.fresh),
-  ], groups, got, target);
+  ], groups, got, total);
 
+  return { groups, sizes, got, picked, total };
+}
+
+export function buildDailyStudyQueue(pool, review, { goals, lanes, today = todayKey() } = {}) {
+  const { sizes, got, picked } = draw(pool, review, { goals, lanes, today });
   return {
     queue: arrange(picked),
     review: got.review,
@@ -227,16 +280,8 @@ export function estimateMinutes(items) {
 
 /* 화면에 미리 적어 줄 숫자 — 큐를 실제로 짜지 않고도 알 수 있어야
  * 대시보드가 매번 섞는 비용을 안 낸다. */
-export function planToday(pool, review, { goal = DEFAULT_GOAL, today = todayKey() } = {}) {
-  const target = Math.max(0, Math.round(goal) || 0);
-  const groups = classifyDaily(pool, review, today);
-  const sizes = { review: groups.due.length, weak: groups.weak.length, fresh: groups.fresh.length };
-  const got = shareOut(sizes, target);
-  const picked = capSentences([
-    ...takeMixed(groups.due, got.review),
-    ...takeMixed(groups.weak, got.weak),
-    ...takeMixed(groups.fresh, got.fresh),
-  ], groups, got, target);
+export function planToday(pool, review, { goals, lanes, today = todayKey() } = {}) {
+  const { sizes, got, picked } = draw(pool, review, { goals, lanes, today });
   return {
     total: picked.length,
     ...got,
@@ -248,5 +293,7 @@ export function planToday(pool, review, { goal = DEFAULT_GOAL, today = todayKey(
       weak: sizes.weak - got.weak,
       fresh: sizes.fresh - got.fresh,
     },
+    /* 오늘 아직 남은 것 — 화면이 「단어 20 · 복습 12 · 약점 7」처럼 적는다 */
+    pool: sizes,
   };
 }

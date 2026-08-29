@@ -99,5 +99,24 @@ const ids = (r) => r.list.map((v) => v.id).join(',');
   ok('빈 입력도 됨', ids(r) === '' && typeof r.scripts === 'object');
 }
 
+/* ── 자막만 넣은 것 ──
+   넷플릭스는 영상을 못 붙여서 제목과 갈래가 그 항목의 전부다. 동기화가 그걸
+   지우면 제목이 사라지고 유튜브 영상인 척하게 된다 — 섬네일을 부르다
+   깨진 네모가 뜬다. */
+{
+  const sub = { id: 'sub-abc', addedAt: 100, kind: 'sub', title: '사랑은 비가 갠 뒤처럼 3화' };
+  const m = mergeVideos({ list: [sub] }, { list: [] });
+  ok('자막 항목의 제목이 남는다', m.list[0].title === sub.title, m.list[0].title);
+  ok('갈래도 남는다', m.list[0].kind === 'sub', m.list[0].kind);
+
+  const both = mergeVideos({ list: [sub] }, { list: [{ id: 'sub-abc', addedAt: 200 }] });
+  ok('한쪽에 칸이 없어도 안 지워진다', both.list[0].title === sub.title && both.list[0].kind === 'sub',
+    JSON.stringify(both.list[0]));
+  ok('담은 시각은 늦은 쪽', both.list[0].addedAt === 200, String(both.list[0].addedAt));
+
+  const yt = mergeVideos({ list: [{ id: 'abc', addedAt: 1 }] }, { list: [] });
+  ok('유튜브 항목에는 갈래가 안 붙는다', yt.list[0].kind === undefined, JSON.stringify(yt.list[0]));
+}
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

@@ -5,6 +5,7 @@ import {
 } from '../lib/storage.js';
 import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
 import { GOAL_CHOICES, todayKey } from '../lib/review.js';
+import { normalizeGoals } from '../lib/daily.js';
 import Account from './Account.jsx';
 import KeyVault from '../components/KeyVault.jsx';
 import VoicePicker from '../components/VoicePicker.jsx';
@@ -23,9 +24,17 @@ const MENU_LABELS = {
   quiz: '단어 시험',
   conjugate: '동사 활용',
   match: '짝 맞추기',
-  rpg: '일본 생존',
+  rpg: '실전 연습',
   translate: '번역기',
 };
+
+/* 갈래별 하루 목표. 「약점」이 왜 따로 있는지 한 줄로 적어 둔다 —
+   안 적으면 복습과 뭐가 다른지 모른 채로 숫자만 만지게 된다. */
+const LANE_GOALS = [
+  { key: 'fresh', label: '새 단어', note: '오늘 처음 보는 것' },
+  { key: 'review', label: '복습', note: '복습일이 된 것' },
+  { key: 'weak', label: '약점', note: '세 번 넘게 틀린 것 — 열 번 넘으면 한 판에 두 번 나와요' },
+];
 
 const DIRECTIONS = [
   { id: 'kanji-mean', label: '한자 → 뜻' },
@@ -181,6 +190,7 @@ export default function Settings({
   settings, onChange, onReplayOnboarding, onOpenWordManager, onToast, onReload,
   session, syncState, onSync, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
 }) {
+  const goals = normalizeGoals(settings.goals ?? settings.dailyGoal);
   const fileRef = useRef(null);
   const [keyDraft, setKeyDraft] = useState(settings.gttsKey || '');
   const [showKey, setShowKey] = useState(false);
@@ -370,16 +380,32 @@ export default function Settings({
           />
         </div>
 
+        {/* 갈래마다 따로 정한다. 하나로 묶어 두면 복습이 밀린 날 새로 배우는
+            몫을 뺏기고, 진도가 밀린 벌로 새 단어를 못 보게 된다. */}
         <div className="setrow col">
           <div className="set-title">오늘 학습량</div>
           <div className="set-sub">
-            하루에 볼 카드 수예요. 이 안에서 새 단어 4 : 복습 1로 나눠 담습니다.
+            갈래마다 따로 셉니다. 복습이 밀려도 새 단어 몫은 그대로예요.
           </div>
-          <div className="grouppick">
-            {GOAL_CHOICES.map((g) => (
-              <button key={g} className={settings.dailyGoal === g ? 'active' : ''}
-                onClick={() => onChange({ dailyGoal: g })}>{g}장</button>
+          <div className="goalrow">
+            {LANE_GOALS.map(({ key, label, note }) => (
+              <div key={key} className="goalone">
+                <div className="set-title">
+                  {label}
+                  <span className="set-val">{goals[key]}장</span>
+                </div>
+                <div className="set-sub">{note}</div>
+                <div className="grouppick">
+                  {GOAL_CHOICES.map((g) => (
+                    <button key={g} className={goals[key] === g ? 'active' : ''}
+                      onClick={() => onChange({ goals: { ...goals, [key]: g } })}>{g}</button>
+                  ))}
+                </div>
+              </div>
             ))}
+          </div>
+          <div className="set-sub" style={{ marginTop: 10 }}>
+            다 하면 하루 {goals.fresh + goals.review + goals.weak}장이에요.
           </div>
         </div>
 

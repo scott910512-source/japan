@@ -1,4 +1,5 @@
 import { shapeTranslation } from './translate.js';
+import { normalizeGoals } from './daily.js';
 
 const KEYS = {
   customWords: 'jp_manabu_custom_words_v1',
@@ -18,6 +19,7 @@ const KEYS = {
   videoRemoved: 'jp_manabu_video_removed_v1',   // 뺀 영상의 묘비 — 아래 설명 참고
   translations: 'jp_manabu_translations_v1',    // 번역기에서 받아 둔 것 — 현지에서 다시 본다
   trends: 'jp_manabu_trends_v1',                // 요즘 일본어 — 받아 둔 목록과 받은 날
+  asks: 'jp_manabu_asks_v1',                    // 공부하다 물어본 것 — 비행기 모드에서도 다시 본다
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -126,7 +128,7 @@ const DEFAULT_PROGRESS = {
   known: [], unknown: [], grammarDone: {}, sentenceDone: {}, bookmarks: [],
   // 동사 활용 성적 — forms는 그룹×모양별, words는 동사별
   conj: { forms: {}, words: {} },
-  /* 일본 생존 — EXP와 스테이지별 기록.
+  /* 실전 연습 — EXP와 스테이지별 기록.
      표현의 숙련도는 여기 안 넣는다. 그건 회독 저장소에 들어간다 —
      두 벌로 갈라 놓으면 반드시 어긋난다. */
   rpg: { exp: 0, stages: {} },
@@ -191,6 +193,17 @@ export function saveMemos(memos) {
   write(KEYS.memos, memos);
 }
 
+/* ── 공부하다 물어본 것 ──
+ * 같은 걸 두 번 물으면 요금만 두 번 나가고, 비행기 안에서도 아까 받은 답은
+ * 다시 볼 수 있어야 한다. 최근 것만 남긴다(ask.js의 KEEP_ASKS). */
+export function loadAsks() {
+  const v = read(KEYS.asks, []);
+  return Array.isArray(v) ? v : [];
+}
+export function saveAsks(asks) {
+  write(KEYS.asks, asks);
+}
+
 /* ── 금고 열쇠 ──
  * 계정 비밀번호에서 만든 파생 열쇠. 비밀번호 원문은 어디에도 남기지 않는다.
  * 이 기기는 어차피 API 키 원문을 갖고 있어야 하므로, 열쇠를 함께 두는 것이
@@ -234,7 +247,7 @@ export const DEFAULT_SETTINGS = {
     quiz: true,       // 단어 시험
     conjugate: true,  // 동사 활용 — 기초 시제
     match: true,      // 짝 맞추기 — 게임으로
-    rpg: true,        // 일본 생존 — 상황을 통째로
+    rpg: true,        // 실전 연습 — 상황을 통째로
     translate: true,  // 번역기 — 현지에서 바로 쓰는 것
   },
 
@@ -263,7 +276,10 @@ export const DEFAULT_SETTINGS = {
   quizDir: 'jp-ko',     // 'jp-ko' | 'ko-jp' | 'mix'
   quizScope: 'all',     // 'all' | 'seen' | 'weak'
 
-  dailyGoal: 20,      // 하루에 볼 카드 수 — 이 안에서 신규:복습을 나눈다
+  /* 하루 목표. 갈래마다 따로 센다 — 복습이 밀렸다고 새로 배우는 걸 뺏지 않는다.
+     dailyGoal은 옛 이름이다. 읽을 때 goals로 펴 주고, 화면은 goals만 본다. */
+  goals: { fresh: 20, review: 20, weak: 20 },
+  dailyGoal: 20,      // (옛 설정) 숫자 하나였던 시절
   shuffle: true,
   direction: 'kanji-mean', // 'kanji-mean' | 'mean-kanji' | 'kanji-kana'
 
@@ -297,6 +313,10 @@ export function loadSettings() {
     ...DEFAULT_SETTINGS,
     ...saved,
     menus: { ...DEFAULT_SETTINGS.menus, ...(saved.menus || {}) },
+    /* 목표가 셋으로 갈라지기 전에 저장된 기록에는 goals 칸이 없다. 그때 쓰던
+       숫자 하나를 세 갈래에 그대로 펴 준다 — 20장 하던 사람이 갑자기 60장이
+       되지 않게, 자기가 정한 값을 그대로 쓴다. */
+    goals: normalizeGoals(saved.goals ?? saved.dailyGoal ?? DEFAULT_SETTINGS.goals),
   };
   if (!merged.gttsKey) merged.gttsKey = inheritLegacyTTSKey();
   return merged;

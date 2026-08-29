@@ -185,6 +185,108 @@ const FAKE = {
   const deck = await page.textContent('body');
   ok('영상 단어로 회독 진입', deck.includes('영상 ·'), deck.slice(0, 80));
   ok('회독 덱에 두 단어가 들어감', deck.includes('/ 2'), deck.slice(0, 120));
+  /* ── 목록에서 바로 회독 ──
+     설명을 어제 만들어 놓고 오늘 그 단어만 돌고 싶은 게 보통인데, 그러려고
+     영상을 열어 아래까지 내려가는 건 이유가 없다. 설명이 있는 영상에만 붙는다.
+
+     여기서 새로고침하지 않는다. 지금 끊긴 상태라, 끊고 나서 다시 부르면
+     서비스워커가 자리를 못 잡아 화면이 통째로 빈다 — CI에서 이것 때문에
+     30초를 기다리다 멈췄다. 방금 만든 설명이 이미 화면에 들어 있으니
+     목록으로 걸어 돌아가기만 하면 된다. */
+  await page.locator('.sh-close').first().click();
+  await page.waitForTimeout(700);
+  /* 회독을 닫으면 학습 탭으로 빠진다. 목록까지는 걸어서 들어간다 —
+     화면이 어디에 있든 같은 길이라 흔들리지 않는다. */
+  await goTab(page, '학습');
+  await page.locator('.hubcard', { hasText: '영상' }).click();
+  await page.waitForTimeout(900);
+  /* 영상 화면은 상세로 열릴 수 있다. 목록이 안 보일 때만 한 단계 나온다 —
+     .inner-back은 목록에서는 「학습으로 돌아가기」라, 그냥 누르면 영상 화면을
+     통째로 벗어나 학습 바둑판이 위를 덮는다. */
+  if (await page.locator('.vd-item').count() === 0) {
+    await page.locator('.inner-back').first().click();
+    await page.waitForTimeout(700);
+  }
+
+  /* 영상은 둘인데 설명은 하나에만 있다. 버튼도 하나여야 한다 —
+     설명이 없는 영상에 띄우면 눌러도 빈 덱이 뜬다. */
+  ok('목록에 영상이 둘', await page.locator('.vd-item').count() === 2);
+  const quick = page.locator('.vd-quickstudy');
+  ok('설명이 있는 영상에만 회독 버튼이 붙는다', await quick.count() === 1, `${await quick.count()}개`);
+  ok('몇 개인지 같이 보여 준다', (await quick.innerText()).includes('2'), await quick.innerText());
+
+  await quick.click();
+  await page.waitForTimeout(900);
+  const deckName = await page.locator('.sh-title').innerText().catch(() => '');
+  ok('영상을 안 열고도 회독이 시작된다', await page.locator('.studycard').count() > 0);
+  ok('그 영상 이름이 덱에 붙는다', deckName.includes('영상'), deckName);
+  ok('영상에서 나온 단어만 돈다', deckName.includes('/ 2'), deckName);
+
+
+  /* ── 넷플릭스 · 드라마 — 자막만 붙여넣기 ──
+     넷플릭스는 영상을 앱 안에 못 띄운다. 그래서 자막만 받는데, 그 뒤로는
+     유튜브와 똑같이 돌아야 한다 — 안 그러면 반쪽짜리 입구를 하나 더 만든 셈이다. */
+  console.log('\n[ 넷플릭스 자막 ]');
+  await page.locator('.sh-close').first().click();
+  await page.waitForTimeout(700);
+  await goTab(page, '학습');
+  await page.locator('.hubcard', { hasText: '영상' }).click();
+  await page.waitForTimeout(900);
+  if (await page.locator('.vd-item').count() === 0) {
+    await page.locator('.inner-back').first().click();
+    await page.waitForTimeout(700);
+  }
+
+  ok('담는 방법이 둘로 갈려 있다', await page.locator('.segment button').count() === 2);
+  const ytCount = await page.locator('.vd-item').count();
+  await page.locator('.segment button', { hasText: '넷플릭스' }).click();
+  await page.waitForTimeout(500);
+  ok('넷플릭스 쪽은 아직 비어 있다', await page.locator('.vd-item').count() === 0, `유튜브는 ${ytCount}개`);
+  ok('유튜브 주소 칸이 안 보인다', await page.locator('.vd-add').count() === 0);
+  ok('왜 영상이 안 뜨는지 적혀 있다',
+    (await page.locator('.vd-note').first().innerText()).includes('잠겨'));
+
+  await page.locator('.vd-subadd input').fill('사랑은 비가 갠 뒤처럼 3화');
+  await page.locator('.vd-subadd textarea').fill(
+    '[0:12] やっぱり外で食べると美味しいね\n[0:15] そうだね\n[0:19] 明日も晴れるといいな',
+  );
+  await page.waitForTimeout(400);
+  ok('몇 줄인지 미리 세어 준다',
+    (await page.locator('.vd-subadd .set-note').innerText()).includes('3'),
+    await page.locator('.vd-subadd .set-note').innerText());
+
+  await page.locator('.vd-subadd .submit-btn').click();
+  await page.waitForTimeout(900);
+  /* 담자마자 학습으로 들어가야 한다 — 담고 목록으로 튕기면 한 번 더 눌러야 한다 */
+  const head = await page.locator('.screen.active .navtitle').first().innerText();
+  ok('담으면 바로 그 자막 화면으로', head.includes('사랑은 비가'), head.replace(/\n/g, ' '));
+  ok('영상 자리는 안 그린다 — 띄울 게 없다', await page.locator('.vd-player').count() === 0);
+  ok('자막이 이미 저장돼 있다', await page.locator('.vd-script').count() === 0);
+  const subEntry = await page.locator('.vd-entry').first().innerText();
+  ok('바로 학습할 수 있다', subEntry.includes('학습 시작') && subEntry.includes('3줄'),
+    subEntry.replace(/\n/g, ' ').slice(0, 90));
+  /* 띄울 영상이 없는데 「영상과 같이 봅니다」라고 적으면 안 뜨는 걸 고장으로 읽는다 */
+  ok('영상과 같이 본다고 안 한다', !subEntry.includes('영상과 같이'),
+    subEntry.replace(/\n/g, ' ').slice(0, 90));
+
+  const savedSub = await page.evaluate(() => ({
+    list: JSON.parse(localStorage.getItem('jp_manabu_videos_v1') || '[]'),
+    scripts: JSON.parse(localStorage.getItem('jp_manabu_video_scripts_v1') || '{}'),
+  }));
+  const subOne = savedSub.list.find((v) => v.kind === 'sub');
+  ok('기기에 갈래와 제목이 남는다',
+    Boolean(subOne && subOne.title.includes('사랑은 비가')), JSON.stringify(subOne || {}));
+  ok('자막도 같이 저장된다', Boolean(savedSub.scripts[subOne?.id]?.includes('やっぱり')));
+
+  /* 목록으로 돌아오면 넷플릭스 쪽에만 뜬다 */
+  await page.locator('.inner-back').first().click();
+  await page.waitForTimeout(700);
+  ok('넷플릭스 목록에 뜬다', await page.locator('.vd-item').count() === 1);
+  ok('유튜브 섬네일을 안 부른다', await page.locator('.vd-subthumb').count() === 1);
+  await page.locator('.segment button', { hasText: '유튜브' }).click();
+  await page.waitForTimeout(500);
+  ok('유튜브 쪽에는 안 섞인다', await page.locator('.vd-item').count() === ytCount, `${ytCount}개 그대로`);
+
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);
