@@ -38,6 +38,7 @@ import {
   touchStreak, loadStreak, setStorageErrorHandler,
   loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce,
   loadMemos, saveMemos,
+  loadAsks, saveAsks,
   loadVideos, saveVideos, loadVideoAnalyses, saveVideoAnalyses,
   loadVideoScripts, saveVideoScripts, loadVideoProgress, saveVideoProgress,
   loadVideoRemoved, saveVideoRemoved,
@@ -81,6 +82,7 @@ export default function App() {
   const [session, setSession] = useState(() => loadSession());
   const [stats, setStats] = useState(() => loadStats());
   const [memos, setMemos] = useState(() => loadMemos());
+  const [asks, setAsks] = useState(() => loadAsks());   // 공부하다 물어본 것
   /* 영상은 화면이 아니라 여기서 들고 있다 — 기기 간 동기화에 실어야 한다.
      처음 켠 사람에게만 기본 영상을 넣는다. 전부 뺀 사람에게 다시 넣으면
      지운 게 돌아오는 셈이다(loadVideos가 그래서 null을 돌려준다). */
@@ -133,6 +135,7 @@ export default function App() {
   useEffect(() => saveSession(session), [session]);
   useEffect(() => saveStats(stats), [stats]);
   useEffect(() => saveMemos(memos), [memos]);
+  useEffect(() => saveAsks(asks), [asks]);
   useEffect(() => saveVideos(videos), [videos]);
   useEffect(() => saveVideoAnalyses(videoAnalyses), [videoAnalyses]);
   useEffect(() => saveVideoScripts(videoScripts), [videoScripts]);
@@ -615,6 +618,11 @@ export default function App() {
               bookmarks={progress.bookmarks || []}
               memos={memos}
               onSaveMemo={saveMemo}
+              asks={asks}
+              onAsks={setAsks}
+              onAddWord={(w) => setCustomWords((prev) => (
+                prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+              ))}
               onReviewChange={applyReview}
               onSessionChange={setSession}
               onSettingsChange={patchSettings}

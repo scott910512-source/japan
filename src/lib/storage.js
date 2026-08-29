@@ -18,6 +18,7 @@ const KEYS = {
   videoRemoved: 'jp_manabu_video_removed_v1',   // 뺀 영상의 묘비 — 아래 설명 참고
   translations: 'jp_manabu_translations_v1',    // 번역기에서 받아 둔 것 — 현지에서 다시 본다
   trends: 'jp_manabu_trends_v1',                // 요즘 일본어 — 받아 둔 목록과 받은 날
+  asks: 'jp_manabu_asks_v1',                    // 공부하다 물어본 것 — 비행기 모드에서도 다시 본다
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -189,6 +190,17 @@ export function loadMemos() {
 }
 export function saveMemos(memos) {
   write(KEYS.memos, memos);
+}
+
+/* ── 공부하다 물어본 것 ──
+ * 같은 걸 두 번 물으면 요금만 두 번 나가고, 비행기 안에서도 아까 받은 답은
+ * 다시 볼 수 있어야 한다. 최근 것만 남긴다(ask.js의 KEEP_ASKS). */
+export function loadAsks() {
+  const v = read(KEYS.asks, []);
+  return Array.isArray(v) ? v : [];
+}
+export function saveAsks(asks) {
+  write(KEYS.asks, asks);
 }
 
 /* ── 금고 열쇠 ──

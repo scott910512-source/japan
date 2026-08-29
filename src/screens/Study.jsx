@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconSpeaker, IconRewind, IconCheck, IconX, IconPlus, IconArrowLeft, IconEye, IconBulb, IconTriangle,
+  IconChat,
 } from '../components/Icons.jsx';
 import MicButton from '../components/MicButton.jsx';
 import MemoBox from '../components/MemoBox.jsx';
+import AskSheet from '../components/AskSheet.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
@@ -75,6 +77,7 @@ function sizeOf(text) {
 
 export default function Study({
   deck, review, settings, session, bookmarks, memos, onSaveMemo,
+  asks, onAsks, onAddWord,
   onReviewChange, onSessionChange, onSettingsChange, onBookmark, onClose, onToast,
 }) {
   const cards = deck.cards;
@@ -87,6 +90,7 @@ export default function Study({
   const [revealedFor, setRevealedFor] = useState(null);
   const [peekKana, setPeekKana] = useState(false);
   const [showExample, setShowExample] = useState(false);
+  const [asking, setAsking] = useState(false);      // 궁금한 거 물어보는 창
   const [locked, setLocked] = useState(false);   // 카드 전환 중 연타로 오판정되는 것을 막는다
   const [finished, setFinished] = useState(null);
   /* 시작하자마자 문제가 뜨면 뭘 하는 판인지 모른 채로 들어간다.
@@ -268,9 +272,13 @@ export default function Study({
     onToast('직전 판정을 되돌렸어요');
   };
 
-  // 판정만 키에 걸어 두면 카드마다 손이 마우스로 돌아간다.
-  // 아래쪽 보조 동작까지 다 걸어야 키보드만으로 한 바퀴가 돈다.
-  useHotkeys({
+  /* 판정만 키에 걸어 두면 카드마다 손이 마우스로 돌아간다.
+   * 아래쪽 보조 동작까지 다 걸어야 키보드만으로 한 바퀴가 돈다.
+   *
+   * 물어보는 창이 열려 있으면 다 끈다. 창 안에서 버튼을 한 번 누르면 초점이
+   * 글상자를 떠나는데, 그 상태로 3을 치면 「알아요」가 눌린다 — 물어보다가
+   * 카드가 판정돼 버린다. Esc는 창만 닫는다. */
+  useHotkeys(asking ? { Escape: () => setAsking(false) } : {
     ' ': speakCurrent,
     Space: speakCurrent,
     Enter: () => (revealed ? judge(VERDICT.KNOWN) : reveal()),
@@ -291,6 +299,8 @@ export default function Study({
     K: () => setPeekKana(true),
     m: () => micTrigger.current?.(),
     M: () => micTrigger.current?.(),
+    a: () => { reveal(); setAsking(true); },
+    A: () => { reveal(); setAsking(true); },
     Escape: onClose,
   });
 
@@ -531,6 +541,12 @@ export default function Study({
         >
           <IconBulb /> 예문 보기{hasKeyboard && <kbd className="inline-key">E</kbd>}
         </button>
+        {/* 예문 보기와 같은 규칙으로 카드를 먼저 뒤집는다.
+            답을 알아내는 통로가 되면 회독 기록이 실력을 안 재게 된다 —
+            뒤집고 나서 곁가지를 묻는 건 그냥 공부다. */}
+        <button className={asking ? 'on' : ''} onClick={() => { reveal(); setAsking(true); }}>
+          <IconChat /> 궁금해요{hasKeyboard && <kbd className="inline-key">A</kbd>}
+        </button>
       </div>
 
       {showExample && word.example && !settings.showExample && (
@@ -546,6 +562,17 @@ export default function Study({
           </button>
         </div>
       )}
+
+      <AskSheet
+        open={asking}
+        card={word}
+        settings={settings}
+        history={asks}
+        onHistory={onAsks}
+        onAddWord={onAddWord}
+        onClose={() => setAsking(false)}
+        onToast={onToast}
+      />
     </div>
   );
 }
