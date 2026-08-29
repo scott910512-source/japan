@@ -1565,3 +1565,18 @@ button, input, select { font-family: inherit; }
 .swapask p { font-size: 13.5px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 16px; }
 .swapask-acts { display: flex; gap: 10px; }
 .swapask-acts button { flex: 1; min-height: 48px; }
+
+/* 끝맺음 결과 — 무엇을 했는지가 축하보다 중요하다 */
+.fin-big { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin: 6px 0 18px; }
+.fin-big b { font-size: 46px; font-weight: 800; line-height: 1; }
+.fin-big span { font-size: 15px; color: var(--ink-soft); font-weight: 600; }
+.fin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 320px; margin: 0 auto 18px; }
+.fin-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 12px 6px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface);
+}
+.fin-cell b { font-size: 22px; font-weight: 800; }
+.fin-cell span { font-size: 11.5px; color: var(--ink-soft); font-weight: 600; }
+.fin-cell.ok { border-color: color-mix(in srgb, var(--kon) 45%, transparent); background: var(--kon-soft); }
+.fin-cell.mid { border-color: color-mix(in srgb, var(--amber) 50%, transparent); }
+.fin-cell.no { border-color: color-mix(in srgb, var(--shu) 45%, transparent); background: var(--shu-soft); }

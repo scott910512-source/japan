@@ -93,6 +93,10 @@ export default function Study({
      오늘의 학습처럼 앱이 짜 준 판은 한 장 먼저 보여 준다. */
   const [introSeen, setIntroSeen] = useState(false);
   const history = useRef([]);
+  /* 끝나고 보여 줄 결과. 판정할 때마다 세어 둔다 — 회독 기록에서 되짚으면
+     오늘 이 판에서 무엇을 눌렀는지가 아니라 카드의 누적 상태가 나온다. */
+  const tally = useRef({ known: 0, vague: 0, unknown: 0, master: 0 });
+  const startedAt = useRef(Date.now());
   const micTrigger = useRef(null);   // M키로 단어 마이크를 켜고 끈다
   const hasKeyboard = useHasKeyboard();
 
@@ -101,7 +105,20 @@ export default function Study({
 
   // 세션이 없으면 새로 만든다. 이어하기는 App이 넘겨준 session을 그대로 쓴다.
   useEffect(() => {
-    if (session && session.deckId === deck.id && session.date === todayKey()) return;
+    if (session && session.deckId === deck.id && session.date === todayKey()) {
+      /* 이 덱이 못 찾는 카드가 큐에 남아 있으면 화면이 빈 채로 멈춘다.
+         실제로 그랬다 — 하던 판이 있는데 시작을 다시 눌러 큐를 새로 짜면
+         옛 세션의 남은 카드가 새 덱에 없었고, 나갈 길도 없었다. */
+      const clean = session.queue.filter((id) => byId.has(id));
+      if (clean.length !== session.queue.length) {
+        onSessionChange({
+          ...session,
+          queue: clean,
+          roundIds: (session.roundIds || []).filter((id) => byId.has(id)),
+        });
+      }
+      return;
+    }
 
     // 오늘 학습 덱만 "복습 섞기 + 신규"로 짠다.
     // 복습 덱·취약 덱은 이미 추려진 목록이라 그대로 다 돈다.
@@ -206,10 +223,12 @@ export default function Study({
       cardId: word.id,
       prevReview: review[word.id],
       prevSession: session,
+      verdict,
     });
 
     const result = advanceSession(session, review, word.id, verdict, todayKey());
     onReviewChange(result.progress, verdict);
+    tally.current[verdict] = (tally.current[verdict] || 0) + 1;
 
     const next = nextRoundOf(result.session, result.progress);
     if (next.kind === 'continue') {
@@ -223,6 +242,12 @@ export default function Study({
         done: result.session.done,
         reason: next.reason,
         carried: next.carried || 0,
+        /* 「장」과 「번」을 갈라 둔다. done은 누른 횟수라 몰라요가 섞이면
+           카드 수보다 커진다 — 그걸 「n장 학습」이라 부르면 거짓말이 된다. */
+        total: session.total || 0,
+        cleared: Math.max(0, (session.total || 0) - (next.carried || 0)),
+        tally: { ...tally.current },
+        minutes: Math.max(1, Math.round((Date.now() - startedAt.current) / 60000)),
       });
     }
 
@@ -233,6 +258,7 @@ export default function Study({
   const undo = () => {
     const last = history.current.pop();
     if (!last) return;
+    if (last.verdict && tally.current[last.verdict] > 0) tally.current[last.verdict] -= 1;
     const nextReview = { ...review };
     if (last.prevReview) nextReview[last.cardId] = last.prevReview;
     else delete nextReview[last.cardId];
@@ -309,10 +335,20 @@ export default function Study({
   }
 
   if (!word) {
+    /* 여기는 막다른 길이 되면 안 된다. 무슨 이유로 카드를 못 찾았든
+       정리하고 나갈 수 있어야 한다 — 예전엔 빈 화면에 갇혔다. */
     return (
       <div className="study">
         <StudyHeader session={session} deck={deck} onClose={onClose} onUndo={null} />
-        <div className="empty-state">학습할 카드가 없어요</div>
+        <div className="finish">
+          <div className="fin-badge">🎉</div>
+          <h2>오늘은 여기까지</h2>
+          <p className="fin-lines">
+            <span>{deck.label} · {session?.done || 0}번 봤어요</span>
+            <span>남은 건 내일 복습 큐에서 다시 만나요</span>
+          </p>
+          <button className="submit-btn" onClick={() => { onSessionChange(null); onClose(); }}>홈으로</button>
+        </div>
       </div>
     );
   }
@@ -519,17 +555,33 @@ function StudyHeader({ session, deck, onClose, onUndo, hasKeyboard }) {
 }
 
 function FinishCard({ finished, deck, settings, onClose, onUndo }) {
-  const goal = settings.dailyGoal;
+  const t = finished.tally || {};
+  const known = (t.known || 0) + (t.master || 0);
   return (
     <div className="study">
       <div className="finish">
         <div className="fin-badge">🎉</div>
         <h2>{finished.reason === 'clear' ? '오늘 회독 완주!' : '오늘은 여기까지'}</h2>
+
+        {/* 무엇을 했는지가 결과다. 「장」은 서로 다른 카드, 「번」은 누른 횟수 —
+            몰라요가 섞이면 둘이 달라져서, 한 낱말로 뭉뚱그리면 거짓이 된다. */}
+        <div className="fin-big">
+          <b>{finished.cleared}</b>
+          <span>/ {finished.total}장 끝냄</span>
+        </div>
+
+        <div className="fin-grid">
+          <div className="fin-cell ok"><b>{known}</b><span>알아요</span></div>
+          <div className="fin-cell mid"><b>{t.vague || 0}</b><span>애매해요</span></div>
+          <div className="fin-cell no"><b>{t.unknown || 0}</b><span>몰라요</span></div>
+        </div>
+
         <p className="fin-lines">
-          <span>{deck.label} · {finished.done}장 학습</span>
-          {finished.carried > 0 && <span>남은 {finished.carried}개는 내일 복습 큐로 넘겼어요</span>}
-          <span>오늘 목표 {goal}장</span>
+          <span>{deck.label} · {finished.done}번 봤어요 · 약 {finished.minutes}분</span>
+          {finished.carried > 0 && <span>남은 {finished.carried}장은 내일 복습 큐에서 만나요</span>}
+          {settings.dailyGoal ? <span>오늘 목표 {settings.dailyGoal}장</span> : null}
         </p>
+
         <button className="submit-btn" onClick={onClose}>홈으로</button>
         {onUndo && (
           <button className="ghost-btn" onClick={onUndo}>↩ 마지막 판정 되돌리기</button>
