@@ -11,6 +11,7 @@ import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { STEP, STEP_HINT, STEP_LABEL, hidesFront, needsSound, settingsForStep, stepFor } from '../lib/steps.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
+import { normalizeGoals } from '../lib/daily.js';
 import {
   VERDICT, advanceSession, buildDailySession, buildRound1, isWeak, nextRoundOf, stateOf, todayKey,
 } from '../lib/review.js';
@@ -134,7 +135,7 @@ export default function Study({
       ? deck.queue.filter((id) => byId.has(id))
       : deck.daily
         ? buildDailySession(ids, review, {
-          goal: settings.dailyGoal,
+          goal: normalizeGoals(settings.goals ?? settings.dailyGoal).fresh,
           shuffle: settings.shuffle,
         }).queue
         : buildRound1(ids, review, { size: 0, shuffle: settings.shuffle });
@@ -629,7 +630,7 @@ function FinishCard({ finished, deck, settings, onClose, onUndo }) {
         <p className="fin-lines">
           <span>{deck.label} · {finished.done}번 봤어요 · 약 {finished.minutes}분</span>
           {finished.carried > 0 && <span>남은 {finished.carried}장은 내일 복습 큐에서 만나요</span>}
-          {settings.dailyGoal ? <span>오늘 목표 {settings.dailyGoal}장</span> : null}
+          {deck.intro ? <span>오늘 목표 {deck.intro.total}장</span> : null}
         </p>
 
         <button className="submit-btn" onClick={onClose}>홈으로</button>

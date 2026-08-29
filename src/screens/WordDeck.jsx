@@ -3,6 +3,7 @@ import { IconBook, IconRepeat, IconSparkle } from '../components/Icons.jsx';
 import {
   GOAL_CHOICES, MASTER_STREAK, planDailySession, summarize, todayKey,
 } from '../lib/review.js';
+import { normalizeGoals } from '../lib/daily.js';
 
 export const LEVELS = ['N5', 'N4', 'N3'];
 
@@ -20,10 +21,13 @@ export default function WordDeck({ words, review, settings, onChange, onStart })
   const stat = useMemo(() => summarize(pool.map((w) => w.id), review), [pool, review]);
 
   // 오늘 세션이 어떻게 짜이는지 미리 보여준다. 시작 전에 분량을 알 수 있어야 한다.
+  /* 이 덱은 새로 외우는 쪽이라 「새 단어」 몫을 그대로 쓴다.
+     여기만 다른 숫자를 두면 설정에서 20으로 맞춰 놔도 여기선 다르게 나온다. */
+  const goals = normalizeGoals(settings.goals ?? settings.dailyGoal);
   const plan = useMemo(() => planDailySession(pool.map((w) => w.id), review, {
-    goal: settings.dailyGoal,
+    goal: goals.fresh,
     today: todayKey(),
-  }), [pool, review, settings.dailyGoal]);
+  }), [pool, review, goals.fresh]);
 
   const toggleLevel = (lv) => {
     const cur = settings.levels?.length ? settings.levels : [];
@@ -91,11 +95,11 @@ export default function WordDeck({ words, review, settings, onChange, onStart })
       <div className="section-label">분량 조절</div>
       <div className="card">
         <div className="setrow col">
-          <div className="set-title">하루 학습량 <span className="set-val">{settings.dailyGoal}장</span></div>
+          <div className="set-title">하루 새 단어 <span className="set-val">{goals.fresh}장</span></div>
           <div className="grouppick">
             {GOAL_CHOICES.map((n) => (
-              <button key={n} className={settings.dailyGoal === n ? 'active' : ''}
-                onClick={() => onChange({ dailyGoal: n })}>{n}</button>
+              <button key={n} className={goals.fresh === n ? 'active' : ''}
+                onClick={() => onChange({ goals: { ...goals, fresh: n } })}>{n}</button>
             ))}
           </div>
         </div>

@@ -287,7 +287,14 @@ export function buildDailySession(cardIds, progress, {
 
 // 다음 회독 큐 = 이번 회독에서 아직 안 끝난 카드만. 2회독부터는 항상 섞는다.
 export function buildNextRound(roundIds, progress) {
-  const remaining = roundIds.filter((id) => !isSessionClear(stateOf(progress, id)));
+  /* 두 번째 회독부터는 한 번씩만 만난다. 1회독에서 두 번 본 카드를 여기서도
+     두 번 넣으면, 제일 많이 틀린 카드가 회독을 거듭할수록 배로 불어난다. */
+  const seen = new Set();
+  const remaining = roundIds.filter((id) => {
+    if (seen.has(id) || isSessionClear(stateOf(progress, id))) return false;
+    seen.add(id);
+    return true;
+  });
   return shuffled(remaining);
 }
 
@@ -301,7 +308,16 @@ export function advanceSession(session, progress, cardId, verdict, today = today
   const nextState = applyVerdict(stateOf(progress, cardId), verdict, today);
   const nextProgress = { ...progress, [cardId]: nextState };
 
-  const queue = session.queue.filter((id) => id !== cardId);
+  /* 같은 카드가 큐에 두 번 들어 있을 수 있다 — 몰라요가 열 번 넘게 쌓인
+     카드는 한 판에 두 번 만난다(daily.js의 HARD_WRONG). 전부 걷어내면 그
+     두 번째가 사라지므로 앞에서 하나만 뺀다. */
+  const queue = [...session.queue];
+  const at = queue.indexOf(cardId);
+  if (at >= 0) queue.splice(at, 1);
+  else {
+    // 큐에 없는 카드를 판정한 경우(옛 세션 등) — 그냥 앞에서 하나를 뺀다
+    queue.shift();
+  }
 
   /* 몰라요를 이 회독 안에 도로 넣지 않는다 — 다음 회독에서 만난다.
    *

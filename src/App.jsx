@@ -53,7 +53,24 @@ import { syncNow, pushMerged } from './lib/sync.js';
 import { useToday } from './lib/useToday.js';
 import { mergeSyncedSettings, pickSyncedSettings } from './lib/merge.js';
 import { SEED_VIDEOS } from './data/videos.js';
+import { GRAMMAR_MODULES } from './data/grammar.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from './lib/crypto.js';
+
+/* 갈래에 따라 판 이름이 달라진다. 이어하기 줄에 그대로 뜨니
+   「오늘의 학습」 하나로 두면 뭘 하다 말았는지 모른다. */
+/* 갈래마다 다른 판이다. 덱 id에 갈래를 넣어야 「단어 외우기」를 눌렀는데
+   하다 만 복습 판이 열리는 일이 없다 — 둘은 서로 다른 일이다. */
+function LANE_DECK(lanes) {
+  if (!lanes?.length || lanes.length === 3) return 'today';
+  return `today:${[...lanes].sort().join('+')}`;
+}
+
+function LANE_LABEL(lanes) {
+  if (!lanes?.length || lanes.length === 3) return '오늘의 학습';
+  if (lanes.length === 1 && lanes[0] === 'fresh') return '단어 외우기';
+  if (!lanes.includes('fresh')) return '복습하기';
+  return '오늘의 학습';
+}
 
 const SUB_TITLES = {
   basics: '완전기초',
@@ -456,15 +473,28 @@ export default function App() {
     run();
   }, [session]);
 
-  const startToday = useCallback(() => {
+  /* 오늘의 학습을 갈래별로 연다.
+   *
+   * 홈에서 「단어 외우기」와 「복습하기」를 따로 누른다. 큐를 갈래로 갈라
+   * 짜야 그 둘이 서로 다른 판이 된다 — 한 판에 다 섞으면 「복습만 하고 싶다」가
+   * 안 된다. 갈래를 안 주면 예전처럼 셋 다 담는다. */
+  /* 아직 한 번도 안 본 문법 꼭지 수. 오늘 화면이 「문법 배우기」에 적는다 —
+     숫자가 없으면 눌러 보고 나서야 할 게 있는지 알게 된다. */
+  const grammarLeft = useMemo(
+    () => GRAMMAR_MODULES.filter((m) => !(progress.grammarDone?.[m.id] > 0)).length,
+    [progress.grammarDone],
+  );
+
+  const startToday = useCallback((lanes = null) => {
     /* 하던 판이 남아 있으면 그걸 잇는다.
        예전엔 여기서 큐를 새로 짰다. 그러면 카드는 새로 뽑히는데 세션은 옛것을
        그대로 써서, 남은 카드를 새 덱이 못 찾고 「학습할 카드가 없어요」에서
        나갈 수도 없었다. */
-    if (session?.deckId === 'today' && session.date === todayKey() && session.queue?.length) {
+    const deckId = LANE_DECK(lanes);
+    if (session?.deckId === deckId && session.date === todayKey() && session.queue?.length) {
       setSub(null);
       setDeck({
-        id: 'today',
+        id: deckId,
         label: session.label || '오늘의 학습',
         cards: [...words, ...sentenceCards],
         stepped: true,
@@ -472,9 +502,11 @@ export default function App() {
       return;
     }
 
-    const built = buildDailyStudyQueue(todayPool, review, { goal: settings.dailyGoal || 20 });
+    const built = buildDailyStudyQueue(todayPool, review, { goals: settings.goals, lanes });
     if (!built.queue.length) {
-      showToast('지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
+      showToast(lanes?.length === 1 && lanes[0] === 'fresh'
+        ? '새로 배울 단어가 없어요 — 설정에서 레벨을 넓혀 보세요'
+        : '지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
       return;
     }
     const cards = cardsForQueue(built.queue, filterByLevel(words, settings.levels), sentenceCards);
@@ -482,8 +514,8 @@ export default function App() {
     /* daily를 켜지 않는다 — 큐를 여기서 이미 짰다. 회독 화면이 또 짜면
        복습·약점 비율이 통째로 어긋난다. */
     setDeck({
-      id: 'today',
-      label: '오늘의 학습',
+      id: deckId,
+      label: LANE_LABEL(lanes),
       cards,
       queue: built.queue.map((q) => q.id),
       /* 앱이 짜 준 판이니 방식도 앱이 정한다 — 맞힐수록 단서를 하나씩 뺀다.
@@ -491,7 +523,7 @@ export default function App() {
       stepped: true,
       intro: { total: cards.length, review: built.review, weak: built.weak, fresh: built.fresh, minutes: built.minutes },
     });
-  }, [session, todayPool, review, settings.dailyGoal, settings.levels, words, sentenceCards, showToast]);
+  }, [session, todayPool, review, settings.goals, settings.levels, words, sentenceCards, showToast]);
 
   /* 하다 만 걸 이어서. 세션은 카드 id만 들고 있으니, 덱에는 단어와 문장을
      전부 실어 준다 — 어느 쪽에서 온 카드든 찾을 수 있어야 한다. */
@@ -504,7 +536,9 @@ export default function App() {
       cards: [...words, ...sentenceCards],
       /* 오늘의 학습은 회독마다 방식이 달라진다. 이어하기에 이 칸을 안 실어서,
          나갔다 들어온 순간부터 읽기·떠올리기·듣기 단계가 통째로 사라졌었다. */
-      stepped: session.deckId === 'today',
+      /* 오늘의 학습은 회독마다 방식이 달라진다. 갈래별로 id가 갈렸으니
+         앞머리로 본다 — today:fresh도 앱이 짜 준 판이다. */
+      stepped: String(session.deckId || '').startsWith('today'),
     });
   }, [session, words, sentenceCards]);
 
@@ -662,7 +696,10 @@ export default function App() {
             streak={streak}
             session={session}
             resumeLabel={session?.label}
-            onStart={startToday}
+            grammarLeft={grammarLeft}
+            onStartWords={() => guardDeck(() => startToday(['fresh']), LANE_DECK(['fresh']))}
+            onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
+            onOpenGrammar={() => openMenu('grammar')}
             onResume={resumeSession}
             onOpenReview={() => setActiveTab('review')}
           />

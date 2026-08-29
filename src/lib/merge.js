@@ -155,10 +155,19 @@ export function mergeVideos(local = {}, remote = {}) {
     removed[id] = Math.max(local.removed?.[id] || 0, remote.removed?.[id] || 0);
   }
 
+  /* 담은 시각만 남기고 나머지를 버리면 안 된다. 자막만 넣은 것(넷플릭스·드라마)은
+     kind와 title이 그 항목의 전부라, 동기화 한 번에 제목이 사라지고 유튜브
+     영상인 척하게 된다 — 섬네일을 부르다 깨진 네모가 뜬다. */
   const byId = new Map();
   for (const v of [...(remote.list || []), ...(local.list || [])]) {
     if (!v?.id) continue;
-    byId.set(v.id, { id: v.id, addedAt: Math.max(byId.get(v.id)?.addedAt || 0, v.addedAt || 0) });
+    const had = byId.get(v.id);
+    byId.set(v.id, {
+      ...had,
+      ...v,
+      id: v.id,
+      addedAt: Math.max(had?.addedAt || 0, v.addedAt || 0),
+    });
   }
   const list = [...byId.values()]
     .filter((v) => !(removed[v.id] > v.addedAt))
@@ -201,7 +210,7 @@ export function mergeVideos(local = {}, remote = {}) {
 // 음성 API 키는 자격 증명이라 서버에 올리지 않는다.
 const SYNCED_SETTINGS = [
   'canReadKana', 'tripDay', 'menus', 'levels',
-  'dailyGoal', 'direction', 'tripPlace',
+  'dailyGoal', 'goals', 'direction', 'tripPlace',
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
 ];
@@ -228,6 +237,11 @@ export function mergeSyncedSettings(local = {}, remote = {}, defaults = {}) {
   const next = { ...local, ...remote };
   if (defaults.menus || local.menus || remote.menus) {
     next.menus = { ...defaults.menus, ...local.menus, ...remote.menus };
+  }
+  /* 목표도 꾸러미다. 갈래가 늘면 같은 일이 또 일어난다 — 서버에 없는 갈래는
+     기본값이 살아야 한다. */
+  if (defaults.goals || local.goals || remote.goals) {
+    next.goals = { ...defaults.goals, ...local.goals, ...remote.goals };
   }
   return next;
 }

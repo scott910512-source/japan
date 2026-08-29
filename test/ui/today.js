@@ -83,19 +83,30 @@ async function boot(browser, patch = {}) {
   /* 3초 안에 알아야 하는 셋 */
   const card = await page.textContent('.today');
   ok('몇 개인지 보임', /\d+\s*\/\s*\d+/.test(card), card.match(/\d+\s*\/\s*\d+/)?.[0]);
-  ok('얼마나 걸리는지 보임', /약 \d+분/.test(card), card.match(/약 \d+분/)?.[0]);
-  ok('시작 버튼이 있음', await page.locator('.today .bigstart').count() === 1);
+  /* 걸리는 시간은 이제 할 일 줄마다 붙는다 — 「복습만 2분」을 알 수 있어야 한다 */
+  const taskText = await page.textContent('.tdtasks');
+  ok('얼마나 걸리는지 보임', /약 \d+분/.test(taskText), taskText.match(/약 \d+분/)?.[0]);
+  /* ── 할 일은 셋 ──
+     예전엔 「오늘의 학습 시작」 버튼 하나였다. 그러면 복습만 하고 싶은 날에도
+     신규가 섞여 나왔고, 그게 싫으면 학습 탭에 들어가 메뉴를 골라야 했다. */
+  const tasks = await page.locator('.tdtask').allTextContents();
+  ok('할 일이 셋으로 나뉨', tasks.length === 3, tasks.map((t) => t.split('\n')[0]).join(' / '));
+  ok('단어 외우기가 있음', tasks[0].includes('단어 외우기'));
+  ok('복습하기가 있음', tasks[1].includes('복습하기'));
+  ok('문법 배우기가 있음', tasks[2].includes('문법 배우기'));
+  /* 눌러 보고 나서야 뭐가 나오는지 알면 안 된다 — 줄마다 개수가 적혀 있어야 한다 */
+  ok('줄마다 몇 개인지 보임', await page.locator('.tt-count, .tt-done').count() === 3);
 
   const cells = await page.locator('.td-cell').allTextContents();
-  ok('복습·약점·신규로 나뉘어 보임', cells.length === 3, cells.join(' / '));
+  ok('새 단어·복습·약점으로 나뉘어 보임', cells.length === 3, cells.join(' / '));
   const nums = cells.map((t) => Number(t.match(/\d+/)?.[0] || 0));
-  ok('복습이 담김', nums[0] > 0, `복습 ${nums[0]}`);
-  ok('약점도 담김', nums[1] > 0, `약점 ${nums[1]}`);
-  ok('신규도 담김', nums[2] > 0, `신규 ${nums[2]}`);
+  ok('새 단어가 담김', nums[0] > 0, `새 단어 ${nums[0]}`);
+  ok('복습이 담김', nums[1] > 0, `복습 ${nums[1]}`);
+  ok('약점도 담김', nums[2] > 0, `약점 ${nums[2]}`);
   ok('연속일이 보임', (await page.textContent('.streakline')).includes('7일째'));
 
   console.log('\n── 시작하면 무슨 판인지 먼저 알려 준다');
-  await page.locator('.today .bigstart').click();
+  await page.locator('.tdtask', { hasText: '복습하기' }).click();
   await page.waitForTimeout(900);
   ok('바로 문제가 안 뜸', await page.locator('.study.intro').count() === 1);
   ok('구성이 적혀 있음', (await page.textContent('.study.intro')).includes('복습'));
@@ -105,7 +116,10 @@ async function boot(browser, patch = {}) {
   await page.locator('.study.intro .bigstart').click();
   await page.waitForTimeout(900);
   ok('회독 화면으로 들어감', await page.locator('.judgerow').count() === 1);
-  ok('오늘의 학습이라고 적힘', (await page.textContent('.sh-title')).includes('오늘의 학습'));
+  /* 갈래마다 판 이름이 달라야 한다. 「오늘의 학습」 하나로 두면 이어하기 줄에
+     떴을 때 뭘 하다 말았는지 모른다. */
+  ok('무슨 판인지 이름에 적힘', (await page.textContent('.sh-title')).includes('복습하기'),
+    await page.textContent('.sh-title'));
 
   console.log('\n── 판정하면 회독 기록에 남는다');
   const before = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}')).length);
@@ -122,12 +136,31 @@ async function boot(browser, patch = {}) {
   ok('오늘 본 것에 시각이 붙음', Object.values(after).some((v) => v.seenAt > 1000));
 
   /* 이번 개편의 핵심 — 여태 단어만 돌았고 문장은 따로 들어가야 했다.
-     한 판 안에 문장이 섞여 나와야 한다. */
+     한 판 안에 문장이 섞여 나와야 한다.
+     심어 둔 복습 기록은 전부 단어라, 문장이 섞이는지는 「단어 외우기」에서 본다. */
+  await page.locator('.sh-close').first().click();
+  await page.waitForTimeout(700);
+  await goTab(page, '오늘');
+  await page.locator('.tdtask', { hasText: '단어 외우기' }).click();
+  await page.waitForTimeout(700);
+  /* 갈래가 갈렸으니 「단어 외우기」와 「복습하기」는 서로 다른 판이다.
+     하던 복습이 남아 있으면 접기 전에 물어본다 — 조용히 날려 버리면 안 된다. */
+  const swap = page.locator('.swapask .submit-btn');
+  ok('하던 판이 있으면 접을지 물어본다', await swap.count() === 1);
+  await swap.click();
+  await page.waitForTimeout(900);
+  const introGo = page.locator('.study.intro .bigstart');
+  if (await introGo.count()) { await introGo.click(); await page.waitForTimeout(800); }
   const queue = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_session_v1') || '{}').queue || []);
   const sent = queue.filter((id) => /^(mv|fd|dl)-/.test(id));
   ok('한 판에 문장이 섞여 있음', sent.length > 0, `문장 ${sent.length} / ${queue.length}`);
 
   console.log('\n── 나갔다 와도 이어진다');
+  /* 방금 새로 연 판이라 아직 0장이다. 한 장 풀어야 「이어진다」가 볼 게 생긴다. */
+  const one = page.locator('.studycard');
+  if (await one.count()) { await one.click(); await page.waitForTimeout(300); }
+  const knownBtn = page.locator('.judgerow button', { hasText: '알아요' });
+  if (await knownBtn.count()) { await knownBtn.click(); await page.waitForTimeout(700); }
   await goTab(page, '오늘');
   ok('이어하기가 뜸', await page.locator('.rowcard', { hasText: '이어하기' }).count() === 1);
   await page.locator('.rowcard', { hasText: '이어하기' }).click();
@@ -205,13 +238,13 @@ async function boot(browser, patch = {}) {
     const cells2 = await p2.locator('.td-cell').allTextContents();
     const n2 = cells2.map((t) => Number(t.match(/\d+/)?.[0] || 0));
     ok('그래도 목표만큼 담김', n2.reduce((a, b) => a + b, 0) === 20, cells2.join(' / '));
-    ok('전부 신규로', n2[2] === 20, `신규 ${n2[2]}`);
+    ok('전부 신규로', n2[0] === 20, `새 단어 ${n2[0]}`);
     /* 공부하기 전에는 연속일이 없다. 예전엔 앱을 켜기만 해도 1일째가 붙었는데,
        그건 아무것도 안 한 사람에게 했다고 말하는 것이다. */
     ok('공부 전에는 연속일 줄이 없음', await p2.locator('.streakline').count() === 0);
 
     // 한 장 하면 그때 1일째가 된다
-    await p2.locator('.today .bigstart').click();
+    await p2.locator('.tdtask', { hasText: '단어 외우기' }).click();
     await p2.waitForTimeout(900);
     const go2 = p2.locator('.intro-go, .bigstart').first();
     if (await go2.count()) { await go2.click(); await p2.waitForTimeout(900); }
@@ -254,7 +287,7 @@ async function boot(browser, patch = {}) {
     await p3.waitForTimeout(700);
 
     // 다시 시작을 누른다 — 갇히면 안 된다
-    await p3.locator('.today .bigstart').click();
+    await p3.locator('.tdtask', { hasText: '단어 외우기' }).click();
     await p3.waitForTimeout(900);
     const intro = p3.locator('.intro-go, .bigstart').first();
     if (await intro.count()) { await intro.click(); await p3.waitForTimeout(900); }

@@ -1,4 +1,5 @@
 import { shapeTranslation } from './translate.js';
+import { normalizeGoals } from './daily.js';
 
 const KEYS = {
   customWords: 'jp_manabu_custom_words_v1',
@@ -275,7 +276,10 @@ export const DEFAULT_SETTINGS = {
   quizDir: 'jp-ko',     // 'jp-ko' | 'ko-jp' | 'mix'
   quizScope: 'all',     // 'all' | 'seen' | 'weak'
 
-  dailyGoal: 20,      // 하루에 볼 카드 수 — 이 안에서 신규:복습을 나눈다
+  /* 하루 목표. 갈래마다 따로 센다 — 복습이 밀렸다고 새로 배우는 걸 뺏지 않는다.
+     dailyGoal은 옛 이름이다. 읽을 때 goals로 펴 주고, 화면은 goals만 본다. */
+  goals: { fresh: 20, review: 20, weak: 20 },
+  dailyGoal: 20,      // (옛 설정) 숫자 하나였던 시절
   shuffle: true,
   direction: 'kanji-mean', // 'kanji-mean' | 'mean-kanji' | 'kanji-kana'
 
@@ -309,6 +313,10 @@ export function loadSettings() {
     ...DEFAULT_SETTINGS,
     ...saved,
     menus: { ...DEFAULT_SETTINGS.menus, ...(saved.menus || {}) },
+    /* 목표가 셋으로 갈라지기 전에 저장된 기록에는 goals 칸이 없다. 그때 쓰던
+       숫자 하나를 세 갈래에 그대로 펴 준다 — 20장 하던 사람이 갑자기 60장이
+       되지 않게, 자기가 정한 값을 그대로 쓴다. */
+    goals: normalizeGoals(saved.goals ?? saved.dailyGoal ?? DEFAULT_SETTINGS.goals),
   };
   if (!merged.gttsKey) merged.gttsKey = inheritLegacyTTSKey();
   return merged;

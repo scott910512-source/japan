@@ -7,7 +7,7 @@
  * 볼래」를 앱이 마음대로 바꾸면 안 된다. 그것도 여기서 지킨다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, openMenu } from './_nav.js';
+import { goTab, openMenu, startReview } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -54,13 +54,10 @@ async function boot(browser, review, settings = {}) {
   return page;
 }
 
-async function startToday(page) {
-  await goTab(page, '오늘');
-  await page.locator('.today .bigstart').click();
-  await page.waitForTimeout(800);
-  const intro = page.locator('.study.intro .bigstart');
-  if (await intro.count()) { await intro.click(); await page.waitForTimeout(800); }
-}
+/* 이 검사는 카드마다 연속 정답 수를 심어 두고 그 단계가 화면에 나오는지 본다.
+   심은 카드는 전부 복습일이 지난 것들이라 「복습하기」로 들어가야 만난다 —
+   「단어 외우기」로 들어가면 안 심은 새 카드가 나와서 단계가 늘 0이 된다. */
+const startToday = (page) => startReview(page);
 
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });

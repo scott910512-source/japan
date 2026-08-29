@@ -60,7 +60,7 @@ export default function Onboarding({ open, onFinish }) {
       onboarded: true,
       canReadKana: a.kana ?? true,
       tripDay: trip,
-      dailyGoal: DEFAULT_GOAL,
+      goals: { fresh: DEFAULT_GOAL, review: DEFAULT_GOAL, weak: DEFAULT_GOAL },
       hangulPron: a.kana === false,
       showKana: a.kana === false,
     });
