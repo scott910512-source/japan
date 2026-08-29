@@ -16,6 +16,7 @@ import Situations from './screens/Situations.jsx';
 import Quiz from './screens/Quiz.jsx';
 import Conjugate from './screens/Conjugate.jsx';
 import Match from './screens/Match.jsx';
+import Rpg from './screens/Rpg.jsx';
 import Jlpt from './screens/Jlpt.jsx';
 import Videos from './screens/Videos.jsx';
 import Translate from './screens/Translate.jsx';
@@ -44,7 +45,7 @@ import {
 } from './lib/storage.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
-import { dueCards, todayKey, weakCards } from './lib/review.js';
+import { applyVerdict, dueCards, todayKey, weakCards } from './lib/review.js';
 import { supabase, supabaseConfigured } from './lib/supabase.js';
 import { syncNow, pushMerged } from './lib/sync.js';
 import { useToday } from './lib/useToday.js';
@@ -62,6 +63,7 @@ const SUB_TITLES = {
   quiz: '단어 시험',
   conjugate: '동사 활용',
   match: '짝 맞추기',
+  rpg: '일본 생존',
   listen: '듣기 · 따라 말하기',
   jlpt: 'JLPT 단어',
 };
@@ -369,6 +371,38 @@ export default function App() {
           vague: cur.vague + (verdict === 'vague' ? 1 : 0),
           unknown: cur.unknown + (verdict === 'unknown' ? 1 : 0),
         },
+      };
+    });
+  }, []);
+
+  /* 회독 화면 밖에서 판정이 들어올 때 — 지금은 일본 생존이 유일하다.
+   *
+   * { 표현id: 판정 } 여러 개를 한꺼번에 받는다. 실전 한 판이 끝나야 결과가
+   * 나오니 낱장으로 부를 자리가 없다. 여기를 거치면 그 표현은 회독 저장소에
+   * 들어가고, 다음 날 오늘의 학습이 약점으로 집어 간다 — 별도 배선 없이.
+   *
+   * 연속일은 여기서 올린다. 실전도 공부다. 통계의 studied도 같이 센다. */
+  const applyVerdicts = useCallback((map) => {
+    const ids = Object.keys(map || {});
+    if (!ids.length) return;
+    const day = todayKey();
+    setReview((prev) => {
+      const next = { ...prev };
+      for (const id of ids) next[id] = applyVerdict(next[id], map[id], day);
+      return next;
+    });
+    setStreak((prev) => (prev.lastDate === day ? prev : touchStreak()));
+    setStats((prev) => {
+      const cur = prev[day] || { studied: 0, known: 0, vague: 0, unknown: 0 };
+      let vague = 0;
+      let unknown = 0;
+      for (const id of ids) {
+        if (map[id] === 'vague') vague += 1;
+        if (map[id] === 'unknown') unknown += 1;
+      }
+      return {
+        ...prev,
+        [day]: { ...cur, studied: cur.studied + ids.length, vague: cur.vague + vague, unknown: cur.unknown + unknown },
       };
     });
   }, []);
@@ -803,6 +837,16 @@ export default function App() {
                 cards={filterByLevel(words, settings.levels)}
                 review={review}
                 settings={settings}
+                onToast={showToast}
+              />
+            )}
+            {sub === 'rpg' && (
+              <Rpg
+                review={review}
+                progress={progress}
+                settings={settings}
+                onReview={applyVerdicts}
+                onProgress={(rpg) => setProgress((p) => ({ ...p, rpg }))}
                 onToast={showToast}
               />
             )}

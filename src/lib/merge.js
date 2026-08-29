@@ -107,6 +107,26 @@ export function mergeConj(local = {}, remote = {}) {
   };
 }
 
+/* 일본 생존 — { exp, stages: {id: {learned, checkpoint, cleared, best}} }
+ *
+ * 큰 쪽을 남긴다. 더하면 안 된다 — 폰에서 두 번, 태블릿에서 두 번 깼을 때
+ * 합치면 네 번이 되고, 같은 판을 두 기기가 다 본 것뿐인데 기록이 부풀어
+ * 오른다. 어느 한쪽이라도 도달한 데까지가 그 사람이 도달한 데다. */
+export function mergeRpg(local = {}, remote = {}) {
+  const stages = {};
+  for (const id of new Set([...Object.keys(local.stages || {}), ...Object.keys(remote.stages || {})])) {
+    const a = local.stages?.[id] || {};
+    const b = remote.stages?.[id] || {};
+    stages[id] = {
+      learned: Boolean(a.learned || b.learned),
+      checkpoint: Math.max(a.checkpoint || 0, b.checkpoint || 0),
+      cleared: Math.max(a.cleared || 0, b.cleared || 0),
+      best: Math.max(a.best || 0, b.best || 0),
+    };
+  }
+  return { exp: Math.max(local.exp || 0, remote.exp || 0), stages };
+}
+
 export function mergeProgress(local = {}, remote = {}) {
   return {
     ...remote,
@@ -116,6 +136,7 @@ export function mergeProgress(local = {}, remote = {}) {
     sentenceDone: { ...(remote.sentenceDone || {}), ...(local.sentenceDone || {}) },
     // 활용 성적은 두 기기에서 푼 게 다 남아야 한다 — local이 통째로 덮으면 사라진다
     conj: mergeConj(local.conj, remote.conj),
+    rpg: mergeRpg(local.rpg, remote.rpg),
   };
 }
 
