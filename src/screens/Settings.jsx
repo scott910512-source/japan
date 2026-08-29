@@ -22,6 +22,7 @@ const MENU_LABELS = {
   sentences: '상황별 문장암기',
   quiz: '단어 시험',
   conjugate: '동사 활용',
+  match: '짝 맞추기',
   translate: '번역기',
 };
 

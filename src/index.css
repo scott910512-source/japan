@@ -1580,3 +1580,55 @@ button, input, select { font-family: inherit; }
 .fin-cell.ok { border-color: color-mix(in srgb, var(--kon) 45%, transparent); background: var(--kon-soft); }
 .fin-cell.mid { border-color: color-mix(in srgb, var(--amber) 50%, transparent); }
 .fin-cell.no { border-color: color-mix(in srgb, var(--shu) 45%, transparent); background: var(--shu-soft); }
+
+/* 취약 카드의 반쯤 가린 읽는 법 — 실마리는 주되 답은 안 준다 */
+.sc-more { flex-direction: column; gap: 2px; font-size: 15px; font-weight: 700; color: var(--ink); }
+.sc-dots { color: var(--ink-soft); letter-spacing: 1px; }
+.sc-morelabel { font-size: 11px; font-weight: 600; color: var(--ink-soft); }
+
+/* ── 짝 맞추기 ──
+   두 열이 마주 보고, 왼쪽에서 하나 오른쪽에서 하나를 눌러 짝을 만든다. */
+.mt-head { display: flex; align-items: center; gap: 8px; padding: 2px 0 12px; }
+.mt-head .sh-title { flex: 1; font-size: 14px; font-weight: 700; }
+
+.mt-pick {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer;
+  padding: 18px 16px; margin-top: 12px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+}
+.mt-picon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--kon-soft); color: var(--kon); flex: 0 0 auto; }
+.mt-picon svg { width: 20px; height: 20px; }
+.mt-pbody { display: flex; flex-direction: column; gap: 3px; }
+.mt-pbody b { font-size: 16px; font-weight: 700; }
+.mt-pbody span { font-size: 12.5px; color: var(--ink-soft); }
+
+.mt-board { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.mt-col { display: flex; flex-direction: column; gap: 10px; }
+.mt-tile {
+  position: relative; min-height: 62px; padding: 10px 8px; border-radius: 14px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: var(--surface); border: 1.5px solid var(--line); color: var(--ink);
+  transition: transform .15s, border-color .15s, opacity .25s;
+}
+.mt-tile b { font-size: 19px; font-weight: 700; line-height: 1.25; word-break: keep-all; text-align: center; }
+.mt-tile b.mt-ko { font-size: 15px; }
+.mt-tile i { font-style: normal; font-size: 11.5px; color: var(--kon); font-weight: 600; }
+.mt-tile.on { border-color: var(--kon); background: var(--kon-soft); transform: scale(1.02); }
+.mt-tile.bad { border-color: var(--shu); background: var(--shu-soft); animation: mt-shake .38s; }
+.mt-tile.gone { opacity: .3; pointer-events: none; }
+.mt-sound { display: grid; place-items: center; }
+.mt-sound svg { width: 26px; height: 26px; color: var(--kon); }
+.mt-ok { position: absolute; top: 6px; right: 8px; color: var(--kon); }
+.mt-ok svg { width: 15px; height: 15px; }
+.mt-foot { text-align: center; margin-top: 14px; }
+
+@keyframes mt-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mt-tile.bad { animation: none; }
+  .mt-tile { transition: none; }
+}

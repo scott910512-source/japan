@@ -356,6 +356,8 @@ export default function Study({
   const bookmarked = bookmarks.includes(word.id);
   const st = stateOf(review, word.id);
   const hangul = settings.hangulPron ? kanaToHangul(word.kana) : null;
+  /* 취약 카드는 읽는 법을 첫 글자만. 눌러 열 수 있으니 막는 게 아니라 늦추는 것이다. */
+  const hideTail = isWeak(st) && step === STEP.READ && !peekKana && word.kana.length > 1;
 
   return (
     <div className="study">
@@ -406,8 +408,21 @@ export default function Study({
         )}
         {!revealed && !covered && !faces.front.isKana && (peekKana || view.showKana) && (
           <div className="sc-kana">
-            {word.kana}
-            {hangul && <span className="sc-hangul"> · {hangul}</span>}
+            {/* 많이 틀린 카드는 첫 글자만 준다.
+                취약 카드는 연속 정답이 0이라 늘 「읽기」로 나오는데, 그러면
+                제일 못 외운 것에 답을 통째로 보여 주는 셈이 된다 — 시험이
+                아니라 그냥 보여 주기다. 실마리는 주되 답은 안 준다. */}
+            {hideTail ? (
+              <button className="sc-peek sc-more" onClick={(e) => { e.stopPropagation(); setPeekKana(true); }}>
+                {word.kana.slice(0, 1)}<span className="sc-dots">···</span>
+                <span className="sc-morelabel">눌러서 다 보기</span>
+              </button>
+            ) : (
+              <>
+                {word.kana}
+                {hangul && <span className="sc-hangul"> · {hangul}</span>}
+              </>
+            )}
           </div>
         )}
 

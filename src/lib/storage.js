@@ -228,6 +228,7 @@ export const DEFAULT_SETTINGS = {
     sentences: true,  // 상황별 문장암기
     quiz: true,       // 단어 시험
     conjugate: true,  // 동사 활용 — 기초 시제
+    match: true,      // 짝 맞추기 — 게임으로
     translate: true,  // 번역기 — 현지에서 바로 쓰는 것
   },
 

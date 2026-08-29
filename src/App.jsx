@@ -15,6 +15,7 @@ import WordDeck, { filterByLevel } from './screens/WordDeck.jsx';
 import Situations from './screens/Situations.jsx';
 import Quiz from './screens/Quiz.jsx';
 import Conjugate from './screens/Conjugate.jsx';
+import Match from './screens/Match.jsx';
 import Jlpt from './screens/Jlpt.jsx';
 import Videos from './screens/Videos.jsx';
 import Translate from './screens/Translate.jsx';
@@ -60,6 +61,7 @@ const SUB_TITLES = {
   worddeck: '단어암기',
   quiz: '단어 시험',
   conjugate: '동사 활용',
+  match: '짝 맞추기',
   listen: '듣기 · 따라 말하기',
   jlpt: 'JLPT 단어',
 };
@@ -793,6 +795,14 @@ export default function App() {
                 progress={progress}
                 settings={settings}
                 onProgress={(conj) => setProgress((p) => ({ ...p, conj }))}
+                onToast={showToast}
+              />
+            )}
+            {sub === 'match' && (
+              <Match
+                cards={filterByLevel(words, settings.levels)}
+                review={review}
+                settings={settings}
                 onToast={showToast}
               />
             )}
