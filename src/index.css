@@ -240,11 +240,24 @@ button, input, select { font-family: inherit; }
   position: fixed; left: 50%; bottom: 0; transform: translate(-50%, 100%); width: 100%; max-width: 560px;
   background: var(--surface); border: 1px solid var(--line); border-bottom: none;
   border-radius: 24px 24px 0 0; padding: 14px 20px calc(24px + env(safe-area-inset-bottom, 0px));
-  z-index: 101; transition: transform .32s cubic-bezier(.2,.9,.25,1); max-height: 78vh; overflow-y: auto;
+  z-index: 101; max-height: 78vh; overflow-y: auto;
+  /* 닫힌 시트는 없는 것처럼 굴어야 한다.
+   *
+   * .screen에 transform이 걸려 있어서 position:fixed가 화면이 아니라 그
+   * 컨테이너를 기준으로 잡힌다. 그래서 닫힌 시트가 화면 밖이 아니라 화면
+   * 안쪽 — 하필 판정 버튼 위 — 에 얹히는 일이 생겼고, 「알아요」가 안 눌렸다.
+   * 아래로 밀어 두는 것만으로는 못 막는다. 안 보이고 안 눌리게 못 박는다.
+   * visibility는 닫히는 동안은 그대로 뒀다가 다 미끄러진 뒤에 끈다 —
+   * 바로 끄면 스르륵 닫히지 않고 툭 사라진다. */
+  visibility: hidden; pointer-events: none;
+  transition: transform .32s cubic-bezier(.2,.9,.25,1), visibility 0s .32s;
   box-shadow: 0 -20px 50px -20px var(--shadow);
   backdrop-filter: blur(24px) saturate(160%); -webkit-backdrop-filter: blur(24px) saturate(160%);
 }
-.sheet.open { transform: translate(-50%, 0); }
+.sheet.open {
+  transform: translate(-50%, 0); visibility: visible; pointer-events: auto;
+  transition: transform .32s cubic-bezier(.2,.9,.25,1), visibility 0s;
+}
 .sheet-handle { width: 36px; height: 5px; border-radius: 4px; background: var(--line); margin: 0 auto 14px; }
 .sheet h3 { font-size: 19px; margin: 0 0 4px; }
 .sheet .sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 14px; }

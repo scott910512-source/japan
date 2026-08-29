@@ -109,7 +109,13 @@ export default function AskSheet({
             className="search-input"
             value={q}
             onChange={(e) => setQ(e.target.value.slice(0, MAX_QUESTION_CHARS))}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); run(); } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); run(); return; }
+              /* 창을 열면 글상자에 바로 초점이 간다. 그런데 단축키는 글상자
+                 안에서는 안 듣는다(치는 글자가 명령이 되면 안 되니까) —
+                 그래서 Esc가 여기서만 안 먹었다. 이 자리에서 직접 받는다. */
+              if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+            }}
             placeholder={card
               ? `예: ${card.kanji || card.kana}랑 비슷한 말은? / 언제 쓰는 말이야?`
               : '궁금한 걸 적으세요'}

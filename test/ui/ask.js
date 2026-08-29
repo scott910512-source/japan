@@ -105,6 +105,35 @@ const openAsk = async (page) => {
     ok('키가 없으면 물어보기 버튼이 죽어 있다',
       await page.locator('.asksheet .submit-btn').isDisabled());
 
+    /* ★ 닫힌 창이 판정 버튼을 가리면 안 된다 ★
+     *
+     * .screen에 transform이 걸려 있어서 position:fixed가 화면이 아니라 그
+     * 컨테이너 기준으로 잡힌다. 아래로 밀어 둔 창이 화면 밖이 아니라 화면
+     * 안쪽 — 하필 판정 버튼 위 — 에 얹혔고, 「알아요」가 아예 안 눌렸다.
+     * 첫날 검사(fresh)가 그 자리에서 30초를 기다리다 멈췄다. */
+    /* 창을 열면 글상자에 초점이 간다. 단축키는 글상자 안에서 안 듣게 돼
+       있으니, Esc는 글상자가 직접 받아야 한다 — 안 그러면 여기서만 안 닫힌다. */
+    await page.locator('.asksheet textarea').focus();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(600);
+    ok('글상자에서 Esc를 눌러도 닫힌다', await page.locator('.sheet.open .asksheet').count() === 0);
+    ok('닫힌 창은 클릭을 안 먹는다',
+      await page.evaluate(() => {
+        const b = document.querySelector('.judge.known').getBoundingClientRect();
+        const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        return Boolean(hit?.closest('.judge.known'));
+      }));
+    /* 그래서 실제로 눌린다 — 위 검사가 통과해도 이게 진짜 확인이다 */
+    const n0 = Object.keys(await page.evaluate(
+      () => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'),
+    )).length;
+    await page.locator('.judge.known').click({ timeout: 5000 });
+    await page.waitForTimeout(600);
+    const n1 = Object.keys(await page.evaluate(
+      () => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'),
+    )).length;
+    ok('창을 닫은 뒤 판정이 눌린다', n1 === n0 + 1, `${n0} → ${n1}`);
+
     await page.close();
   }
 
