@@ -18,7 +18,9 @@ const boot = async (page) => {
   await page.evaluate(() => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
-    s.onboarded = true; s.autoTTS = false; s.dailyGoal = 50; // 세션 중간 동작을 보려면 넉넉해야 한다
+    s.onboarded = true; s.autoTTS = false;
+    // 세션 중간 동작을 보려면 넉넉해야 한다 — 목표는 이제 갈래마다 따로다
+    s.goals = { fresh: 50, review: 50, weak: 50 };
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
   });
   await page.waitForTimeout(1000);

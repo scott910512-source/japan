@@ -134,7 +134,9 @@ export default function App() {
     /* 연속일은 여기서 올리지 않는다 — 앱을 켠 것과 공부한 것은 다르다.
        올리는 자리는 오늘 첫 판정(applyReview)이다. */
     setStreak(loadStreak());
-    setOnboardingOpen(!loadSettings().onboarded);
+    /* 온보딩은 여기서 열지 않는다. 로그인한 사람은 계정에 이미 답이 있는데,
+       동기화가 내려오기 전에 물어보면 기기를 바꿀 때마다 「가타카나 읽을 줄
+       아세요?」를 다시 답하게 된다. 아래 effect가 알 만해진 뒤에 정한다. */
 
     // iOS는 첫 사용자 제스처에서만 오디오를 열어준다.
     // 한 번에 성공하지 못할 수 있어 열릴 때까지 계속 시도한다.
@@ -145,6 +147,26 @@ export default function App() {
     window.addEventListener('pointerdown', unlock);
     return () => window.removeEventListener('pointerdown', unlock);
   }, [showToast]);
+
+  /* 온보딩을 열지 말지 정한다.
+   *
+   * 로그인한 사람은 첫 동기화가 끝날 때까지 기다린다 — 계정에 저장된 답이
+   * 내려오면 물어볼 이유가 없다. 로그인을 안 했거나 서버를 안 쓰는 사람은
+   * 기기에 있는 것만 보고 바로 정한다.
+   *
+   * 한 번 정하고 나면 다시 안 건드린다. 동기화가 두 번째로 돌 때 또 열리면
+   * 공부하던 중에 온보딩이 튀어나온다. */
+  const onboardingDecided = useRef(false);
+  useEffect(() => {
+    if (onboardingDecided.current) return;
+    if (!authReady) return;                                   // 로그인 상태를 아직 모른다
+    const signedIn = Boolean(authSession?.user);
+    if (signedIn && syncedFor.current !== authSession.user.id) return;  // 동기화를 기다린다
+    onboardingDecided.current = true;
+    /* 답이 이미 있으면 끝난 것으로 본다. onboarded 표시가 옛 기기에만 있고
+       계정에는 없을 수 있어서, 답(canReadKana)이 있는지도 같이 본다. */
+    setOnboardingOpen(!settings.onboarded && settings.canReadKana == null);
+  }, [authReady, authSession, settings.onboarded, settings.canReadKana, syncState.at]);
 
   useEffect(() => saveCustomWords(customWords), [customWords]);
   useEffect(() => saveProgress(progress), [progress]);

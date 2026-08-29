@@ -28,6 +28,19 @@ export async function goTab(page, label, wait = 700) {
  * 돌아온다. 다 했으면 아무것도 안 한 채로 false를 돌려준다. */
 export async function startStudy(page, want = null) {
   await goTab(page, '오늘');
+
+  /* 하던 게 있으면 그게 먼저다 — 앱이 「이어하기」를 맨 위에 두는 이유고,
+     사람도 그걸 누른다. 갈래가 갈린 뒤로는 이걸 건너뛰면 다른 갈래를 눌러
+     「하던 학습을 접을까요?」 창에 막힌다. */
+  if (!want) {
+    const resume = page.locator('.rowcard', { hasText: '이어하기' });
+    if (await resume.count()) {
+      await resume.click();
+      await page.waitForTimeout(900);
+      return true;
+    }
+  }
+
   const rows = page.locator('.tdtask').filter({ hasNotText: '문법 배우기' });
   const n = await rows.count();
   if (n === 0) return false;
@@ -44,7 +57,11 @@ export async function startStudy(page, want = null) {
   if (!go) return false;
 
   await go.click();
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(700);
+  /* 다른 갈래로 넘어가면 하던 판을 접을지 물어본다. 검사에서는 접고 간다 */
+  const swap = page.locator('.swapask .submit-btn');
+  if (await swap.count()) { await swap.click(); await page.waitForTimeout(700); }
+  await page.waitForTimeout(300);
   const intro = page.locator('.study.intro .bigstart');
   if (await intro.count()) { await intro.click(); await page.waitForTimeout(900); }
   return true;

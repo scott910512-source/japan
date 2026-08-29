@@ -267,7 +267,7 @@ async function boot(browser, patch = {}) {
    * 큐를 새로 짰고, 옛 세션의 남은 카드가 새 덱에 없어서 「학습할 카드가
    * 없어요」만 뜬 채 나갈 수도 없었다. */
   {
-    const p3 = await boot(browser, { dailyGoal: 10 });
+    const p3 = await boot(browser, { goals: { fresh: 10, review: 10, weak: 10 } });
     const errs = []; p3.on('pageerror', (e) => errs.push(e.message));
     await startStudy(p3);
 
@@ -324,7 +324,7 @@ async function boot(browser, patch = {}) {
 
   /* ── 끝내면 축하하고 결과를 보여 주고 홈으로 ── */
   {
-    const p4 = await boot(browser, { dailyGoal: 10 });
+    const p4 = await boot(browser, { goals: { fresh: 10, review: 10, weak: 10 } });
     await startStudy(p4);
     for (let i = 0; i < 120; i++) {
       if (await p4.locator('.finish').count()) break;

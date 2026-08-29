@@ -209,7 +209,9 @@ export function mergeVideos(local = {}, remote = {}) {
 // 설정은 기기마다 다른 게 자연스럽다(음성 속도, 테마). 학습 범위에 관한 것만 가져온다.
 // 음성 API 키는 자격 증명이라 서버에 올리지 않는다.
 const SYNCED_SETTINGS = [
-  'canReadKana', 'tripDay', 'menus', 'levels',
+  /* onboarded도 같이 올린다. 답(canReadKana)만 올리고 이 표시를 안 올리면,
+     기기를 바꿀 때마다 「가타카나 읽을 줄 아세요?」를 다시 답하게 된다. */
+  'onboarded', 'canReadKana', 'tripDay', 'menus', 'levels',
   'dailyGoal', 'goals', 'direction', 'tripPlace',
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
