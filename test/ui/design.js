@@ -180,7 +180,9 @@ const check = async (page, theme, name) => {
   await goTab(page, '학습');
   await page.locator('.hubcard', { hasText: '듣기' }).click();
   await page.waitForTimeout(800); await check(page, theme, '01d-듣기');
-  await page.locator('.listen .bigstart').click();
+  await page.locator('.ls-go').click();
+  await page.waitForTimeout(400);
+  await page.locator('.ls-ask .submit-btn').click();
   await page.waitForTimeout(1200); await check(page, theme, '01e-듣기-재생중');
   await page.locator('.listen .sub-back').click();
   await page.waitForTimeout(500);

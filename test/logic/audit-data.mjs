@@ -84,5 +84,25 @@ const tsukeru = ALL_WORDS.find((w) => w.id === 'n5-0061');
 ok('つける에 왜 한자가 없는지 적혀 있음',
   Boolean(tsukeru?.note?.includes('点ける')), tsukeru?.note);
 
+/* ── 같은 말을 두 파일에 넣지 않는다 ──
+ *
+ * 표기가 겹치면 낮은 레벨 쪽이 이긴다. 그래서 N3에 있는 말을 N4에도 적으면
+ * 그 단어가 조용히 N4로 옮겨 가고, JLPT 세트 수가 바뀐다 — 부사를 채우다
+ * 실제로 N3가 1206에서 1200으로 줄었다. 없는 것만 새로 적어야 한다. */
+{
+  const seen = new Map();
+  const moved = [];
+  for (const w of ALL_WORDS) {
+    if (seen.has(w.kanji)) moved.push(w.kanji);
+    seen.set(w.kanji, w);
+  }
+  ok('합친 뒤에 같은 표기가 두 번 없음', moved.length === 0, moved.slice(0, 5).join(', ') || undefined);
+
+  /* 레벨별 개수를 못 박아 둔다. 자료를 더하다 다른 레벨이 줄면 여기서 잡힌다 */
+  const n = (l) => ALL_WORDS.filter((w) => w.level === l).length;
+  ok('N3가 안 줄었음', n('N3') >= 1206, `${n('N3')}개`);
+  ok('N5가 안 줄었음', n('N5') >= 534, `${n('N5')}개`);
+}
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

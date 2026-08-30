@@ -58,8 +58,21 @@ function seedDue(n) {
   return review;
 }
 
-async function boot(browser, patch = {}) {
+/* 앱이 뜨기 전에 심어야 하는 것(음성 목록 가로채기 등)은 세 번째 인자로 받는다.
+   patch에 같이 넣으면 안 된다 — patch는 통째로 page.evaluate에 넘어가는데
+   함수는 그 경계를 못 넘는다. */
+/* 재생을 시작한다. 시작 버튼이 맨 위로 작아지면서 확인을 한 번 더 받는다 —
+   누르자마자 소리가 나면 이어폰을 안 꽂았을 때 놀란다. */
+async function startListen(page) {
+  await page.locator('.ls-go').click();
+  await page.waitForTimeout(400);
+  await page.locator('.ls-ask .submit-btn').click();
+  await page.waitForTimeout(900);
+}
+
+async function boot(browser, patch = {}, init = null) {
   const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  if (init) await page.addInitScript(init);
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate((p) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
@@ -221,16 +234,51 @@ async function boot(browser, patch = {}) {
   ok('듣기 화면이 열림', await page.locator('.listen').count() === 1);
   ok('두 가지 방식', await page.locator('.listen .pickrow').count() === 2, listen.slice(0, 40));
   ok('간격을 고를 수 있음', await page.locator('.listen .grouppick button', { hasText: '초' }).count() === 4);
+
+  /* ── 시작 버튼은 맨 위에 작게 ──
+     아래에 커다랗게 두었더니 화면 하나를 먹어서, 간격이나 개수를 바꾸려면
+     스크롤을 해야 했다. 설정이 세 덩이인 화면에서 그건 매번 드는 비용이다. */
+  ok('시작 버튼이 맨 위에 있다', await page.locator('.ls-top .ls-go').count() === 1);
+  ok('커다란 버튼은 없앴다', await page.locator('.listen .bigstart').count() === 0);
+  ok('무엇으로 시작하는지 옆에 적혀 있다',
+    /\d+개 · \d+초/.test(await page.locator('.ls-topbody').innerText()),
+    (await page.locator('.ls-topbody').innerText()).replace(/\n/g, ' '));
+
+  /* 누르자마자 소리가 나면 이어폰을 안 꽂았을 때 놀란다 — 한 번 더 묻는다 */
+  await page.locator('.ls-go').click();
+  await page.waitForTimeout(500);
+  ok('바로 시작하지 않고 한 번 더 묻는다', await page.locator('.ls-ask').count() === 1);
+  ok('아직 재생 안 됨', await page.locator('.ls-stage').count() === 0);
+  ok('무엇으로 시작할지 보여 준다', await page.locator('.ls-ask .td-cell').count() === 3);
+  await page.locator('.ls-ask .ghost-btn').click();
+  await page.waitForTimeout(500);
+  ok('아니요를 누르면 안 시작한다', await page.locator('.ls-stage').count() === 0);
   ok('회독 기록은 안 건드린다고 밝힘', listen.includes('회독 기록은 건드리지 않아요'));
+
+  /* ★ 화면을 못 보는 동안 쓰는 자리다 ★
+     뜻이 눈으로만 나오면 일본어 뒤에 침묵만 남는다 — 절반이 안 들리는 셈이다. */
+  ok('뜻도 소리로 낼 수 있다', listen.includes('한국어 뜻도 소리로'));
+  const koRow = page.locator('.listen .toggle-row', { hasText: '한국어 뜻도' });
+  ok('기본으로 켜져 있다', await koRow.locator('.toggle.on').count() === 1
+    || (await koRow.innerText()).includes('한국어 음성이 없어요'),
+    (await koRow.innerText()).replace(/\n/g, ' ').slice(0, 60));
+  /* 한국어 음성이 없는 기기면 끄고 왜 안 되는지 적어 준다 —
+     소리가 안 나는데 켜져 있으면 고장으로 읽힌다 */
+  ok('음성이 없으면 이유를 적는다',
+    (await koRow.innerText()).includes('화면을 안 봐도')
+    || (await koRow.innerText()).includes('한국어 음성이 없어요'));
   ok('화면이 꺼지면 멈길 수 있다고 밝힘', listen.includes('멈출 수 있'));
 
   const beforeReview = await page.evaluate(() => localStorage.getItem('jp_manabu_review_v1'));
-  await page.locator('.listen .bigstart').click();
-  await page.waitForTimeout(1200);
+  await startListen(page);
+  await page.waitForTimeout(400);
   ok('재생 화면으로 바뀜', await page.locator('.ls-stage').count() === 1);
   ok('일본어가 크게 나옴', (await page.textContent('.ls-jp')).trim().length > 0);
   ok('한글 발음도 나옴', (await page.textContent('.ls-yomi')).trim().length > 0);
   ok('뜻은 아직 안 보임', (await page.textContent('.ls-ko')).trim() === '···');
+  /* 무엇을 읽으라고 넘겼는지만 가로챈다 — 진짜 음성 엔진은 검사에서 못 쓴다.
+     일본어는 클라우드 음성을 쓸 수 있어 여기 안 잡힐 수도 있지만, 뜻은
+     기기 음성으로만 내므로 반드시 잡힌다. */
   ok('손 안 대도 넘어간다고 적힘', (await page.textContent('.ls-note')).includes('손을 안 대도'));
 
   await page.locator('.ls-controls .ghost-btn', { hasText: '다음' }).click();
@@ -243,7 +291,7 @@ async function boot(browser, patch = {}) {
 
   await page.locator('.listen .sub-back').click();
   await page.waitForTimeout(500);
-  ok('그만두면 시작 화면으로', await page.locator('.listen .bigstart').count() === 1);
+  ok('그만두면 시작 화면으로', await page.locator('.listen .ls-go').count() === 1);
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
   await page.close();
@@ -433,6 +481,76 @@ async function boot(browser, patch = {}) {
     ok('배운 것만 들어간다', title6.includes(`/ ${learned}`), `${title6} (배운 것 ${learned}개)`);
     ok('안 본 카드는 안 섞인다', learned < 100, `${learned}개`);
     await p6.close();
+  }
+
+  /* ── 한국어 음성이 있는 기기에서 ──
+     검사 기기에는 한국어 음성이 없어서 위에서는 안내만 확인된다. 여기서는
+     있는 척을 하고, 뜻 차례에 실제로 읽으라고 넘기는지 본다. */
+  console.log('\n── 듣기에서 뜻도 읽어 준다');
+  {
+    /* 음성 목록에 한국어를 끼워 넣고, 무엇을 읽으라고 넘겼는지 가로챈다.
+       진짜 음성 엔진은 검사에서 못 쓴다. */
+    const p7 = await boot(browser, { settings: { listenGap: 1 } }, () => {
+      window.__said = [];
+      const ko = { voiceURI: 'test-ko', name: 'Test Korean', lang: 'ko-KR' };
+      const ja = { voiceURI: 'test-ja', name: 'Test Japanese', lang: 'ja-JP' };
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      synth.getVoices = () => [ko, ja];
+      const real = synth.speak.bind(synth);
+      synth.speak = (u) => {
+        window.__said.push({ text: u?.text || '', lang: u?.lang || '' });
+        try { real(u); } catch { /* 무시 */ }
+      };
+    });
+
+    const err7 = [];
+    p7.on('pageerror', (e) => err7.push(e.message));
+    await goTab(p7, '학습');
+    await p7.locator('.hubcard', { hasText: '듣기' }).click();
+    await p7.waitForTimeout(900);
+
+    const row = p7.locator('.listen .toggle-row', { hasText: '한국어 뜻도' });
+    ok('한국어 음성이 있으면 켜진다', await row.locator('.toggle.on').count() === 1,
+      (await row.innerText()).replace(/\n/g, ' ').slice(0, 60));
+    ok('안내도 바뀐다', (await row.innerText()).includes('화면을 안 봐도'));
+
+    await p7.evaluate(() => { window.__said = []; });
+    await startListen(p7);
+    ok('재생이 시작된다', await p7.locator('.ls-stage').count() === 1);
+    /* 음성 하나를 못 붙였다고 화면이 죽으면 안 된다 — 검사에서 끼워 넣은
+       가짜 음성은 진짜 SpeechSynthesisVoice가 아니라 붙이기가 실패한다.
+       실제 기기에서도 목록이 이상한 브라우저가 있다. */
+    ok('음성을 못 붙여도 화면이 안 죽는다', err7.length === 0, err7.slice(0, 2).join(' | '));
+
+    /* 일본어 → 뜸 → 뜻. 뜻 차례가 올 때까지 기다린다 — 문장이 길면
+       읽는 시간이 길어져서 고정 시간으로 재면 흔들린다. */
+    let heardKo = false;
+    for (let i = 0; i < 20 && !heardKo; i++) {
+      await p7.waitForTimeout(1000);
+      heardKo = await p7.evaluate(() => (window.__said || []).some((u) => u.lang === 'ko-KR'));
+    }
+    const said = await p7.evaluate(() => window.__said || []);
+    ok('일본어를 읽는다', said.some((u) => u.lang === 'ja-JP'), said.map((u) => u.lang).join(','));
+    ok('뜻도 읽어 준다', heardKo,
+      said.map((u) => `${u.lang}:${u.text}`).join(' | ').slice(0, 120));
+
+    /* 끄면 안 읽어야 한다 — 껐는데 나오면 설정이 거짓말이 된다 */
+    await p7.locator('.listen .sub-back').click();
+    await p7.waitForTimeout(700);
+    await row.click();
+    await p7.waitForTimeout(300);
+    ok('끌 수 있다', await row.locator('.toggle.on').count() === 0);
+
+    await p7.evaluate(() => { window.__said = []; });
+    await startListen(p7);
+    await p7.waitForTimeout(14000);
+    const said2 = await p7.evaluate(() => window.__said || []);
+    ok('끄면 뜻은 안 읽는다', !said2.some((u) => u.lang === 'ko-KR'),
+      said2.map((u) => u.lang).join(',') || '조용함');
+    ok('그래도 일본어는 읽는다', said2.some((u) => u.lang === 'ja-JP'));
+
+    await p7.close();
   }
 
   await browser.close();

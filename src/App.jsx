@@ -18,6 +18,7 @@ import Conjugate from './screens/Conjugate.jsx';
 import Match from './screens/Match.jsx';
 import Rpg from './screens/Rpg.jsx';
 import Repeat from './screens/Repeat.jsx';
+import Adverb from './screens/Adverb.jsx';
 import Jlpt from './screens/Jlpt.jsx';
 import Videos from './screens/Videos.jsx';
 import Translate from './screens/Translate.jsx';
@@ -94,6 +95,7 @@ const SUB_TITLES = {
   match: '짝 맞추기',
   rpg: '실전 연습',
   repeat: '회독 학습',
+  adverb: '부사 연습',
   listen: '듣기 · 따라 말하기',
   jlpt: 'JLPT 단어',
 };
@@ -904,6 +906,7 @@ export default function App() {
             )}
             {sub === 'listen' && (
               <Listen
+                onSettingsChange={patchSettings}
                 pool={todayPool}
                 words={words}
                 sentences={sentenceCards}
@@ -945,6 +948,15 @@ export default function App() {
                 words={words}
                 review={review}
                 onStartSet={startJlptSet}
+                onToast={showToast}
+              />
+            )}
+            {sub === 'adverb' && (
+              <Adverb
+                words={words}
+                review={review}
+                settings={settings}
+                onReview={applyVerdicts}
                 onToast={showToast}
               />
             )}

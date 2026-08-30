@@ -1127,4 +1127,19 @@ export const N4_WORDS = [
     example: 'ところで、あの話はどうですか。', exampleKana: 'ところで、あのはなしはどうですか。', exampleKo: '그런데 그 이야기는 어떻습니까?', tags: ['기본'] },
   { id: 'n4-0563', kanji: '例えば', kana: 'たとえば', mean: '예를 들면', type: 'etc', level: 'N4',
     example: '例えば、これはどうですか。', exampleKana: 'たとえば、これはどうですか。', exampleKo: '예를 들면 이건 어떻습니까?', tags: ['기본'] },
+  /* ── 자주 쓰는데 빠져 있던 부사 ──
+     빈칸 채우기 연습을 붙이면서 채웠다. 「가끔」과 「제대로」가 없으면
+     빈도·태도 문제를 낼 수가 없다. */
+  { id: 'n4-0564', kanji: 'たまに', kana: 'たまに', mean: '가끔', type: 'adv', level: 'N4',
+    example: 'たまに映画を見ます。', exampleKana: 'たまにえいがをみます。', exampleKo: '가끔 영화를 봅니다.', tags: ['기본'] },
+  { id: 'n4-0566', kanji: 'きちんと', kana: 'きちんと', mean: '반듯하게;깔끔히', type: 'adv', level: 'N4',
+    example: '部屋をきちんと片付けました。', exampleKana: 'へやをきちんとかたづけました。', exampleKo: '방을 깔끔히 정리했습니다.', tags: ['일상'] },
+  { id: 'n4-0571', kanji: '後で', kana: 'あとで', mean: '나중에', type: 'adv', level: 'N4',
+    example: '後で電話します。', exampleKana: 'あとででんわします。', exampleKo: '나중에 전화할게요.', tags: ['기본'] },
+  { id: 'n4-0572', kanji: '先に', kana: 'さきに', mean: '먼저', type: 'adv', level: 'N4',
+    example: '先に帰ります。', exampleKana: 'さきにかえります。', exampleKo: '먼저 돌아갈게요.', tags: ['기본'] },
+  { id: 'n4-0574', kanji: '確かに', kana: 'たしかに', mean: '확실히;분명', type: 'adv', level: 'N4',
+    example: '確かに受け取りました。', exampleKana: 'たしかにうけとりました。', exampleKo: '확실히 받았습니다.', tags: ['기본'] },
+  { id: 'n4-0575', kanji: 'なぜか', kana: 'なぜか', mean: '왠지', type: 'adv', level: 'N4',
+    example: 'なぜか眠いです。', exampleKana: 'なぜかねむいです。', exampleKo: '왠지 졸립니다.', tags: ['감정'] },
 ];

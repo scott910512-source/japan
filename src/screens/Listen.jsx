@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconPlay, IconSpeaker, IconRepeat, IconArrowLeft } from '../components/Icons.jsx';
-import { speakJapanese, stopSpeaking } from '../lib/tts.js';
+import BottomSheet from '../components/BottomSheet.jsx';
+import { koreanVoiceReady, speakJapanese, speakKorean, stopSpeaking } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
 import { buildDailyStudyQueue } from '../lib/daily.js';
@@ -27,16 +28,34 @@ export const MODES = [
 
 export const GAPS = [1, 2, 3, 5];
 
-export default function Listen({ pool, words, sentences, review, settings, onClose, onToast }) {
+export default function Listen({ pool, words, sentences, review, settings, onSettingsChange, onClose, onToast }) {
   const [mode, setMode] = useState('listen');
   const [gap, setGap] = useState(settings.listenGap || 2);
   const [count, setCount] = useState(20);
   const [run, setRun] = useState(null);   // { cards, at }
   const [phase, setPhase] = useState('jp'); // jp | ko | say
+  /* 뜻도 소리로 낼지. 화면을 못 보는 동안 쓰라고 만든 자리인데 뜻이 눈으로만
+     나오면 절반이 안 들린다. 기본은 켬 — 끄고 싶은 사람은 여기서 끈다. */
+  const [sayKo, setSayKo] = useState(settings.listenSayKo !== false);
+  const [koReady, setKoReady] = useState(() => koreanVoiceReady());
+  const [ask, setAsk] = useState(false);   // 시작 전에 한 번 확인
   const timer = useRef(null);
   const alive = useRef(true);
 
   const rate = settings.speechRate || 1;
+
+  /* 음성 목록은 늦게 채워진다. 처음 물었을 때 없다고 화면에 적어 두면
+     실제로는 있는데 없다고 뜬 채로 남는다. */
+  useEffect(() => {
+    if (koReady || typeof window === 'undefined' || !window.speechSynthesis) return undefined;
+    const check = () => setKoReady(koreanVoiceReady());
+    const t = setInterval(check, 700);
+    window.speechSynthesis.addEventListener?.('voiceschanged', check);
+    return () => {
+      clearInterval(t);
+      window.speechSynthesis.removeEventListener?.('voiceschanged', check);
+    };
+  }, [koReady]);
 
   useEffect(() => () => {
     alive.current = false;
@@ -63,7 +82,14 @@ export default function Listen({ pool, words, sentences, review, settings, onClo
   }, [run]);
 
   const start = () => {
-    const built = buildDailyStudyQueue(pool, review, { goal: count, today: todayKey() });
+    /* 목표가 갈래별로 갈리면서 이 자리가 옛 이름(goal)을 그대로 부르고 있었다.
+       그러면 여기서 고른 개수가 아무 일도 안 하고 기본값 60개가 나온다.
+       듣기는 「20개만 듣고 자자」가 되는 자리라 개수가 안 먹으면 못 쓴다. */
+    const per = Math.max(1, Math.round(count / 3));
+    const built = buildDailyStudyQueue(pool, review, {
+      goals: { fresh: per, review: per, weak: count - per * 2 },
+      today: todayKey(),
+    });
     const cards = cardsForQueue(built.queue, words, sentences);
     if (!cards.length) { onToast('들을 게 없어요'); return; }
     setRun({ cards, at: 0 });
@@ -102,6 +128,14 @@ export default function Listen({ pool, words, sentences, review, settings, onClo
         timer.current = setTimeout(() => alive.current && setPhase('ko'), spoken + 400);
       }, spoken + wait);
     } else {
+      /* 뜻도 읽어 준다. 안 읽으면 화면을 못 보는 사람에게는 일본어 뒤에
+         침묵만 남는다 — 이 화면이 있는 이유가 그건데. */
+      const koText = String(card.mean || '').split(';')[0].trim();
+      let koWait = 0;
+      if (sayKo && koText) {
+        speakKorean(koText, rate);
+        koWait = Math.min(4000, 600 + koText.length * 120);
+      }
       timer.current = setTimeout(() => {
         if (!alive.current) return;
         setRun((r) => {
@@ -110,10 +144,10 @@ export default function Listen({ pool, words, sentences, review, settings, onClo
           return { ...r, at: r.at + 1 };
         });
         setPhase('jp');
-      }, Math.max(600, wait));
+      }, koWait + Math.max(600, wait));
     }
     return () => clearTimeout(timer.current);
-  }, [card, phase, mode, gap, rate, onToast]);
+  }, [card, phase, mode, gap, rate, sayKo, onToast]);
 
   const skip = (n) => {
     clearTimeout(timer.current);
@@ -169,6 +203,21 @@ export default function Listen({ pool, words, sentences, review, settings, onClo
   // ── 시작 화면 ──
   return (
     <div className="listen">
+      {/* 시작 버튼을 맨 위에 작게 둔다.
+          아래에 커다랗게 두었더니 화면 하나를 통째로 먹어서, 간격이나 개수를
+          바꾸려면 스크롤을 해야 했다. 설정이 세 덩이인 화면에서 그건 매번 드는
+          비용이다. 대신 누르는 순간 바로 소리가 나면 놀라니, 무엇으로 시작할지
+          한 번 보여 주고 확인을 받는다 — 이어폰을 안 꽂았을 수도 있다. */}
+      <div className="ls-top">
+        <div className="ls-topbody">
+          <b>{MODES.find((m) => m.id === mode)?.label}</b>
+          <span>{count}개 · {gap}초 간격</span>
+        </div>
+        <button className="ls-go" onClick={() => setAsk(true)} disabled={poolSize === 0}>
+          <IconPlay /> 시작
+        </button>
+      </div>
+
       <p className="vd-note">
         손이 안 비는 시간에 쓰는 화면이에요. 아무것도 안 눌러도 일본어 → 뜸 → 뜻 순서로 흘러가요.
         회독 기록은 건드리지 않아요 — 귀에 넣는 것만 해요.
@@ -200,6 +249,29 @@ export default function Listen({ pool, words, sentences, review, settings, onClo
         </div>
       </div>
 
+      {/* 화면을 못 보는 동안 쓰는 자리라, 뜻도 소리로 나와야 절반이 안 새어 나간다.
+          일본어는 클라우드 음성이 있으면 그걸 쓰지만 뜻은 기기 음성으로만 낸다 —
+          뜻은 발음 품질이 중요하지 않고, 클라우드 몫은 일본어에 써야 한다. */}
+      <div className="section-label">뜻 읽어 주기</div>
+      <div className="card">
+        <button
+          className="toggle-row setrow"
+          onClick={() => { setSayKo(!sayKo); onSettingsChange?.({ listenSayKo: !sayKo }); }}
+          aria-pressed={sayKo}
+          disabled={!koReady}
+        >
+          <span>
+            <span className="set-title">한국어 뜻도 소리로</span>
+            <span className="set-sub">
+              {koReady
+                ? '일본어 다음에 뜻을 읽어 줘요 — 화면을 안 봐도 됩니다'
+                : '이 기기에 한국어 음성이 없어요. 뜻은 화면으로만 보여요'}
+            </span>
+          </span>
+          <span className={`toggle${sayKo && koReady ? ' on' : ''}`} aria-hidden="true" />
+        </button>
+      </div>
+
       <div className="section-label">개수</div>
       <div className="card">
         <div className="setrow col">
@@ -212,15 +284,35 @@ export default function Listen({ pool, words, sentences, review, settings, onClo
         </div>
       </div>
 
-      <button className="bigstart" onClick={start} disabled={poolSize === 0}>
-        <span className="bs-t"><IconPlay /> 재생 시작</span>
-        <span className="bs-s">오늘 볼 것 중에서 {count}개</span>
-      </button>
-
       <p className="set-note">
         이어폰을 끼고 화면을 꺼도 이어지게 해 뒀지만, 기기와 브라우저에 따라 멈출 수 있어요.
         아이폰 사파리는 화면이 꺼지면 대개 멈춰요.
       </p>
+
+      {/* 무엇으로 시작하는지 한 번 보여 주고 확인을 받는다 */}
+      <BottomSheet open={ask} onClose={() => setAsk(false)}>
+        <div className="ls-ask">
+          <h3>이렇게 시작할까요?</h3>
+          <div className="td-mix">
+            <div className="td-cell"><b>{count}</b><span>개</span></div>
+            <div className="td-cell"><b>{gap}</b><span>초 간격</span></div>
+            <div className="td-cell">
+              <b>{mode === 'shadow' ? '따라' : '듣기'}</b>
+              <span>{mode === 'shadow' ? '말하기' : '만'}</span>
+            </div>
+          </div>
+          <p className="set-note">
+            {sayKo && koReady
+              ? '일본어 → 뜸 → 뜻까지 소리로 나와요.'
+              : '일본어만 소리로 나와요. 뜻은 화면에 뜹니다.'}
+            {' '}이어폰을 꽂았는지 한 번 보세요.
+          </p>
+          <button className="submit-btn" onClick={() => { setAsk(false); start(); }}>
+            <IconPlay /> 재생 시작
+          </button>
+          <button className="ghost-btn" onClick={() => setAsk(false)}>아니요</button>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
