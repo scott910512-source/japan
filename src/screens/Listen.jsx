@@ -140,6 +140,7 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
     // 문장은 읽는 데 더 걸린다. 글자 수로 어림잡아 기다린다.
     const spoken = Math.min(6000, 900 + (card.kana?.length || 4) * 130);
     const koText = String(card.mean || '').split(';')[0].trim();
+    const say = card.kana || card.kanji;
 
     /* 다음 걸음으로. 마지막 걸음이면 다음 장으로 넘어간다. */
     const go = (after) => {
@@ -159,8 +160,26 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
       /* 「뜻 → 일본어」에서 이 걸음은 답이다. 안 읽어 주기로 했으면 소리 없이
          화면에만 띄운다 — 눈으로 확인할 길까지 막을 이유는 없다. */
       const mute = direction === 'ko-jp' && !sayAnswer;
-      if (!mute) speakJapanese(card.kana || card.kanji, rate);
-      go((mute ? 300 : spoken) + wait);
+      if (mute) { go(300 + wait); return () => clearTimeout(timer.current); }
+
+      speakJapanese(say, rate);
+      if (direction !== 'ko-jp') { go(spoken + wait); return () => clearTimeout(timer.current); }
+
+      /* ★ 답은 두 번 읽어 준다 ★
+         뒤집은 판에서 답은 긴 침묵 뒤에 딱 한 번 스치듯 지나갔다. 「나무」를
+         듣고 3초를 말해 본 다음 「き」가 0.3초 나오고 끝이니, 안 읽어 준 것과
+         구별이 안 됐다. 한 번은 확인하려고, 한 번은 내가 말한 것과 견주려고
+         듣는다 — 「따라 말하기」가 반대 방향에서 하는 것과 같은 이치다.
+
+         그리고 최소 시간을 둔다. 클라우드 음성은 「부르고 → 받고 → 튼다」라
+         짧은 낱말은 어림잡은 시간보다 응답이 늦게 올 수 있는데, 그 사이에
+         다음 장이 시작되면 그 소리는 취소된다 — 안 읽어 준 것처럼 보인다. */
+      const heard = Math.max(1600, spoken);
+      timer.current = setTimeout(() => {
+        if (!alive.current) return;
+        speakJapanese(say, rate);
+        go(heard + wait);
+      }, heard + 400);
     } else if (phase === 'say') {
       if (direction === 'ko-jp') {
         // 입으로 말해 볼 시간. 여기서는 아무 소리도 안 낸다 — 내가 말할 차례다
@@ -169,7 +188,7 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
         // 따라 말할 시간을 준 뒤 한 번 더 들려준다
         timer.current = setTimeout(() => {
           if (!alive.current) return;
-          speakJapanese(card.kana || card.kanji, rate);
+          speakJapanese(say, rate);
           go(spoken + 400);
         }, spoken + wait);
       }
@@ -230,7 +249,7 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
           {!showKo && <div className="ls-ko">···</div>}
 
           <div className="ls-phase">
-            {phase === 'jp' && (back ? '이게 답이에요' : '듣는 중')}
+            {phase === 'jp' && (back ? '이게 답이에요 — 두 번 들려줘요' : '듣는 중')}
             {phase === 'say' && (back ? '일본어로 말해 보세요' : '따라 말해 보세요')}
             {phase === 'ko' && (back ? '무슨 말일까요' : '뜻')}
           </div>

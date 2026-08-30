@@ -630,6 +630,18 @@ async function boot(browser, patch = {}, init = null) {
     ok('말해 본 뒤에 답이 뜬다', showed, await p8.textContent('.ls-phase'));
     const said8 = await p8.evaluate(() => window.__said || []);
     ok('답도 읽어 준다', said8.some((u) => u.lang === 'ja-JP'), said8.map((u) => u.lang).join(','));
+    /* ★ 답은 두 번 읽어 준다 ★
+       한 번만 읽으면 긴 침묵 뒤에 스치듯 지나간다 — 「나무」를 듣고 3초를
+       말해 본 다음 「き」가 0.3초 나오고 끝이니 안 읽어 준 것과 구별이 안 됐다.
+       한 번은 확인하려고, 한 번은 내가 말한 것과 견주려고 듣는다. */
+    let twice = said8.filter((u) => u.lang === 'ja-JP').length >= 2;
+    for (let i = 0; i < 8 && !twice; i++) {
+      await p8.waitForTimeout(800);
+      twice = await p8.evaluate(() => (window.__said || [])
+        .filter((u) => u.lang === 'ja-JP').length >= 2);
+    }
+    ok('답을 두 번 들려준다', twice,
+      (await p8.evaluate(() => (window.__said || []).map((u) => u.lang).join(','))));
     ok('한국어가 일본어보다 먼저 나온다',
       said8.findIndex((u) => u.lang === 'ko-KR') < said8.findIndex((u) => u.lang === 'ja-JP'),
       said8.map((u) => u.lang).join(','));
