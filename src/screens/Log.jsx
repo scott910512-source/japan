@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { IconFlame, IconChevron } from '../components/Icons.jsx';
 import { addDays, summarize, isMastered, stateOf } from '../lib/review.js';
+import { roundSummary } from '../lib/rounds.js';
 import { useToday } from '../lib/useToday.js';
 
 /* 기록 — 이미 쌓이고 있던 걸 이제야 보여 준다.
@@ -10,6 +11,17 @@ import { useToday } from '../lib/useToday.js';
  * 확인하는 것이다. */
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+
+/* 회독 막대에 그릴 줄. 「아직」을 빼지 않는다 —
+   남은 게 얼마인지가 진도의 절반이다. */
+const ROUND_ROWS = [
+  { id: 'round1', label: '1회독' },
+  { id: 'round2', label: '2회독' },
+  { id: 'round3', label: '3회독' },
+  { id: 'done', label: '완료' },
+  { id: 'long', label: '장기복습' },
+  { id: 'fresh', label: '아직' },
+];
 
 function monthGrid(year, month) {
   const first = new Date(year, month, 1);
@@ -61,6 +73,14 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
     }
     return { seen, done };
   }, [review]);
+
+  /* 회독 현황은 단어만 센다. 회독 저장소에는 문장도 같이 들어 있는데,
+     막대에 섞으면 「단어 몇 개 외웠나」와 눈금이 안 맞는다. */
+  const rounds = useMemo(() => roundSummary(wordIds, review), [wordIds, review]);
+  const roundMax = useMemo(
+    () => Math.max(1, ...Object.values(rounds)),
+    [rounds],
+  );
 
   const cells = monthGrid(shown.getFullYear(), shown.getMonth());
   const monthTotal = cells.reduce((s, c) => s + (c ? (stats[c.key]?.studied || 0) : 0), 0);
@@ -131,6 +151,32 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
         <div className="lw-cell"><b>{totalSeen.seen}</b><span>한 번이라도 본 것</span></div>
         <div className="lw-cell"><b>{stat.mastered}</b><span>외운 단어</span></div>
         <div className="lw-cell"><b>{stat.total - stat.seen}</b><span>아직 안 본 단어</span></div>
+      </div>
+
+      {/* ★ 회독 현황 ★
+          이 앱이 하는 일은 결국 한 카드를 네 번 맞힐 때까지 간격을 벌려 가며
+          다시 만나게 하는 것이다. 그 뼈대가 화면 어디에도 안 보여서, 사용자
+          눈에는 메뉴 열두 개짜리 앱으로 보였다. 여기가 그걸 보여 주는 자리다.
+
+          「완료」와 「장기복습」을 따로 세는 이유는, 완료가 「다시는 안 나옴」이
+          아니기 때문이다. 그렇게 보이면 완료된 카드가 다시 나올 때 고장으로 읽힌다. */}
+      <div className="section-label">회독 현황</div>
+      <div className="card roundstat">
+        {ROUND_ROWS.map(({ id, label }) => {
+          const n = rounds[id] || 0;
+          const w = roundMax ? (n / roundMax) * 100 : 0;
+          return (
+            <div key={id} className="rs-row">
+              <span className="rs-lab">{label}</span>
+              <span className="rs-bar"><i style={{ width: `${w}%` }} /></span>
+              <span className="rs-val">{n}</span>
+            </div>
+          );
+        })}
+        <div className="set-note" style={{ marginTop: 8 }}>
+          「알아요」를 이어서 네 번 고르면 완료예요. 완료한 뒤에도 한 달 · 석 달 ·
+          반년에 한 번씩 다시 나와요 — 그게 장기복습이에요.
+        </div>
       </div>
 
       <button className="rowcard" onClick={onOpenReview}>

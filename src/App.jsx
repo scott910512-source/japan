@@ -6,6 +6,7 @@ import Today from './screens/Today.jsx';
 import StudyHub from './screens/StudyHub.jsx';
 import Log from './screens/Log.jsx';
 import Listen from './screens/Listen.jsx';
+import ListenHub from './screens/ListenHub.jsx';
 import Study from './screens/Study.jsx';
 import ReviewTab from './screens/ReviewTab.jsx';
 import Settings from './screens/Settings.jsx';
@@ -96,12 +97,16 @@ const SUB_TITLES = {
   repeat: '회독 학습',
   adverb: '부사 연습',
   listen: '듣기 · 따라 말하기',
+  review: '복습',
+  videos: '영상으로 배우기',
 };
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('today');
   const [videosSeen, setVideosSeen] = useState(false); // 영상 탭에 한 번이라도 들어갔는지
   const [sub, setSub] = useState(null);
+  // 듣기 탭에서 어떤 방식으로 들어왔는지 — 자동 듣기냐 따라 말하기냐
+  const [listenMode, setListenMode] = useState('listen');
   const [deck, setDeck] = useState(null); // 학습 중인 덱 (있으면 회독 화면이 전체를 덮는다)
 
   const [customWords, setCustomWords] = useState(() => loadCustomWords());
@@ -517,6 +522,12 @@ export default function App() {
     () => GRAMMAR_MODULES.filter((m) => !(progress.grammarDone?.[m.id] > 0)).length,
     [progress.grammarDone],
   );
+  /* 오늘 볼 문법 꼭지 이름. 개수만 적으면 무엇을 배우는지 모른 채로 누른다 —
+     「아직 안 본 것 3개」와 「て형」은 같은 정보가 아니다. */
+  const grammarNext = useMemo(() => {
+    const m = GRAMMAR_MODULES.find((x) => !(progress.grammarDone?.[x.id] > 0));
+    return m ? `${m.title} · 짧은 테스트까지` : null;
+  }, [progress.grammarDone]);
 
   const startToday = useCallback((lanes = null) => {
     /* 하던 판이 남아 있으면 그걸 잇는다.
@@ -620,11 +631,22 @@ export default function App() {
     setDeck({ id: `quizwrong-${ids.length}`, label: '시험 오답', cards });
   }, [byId]);
 
+  /* 학습 메뉴를 연다.
+     「복습」은 이제 탭이 아니라 밀어 넣는 화면이다 — 탭을 빼면서 길이 하나
+     줄었을 뿐, 화면 자체는 그대로 있다. */
   const openMenu = useCallback((id) => {
     if (id === 'words') { setSub('worddeck'); return; }
-    if (id === 'review') { setActiveTab('review'); return; }
+    if (id === 'weak') { startWeakDeck(); return; }
     if (id === 'videos') { setVideosSeen(true); setActiveTab('videos'); return; }
     setSub(id);
+  }, [startWeakDeck]);
+
+  /* 듣기 탭에서 무엇을 여는가. 자동 듣기와 따라 말하기는 같은 화면이고
+     방식만 다르다 — 화면을 두 벌로 만들면 고친 게 한쪽에만 남는다. */
+  const openListen = useCallback((id) => {
+    if (id === 'videos') { setVideosSeen(true); setActiveTab('videos'); return; }
+    setListenMode(id === 'shadow' ? 'shadow' : 'listen');
+    setSub('listen');
   }, []);
 
   const finishOnboarding = (patch) => {
@@ -739,11 +761,12 @@ export default function App() {
             session={session}
             resumeLabel={session?.label}
             grammarLeft={grammarLeft}
+            grammarNext={grammarNext}
             onStartWords={() => guardDeck(() => startToday(['fresh']), LANE_DECK(['fresh']))}
             onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
             onOpenGrammar={() => openMenu('grammar')}
             onResume={resumeSession}
-            onOpenReview={() => setActiveTab('review')}
+            onOpenReview={() => setSub('review')}
           />
         </section>
 
@@ -762,7 +785,7 @@ export default function App() {
             review={review}
             stats={stats}
             streak={streak}
-            onOpenReview={() => setActiveTab('review')}
+            onOpenReview={() => setSub('review')}
           />
         </section>
 
@@ -793,22 +816,17 @@ export default function App() {
             progress={videoProgress}
             setProgress={setVideoProgress}
             onRemoveVideo={removeVideo}
-            onBack={() => setActiveTab('study')}
+            onBack={() => setActiveTab('listen')}
           />
           )}
         </section>
 
-        <section className={`screen${activeTab === 'review' && !sub ? ' active' : ''}`}>
-          <ReviewTab
-            words={words}
-            review={review}
-            streak={streak}
-            stats={stats}
-            onStartDeck={startDueDeck}
-            onOpenWeak={startWeakDeck}
-            onOpenSentences={() => setSub('sentences')}
-            sentenceDue={sentenceDue}
-          />
+        {/* 듣기가 최상위 탭이 됐다. 앉아서 손으로 하는 공부와 걸으면서 손 없이
+            하는 공부는 쓰는 시간대가 아예 달라서, 지하철에서 꺼내려면 한 번에
+            닿아야 한다. 대신 「복습」 탭을 뺐다 — 오늘 화면 첫 버튼이자 학습 탭
+            「반복하기」 첫 칸이라 탭까지 두면 같은 곳으로 가는 길이 셋이 된다. */}
+        <section className={`screen${activeTab === 'listen' && !sub ? ' active' : ''}`}>
+          <ListenHub onOpen={openListen} />
         </section>
 
         <section className={`screen${activeTab === 'more' && !sub ? ' active' : ''}`}>
@@ -817,6 +835,7 @@ export default function App() {
             onChange={patchSettings}
             onReplayOnboarding={() => setOnboardingOpen(true)}
             onOpenWordManager={() => setSub('manage')}
+            onOpenTranslate={() => setSub('translate')}
             onToast={showToast}
             onReload={() => window.location.reload()}
             session={authSession}
@@ -902,6 +921,7 @@ export default function App() {
             {sub === 'listen' && (
               <Listen
                 onSettingsChange={patchSettings}
+                initialMode={listenMode}
                 pool={todayPool}
                 words={words}
                 sentences={sentenceCards}
@@ -909,6 +929,20 @@ export default function App() {
                 settings={settings}
                 onClose={() => setSub(null)}
                 onToast={showToast}
+              />
+            )}
+            {/* 복습은 탭에서 내려왔지만 화면은 그대로다.
+                오늘 화면의 「복습이 더 남았어요」와 기록 탭에서 여기로 온다. */}
+            {sub === 'review' && (
+              <ReviewTab
+                words={words}
+                review={review}
+                streak={streak}
+                stats={stats}
+                onStartDeck={startDueDeck}
+                onOpenWeak={startWeakDeck}
+                onOpenSentences={() => setSub('sentences')}
+                sentenceDue={sentenceDue}
               />
             )}
             {sub === 'conjugate' && (
@@ -991,7 +1025,7 @@ export default function App() {
       </BottomSheet>
 
       <TabBar
-        active={activeTab === 'videos' ? 'study' : activeTab}
+        active={activeTab === 'videos' ? 'listen' : activeTab}
         onChange={selectTab}
         reviewCount={due.length + sentenceDue}
       />

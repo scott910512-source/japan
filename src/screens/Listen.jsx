@@ -34,8 +34,11 @@ export const MODES = [
 
 export const GAPS = [1, 2, 3, 5];
 
-export default function Listen({ pool, words, sentences, review, settings, onSettingsChange, onClose, onToast }) {
-  const [mode, setMode] = useState('listen');
+export default function Listen({
+  pool, words, sentences, review, settings, onSettingsChange, onClose, onToast,
+  initialMode = 'listen',
+}) {
+  const [mode, setMode] = useState(initialMode);
   /* 어느 쪽을 먼저 들려줄까. 「뜻 → 일본어」가 있어야 입이 열린다 —
      듣고 알아듣는 것과 듣고 말해 보는 것은 다른 연습이다. */
   const [direction, setDirection] = useState(settings.listenDir || 'jp-ko');

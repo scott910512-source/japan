@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconDownload, IconUpload, IconTrash, IconSpeaker, IconRewind, IconList } from '../components/Icons.jsx';
+import { IconDownload, IconUpload, IconTrash, IconSpeaker, IconRewind, IconList, IconMap } from '../components/Icons.jsx';
 import {
   exportBackup, importBackup, backupSummary, clearAll, DEFAULT_SETTINGS,
 } from '../lib/storage.js';
@@ -179,7 +179,7 @@ const STATUS_TEXT = {
 };
 
 export default function Settings({
-  settings, onChange, onReplayOnboarding, onOpenWordManager, onToast, onReload,
+  settings, onChange, onReplayOnboarding, onOpenWordManager, onOpenTranslate, onToast, onReload,
   session, syncState, onSync, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
 }) {
   const goals = normalizeGoals(settings.goals ?? settings.dailyGoal);
@@ -549,11 +549,24 @@ export default function Settings({
         </button>
       </div>
 
-      <div className="section-label">기타</div>
+      {/* ★ 공부가 아닌 것은 여기로 ★
+          번역기와 내 단어장은 학습 탭에 있었다. 그런데 학습 탭은 「오늘 뭘
+          공부하지」를 고르는 자리다 — 거기에 현지에서 쓰는 도구가 끼어 있으면
+          고를 것이 하나 더 늘 뿐이다. */}
+      <div className="section-label">도구</div>
       <div className="card">
+        <button className="listrow tool-translate" onClick={onOpenTranslate}>
+          <IconMap /> 번역기
+          <span className="lr-sub">한국어로 적으면 지금 말할 일본어로 — 발음까지</span>
+        </button>
         <button className="listrow" onClick={onOpenWordManager}>
           <IconList /> 내 단어장 관리
+          <span className="lr-sub">직접 담은 단어를 고치고 지워요</span>
         </button>
+      </div>
+
+      <div className="section-label">기타</div>
+      <div className="card">
         <button className="listrow" onClick={onReplayOnboarding}>
           <IconRewind /> 처음 질문 다시 하기
         </button>

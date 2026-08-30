@@ -1984,3 +1984,132 @@ button, input, select { font-family: inherit; }
   font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--kon);
 }
 .dg-clear svg { width: 13px; height: 13px; }
+
+/* ══════════════════════════════════════════════════════════════
+   정보구조 개편 — 오늘 · 학습 · 듣기 · 기록 · 더보기
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 오늘: 머리 ──
+   한 줄로 끝낸다. 여기에 장식을 얹으면 정작 눌러야 할 것이 아래로 밀린다. */
+.tdhead {
+  display: flex; align-items: center; gap: 10px;
+  margin: 4px 0 14px;
+}
+.th-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.th-body small { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.th-body b { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
+.th-streak {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 11px; border-radius: 100px; background: var(--surface-2);
+  font-size: 13px; font-weight: 800; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.th-streak svg { width: 15px; height: 15px; color: var(--shu); }
+
+/* ── 오늘: 진행 한 덩이 ──
+   「25개 남음」은 결심이 필요한 말이고 「12분 남음」은 그냥 하면 되는 말이다. */
+.td-left {
+  margin-top: -6px; font-size: 13px; font-weight: 700; color: var(--ink-soft);
+}
+
+/* ── 오늘: 할 일 세 줄 ── */
+.tt-note { display: block; }
+.tt-min {
+  display: inline-block; margin-top: 3px; padding: 2px 7px; border-radius: 100px;
+  background: var(--surface-2); font-size: 11px; font-weight: 700; color: var(--ink-soft);
+}
+.tdtask.primary .tt-min { background: var(--kon-soft); color: var(--kon); }
+/* 하던 게 있으면 그게 무조건 먼저다 — 눈에 먼저 들어와야 한다 */
+.rowcard.resume { border-color: var(--kon); }
+
+/* ── 학습: 묶음 ── */
+.menugroup { margin-bottom: 6px; }
+.mg-label { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.mg-sub {
+  font-size: 11.5px; font-weight: 500; color: var(--ink-soft);
+  letter-spacing: 0; text-transform: none;
+}
+
+/* 큰 칸 — 묶음마다 무엇이 중심인지 하나는 커야 어디부터 누를지 안다 */
+.mbigs { display: flex; flex-direction: column; gap: 9px; }
+.mbig {
+  display: flex; align-items: center; gap: 13px; width: 100%; text-align: left; cursor: pointer;
+  padding: 15px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+}
+.mb-ic {
+  width: 40px; height: 40px; flex: 0 0 auto; border-radius: 12px; display: grid; place-items: center;
+  background: var(--surface-2); color: var(--kon);
+}
+.mb-ic svg { width: 19px; height: 19px; }
+.mb-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.mb-body b { font-size: 16px; font-weight: 700; }
+.mb-body span { font-size: 12.5px; color: var(--ink-soft); }
+
+/* 작은 칸 — 설명을 안 적는다. 이름만으로 안 통하면 이름이 잘못된 것이다 */
+.mtiles {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px; margin-top: 9px;
+}
+.mtile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  min-height: 82px; padding: 12px 6px; cursor: pointer;
+  border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.mt-ic {
+  width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--surface-2); color: var(--kon);
+}
+.mt-ic svg { width: 16px; height: 16px; }
+.mt-nm { font-size: 12.5px; font-weight: 700; text-align: center; word-break: keep-all; }
+
+/* ── 듣기 탭 ── */
+.lh-ways { gap: 10px; }
+.lh-note {
+  display: block; margin-top: 4px; font-style: normal;
+  font-size: 11.5px; color: var(--ink-soft); line-height: 1.5;
+}
+
+/* ── 기록: 회독 현황 ──
+   이 앱이 하는 일의 뼈대가 화면에 안 보여서 메뉴 열두 개짜리 앱으로 보였다 */
+.roundstat { display: flex; flex-direction: column; gap: 9px; }
+.rs-row { display: flex; align-items: center; gap: 10px; }
+.rs-lab {
+  flex: 0 0 62px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
+}
+.rs-bar {
+  flex: 1; min-width: 0; height: 8px; border-radius: 100px;
+  background: var(--surface-2); overflow: hidden;
+}
+.rs-bar i {
+  display: block; height: 100%; border-radius: 100px;
+  background: linear-gradient(90deg, var(--kon), var(--kon-deep));
+}
+.rs-val {
+  flex: 0 0 auto; min-width: 34px; text-align: right;
+  font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+
+/* ── 회독 점 ── */
+.rounddots { display: inline-flex; align-items: center; gap: 7px; }
+.rd-dots { display: inline-flex; gap: 4px; }
+.rd-dots i {
+  width: 7px; height: 7px; border-radius: 100px; background: var(--line);
+}
+.rd-dots i.on { background: var(--kon); }
+.rd-text { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); }
+
+/* ── 더보기: 도구 줄에 한 줄 설명 ── */
+.listrow .lr-sub {
+  display: block; width: 100%; margin-top: 2px;
+  font-size: 11.5px; font-weight: 500; color: var(--ink-soft);
+}
+
+/* ── 좁은 화면 (320px) ──
+   가로로 넘치면 아래 글과 겹친다. 칸을 줄이지 말고 넓이를 놓아 준다. */
+@media (max-width: 340px) {
+  .mtiles { grid-template-columns: repeat(3, 1fr); }
+  .mt-nm { font-size: 11.5px; }
+  .th-body b { font-size: 19px; }
+  .rs-lab { flex-basis: 54px; font-size: 11.5px; }
+}

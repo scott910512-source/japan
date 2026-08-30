@@ -2,21 +2,26 @@ import { useMemo } from 'react';
 import {
   IconFlame, IconChevron, IconRepeat, IconPlay, IconBook, IconGrid,
 } from '../components/Icons.jsx';
+import ProgressSummary from '../components/ProgressSummary.jsx';
+import TodayTaskCard from '../components/TodayTaskCard.jsx';
 import { todayKey } from '../lib/review.js';
 import { planToday } from '../lib/daily.js';
 
-/* 오늘 화면.
+/* 오늘 화면 — 앱에서 제일 중요한 자리.
  *
  * 앱을 켠 사람이 3초 안에 알아야 하는 건 두 가지다.
  *   오늘 얼마나 남았나 · 어디를 누르나
  *
- * 그래서 할 일을 셋으로만 둔다 — 단어 외우기 · 복습하기 · 문법 배우기.
- * 예전에는 「오늘의 학습 시작」 버튼 하나였다. 그러면 복습만 하고 싶은 날에도
- * 신규가 섞여 나왔고, 그게 싫으면 학습 탭에 들어가 메뉴를 골라야 했다.
- * 셋으로 갈라 두면 오늘 화면 안에서 끝난다.
+ * 그래서 여기서는 정보를 많이 보여 주지 않는다. 위에 「얼마나 왔나 · 몇 분
+ * 남았나」 한 덩이, 그다음 누를 것 셋. 갈래별 숫자를 위에도 적고 버튼에도
+ * 적던 것을 없앴다 — 같은 것을 두 번 읽게 하면 3초가 30초가 된다.
  *
- * 메뉴 바둑판은 여기 두지 않는다. 고르는 일은 학습 탭이 한다 — 오늘 화면이
- * 「고를 것 목록」이 되는 순간 3초가 30초가 된다. */
+ * 누를 것은 셋을 넘기지 않는다. 넷째가 생기는 순간 이 화면은 「고를 것
+ * 목록」이 되고, 고르는 일은 학습 탭이 할 일이다.
+ *
+ * 순서는 복습 → 새 단어 → 문법으로 고정한다. 이미 본 걸 안 잃는 것이 새로
+ * 배우는 것보다 앞선다 — 새 단어를 스무 개 더 넣어도 어제 것이 새어 나가면
+ * 제자리다. */
 
 const HELLO = [
   '오늘도 조금씩 쌓아볼까요?',
@@ -24,26 +29,9 @@ const HELLO = [
   '오늘 몫만 하면 돼요.',
 ];
 
-/* 할 일 한 줄. 셋 다 같은 모양이라 눈이 한 번에 훑는다 —
-   모양이 제각각이면 매번 다시 읽게 된다. */
-function Task({ icon, title, sub, count, unit, done, onClick, primary }) {
-  return (
-    <button className={`tdtask${done ? ' done' : ''}${primary ? ' primary' : ''}`} onClick={onClick}>
-      <span className="tt-icon">{icon}</span>
-      <span className="tt-body">
-        <b>{title}</b>
-        <span>{sub}</span>
-      </span>
-      {done
-        ? <span className="tt-done">다 했어요</span>
-        : <span className="tt-count"><b>{count}</b>{unit}</span>}
-      <IconChevron className="chev" />
-    </button>
-  );
-}
-
 export default function Today({
-  pool, review, settings, stats, streak, session, resumeLabel, grammarLeft,
+  pool, review, settings, stats, streak, session, resumeLabel,
+  grammarLeft, grammarNext,
   onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview,
 }) {
   const today = todayKey();
@@ -62,54 +50,38 @@ export default function Today({
 
   const hello = HELLO[(streak.count || 0) % HELLO.length];
   const backTotal = back.review + back.weak;
-  const goalTotal = (settings.goals?.fresh || 0) + (settings.goals?.review || 0) + (settings.goals?.weak || 0);
-  const pct = goalTotal ? Math.min(100, (doneToday / goalTotal) * 100) : 0;
+  const goals = settings.goals || {};
+  const goalTotal = (goals.fresh || 0) + (goals.review || 0) + (goals.weak || 0);
+  /* 남은 시간은 아직 안 한 것만 센다. 갈래 둘의 예상 시간을 그대로 더하면
+     이미 끝낸 갈래 몫까지 남은 것처럼 보인다. */
+  const leftMinutes = (backTotal > 0 ? back.minutes : 0) + (fresh.fresh > 0 ? fresh.minutes : 0);
+
+  const resuming = session?.date === today && session.queue?.length > 0;
 
   return (
     <>
-      <div className="navtitle">
-        <small>JS일본어</small>
-        {hello}
+      {/* 머리는 한 줄로. 여기에 장식을 얹으면 정작 눌러야 할 것이 아래로 밀린다 */}
+      <div className="tdhead">
+        <div className="th-body">
+          <small>JS일본어</small>
+          <b>{hello}</b>
+        </div>
+        {streak.count > 0 && (
+          <span className="th-streak"><IconFlame />{streak.count}일</span>
+        )}
       </div>
 
-      {streak.count > 0 && (
-        <div className="streakline">
-          <IconFlame />
-          <b>{streak.count}일째</b>
-          <span>이어서 하고 있어요</span>
-        </div>
-      )}
+      <ProgressSummary done={doneToday} goal={goalTotal} minutes={leftMinutes} />
 
-      {/* 오늘 얼마나 했는지 — 숫자 한 줄이면 된다 */}
-      <div className="today">
-        <div className="td-head">
-          <span className="td-label">오늘 한 것</span>
-          <span className="td-count"><b>{doneToday}</b> / {goalTotal}</span>
-        </div>
-        <div className="td-bar"><i style={{ width: `${pct}%` }} /></div>
-        <div className="td-mix">
-          <div className="td-cell">
-            <b>{fresh.fresh}</b>
-            <span>새 단어</span>
-          </div>
-          <div className="td-cell">
-            <b>{back.review}</b>
-            <span>복습</span>
-          </div>
-          <div className="td-cell">
-            <b>{back.weak}</b>
-            <span>약점</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 하다 만 게 있으면 그게 먼저다 */}
-      {session?.date === today && session.queue?.length > 0 && (
-        <button className="rowcard" onClick={onResume}>
+      {/* ★ 하다 만 게 있으면 그게 무조건 먼저다 ★
+          다른 걸 누르면 「하던 학습을 접을까요?」가 뜨는데, 그 창을 만나기
+          전에 이어하기가 먼저 눈에 들어와야 한다. */}
+      {resuming && (
+        <button className="rowcard resume" onClick={onResume}>
           <span className="rc-icon"><IconPlay /></span>
           <span className="rc-body">
             <b>이어하기</b>
-            <span>{resumeLabel || '학습'} · {session.round}회독 · 남은 {session.queue.length}개</span>
+            <span>{resumeLabel || '학습'} · {session.round}회독 · {session.queue.length}개 남음</span>
           </span>
           <IconChevron className="chev" />
         </button>
@@ -117,35 +89,37 @@ export default function Today({
 
       <div className="section-label">오늘 할 것</div>
       <div className="tdtasks">
-        {/* 복습이 먼저다. 이미 본 걸 안 잃는 것이 새로 배우는 것보다 앞선다 —
-            새 단어를 스무 개 더 넣어도 어제 것이 새어 나가면 제자리다. */}
-        <Task
+        <TodayTaskCard
           primary
           icon={<IconRepeat />}
           title="복습하기"
-          sub={backTotal > 0
-            ? `복습 ${back.review} · 약점 ${back.weak} · 약 ${back.minutes}분`
+          note={backTotal > 0
+            ? `복습 ${back.review} · 약점 ${back.weak}`
             : '오늘 복습할 게 없어요'}
+          minutes={back.minutes}
           count={backTotal}
-          unit="개"
           done={backTotal === 0}
           onClick={onStartReview}
         />
-        <Task
+        <TodayTaskCard
           icon={<IconBook />}
-          title="단어 외우기"
-          sub={fresh.fresh > 0 ? `새 단어 ${fresh.fresh}개 · 약 ${fresh.minutes}분` : '오늘 몫을 다 했어요'}
+          title="새 단어"
+          note={fresh.fresh > 0 ? `오늘 새 단어 ${fresh.fresh}개` : '오늘 몫을 다 했어요'}
+          minutes={fresh.minutes}
           count={fresh.fresh}
-          unit="개"
           done={fresh.fresh === 0}
           onClick={onStartWords}
         />
-        <Task
+        {/* 개수만 적으면 무엇을 배우는지 모른 채로 누른다 —
+            오늘 볼 꼭지 이름을 하나 보여 준다 */}
+        <TodayTaskCard
           icon={<IconGrid />}
-          title="문법 배우기"
-          sub={grammarLeft > 0 ? `아직 안 본 것 ${grammarLeft}개 · 짧은 테스트까지` : '문법을 한 바퀴 돌았어요'}
+          title="오늘의 문법"
+          note={grammarLeft > 0
+            ? (grammarNext || `아직 안 본 것 ${grammarLeft}개`)
+            : '문법을 한 바퀴 돌았어요'}
+          minutes={grammarLeft > 0 ? 3 : 0}
           count={grammarLeft}
-          unit="개"
           done={grammarLeft === 0}
           onClick={onOpenGrammar}
         />
