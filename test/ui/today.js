@@ -558,7 +558,13 @@ async function boot(browser, patch = {}, init = null) {
 
     await p7.evaluate(() => { window.__said = []; });
     await startListen(p7);
-    await p7.waitForTimeout(14000);
+    /* 일본어를 두 장 읽을 때까지만 본다 — 그동안 한국어가 한 번도 안 나오면
+       꺼진 것이다. 고정으로 오래 기다리면 검사 전체가 시간에 쫓긴다. */
+    for (let i = 0; i < 20; i++) {
+      await p7.waitForTimeout(700);
+      const n = await p7.evaluate(() => (window.__said || []).filter((u) => u.lang === 'ja-JP').length);
+      if (n >= 2) break;
+    }
     const said2 = await p7.evaluate(() => window.__said || []);
     ok('끄면 뜻은 안 읽는다', !said2.some((u) => u.lang === 'ko-KR'),
       said2.map((u) => u.lang).join(',') || '조용함');
