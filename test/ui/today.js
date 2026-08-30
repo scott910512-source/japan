@@ -242,9 +242,10 @@ async function boot(browser, patch = {}, init = null) {
   ok('범위마다 몇 개인지 미리 보인다',
     /\d+개/.test(await page.locator('.ls-scope[data-scope="seen"] .pk-count').innerText()),
     (await page.locator('.listen .ls-scope .pk-count').allTextContents()).join(' / '));
-  /* 「배운 것」이 오늘 몫보다 넓어야 이 화면을 고친 뜻이 있다 */
-  const seenN = Number((await page.locator('.ls-scope[data-scope="seen"] .pk-count').innerText()).match(/\d+/)[0]);
-  ok('배운 것이 오늘 몫보다 넓다', seenN > 20, `${seenN}개`);
+  /* ★ 오늘 몫 스무 장에 묶여 있지 않다 ★
+     이 화면이 회독 큐를 빌려 쓰던 시절엔 고를 수 있는 게 그 스무 장이 전부였다. */
+  const allN = Number((await page.locator('.ls-scope[data-scope="all"] .pk-count').innerText()).match(/\d+/)[0]);
+  ok('고를 수 있는 범위가 오늘 몫보다 훨씬 넓다', allN > 500, `${allN}개`);
 
   ok('방향을 고를 수 있다', await page.locator('.listen .ls-dir').count() === 2);
   ok('뒤집는 길이 있다', await page.locator('.ls-dir[data-dir="ko-jp"]').count() === 1);
@@ -662,10 +663,14 @@ async function boot(browser, patch = {}, init = null) {
     await p8.close();
   }
 
-  /* ── 순서가 매번 같으면 소리가 아니라 순서를 외운다 ── */
-  console.log('\n── 들을 때마다 순서가 다르다');
+  /* ── 범위와 개수가 실제로 먹는가, 순서는 흩어지는가 ──
+   *
+   * 여태 이 화면은 오늘의 학습 큐를 빌려 썼다. 그래서 「전체」를 골라도 오늘
+   * 몫 스무 장이 전부였고, 개수 설정은 통째로 무시됐고, 차례까지 매번 같았다.
+   * 그러면 소리가 아니라 순서를 외운다. */
+  console.log('\n── 전체에서 골라 흩는다');
   {
-    const p9 = await boot(browser, { ...seeded(), settings: { listenGap: 1, listenScope: 'seen' } });
+    const p9 = await boot(browser, { settings: { listenGap: 1, listenScope: 'all', listenCount: 50 } });
     await goTab(p9, '학습');
     await p9.locator('.hubcard', { hasText: '듣기' }).click();
     await p9.waitForTimeout(900);
@@ -674,13 +679,17 @@ async function boot(browser, patch = {}, init = null) {
       await startListen(p9);
       await p9.waitForTimeout(400);
       const t = (await p9.textContent('.ls-jp')).trim();
+      const n = await p9.textContent('.listen .sub-title');
       await p9.locator('.listen .sub-back').click();
       await p9.waitForTimeout(500);
-      return t;
+      return { t, n };
     };
     const seq = [];
     for (let i = 0; i < 6; i++) seq.push(await firstCard());
-    ok('돌릴 때마다 첫 장이 달라진다', new Set(seq).size > 1, seq.join(' / '));
+    /* ★ 개수 설정이 실제로 먹는다 ★ 「50개만 듣고 자자」가 이 화면의 쓰임이다 */
+    ok('고른 개수만큼 담긴다', seq[0].n.trim().endsWith('/ 50'), seq[0].n.trim());
+    ok('돌릴 때마다 첫 장이 달라진다', new Set(seq.map((s) => s.t)).size > 1,
+      seq.map((s) => s.t).join(' / '));
     await p9.close();
   }
 
