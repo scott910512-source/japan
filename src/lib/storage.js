@@ -240,19 +240,23 @@ export const DEFAULT_SETTINGS = {
   canReadKana: null,  // true면 한자 앞면, false면 히라가나+한글 발음 앞면
   tripDay: null,      // 'd3' | 'd7' | 'd14' | 'none'
 
-  // 홈 허브에 노출할 메뉴 (설정에서 개별 on/off)
+  /* 학습 탭에 노출할 메뉴 (설정에서 개별 on/off).
+     묶음은 lib/menu.js가 정한다 — 배우기 · 연습하기 · 반복하기. */
   menus: {
-    basics: true,     // 완전기초
+    // 배우기
+    words: true,      // 단어 — 회독으로 반복해서 외우기
     grammar: true,    // 문법 — 기초문법 · 일상문법 · 문형 연습
-    words: true,      // 단어암기
-    repeat: true,     // 회독 학습 — 배운 걸 등급별로 다시
-    sentences: true,  // 상황별 문장암기
+    sentences: true,  // 상황회화 — 이동 · 식당 · 일상
+    basics: true,     // 완전기초 — 히라가나 · 숫자 · 인사
+    // 연습하기
     quiz: true,       // 단어 시험
     conjugate: true,  // 동사 활용 — 기초 시제
     adverb: true,     // 부사 연습 — 빈칸 채우기
     match: true,      // 짝 맞추기 — 게임으로
     rpg: true,        // 실전 연습 — 상황을 통째로
-    translate: true,  // 번역기 — 현지에서 바로 쓰는 것
+    // 반복하기
+    repeat: true,     // 회독 학습 — 배운 걸 등급별로 다시
+    weak: true,       // 약점 복습 — 세 번 넘게 틀린 것만
   },
 
   // 학습 기능

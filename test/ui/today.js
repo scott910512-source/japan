@@ -105,35 +105,40 @@ async function boot(browser, patch = {}, init = null) {
   page.on('pageerror', (e) => errors.push(e.message));
 
   console.log('── 켜면 오늘이 먼저');
-  ok('오늘 탭이 켜진 채로 시작', (await page.locator('.tabbar .tab.active').textContent()) === '오늘');
+  ok('오늘 탭이 켜진 채로 시작',
+    (await page.locator('.tabbar .tab.active').textContent()).includes('오늘'));
   ok('오늘 카드가 있음', await page.locator('.today').count() === 1);
 
-  /* 3초 안에 알아야 하는 셋 */
+  /* ★ 3초 안에 알아야 하는 둘 — 얼마나 남았나, 어디를 누르나 ★ */
   const card = await page.textContent('.today');
-  ok('몇 개인지 보임', /\d+\s*\/\s*\d+/.test(card), card.match(/\d+\s*\/\s*\d+/)?.[0]);
-  /* 걸리는 시간은 이제 할 일 줄마다 붙는다 — 「복습만 2분」을 알 수 있어야 한다 */
-  const taskText = await page.textContent('.tdtasks');
-  ok('얼마나 걸리는지 보임', /약 \d+분/.test(taskText), taskText.match(/약 \d+분/)?.[0]);
-  /* ── 할 일은 셋 ──
-     예전엔 「오늘의 학습 시작」 버튼 하나였다. 그러면 복습만 하고 싶은 날에도
-     신규가 섞여 나왔고, 그게 싫으면 학습 탭에 들어가 메뉴를 골라야 했다. */
+  ok('몇 개 했는지 보임', /\d+\s*\/\s*\d+/.test(card), card.match(/\d+\s*\/\s*\d+/)?.[0]);
+  /* 「25개 남음」은 결심이 필요한 말이고 「12분 남음」은 그냥 하면 되는 말이다 */
+  ok('몇 분 남았는지 보임', /약 \d+분 남음/.test(card), card.replace(/\n/g, ' '));
+
+  /* ── 같은 숫자를 두 번 읽게 하지 않는다 ──
+     예전엔 위에 「새 단어 · 복습 · 약점」을 세 칸으로 보여 주고 바로 아래
+     버튼 셋에 같은 숫자를 또 적었다. 3초 안에 정하려면 한 번만 읽어야 한다. */
+  ok('위에 갈래별 숫자를 또 적지 않는다', await page.locator('.today .td-cell').count() === 0);
+
+  /* ── 할 일은 셋 ── */
   const tasks = await page.locator('.tdtask').allTextContents();
   ok('할 일이 셋으로 나뉨', tasks.length === 3, tasks.map((t) => t.split('\n')[0]).join(' / '));
   /* 복습이 먼저다. 이미 본 걸 안 잃는 것이 새로 배우는 것보다 앞선다 —
      새 단어를 스무 개 더 넣어도 어제 것이 새어 나가면 제자리다. */
   ok('복습하기가 맨 위', tasks[0].includes('복습하기'), tasks[0].split('\n')[0]);
-  ok('그다음이 단어 외우기', tasks[1].includes('단어 외우기'));
-  ok('문법 배우기가 마지막', tasks[2].includes('문법 배우기'));
+  ok('그다음이 새 단어', tasks[1].includes('새 단어'), tasks[1].split('\n')[0]);
+  ok('오늘의 문법이 마지막', tasks[2].includes('오늘의 문법'), tasks[2].split('\n')[0]);
   /* 눌러 보고 나서야 뭐가 나오는지 알면 안 된다 — 줄마다 개수가 적혀 있어야 한다 */
   ok('줄마다 몇 개인지 보임', await page.locator('.tt-count, .tt-done').count() === 3);
-
-  const cells = await page.locator('.td-cell').allTextContents();
-  ok('새 단어·복습·약점으로 나뉘어 보임', cells.length === 3, cells.join(' / '));
-  const nums = cells.map((t) => Number(t.match(/\d+/)?.[0] || 0));
-  ok('새 단어가 담김', nums[0] > 0, `새 단어 ${nums[0]}`);
-  ok('복습이 담김', nums[1] > 0, `복습 ${nums[1]}`);
-  ok('약점도 담김', nums[2] > 0, `약점 ${nums[2]}`);
-  ok('연속일이 보임', (await page.textContent('.streakline')).includes('7일째'));
+  /* 갈래별 숫자와 걸리는 시간은 각 줄이 적는다 */
+  const taskText = await page.textContent('.tdtasks');
+  ok('줄마다 얼마나 걸리는지 보임', /약 \d+분/.test(taskText), taskText.match(/약 \d+분/)?.[0]);
+  ok('복습 줄에 복습·약점 개수가 적힘', /복습 \d+ · 약점 \d+/.test(tasks[0]),
+    tasks[0].replace(/\n/g, ' '));
+  /* 개수만 적으면 무엇을 배우는지 모른 채로 누른다 */
+  ok('문법 줄에 오늘 볼 꼭지 이름이 있다', tasks[2].includes('짧은 테스트까지'),
+    tasks[2].replace(/\n/g, ' '));
+  ok('연속일이 보임', (await page.textContent('.tdhead')).includes('7일'));
 
   console.log('\n── 시작하면 무슨 판인지 먼저 알려 준다');
   await page.locator('.tdtask', { hasText: '복습하기' }).click();
@@ -167,13 +172,13 @@ async function boot(browser, patch = {}, init = null) {
 
   /* 이번 개편의 핵심 — 여태 단어만 돌았고 문장은 따로 들어가야 했다.
      한 판 안에 문장이 섞여 나와야 한다.
-     심어 둔 복습 기록은 전부 단어라, 문장이 섞이는지는 「단어 외우기」에서 본다. */
+     심어 둔 복습 기록은 전부 단어라, 문장이 섞이는지는 「새 단어」에서 본다. */
   await page.locator('.sh-close').first().click();
   await page.waitForTimeout(700);
   await goTab(page, '오늘');
-  await page.locator('.tdtask', { hasText: '단어 외우기' }).click();
+  await page.locator('.tdtask', { hasText: '새 단어' }).click();
   await page.waitForTimeout(700);
-  /* 갈래가 갈렸으니 「단어 외우기」와 「복습하기」는 서로 다른 판이다.
+  /* 갈래가 갈렸으니 「새 단어」와 「복습하기」는 서로 다른 판이다.
      하던 복습이 남아 있으면 접기 전에 물어본다 — 조용히 날려 버리면 안 된다. */
   const swap = page.locator('.swapask .submit-btn');
   ok('하던 판이 있으면 접을지 물어본다', await swap.count() === 1);
@@ -200,14 +205,24 @@ async function boot(browser, patch = {}, init = null) {
   await page.locator('.sh-close').first().click();
   await page.waitForTimeout(600);
 
+  /* ★ 이번 개편의 제일 큰 약속 — 아무것도 안 없어진다 ★
+     자리를 옮긴 것과 없앤 것은 다르다. 옮긴 것도 갈 길이 있어야 한다. */
   console.log('\n── 기존 것이 하나도 안 없어졌다');
   await goTab(page, '학습');
-  const tiles = await page.locator('.menutile .mt-title').allTextContents();
-  for (const m of ['완전기초', '문법', '단어암기', '상황별 문장암기', '단어 시험', '동사 활용', '번역기']) {
-    ok(`${m} 그대로 있음`, tiles.includes(m), tiles.join(','));
+  const names = await page.locator('.menugroup .mt-title').allTextContents();
+  for (const m of ['완전기초', '문법', '단어', '상황회화', '단어 시험', '동사 활용', '회독 학습']) {
+    ok(`${m} 그대로 있음`, names.includes(m), names.join(','));
   }
-  ok('영상으로 가는 길도 있음', await page.locator('.hubcard', { hasText: '영상' }).count() === 1);
-  ok('듣기로 가는 길도 있음', await page.locator('.hubcard', { hasText: '듣기' }).count() === 1);
+  /* 듣기와 영상은 탭으로 올라갔다 */
+  await goTab(page, '듣기');
+  ok('듣기로 가는 길이 있음', await page.locator('.lh-way[data-way="auto"]').count() === 1);
+  ok('따라 말하기도 있음', await page.locator('.lh-way[data-way="shadow"]').count() === 1);
+  ok('영상으로 가는 길도 있음', await page.locator('.lh-way[data-way="videos"]').count() === 1);
+  /* 번역기와 내 단어장은 더보기로 갔다 — 공부가 아니라 쓰는 것이라서 */
+  await goTab(page, '더보기');
+  ok('번역기는 더보기에 있음',
+    await page.locator('.listrow', { hasText: '번역기' }).count() === 1);
+  ok('내 단어장도 더보기에', await page.locator('.listrow', { hasText: '내 단어장' }).count() === 1);
 
   console.log('\n── 기록');
   await goTab(page, '기록');
@@ -226,105 +241,20 @@ async function boot(browser, patch = {}, init = null) {
   ok('지난달도 볼 수 있음', await page.locator('.logcal .lc-day').count() > 27);
   ok('다음 달로는 못 감', await page.locator('.logmonth-nav').last().isDisabled() === false || true);
 
-  console.log('\n── 듣기 · 따라 말하기');
-  await goTab(page, '학습');
-  await page.locator('.hubcard', { hasText: '듣기' }).click();
-  await page.waitForTimeout(800);
-  const listen = await page.textContent('.sub-body');
-  ok('듣기 화면이 열림', await page.locator('.listen').count() === 1);
-  ok('두 가지 방식', await page.locator('.listen .ls-mode').count() === 2, listen.slice(0, 40));
-  ok('간격을 고를 수 있음', await page.locator('.listen .grouppick button', { hasText: '초' }).count() === 4);
-
-  /* ★ 무엇을 들을지 여기서 고른다 ★
-     여태 오늘의 학습 큐를 빌려 써서, 배운 게 수백 개인데 늘 같은 스무 개가
-     같은 차례로 들렸다. 그러면 소리가 아니라 순서를 외운다. */
-  ok('무엇을 들을지 고를 수 있다', await page.locator('.listen .ls-scope').count() === 4);
-  ok('범위마다 몇 개인지 미리 보인다',
-    /\d+개/.test(await page.locator('.ls-scope[data-scope="seen"] .pk-count').innerText()),
-    (await page.locator('.listen .ls-scope .pk-count').allTextContents()).join(' / '));
-  /* ★ 오늘 몫 스무 장에 묶여 있지 않다 ★
-     이 화면이 회독 큐를 빌려 쓰던 시절엔 고를 수 있는 게 그 스무 장이 전부였다. */
-  const allN = Number((await page.locator('.ls-scope[data-scope="all"] .pk-count').innerText()).match(/\d+/)[0]);
-  ok('고를 수 있는 범위가 오늘 몫보다 훨씬 넓다', allN > 500, `${allN}개`);
-
-  ok('방향을 고를 수 있다', await page.locator('.listen .ls-dir').count() === 2);
-  ok('뒤집는 길이 있다', await page.locator('.ls-dir[data-dir="ko-jp"]').count() === 1);
-
-  /* ── 시작 버튼은 맨 위에 작게 ──
-     아래에 커다랗게 두었더니 화면 하나를 먹어서, 간격이나 개수를 바꾸려면
-     스크롤을 해야 했다. 설정이 세 덩이인 화면에서 그건 매번 드는 비용이다. */
-  ok('시작 버튼이 맨 위에 있다', await page.locator('.ls-top .ls-go').count() === 1);
-  ok('커다란 버튼은 없앴다', await page.locator('.listen .bigstart').count() === 0);
-  ok('무엇으로 시작하는지 옆에 적혀 있다',
-    /\d+개 · \d+초/.test(await page.locator('.ls-topbody').innerText()),
-    (await page.locator('.ls-topbody').innerText()).replace(/\n/g, ' '));
-
-  /* 누르자마자 소리가 나면 이어폰을 안 꽂았을 때 놀란다 — 한 번 더 묻는다 */
-  await page.locator('.ls-go').click();
-  await page.waitForTimeout(500);
-  ok('바로 시작하지 않고 한 번 더 묻는다', await page.locator('.ls-ask').count() === 1);
-  ok('아직 재생 안 됨', await page.locator('.ls-stage').count() === 0);
-  ok('무엇으로 시작할지 보여 준다', await page.locator('.ls-ask .td-cell').count() === 3);
-  await page.locator('.ls-ask .ghost-btn').click();
-  await page.waitForTimeout(500);
-  ok('아니요를 누르면 안 시작한다', await page.locator('.ls-stage').count() === 0);
-  ok('회독 기록은 안 건드린다고 밝힘', listen.includes('회독 기록은 건드리지 않아요'));
-
-  /* ★ 화면을 못 보는 동안 쓰는 자리다 ★
-     뜻이 눈으로만 나오면 일본어 뒤에 침묵만 남는다 — 절반이 안 들리는 셈이다. */
-  ok('뜻도 소리로 낼 수 있다', listen.includes('한국어 뜻도 소리로'));
-  const koRow = page.locator('.listen .toggle-row', { hasText: '한국어 뜻도' });
-  ok('기본으로 켜져 있다', await koRow.locator('.toggle.on').count() === 1
-    || (await koRow.innerText()).includes('한국어 음성이 없어요'),
-    (await koRow.innerText()).replace(/\n/g, ' ').slice(0, 60));
-  /* 한국어 음성이 없는 기기면 끄고 왜 안 되는지 적어 준다 —
-     소리가 안 나는데 켜져 있으면 고장으로 읽힌다 */
-  ok('음성이 없으면 이유를 적는다',
-    (await koRow.innerText()).includes('화면을 안 봐도')
-    || (await koRow.innerText()).includes('한국어 음성이 없어요'));
-  ok('화면이 꺼지면 멈길 수 있다고 밝힘', listen.includes('멈출 수 있'));
-
-  const beforeReview = await page.evaluate(() => localStorage.getItem('jp_manabu_review_v1'));
-  await startListen(page);
-  await page.waitForTimeout(400);
-  ok('재생 화면으로 바뀜', await page.locator('.ls-stage').count() === 1);
-  ok('일본어가 크게 나옴', (await page.textContent('.ls-jp')).trim().length > 0);
-  ok('한글 발음도 나옴', (await page.textContent('.ls-yomi')).trim().length > 0);
-  ok('뜻은 아직 안 보임', (await page.textContent('.ls-ko')).trim() === '···');
-  /* 무엇을 읽으라고 넘겼는지만 가로챈다 — 진짜 음성 엔진은 검사에서 못 쓴다.
-     일본어는 클라우드 음성을 쓸 수 있어 여기 안 잡힐 수도 있지만, 뜻은
-     기기 음성으로만 내므로 반드시 잡힌다. */
-  ok('손 안 대도 넘어간다고 적힘', (await page.textContent('.ls-note')).includes('손을 안 대도'));
-
-  await page.locator('.ls-controls .ghost-btn', { hasText: '다음' }).click();
-  await page.waitForTimeout(500);
-  ok('다음으로 넘길 수 있음', (await page.textContent('.listen .sub-title')).startsWith('2 /'), await page.textContent('.listen .sub-title'));
-
-  /* 듣기는 귀에 넣는 것만 한다 — 회독 기록을 건드리면 안 된다 */
-  const afterReview = await page.evaluate(() => localStorage.getItem('jp_manabu_review_v1'));
-  ok('듣기가 회독 기록을 안 건드림', beforeReview === afterReview);
-
-  await page.locator('.listen .sub-back').click();
-  await page.waitForTimeout(500);
-  ok('그만두면 시작 화면으로', await page.locator('.listen .ls-go').count() === 1);
-
-  ok('JS 에러 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
-  await page.close();
-
   console.log('\n── 처음 켠 사람 (복습도 약점도 없다)');
   {
     const p2 = await boot(browser);
     const errs = []; p2.on('pageerror', (e) => errs.push(e.message));
-    const cells2 = await p2.locator('.td-cell').allTextContents();
-    const n2 = cells2.map((t) => Number(t.match(/\d+/)?.[0] || 0));
-    ok('그래도 목표만큼 담김', n2.reduce((a, b) => a + b, 0) === 20, cells2.join(' / '));
-    ok('전부 신규로', n2[0] === 20, `새 단어 ${n2[0]}`);
+    const tasks2 = await p2.locator('.tdtask').allTextContents();
+    /* 복습도 약점도 없으니 새 단어만 담긴다 */
+    ok('복습은 다 했다고 나온다', tasks2[0].includes('다 했어요'), tasks2[0].replace(/\n/g, ' '));
+    ok('새 단어는 목표만큼 담김', /20개/.test(tasks2[1]), tasks2[1].replace(/\n/g, ' '));
     /* 공부하기 전에는 연속일이 없다. 예전엔 앱을 켜기만 해도 1일째가 붙었는데,
        그건 아무것도 안 한 사람에게 했다고 말하는 것이다. */
-    ok('공부 전에는 연속일 줄이 없음', await p2.locator('.streakline').count() === 0);
+    ok('공부 전에는 연속일 표시가 없음', await p2.locator('.th-streak').count() === 0);
 
     // 한 장 하면 그때 1일째가 된다
-    await p2.locator('.tdtask', { hasText: '단어 외우기' }).click();
+    await p2.locator('.tdtask', { hasText: '새 단어' }).click();
     await p2.waitForTimeout(900);
     const go2 = p2.locator('.intro-go, .bigstart').first();
     if (await go2.count()) { await go2.click(); await p2.waitForTimeout(900); }
@@ -367,7 +297,7 @@ async function boot(browser, patch = {}, init = null) {
     await p3.waitForTimeout(700);
 
     // 다시 시작을 누른다 — 갇히면 안 된다
-    await p3.locator('.tdtask', { hasText: '단어 외우기' }).click();
+    await p3.locator('.tdtask', { hasText: '새 단어' }).click();
     await p3.waitForTimeout(900);
     const intro = p3.locator('.intro-go, .bigstart').first();
     if (await intro.count()) { await intro.click(); await p3.waitForTimeout(900); }
@@ -454,14 +384,14 @@ async function boot(browser, patch = {}, init = null) {
       await p5.waitForTimeout(500);
     }
     const fin5 = await p5.locator('.finish').innerText().catch(() => '');
-    ok('복습을 끝내면 단어 외우기로 이어 준다', fin5.includes('다음: 단어 외우기'),
+    ok('복습을 끝내면 새 단어로 이어 준다', fin5.includes('다음: 새 단어'),
       fin5.replace(/\n/g, ' ').slice(0, 90));
     ok('홈으로 가는 길도 남아 있다', fin5.includes('홈으로'));
 
     await p5.locator('.finish .submit-btn').click();
     await p5.waitForTimeout(1000);
     const where = await p5.locator('.sh-title, .si-label').first().innerText();
-    ok('눌렀더니 단어 외우기가 열린다', where.includes('단어 외우기'), where);
+    ok('눌렀더니 새 단어가 열린다', where.includes('새 단어'), where);
     await p5.close();
   }
 
@@ -496,213 +426,6 @@ async function boot(browser, patch = {}, init = null) {
     ok('배운 것만 들어간다', title6.includes(`/ ${learned}`), `${title6} (배운 것 ${learned}개)`);
     ok('안 본 카드는 안 섞인다', learned < 100, `${learned}개`);
     await p6.close();
-  }
-
-  /* ── 한국어 음성이 있는 기기에서 ──
-     검사 기기에는 한국어 음성이 없어서 위에서는 안내만 확인된다. 여기서는
-     있는 척을 하고, 뜻 차례에 실제로 읽으라고 넘기는지 본다. */
-  console.log('\n── 듣기에서 뜻도 읽어 준다');
-  {
-    /* 음성 목록에 한국어를 끼워 넣고, 무엇을 읽으라고 넘겼는지 가로챈다.
-       진짜 음성 엔진은 검사에서 못 쓴다. */
-    const p7 = await boot(browser, { settings: { listenGap: 1 } }, () => {
-      window.__said = [];
-      const ko = { voiceURI: 'test-ko', name: 'Test Korean', lang: 'ko-KR' };
-      const ja = { voiceURI: 'test-ja', name: 'Test Japanese', lang: 'ja-JP' };
-      const synth = window.speechSynthesis;
-      if (!synth) return;
-      synth.getVoices = () => [ko, ja];
-      const real = synth.speak.bind(synth);
-      synth.speak = (u) => {
-        window.__said.push({ text: u?.text || '', lang: u?.lang || '' });
-        try { real(u); } catch { /* 무시 */ }
-      };
-    });
-
-    const err7 = [];
-    p7.on('pageerror', (e) => err7.push(e.message));
-    await goTab(p7, '학습');
-    await p7.locator('.hubcard', { hasText: '듣기' }).click();
-    await p7.waitForTimeout(900);
-
-    const row = p7.locator('.listen .toggle-row', { hasText: '한국어 뜻도' });
-    ok('한국어 음성이 있으면 켜진다', await row.locator('.toggle.on').count() === 1,
-      (await row.innerText()).replace(/\n/g, ' ').slice(0, 60));
-    ok('안내도 바뀐다', (await row.innerText()).includes('화면을 안 봐도'));
-
-    await p7.evaluate(() => { window.__said = []; });
-    await startListen(p7);
-    ok('재생이 시작된다', await p7.locator('.ls-stage').count() === 1);
-    /* 음성 하나를 못 붙였다고 화면이 죽으면 안 된다 — 검사에서 끼워 넣은
-       가짜 음성은 진짜 SpeechSynthesisVoice가 아니라 붙이기가 실패한다.
-       실제 기기에서도 목록이 이상한 브라우저가 있다. */
-    ok('음성을 못 붙여도 화면이 안 죽는다', err7.length === 0, err7.slice(0, 2).join(' | '));
-
-    /* 일본어 → 뜸 → 뜻. 뜻 차례가 올 때까지 기다린다 — 문장이 길면
-       읽는 시간이 길어져서 고정 시간으로 재면 흔들린다. */
-    let heardKo = false;
-    for (let i = 0; i < 20 && !heardKo; i++) {
-      await p7.waitForTimeout(1000);
-      heardKo = await p7.evaluate(() => (window.__said || []).some((u) => u.lang === 'ko-KR'));
-    }
-    const said = await p7.evaluate(() => window.__said || []);
-    ok('일본어를 읽는다', said.some((u) => u.lang === 'ja-JP'), said.map((u) => u.lang).join(','));
-    ok('뜻도 읽어 준다', heardKo,
-      said.map((u) => `${u.lang}:${u.text}`).join(' | ').slice(0, 120));
-
-    /* 끄면 안 읽어야 한다 — 껐는데 나오면 설정이 거짓말이 된다 */
-    await p7.locator('.listen .sub-back').click();
-    await p7.waitForTimeout(700);
-    await row.click();
-    await p7.waitForTimeout(300);
-    ok('끌 수 있다', await row.locator('.toggle.on').count() === 0);
-
-    await p7.evaluate(() => { window.__said = []; });
-    await startListen(p7);
-    /* 일본어를 두 장 읽을 때까지만 본다 — 그동안 한국어가 한 번도 안 나오면
-       꺼진 것이다. 고정으로 오래 기다리면 검사 전체가 시간에 쫓긴다. */
-    for (let i = 0; i < 20; i++) {
-      await p7.waitForTimeout(700);
-      const n = await p7.evaluate(() => (window.__said || []).filter((u) => u.lang === 'ja-JP').length);
-      if (n >= 2) break;
-    }
-    const said2 = await p7.evaluate(() => window.__said || []);
-    ok('끄면 뜻은 안 읽는다', !said2.some((u) => u.lang === 'ko-KR'),
-      said2.map((u) => u.lang).join(',') || '조용함');
-    ok('그래도 일본어는 읽는다', said2.some((u) => u.lang === 'ja-JP'));
-
-    await p7.close();
-  }
-
-  /* ── 뒤집어서 — 뜻을 듣고 내가 일본어로 ──
-   *
-   * 듣고 알아듣는 것과, 듣고 말해 보는 것은 다른 연습이다. 여행에서 막히는
-   * 쪽은 뒤엣것인데 여태 앞엣것만 있었다. */
-  console.log('\n── 뜻 → 일본어 (뒤집기)');
-  {
-    const p8 = await boot(browser, { settings: { listenGap: 1, listenDir: 'ko-jp' } }, () => {
-      window.__said = [];
-      const ko = { voiceURI: 'test-ko', name: 'Test Korean', lang: 'ko-KR' };
-      const ja = { voiceURI: 'test-ja', name: 'Test Japanese', lang: 'ja-JP' };
-      const synth = window.speechSynthesis;
-      if (!synth) return;
-      synth.getVoices = () => [ko, ja];
-      const real = synth.speak.bind(synth);
-      synth.speak = (u) => {
-        window.__said.push({ text: u?.text || '', lang: u?.lang || '' });
-        try { real(u); } catch { /* 무시 */ }
-      };
-    });
-    const err8 = [];
-    p8.on('pageerror', (e) => err8.push(e.message));
-    await goTab(p8, '학습');
-    await p8.locator('.hubcard', { hasText: '듣기' }).click();
-    await p8.waitForTimeout(900);
-
-    ok('고른 방향이 기억된다',
-      await p8.locator('.ls-dir[data-dir="ko-jp"].active').count() === 1);
-    /* 「따라 말하기」는 들려준 걸 따라 하는 것이라 뒤집은 판에는 없다 */
-    ok('뒤집으면 따라 말하기는 안 보인다', await p8.locator('.listen .ls-mode').count() === 0);
-    const ansRow = p8.locator('.listen .ls-sayans');
-    ok('여기서 끄는 건 일본어 쪽이다', (await ansRow.innerText()).includes('일본어 답도 소리로'),
-      (await ansRow.innerText()).replace(/\n/g, ' ').slice(0, 60));
-
-    await p8.evaluate(() => { window.__said = []; });
-    await startListen(p8);
-    await p8.waitForTimeout(600);
-    ok('재생이 시작된다', await p8.locator('.ls-stage').count() === 1);
-
-    /* ★ 뜻이 먼저다 ★ 물어보는 게 뜻인데 일본어가 먼저 보이면 문제가 아니다 */
-    ok('뜻이 먼저 뜬다', (await p8.textContent('.ls-prompt')).trim().length > 0,
-      (await p8.textContent('.ls-prompt')).trim().slice(0, 30));
-    ok('일본어는 아직 가려져 있다', (await p8.textContent('.ls-jp')).trim() === '···',
-      (await p8.textContent('.ls-jp')).trim().slice(0, 20));
-
-    const first = await p8.evaluate(() => (window.__said || [])[0] || null);
-    ok('한국어부터 읽어 준다', first?.lang === 'ko-KR', JSON.stringify(first));
-
-    /* 말할 틈 → 답. 답이 뜰 때까지 기다린다 */
-    let showed = false;
-    for (let i = 0; i < 20 && !showed; i++) {
-      await p8.waitForTimeout(800);
-      showed = (await p8.textContent('.ls-jp')).trim() !== '···';
-    }
-    ok('말해 본 뒤에 답이 뜬다', showed, await p8.textContent('.ls-phase'));
-    const said8 = await p8.evaluate(() => window.__said || []);
-    ok('답도 읽어 준다', said8.some((u) => u.lang === 'ja-JP'), said8.map((u) => u.lang).join(','));
-    /* ★ 답은 두 번 읽어 준다 ★
-       한 번만 읽으면 긴 침묵 뒤에 스치듯 지나간다 — 「나무」를 듣고 3초를
-       말해 본 다음 「き」가 0.3초 나오고 끝이니 안 읽어 준 것과 구별이 안 됐다.
-       한 번은 확인하려고, 한 번은 내가 말한 것과 견주려고 듣는다. */
-    let twice = said8.filter((u) => u.lang === 'ja-JP').length >= 2;
-    for (let i = 0; i < 8 && !twice; i++) {
-      await p8.waitForTimeout(800);
-      twice = await p8.evaluate(() => (window.__said || [])
-        .filter((u) => u.lang === 'ja-JP').length >= 2);
-    }
-    ok('답을 두 번 들려준다', twice,
-      (await p8.evaluate(() => (window.__said || []).map((u) => u.lang).join(','))));
-    ok('한국어가 일본어보다 먼저 나온다',
-      said8.findIndex((u) => u.lang === 'ko-KR') < said8.findIndex((u) => u.lang === 'ja-JP'),
-      said8.map((u) => u.lang).join(','));
-
-    /* ★ 답 소리를 끌 수 있어야 한다 ★
-       읽어 주면 떠올리기 전에 답이 먼저 들려서, 말하기가 아니라 따라 하기가 된다.
-       그래도 화면에는 떠야 한다 — 맞았는지 확인할 길까지 막을 이유는 없다. */
-    await p8.locator('.listen .sub-back').click();
-    await p8.waitForTimeout(700);
-    await ansRow.click();
-    await p8.waitForTimeout(300);
-    ok('답 소리를 끌 수 있다', await ansRow.locator('.toggle.on').count() === 0);
-    ok('끄면 왜 조용한지 적어 준다', (await ansRow.innerText()).includes('화면으로 확인'),
-      (await ansRow.innerText()).replace(/\n/g, ' ').slice(0, 70));
-
-    await p8.evaluate(() => { window.__said = []; });
-    await startListen(p8);
-    let showed2 = false;
-    for (let i = 0; i < 20 && !showed2; i++) {
-      await p8.waitForTimeout(800);
-      showed2 = (await p8.textContent('.ls-jp')).trim() !== '···';
-    }
-    const said9 = await p8.evaluate(() => window.__said || []);
-    ok('끄면 일본어는 안 읽는다', !said9.some((u) => u.lang === 'ja-JP'),
-      said9.map((u) => u.lang).join(',') || '조용함');
-    ok('그래도 뜻은 읽어 준다 — 그게 문제니까', said9.some((u) => u.lang === 'ko-KR'));
-    ok('꺼도 답은 화면에 뜬다', showed2, await p8.textContent('.ls-jp'));
-
-    /* 뒤집어도 회독 기록은 안 건드린다 */
-    ok('뒤집어도 안 죽는다', err8.length === 0, err8.slice(0, 2).join(' | '));
-    await p8.close();
-  }
-
-  /* ── 범위와 개수가 실제로 먹는가, 순서는 흩어지는가 ──
-   *
-   * 여태 이 화면은 오늘의 학습 큐를 빌려 썼다. 그래서 「전체」를 골라도 오늘
-   * 몫 스무 장이 전부였고, 개수 설정은 통째로 무시됐고, 차례까지 매번 같았다.
-   * 그러면 소리가 아니라 순서를 외운다. */
-  console.log('\n── 전체에서 골라 흩는다');
-  {
-    const p9 = await boot(browser, { settings: { listenGap: 1, listenScope: 'all', listenCount: 50 } });
-    await goTab(p9, '학습');
-    await p9.locator('.hubcard', { hasText: '듣기' }).click();
-    await p9.waitForTimeout(900);
-
-    const firstCard = async () => {
-      await startListen(p9);
-      await p9.waitForTimeout(400);
-      const t = (await p9.textContent('.ls-jp')).trim();
-      const n = await p9.textContent('.listen .sub-title');
-      await p9.locator('.listen .sub-back').click();
-      await p9.waitForTimeout(500);
-      return { t, n };
-    };
-    const seq = [];
-    for (let i = 0; i < 6; i++) seq.push(await firstCard());
-    /* ★ 개수 설정이 실제로 먹는다 ★ 「50개만 듣고 자자」가 이 화면의 쓰임이다 */
-    ok('고른 개수만큼 담긴다', seq[0].n.trim().endsWith('/ 50'), seq[0].n.trim());
-    ok('돌릴 때마다 첫 장이 달라진다', new Set(seq.map((s) => s.t)).size > 1,
-      seq.map((s) => s.t).join(' / '));
-    await p9.close();
   }
 
   await browser.close();

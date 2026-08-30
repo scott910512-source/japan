@@ -97,27 +97,47 @@ function speakLocal(text, rate) {
  * 한국어 음성이 없는 기기면 그냥 소리가 안 난다. 뜻은 화면에도 떠 있으니
  * 못 들어도 학습이 막히지는 않는다 — 없는 걸 억지로 일본어 음성으로 읽으면
  * 알아들을 수 없는 소리가 난다. */
-export function koreanVoiceReady() {
-  const voices = window.speechSynthesis?.getVoices() || [];
+/* 읽어 줄 수 있는 상태인가.
+ *
+ * ★ 목록이 비었다고 못 읽는 게 아니다 ★
+ * 예전엔 여기서 「한국어 음성이 있는가」를 물었다. 그런데 안드로이드 크롬과
+ * 웹뷰는 getVoices()가 []를 주면서도 소리는 멀쩡히 난다. 그 기기에서 일본어는
+ * 나오고 한국어만 안 나왔다 — 일본어 쪽(speakLocal)은 음성을 못 찾아도 lang만
+ * 맞춰서 그냥 읽는데, 한국어 쪽만 음성이 없다고 돌아섰기 때문이다.
+ *
+ * 두 언어를 다르게 다룰 이유가 없다. 목록이 비었으면 「모른다」이지 「없다」가
+ * 아니다 — 모를 때는 시켜 보고, 안 나면 그때 사용자가 끄면 된다. */
+export function speechReady() {
+  return typeof window !== 'undefined' && Boolean(window.speechSynthesis);
+}
+
+/* 목록에 한국어가 실제로 잡혔는가. 「없다」고 단정하는 데는 못 쓰고,
+   「있으니 확실히 된다」고 말할 때만 쓴다. */
+export function koreanVoiceListed() {
+  const voices = (typeof window !== 'undefined' && window.speechSynthesis?.getVoices()) || [];
   return voices.some((v) => v.lang?.startsWith('ko'));
 }
 
+// 옛 이름 — 부르는 곳이 있어 남겨 둔다
+export const koreanVoiceReady = speechReady;
+
 function pickKoreanVoice() {
-  const voices = window.speechSynthesis?.getVoices() || [];
+  const voices = (typeof window !== 'undefined' && window.speechSynthesis?.getVoices()) || [];
   if (cachedKoVoice && voices.includes(cachedKoVoice)) return cachedKoVoice;
   cachedKoVoice = voices.find((v) => v.lang?.startsWith('ko')) || null;
   return cachedKoVoice;
 }
 
 export function speakKorean(text, rate = 1) {
-  if (!text || typeof window === 'undefined' || !window.speechSynthesis) return;
-  const voice = pickKoreanVoice();
-  if (!voice) return;   // 한국어 음성이 없으면 조용히 넘어간다
+  if (!text || !speechReady()) return;
   stopSpeaking();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'ko-KR';
   utter.rate = rate;
-  try { utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
+  /* 한국어 음성을 찾았으면 붙이고, 없으면 lang만 맞춰서 기기에 맡긴다.
+     일본어가 이미 그렇게 하고 있다 — 목록이 이상한 브라우저에서도 소리는 난다. */
+  const voice = pickKoreanVoice();
+  try { if (voice) utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
   window.speechSynthesis.speak(utter);
 }
 

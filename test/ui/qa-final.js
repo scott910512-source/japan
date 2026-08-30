@@ -40,7 +40,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   ok('끊긴 채로 시작이 3초 안', Date.now() - t1 < 3000, `${Date.now() - t1}ms`);
 
   // 모든 탭을 돌며 깨지는 곳이 없는지
-  for (const tab of ['오늘', '학습', '복습', '기록', '더보기']) {
+  for (const tab of ['오늘', '학습', '듣기', '기록', '더보기']) {
     await p.locator('.tabbar .tab', { hasText: tab }).click();
     await p.waitForTimeout(700);
     const txt = (await p.textContent('.screen.active').catch(() => '')) || '';

@@ -49,8 +49,8 @@ const ok = (label, cond, extra) => {
   await goTab(page, '학습');
   ok('JLPT 단어가 따로 있지 않다',
     await page.locator('.menutile', { hasText: 'JLPT 단어' }).count() === 0);
-  const card = page.locator('.menutile', { hasText: '단어암기' });
-  ok('단어암기로 들어간다', await card.count() > 0);
+  const card = page.locator('.mbig').filter({ hasText: '단어' }).first();
+  ok('단어로 들어간다', await card.count() > 0);
   await card.first().click();
   await page.waitForTimeout(600);
   ok('끊는 방법을 고를 수 있다', await page.locator('.wd-how button').count() === 2);
@@ -92,7 +92,7 @@ const ok = (label, cond, extra) => {
 
   // 뒤로 → 레벨 재선택
   await goTab(page, '학습');
-  const card2 = page.locator('.menutile', { hasText: '단어암기' });
+  const card2 = page.locator('.mbig').filter({ hasText: '단어' }).first();
   if (await card2.count()) {
     await card2.first().click();
     await page.waitForTimeout(500);

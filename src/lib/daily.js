@@ -182,6 +182,32 @@ function takeWeak(items, count, review) {
  * 그냥 섞으면 첫 문제가 약점일 수 있다. 시작하자마자 모르는 게 나오면 그날
  * 학습이 거기서 끝난다. 그래서 앞은 아는 것(복습)으로 열고, 약점은 중간중간
  * 흩어 놓는다. 몰아 두면 그 구간에서 지친다. */
+/* 같은 카드가 두 번 들어온 판에서, 두 번째를 첫 번째에서 떼어 놓는다.
+ *
+ * 붙여 놓으면 두 번째가 그냥 따라 나온다 — 방금 본 걸 다시 보는 건 외운 게
+ * 아니다. arrange가 두 번째 것들을 뒤로 몰아 두기는 하는데, 그것만으로는
+ * 모자란 판이 있다. 판이 통째로 약점일 때(약점만 고른 날)는 사이에 낄
+ * 다른 카드가 없어서, 「15장 뒤에 5장」으로 붙여 놓으면 14번째 것의 두 번째가
+ * 바로 15번째에 온다. 실제로 그렇게 나왔다.
+ *
+ * 그래서 마지막에 한 번 훑어서 너무 붙은 것을 뒤로 민다. 미는 사이에 다른
+ * 것이 당겨질 수 있어서 몇 번 더 훑되, 끝이 없지는 않게 횟수를 막아 둔다. */
+export function spaceOut(list, minGap = 3) {
+  const out = [...list];
+  for (let pass = 0; pass < 4; pass++) {
+    let moved = false;
+    for (let i = 0; i < out.length; i++) {
+      const first = out.findIndex((x) => x.id === out[i].id);
+      if (first === i || i - first >= minGap) continue;
+      const [dup] = out.splice(i, 1);
+      out.splice(Math.min(out.length, first + minGap), 0, dup);
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  return out;
+}
+
 function arrange(picked) {
   const easy = shuffled(picked.filter((x) => x.bucket === 'review'));
   /* 두 번 들어온 카드는 붙여 놓으면 두 번째가 그냥 따라 나온다 —
@@ -207,7 +233,7 @@ function arrange(picked) {
     out.push(body[i]);
   }
   out.push(...hard);
-  return out;
+  return spaceOut(out);
 }
 
 /* 문장이 몫을 넘으면 그만큼을 단어로 바꿔 넣는다.

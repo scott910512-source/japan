@@ -115,7 +115,7 @@ const startToday = (page) => startReview(page);
   {
     /* 「나는 한→일로만 볼래」를 앱이 마음대로 바꾸면 안 된다 */
     const page = await boot(browser, seedStreak(2), { direction: 'mean-kanji' });
-    await openMenu(page, '단어암기');
+    await openMenu(page, '단어');
     const go = page.locator('.subscreen .bigstart').first();
     await go.click();
     await page.waitForTimeout(1100);

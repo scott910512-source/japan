@@ -11,14 +11,21 @@
  *   설정 탭           → 더보기 탭
  *   홈의 메뉴 바둑판   → 학습 탭의 메뉴 바둑판 */
 
+/* 탭으로 간다.
+ *
+ * 밀어 넣는 화면(메뉴·복습·번역기…)이 열려 있으면 먼저 닫는다. 그 화면은
+ * 탭 바를 덮는 통짜 화면이라, 열어 둔 채로 탭을 누르면 30초를 기다리다
+ * 검사가 통째로 멈춘다. 사람도 뒤로를 누르고 탭을 누른다 — 같은 순서다. */
 export async function goTab(page, label, wait = 700) {
+  const back = page.locator('.subscreen.open .sub-back');
+  if (await back.count()) { await back.first().click(); await page.waitForTimeout(500); }
   await page.locator('.tabbar .tab', { hasText: label }).first().click();
   await page.waitForTimeout(wait);
 }
 
 /* 학습 시작.
  *
- * 오늘 화면이 「단어 외우기 · 복습하기 · 문법 배우기」 셋으로 갈렸다. 예전에는
+ * 오늘 화면이 「복습하기 · 새 단어 · 오늘의 문법」 셋으로 갈렸다. 예전에는
  * 「오늘의 학습 시작」 버튼 하나였고, 검사 열 곳이 그 버튼을 직접 눌렀다 —
  * 화면이 바뀌자 열 곳이 한꺼번에 30초씩 멈췄다. 그래서 어느 줄을 누를지는
  * 여기서만 정한다.
@@ -41,7 +48,7 @@ export async function startStudy(page, want = null) {
     }
   }
 
-  const rows = page.locator('.tdtask').filter({ hasNotText: '문법 배우기' });
+  const rows = page.locator('.tdtask').filter({ hasNotText: '오늘의 문법' });
   const n = await rows.count();
   if (n === 0) return false;
 
@@ -68,23 +75,40 @@ export async function startStudy(page, want = null) {
 }
 
 // 갈래를 못 박고 싶은 검사용
-export const startWords = (page) => startStudy(page, '단어 외우기');
+export const startWords = (page) => startStudy(page, '새 단어');
 export const startReview = (page) => startStudy(page, '복습하기');
 
 export async function openMenu(page, label) {
-  /* 열려 있는 화면을 먼저 닫는다. 안 닫으면 그 화면이 탭 바를 덮고 있어서
-     탭을 눌러도 안 눌린다 — 30초를 기다리다 검사가 통째로 멈춘다. */
-  const back = page.locator('.subscreen.open .sub-back');
-  if (await back.count()) { await back.first().click(); await page.waitForTimeout(600); }
   await goTab(page, '학습');
-  await page.locator('.menutile', { hasText: label }).first().click();
+  /* 이름이 딱 맞는 칸을 고른다. hasText는 부분 일치라 「단어」로 찾으면
+     「단어 시험」이 먼저 잡힌다 — 실제로 그렇게 엉뚱한 화면이 열렸다. */
+  const exact = page.locator('.menutile').filter({
+    has: page.locator('.mt-title', { hasText: new RegExp(`^${label}$`) }),
+  });
+  const target = await exact.count() ? exact.first()
+    : page.locator('.menutile', { hasText: label }).first();
+  await target.click();
   await page.waitForTimeout(800);
 }
 
-export async function openVideos(page) {
-  await goTab(page, '학습');
-  await page.locator('.hubcard', { hasText: '영상' }).click();
+/* 듣기와 영상은 「듣기」 탭으로 올라갔다. 앉아서 손으로 하는 공부와 걸으면서
+   손 없이 하는 공부는 쓰는 시간대가 달라서, 지하철에서 한 번에 닿아야 한다. */
+export async function openListen(page, way = 'auto') {
+  await goTab(page, '듣기');
+  await page.locator(`.lh-way[data-way="${way}"]`).click();
   await page.waitForTimeout(900);
+}
+
+/* 복습 화면. 탭에서 내려왔지만 화면은 그대로다 —
+   오늘 화면의 「복습이 더 남았어요」와 기록 탭에서 여기로 온다. */
+export async function openReview(page) {
+  await goTab(page, '기록');
+  await page.locator('.rowcard', { hasText: '복습으로 가기' }).click();
+  await page.waitForTimeout(900);
+}
+
+export async function openVideos(page) {
+  await openListen(page, 'videos');
 }
 
 /* 메뉴 바둑판을 세거나 훑기 전에 학습 탭에 가 있어야 한다 */

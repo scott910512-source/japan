@@ -52,9 +52,10 @@ async function boot(browser, settings = {}) {
   const labels = await page.locator('.menugroup .mg-label').allTextContents();
   ok('묶음이 셋', await page.locator('.menugroup').count() === 3,
     labels.map((t) => t.split('\n')[0]).join(' / '));
-  ok('학습이 먼저', labels[0].includes('학습'));
-  ok('그다음 퀴즈', labels[1].includes('퀴즈'));
-  ok('마지막이 기타', labels[2].includes('기타'));
+  /* 이 순서가 곧 한 카드가 지나가는 길이다 — 모른다 → 안다 → 샌다 */
+  ok('배우기가 먼저', labels[0].includes('배우기'));
+  ok('그다음 연습하기', labels[1].includes('연습하기'));
+  ok('마지막이 반복하기', labels[2].includes('반복하기'));
   /* 이름만 적으면 「학습」과 「퀴즈」의 경계가 사람마다 다르게 읽힌다 */
   ok('왜 여기 있는지 한 줄로 적힌다',
     await page.locator('.menugroup .mg-sub').count() === 3,
@@ -63,19 +64,26 @@ async function boot(browser, settings = {}) {
   const inGroup = async (n) => (await page.locator('.menugroup').nth(n)
     .locator('.mt-title').allTextContents());
   const learn = await inGroup(0);
-  const quiz = await inGroup(1);
-  ok('배우는 것은 학습에', learn.includes('단어암기') && learn.includes('문법'), learn.join(','));
-  ok('확인하는 것은 퀴즈에', quiz.includes('단어 시험') && quiz.includes('부사 연습'), quiz.join(','));
-  ok('단어암기와 단어 시험이 서로 다른 묶음에',
-    learn.includes('단어암기') && !learn.includes('단어 시험'));
-  ok('번역기는 기타에', (await inGroup(2)).includes('번역기'));
+  const practice = await inGroup(1);
+  const repeat = await inGroup(2);
+  ok('배우는 것은 배우기에', learn.includes('단어') && learn.includes('문법'), learn.join(','));
+  ok('굴려 보는 것은 연습하기에',
+    practice.includes('단어 시험') && practice.includes('부사 연습'), practice.join(','));
+  ok('단어와 단어 시험이 서로 다른 묶음에',
+    learn.includes('단어') && !learn.includes('단어 시험'));
+  /* 회독은 이 앱의 뼈대다. 다른 연습에 묻히면 안 된다 */
+  ok('회독과 약점은 반복하기에',
+    repeat.includes('회독 학습') && repeat.includes('약점 복습'), repeat.join(','));
+  /* 공부가 아닌 것은 학습 탭에 없다 */
+  ok('번역기는 학습 탭에 없다',
+    ![...learn, ...practice, ...repeat].includes('번역기'));
 
   console.log('\n[ JLPT는 단어암기 안으로 ]');
   /* 따로 둔 메뉴였는데 그건 다른 공부가 아니라 같은 단어를 다른 방식으로
      끊어 주는 것이었다 — 「거의 같은 것 아니냐」는 말이 맞았다 */
   ok('JLPT 단어 칸이 없다',
     await page.locator('.menutile', { hasText: 'JLPT' }).count() === 0);
-  await openMenu(page, '단어암기');
+  await openMenu(page, '단어');
   ok('끊는 방법이 둘', await page.locator('.wd-how button').count() === 2,
     (await page.locator('.wd-how button').allTextContents()).join(' / '));
   ok('처음엔 이어서 외우기', await page.locator('.wd-how button.active').innerText() === '이어서 외우기');
@@ -175,12 +183,9 @@ async function boot(browser, settings = {}) {
   ok('몇 개 맞혔는지 적힌다', typeof Object.values(done)[0]?.right === 'number');
 
   console.log('\n[ 설정에서도 같은 묶음 ]');
-  /* 열린 화면을 닫고 나간다. 메뉴 화면은 탭 바를 덮는 통짜 화면이라
-     뒤로 없이 탭을 누를 수 없다 — 앱이 그렇게 정한 대로 따라간다. */
+  /* 결과 화면을 닫고 나간다. 탭으로 나가는 일은 goTab이 알아서 한다 */
   await page.locator('.finish .ghost-btn').click();
   await page.waitForTimeout(600);
-  await page.locator('.subscreen.open .sub-back').first().click();
-  await page.waitForTimeout(700);
   await goTab(page, '더보기');
   await page.waitForTimeout(700);
   ok('설정에도 묶음이 있다', await page.locator('.setgroup').count() === 3,

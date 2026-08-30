@@ -1,7 +1,7 @@
 /* 번역기 화면 — 여행 중에 한 손으로 끝나는가. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { openMenu } from './_nav.js';
+import { goTab } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -64,9 +64,12 @@ const stub = (page, reply, status = 200) => page.evaluate(({ r, st }) => {
   };
 }, { r: reply, st: status });
 
+/* 번역기는 더보기로 갔다. 공부가 아니라 현지에서 쓰는 도구라,
+   「오늘 뭘 공부하지」를 고르는 학습 탭에 두면 고를 것만 하나 는다. */
 const openTranslate = async (page) => {
-  await openMenu(page, '번역기');
-  await page.waitForTimeout(700);
+  await goTab(page, '더보기');
+  await page.locator('.listrow', { hasText: '번역기' }).click();
+  await page.waitForTimeout(800);
 };
 
 const toast = async (page) => {
@@ -89,8 +92,13 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   await boot(page, { tripPlace: '오사카' });
   await stub(page, good);
 
-  // ── 홈에서 들어간다 ──
-  ok('홈에 번역기가 있음', await page.locator('.menutile', { hasText: '번역기' }).count() === 1);
+  // ── 더보기에서 들어간다 ──
+  await goTab(page, '더보기');
+  ok('더보기에 번역기가 있음',
+    await page.locator('.listrow', { hasText: '번역기' }).count() === 1);
+  /* 학습 탭에는 없어야 한다 — 옮긴 게 아니라 늘어난 것이면 정리가 아니다 */
+  await goTab(page, '학습');
+  ok('학습 탭에는 없다', await page.locator('.menutile', { hasText: '번역기' }).count() === 0);
   await openTranslate(page);
   ok('번역기가 열림', await page.locator('.tr-input').count() === 1);
   ok('여행지가 맞춰져 있다고 알려 줌', (await page.textContent('.sub-body')).includes('오사카'));

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconPlay, IconSpeaker, IconRepeat, IconArrowLeft } from '../components/Icons.jsx';
 import BottomSheet from '../components/BottomSheet.jsx';
-import { koreanVoiceReady, speakJapanese, speakKorean, stopSpeaking } from '../lib/tts.js';
+import { koreanVoiceListed, speechReady, speakJapanese, speakKorean, stopSpeaking } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
@@ -34,8 +34,11 @@ export const MODES = [
 
 export const GAPS = [1, 2, 3, 5];
 
-export default function Listen({ pool, words, sentences, review, settings, onSettingsChange, onClose, onToast }) {
-  const [mode, setMode] = useState('listen');
+export default function Listen({
+  pool, words, sentences, review, settings, onSettingsChange, onClose, onToast,
+  initialMode = 'listen',
+}) {
+  const [mode, setMode] = useState(initialMode);
   /* 어느 쪽을 먼저 들려줄까. 「뜻 → 일본어」가 있어야 입이 열린다 —
      듣고 알아듣는 것과 듣고 말해 보는 것은 다른 연습이다. */
   const [direction, setDirection] = useState(settings.listenDir || 'jp-ko');
@@ -54,7 +57,10 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
   /* 뜻도 소리로 낼지. 화면을 못 보는 동안 쓰라고 만든 자리인데 뜻이 눈으로만
      나오면 절반이 안 들린다. 기본은 켬 — 끄고 싶은 사람은 여기서 끈다. */
   const [sayKo, setSayKo] = useState(settings.listenSayKo !== false);
-  const [koReady, setKoReady] = useState(() => koreanVoiceReady());
+  /* 한국어 음성이 목록에 잡혔는가. 「안 잡혔으니 못 읽는다」로는 쓰지 않는다 —
+     목록이 비었는데 소리는 나는 기기가 있어서, 그걸로 껐다가 「한국어가 안
+     나온다」는 말을 들었다. 안내 문구를 고르는 데만 쓴다. */
+  const [koListed, setKoListed] = useState(() => koreanVoiceListed());
   const [ask, setAsk] = useState(false);   // 시작 전에 한 번 확인
   const timer = useRef(null);
   const alive = useRef(true);
@@ -64,15 +70,15 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
   /* 음성 목록은 늦게 채워진다. 처음 물었을 때 없다고 화면에 적어 두면
      실제로는 있는데 없다고 뜬 채로 남는다. */
   useEffect(() => {
-    if (koReady || typeof window === 'undefined' || !window.speechSynthesis) return undefined;
-    const check = () => setKoReady(koreanVoiceReady());
+    if (koListed || !speechReady()) return undefined;
+    const check = () => setKoListed(koreanVoiceListed());
     const t = setInterval(check, 700);
     window.speechSynthesis.addEventListener?.('voiceschanged', check);
     return () => {
       clearInterval(t);
       window.speechSynthesis.removeEventListener?.('voiceschanged', check);
     };
-  }, [koReady]);
+  }, [koListed]);
 
   useEffect(() => () => {
     alive.current = false;
@@ -309,10 +315,10 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
           </button>
         ))}
       </div>
-      {direction === 'ko-jp' && !koReady && (
+      {direction === 'ko-jp' && !koListed && (
         <p className="set-note">
-          이 기기에 한국어 음성이 없어요. 뜻은 화면으로만 보여요 — 소리로 물어보려면
-          기기 설정에서 한국어 음성을 받아야 해요.
+          이 기기의 음성 목록에 한국어가 안 잡혔어요. 그래도 소리는 날 수 있으니 한 번
+          들어 보세요 — 정말 안 나면 기기 설정에서 한국어 음성을 받으면 돼요.
         </p>
       )}
 
@@ -384,7 +390,6 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
             }
           }}
           aria-pressed={answerAloud}
-          disabled={direction === 'jp-ko' && !koReady}
         >
           <span>
             <span className="set-title">
@@ -395,12 +400,12 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
                 ? (sayAnswer
                   ? '말해 본 다음에 정답을 들려줘요'
                   : '소리는 안 나와요 — 답은 화면으로 확인해요')
-                : (koReady
+                : (koListed
                   ? '일본어 다음에 뜻을 읽어 줘요 — 화면을 안 봐도 됩니다'
-                  : '이 기기에 한국어 음성이 없어요. 뜻은 화면으로만 보여요')}
+                  : '일본어 다음에 뜻을 읽어 줘요. 이 기기는 음성 목록에 한국어가 안 잡혔는데, 그래도 나는 기기가 있어요')}
             </span>
           </span>
-          <span className={`toggle${answerAloud && (direction === 'ko-jp' || koReady) ? ' on' : ''}`} aria-hidden="true" />
+          <span className={`toggle${answerAloud ? ' on' : ''}`} aria-hidden="true" />
         </button>
       </div>
 
@@ -441,7 +446,7 @@ export default function Listen({ pool, words, sentences, review, settings, onSet
               ? (sayAnswer
                 ? '뜻을 들려주고, 말해 본 다음에 일본어를 들려줘요.'
                 : '뜻을 들려주고 답은 화면에만 띄워요.')
-              : (sayKo && koReady
+              : (sayKo
                 ? '일본어 → 뜸 → 뜻까지 소리로 나와요.'
                 : '일본어만 소리로 나와요. 뜻은 화면에 뜹니다.')}
             {' '}이어폰을 꽂았는지 한 번 보세요.
