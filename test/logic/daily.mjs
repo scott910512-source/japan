@@ -7,7 +7,7 @@
  *   - 같은 게 두 번 들어가지 않는지 (약점이면서 복습일인 카드가 있다)
  *   - 첫 문제가 약점이 아닌지 (시작하자마자 모르는 게 나오면 그날은 거기서 끝난다) */
 import {
-  buildDailyStudyQueue, planToday, classifyDaily, estimateMinutes, normalizeGoals,
+  buildDailyStudyQueue, planToday, classifyDaily, estimateMinutes, normalizeGoals, spaceOut,
   DEFAULT_GOALS, HARD_WRONG, WEAK_THRESHOLD, SENTENCE_SHARE, FRESH_SENTENCE_MAX,
 } from '../../src/lib/daily.js';
 import { applyVerdict, emptyState, todayKey, addDays, VERDICT } from '../../src/lib/review.js';
@@ -345,6 +345,49 @@ ok('회독 쪽과 같은 기준', WEAK_THRESHOLD === 3);
   ok('두 번 애매하면 아직 약점 아님', g.weak.length === 0);
   const r2 = { w0: seen([VERDICT.VAGUE, VERDICT.VAGUE, VERDICT.VAGUE], addDays(TODAY, -5)) };
   ok('세 번이면 약점', classifyDaily(W(1), r2, TODAY).weak.length === 1);
+}
+
+
+/* ── 붙어 나오는 일이 정말로 없는가 ──
+ *
+ * 위의 검사는 한 번 돌려 보는 것이라, 섞기 운이 좋으면 깨진 채로 통과한다.
+ * 실제로 CI에서 「2,7,13,15,5」로 한 번 깨졌다 — 열네 번째 카드의 두 번째가
+ * 바로 열여섯 번째에 왔다. 여러 번 돌려서 확인한다. */
+console.log('\n── 여러 번 돌려도 두 번째는 안 붙는다');
+{
+  let worst = 99; let checked = 0;
+  for (let n = 0; n < 60; n++) {
+    const pool = W(100);
+    const review = {};
+    for (let i = 0; i < 5; i++) review[`w${i}`] = stuck(5);
+    for (let i = 5; i < 40; i++) review[`w${i}`] = weak(5);
+    const ids = buildDailyStudyQueue(pool, review, { lanes: ['weak'], today: TODAY })
+      .queue.map((x) => x.id);
+    for (const id of new Set(ids)) {
+      const at = ids.map((x, i) => (x === id ? i : -1)).filter((i) => i >= 0);
+      if (at.length < 2) continue;
+      checked += 1;
+      worst = Math.min(worst, at[1] - at[0]);
+    }
+  }
+  ok('예순 판을 돌려도 세 장 넘게 떨어져 있다', worst >= 3, `제일 가까운 것 ${worst}장 (${checked}번 봄)`);
+}
+
+/* 판이 통째로 약점이어도 — 사이에 낄 다른 카드가 없는 판이다 */
+console.log('\n── 약점만 있는 판에서도');
+{
+  let worst = 99;
+  for (let n = 0; n < 40; n++) {
+    const out = spaceOut([
+      { id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' },
+      { id: 'd', again: true }, { id: 'e', again: true }, { id: 'a', again: true },
+    ]);
+    for (const id of new Set(out.map((x) => x.id))) {
+      const at = out.map((x, i) => (x.id === id ? i : -1)).filter((i) => i >= 0);
+      if (at.length > 1) worst = Math.min(worst, at[1] - at[0]);
+    }
+  }
+  ok('손으로 붙여 놔도 떼어 놓는다', worst >= 3, `${worst}장`);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
