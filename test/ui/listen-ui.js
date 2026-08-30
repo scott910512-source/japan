@@ -126,14 +126,18 @@ async function boot(browser, patch = {}, init = null) {
      뜻이 눈으로만 나오면 일본어 뒤에 침묵만 남는다 — 절반이 안 들리는 셈이다. */
   ok('뜻도 소리로 낼 수 있다', listen.includes('한국어 뜻도 소리로'));
   const koRow = page.locator('.listen .toggle-row', { hasText: '한국어 뜻도' });
-  ok('기본으로 켜져 있다', await koRow.locator('.toggle.on').count() === 1
-    || (await koRow.innerText()).includes('한국어 음성이 없어요'),
-    (await koRow.innerText()).replace(/\n/g, ' ').slice(0, 60));
-  /* 한국어 음성이 없는 기기면 끄고 왜 안 되는지 적어 준다 —
-     소리가 안 나는데 켜져 있으면 고장으로 읽힌다 */
-  ok('음성이 없으면 이유를 적는다',
-    (await koRow.innerText()).includes('화면을 안 봐도')
-    || (await koRow.innerText()).includes('한국어 음성이 없어요'));
+  /* ★ 목록이 비었다고 꺼 두지 않는다 ★
+     예전엔 음성 목록에 한국어가 없으면 토글을 끄고 회색으로 잠갔다. 그런데
+     안드로이드 크롬·웹뷰는 목록이 []인데도 소리가 멀쩡히 난다 — 그 기기에서
+     일본어는 나오고 한국어만 안 나왔고, 사용자는 켤 수도 없었다.
+     목록이 비었으면 「모른다」이지 「없다」가 아니다. */
+  ok('기기와 상관없이 기본으로 켜져 있다',
+    await koRow.locator('.toggle.on').count() === 1,
+    (await koRow.innerText()).replace(/\n/g, ' ').slice(0, 70));
+  ok('잠가 두지 않는다', !(await koRow.isDisabled()));
+  ok('무엇을 해 주는지 적혀 있다',
+    (await koRow.innerText()).includes('뜻을 읽어 줘요'),
+    (await koRow.innerText()).replace(/\n/g, ' ').slice(0, 70));
   ok('화면이 꺼지면 멈길 수 있다고 밝힘', listen.includes('멈출 수 있'));
 
   const beforeReview = await page.evaluate(() => localStorage.getItem('jp_manabu_review_v1'));
