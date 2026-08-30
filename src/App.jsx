@@ -60,8 +60,12 @@ import { encryptWithVaultKey, decryptWithVaultKey } from './lib/crypto.js';
 
 /* 갈래에 따라 판 이름이 달라진다. 이어하기 줄에 그대로 뜨니
    「오늘의 학습」 하나로 두면 뭘 하다 말았는지 모른다. */
-/* 갈래마다 다른 판이다. 덱 id에 갈래를 넣어야 「단어 외우기」를 눌렀는데
-   하다 만 복습 판이 열리는 일이 없다 — 둘은 서로 다른 일이다. */
+/* 갈래마다 다른 판이다. 덱 id에 갈래를 넣어야 「새 단어」를 눌렀는데
+   하다 만 복습 판이 열리는 일이 없다 — 둘은 서로 다른 일이다.
+
+   덱 id는 그대로 둔다(today:fresh 등). 이름만 「단어 외우기 → 새 단어」로
+   바뀌었는데 id까지 건드리면, 하다 만 판을 가진 사람이 업데이트하는 순간
+   그 판을 못 찾는다. */
 function LANE_DECK(lanes) {
   if (!lanes?.length || lanes.length === 3) return 'today';
   return `today:${[...lanes].sort().join('+')}`;
@@ -71,14 +75,14 @@ function LANE_DECK(lanes) {
    배운 걸 다시 도는 자리다 — 그날 할 것을 다 한 다음이니까. */
 function LANE_NEXT(lanes) {
   if (!lanes?.length || lanes.length === 3) return null;
-  if (!lanes.includes('fresh')) return { to: 'fresh', label: '단어 외우기' };
+  if (!lanes.includes('fresh')) return { to: 'fresh', label: '새 단어' };
   if (lanes.length === 1 && lanes[0] === 'fresh') return { to: 'repeat', label: '회독 학습' };
   return null;
 }
 
 function LANE_LABEL(lanes) {
   if (!lanes?.length || lanes.length === 3) return '오늘의 학습';
-  if (lanes.length === 1 && lanes[0] === 'fresh') return '단어 외우기';
+  if (lanes.length === 1 && lanes[0] === 'fresh') return '새 단어';
   if (!lanes.includes('fresh')) return '복습하기';
   return '오늘의 학습';
 }

@@ -177,8 +177,8 @@ const check = async (page, theme, name) => {
   await page.waitForTimeout(700); await check(page, theme, '01b-학습허브');
   await goTab(page, '기록');
   await page.waitForTimeout(700); await check(page, theme, '01c-기록');
-  await goTab(page, '학습');
-  await page.locator('.hubcard', { hasText: '듣기' }).click();
+  await goTab(page, '듣기');
+  await page.locator('.lh-way[data-way="auto"]').click();
   await page.waitForTimeout(800); await check(page, theme, '01d-듣기');
   await page.locator('.ls-go').click();
   await page.waitForTimeout(400);

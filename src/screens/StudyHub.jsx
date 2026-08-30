@@ -68,7 +68,7 @@ export default function StudyHub({ words, review, settings, onOpen }) {
               </div>
             )}
             {small.length > 0 && (
-              <div className="mtiles">
+              <div className="menugrid mtiles">
                 {small.map((m) => (
                   <StudyMenuCard key={m.id} item={m} onClick={() => onOpen(m.id)} />
                 ))}
