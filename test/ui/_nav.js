@@ -72,6 +72,10 @@ export const startWords = (page) => startStudy(page, '단어 외우기');
 export const startReview = (page) => startStudy(page, '복습하기');
 
 export async function openMenu(page, label) {
+  /* 열려 있는 화면을 먼저 닫는다. 안 닫으면 그 화면이 탭 바를 덮고 있어서
+     탭을 눌러도 안 눌린다 — 30초를 기다리다 검사가 통째로 멈춘다. */
+  const back = page.locator('.subscreen.open .sub-back');
+  if (await back.count()) { await back.first().click(); await page.waitForTimeout(600); }
   await goTab(page, '학습');
   await page.locator('.menutile', { hasText: label }).first().click();
   await page.waitForTimeout(800);
