@@ -117,17 +117,10 @@ export default function Today({
 
       <div className="section-label">오늘 할 것</div>
       <div className="tdtasks">
+        {/* 복습이 먼저다. 이미 본 걸 안 잃는 것이 새로 배우는 것보다 앞선다 —
+            새 단어를 스무 개 더 넣어도 어제 것이 새어 나가면 제자리다. */}
         <Task
           primary
-          icon={<IconBook />}
-          title="단어 외우기"
-          sub={fresh.fresh > 0 ? `새 단어 ${fresh.fresh}개 · 약 ${fresh.minutes}분` : '오늘 몫을 다 했어요'}
-          count={fresh.fresh}
-          unit="개"
-          done={fresh.fresh === 0}
-          onClick={onStartWords}
-        />
-        <Task
           icon={<IconRepeat />}
           title="복습하기"
           sub={backTotal > 0
@@ -137,6 +130,15 @@ export default function Today({
           unit="개"
           done={backTotal === 0}
           onClick={onStartReview}
+        />
+        <Task
+          icon={<IconBook />}
+          title="단어 외우기"
+          sub={fresh.fresh > 0 ? `새 단어 ${fresh.fresh}개 · 약 ${fresh.minutes}분` : '오늘 몫을 다 했어요'}
+          count={fresh.fresh}
+          unit="개"
+          done={fresh.fresh === 0}
+          onClick={onStartWords}
         />
         <Task
           icon={<IconGrid />}

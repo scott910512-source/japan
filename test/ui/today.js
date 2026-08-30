@@ -43,6 +43,21 @@ function seeded() {
   return { review, stats, streak: { count: 7, lastDate: day(0) } };
 }
 
+/* 「본 적 있는 N5 카드 n개」를 심는다. 복습일도 지나 있어서 복습 갈래에 들어온다.
+   회독 학습은 「본 적 있는가」만 보므로 같은 씨앗을 함께 쓴다. */
+function seedDue(n) {
+  const past = new Date();
+  past.setDate(past.getDate() - 9);
+  const lastSeen = past.toISOString().slice(0, 10);
+  const review = {};
+  for (let i = 1; i <= n; i++) {
+    review[`n5-${String(i).padStart(4, '0')}`] = {
+      box: 3, streak: 1, lastSeen, rounds: 1, wrongCount: 0, vagueCount: 0, seenAt: 1,
+    };
+  }
+  return review;
+}
+
 async function boot(browser, patch = {}) {
   const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
@@ -91,9 +106,11 @@ async function boot(browser, patch = {}) {
      신규가 섞여 나왔고, 그게 싫으면 학습 탭에 들어가 메뉴를 골라야 했다. */
   const tasks = await page.locator('.tdtask').allTextContents();
   ok('할 일이 셋으로 나뉨', tasks.length === 3, tasks.map((t) => t.split('\n')[0]).join(' / '));
-  ok('단어 외우기가 있음', tasks[0].includes('단어 외우기'));
-  ok('복습하기가 있음', tasks[1].includes('복습하기'));
-  ok('문법 배우기가 있음', tasks[2].includes('문법 배우기'));
+  /* 복습이 먼저다. 이미 본 걸 안 잃는 것이 새로 배우는 것보다 앞선다 —
+     새 단어를 스무 개 더 넣어도 어제 것이 새어 나가면 제자리다. */
+  ok('복습하기가 맨 위', tasks[0].includes('복습하기'), tasks[0].split('\n')[0]);
+  ok('그다음이 단어 외우기', tasks[1].includes('단어 외우기'));
+  ok('문법 배우기가 마지막', tasks[2].includes('문법 배우기'));
   /* 눌러 보고 나서야 뭐가 나오는지 알면 안 된다 — 줄마다 개수가 적혀 있어야 한다 */
   ok('줄마다 몇 개인지 보임', await page.locator('.tt-count, .tt-done').count() === 3);
 
@@ -350,6 +367,72 @@ async function boot(browser, patch = {}) {
     ok('눌러서 홈으로 감', await p4.locator('.today').count() === 1);
     ok('세션이 정리됨', await p4.evaluate(() => localStorage.getItem('jp_manabu_session_v1')) === null);
     await p4.close();
+  }
+
+  /* ── 한 판이 끝나면 다음으로 이어 준다 ──
+     끝날 때마다 홈으로 돌려보내면 매번 「다음에 뭐 하지」를 다시 정해야 한다.
+     복습 → 단어 외우기 → 회독 학습이 그날의 순서다. */
+  console.log('\n── 끝나면 다음으로 이어 준다');
+  {
+    const p5 = await boot(browser, {
+      settings: { goals: { fresh: 20, review: 1, weak: 0 } },
+      /* 씨앗을 넉넉히 둔다. 오늘 후보 풀은 자료 전체가 아니라 추려진 목록이라,
+         한 장만 심으면 그게 안 뽑혀서 복습이 0이 된다. */
+      review: seedDue(30),
+    });
+    await goTab(p5, '오늘');
+    await p5.locator('.tdtask', { hasText: '복습하기' }).click();
+    await p5.waitForTimeout(900);
+    const intro5 = p5.locator('.study.intro .bigstart');
+    if (await intro5.count()) { await intro5.click(); await p5.waitForTimeout(700); }
+
+    for (let i = 0; i < 4 && await p5.locator('.judge.known').count(); i++) {
+      await p5.locator('.judge.known').click();
+      await p5.waitForTimeout(500);
+    }
+    const fin5 = await p5.locator('.finish').innerText().catch(() => '');
+    ok('복습을 끝내면 단어 외우기로 이어 준다', fin5.includes('다음: 단어 외우기'),
+      fin5.replace(/\n/g, ' ').slice(0, 90));
+    ok('홈으로 가는 길도 남아 있다', fin5.includes('홈으로'));
+
+    await p5.locator('.finish .submit-btn').click();
+    await p5.waitForTimeout(1000);
+    const where = await p5.locator('.sh-title, .si-label').first().innerText();
+    ok('눌렀더니 단어 외우기가 열린다', where.includes('단어 외우기'), where);
+    await p5.close();
+  }
+
+  /* ── 회독 학습 — 배운 걸 등급별로 다시 ── */
+  console.log('\n── 회독 학습 (배운 걸 등급별로 다시)');
+  {
+    /* 넉넉히 심는다. n5-XXXX id 상당수는 기본 단어와 같은 말이라 병합 과정에서
+       기본 쪽 id가 남는다 — 심은 수와 살아남는 수가 다르다. */
+    const p6 = await boot(browser, { review: seedDue(60) });
+    await goTab(p6, '학습');
+    ok('학습 메뉴에 회독 학습이 있다',
+      await p6.locator('.menutile', { hasText: '회독 학습' }).count() === 1);
+    await p6.locator('.menutile', { hasText: '회독 학습' }).click();
+    await p6.waitForTimeout(800);
+
+    ok('등급이 셋', await p6.locator('.rp-lvcard').count() === 3);
+    const n5 = p6.locator('.rp-lvcard').first();
+    const n5text = await n5.innerText();
+    const learned = Number(n5text.match(/(\d+)개 배웠어요/)?.[1] || 0);
+    ok('배운 개수가 보인다', learned > 0, n5text.replace(/\n/g, ' ').slice(0, 60));
+
+    /* 한 번도 안 본 등급은 못 누른다 — 그건 새로 배우는 것이고 여기 일이 아니다 */
+    ok('안 배운 등급은 잠겨 있다',
+      await p6.locator('.rp-lvcard').last().locator('.submit-btn').isDisabled());
+
+    await n5.locator('.submit-btn').click();
+    await p6.waitForTimeout(1000);
+    const title6 = await p6.locator('.sh-title').innerText();
+    ok('그 등급으로 회독이 시작된다', title6.includes('N5 회독'), title6);
+    /* 배운 것만 들어간다 — 안 본 카드가 섞이면 「다시 보기」가 아니게 된다.
+       N5 전체는 534개지만 배운 것만 담기니 그보다 훨씬 적어야 한다. */
+    ok('배운 것만 들어간다', title6.includes(`/ ${learned}`), `${title6} (배운 것 ${learned}개)`);
+    ok('안 본 카드는 안 섞인다', learned < 100, `${learned}개`);
+    await p6.close();
   }
 
   await browser.close();

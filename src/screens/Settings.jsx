@@ -19,6 +19,7 @@ const MENU_LABELS = {
   basics: '완전기초',
   grammar: '기초문법',
   words: '단어암기',
+  repeat: '회독 학습',
   jlpt: 'JLPT 단어',
   sentences: '상황별 문장암기',
   quiz: '단어 시험',
