@@ -19,7 +19,6 @@ import Match from './screens/Match.jsx';
 import Rpg from './screens/Rpg.jsx';
 import Repeat from './screens/Repeat.jsx';
 import Adverb from './screens/Adverb.jsx';
-import Jlpt from './screens/Jlpt.jsx';
 import Videos from './screens/Videos.jsx';
 import Translate from './screens/Translate.jsx';
 import GrammarHub from './screens/GrammarHub.jsx';
@@ -85,7 +84,7 @@ function LANE_LABEL(lanes) {
 
 const SUB_TITLES = {
   basics: '완전기초',
-  grammar: '기초문법',
+  grammar: '문법',
   sentences: '상황별 문장암기',
   translate: '번역기',
   manage: '내 단어장',
@@ -97,7 +96,6 @@ const SUB_TITLES = {
   repeat: '회독 학습',
   adverb: '부사 연습',
   listen: '듣기 · 따라 말하기',
-  jlpt: 'JLPT 단어',
 };
 
 export default function App() {
@@ -850,6 +848,8 @@ export default function App() {
                 settings={settings}
                 onChange={patchSettings}
                 onStart={startWordDeck}
+                onStartSet={startJlptSet}
+                onToast={showToast}
               />
             )}
             {sub === 'basics' && <Basics settings={settings} onToast={showToast} />}
@@ -857,12 +857,15 @@ export default function App() {
               <GrammarHub
                 words={words}
                 progress={progress}
+                settings={settings}
                 onProgress={(moduleId, delta) => setProgress((p) => ({
                   ...p, grammarDone: { ...p.grammarDone, [moduleId]: (p.grammarDone[moduleId] || 0) + delta },
                 }))}
                 onPatternDone={(patternId) => setProgress((p) => ({
                   ...p, sentenceDone: { ...p.sentenceDone, [patternId]: true },
                 }))}
+                onDailyGrammar={(dailyGrammar) => setProgress((p) => ({ ...p, dailyGrammar }))}
+                onToast={showToast}
               />
             )}
             {sub === 'sentences' && (
@@ -870,14 +873,6 @@ export default function App() {
                 review={review}
                 settings={settings}
                 onReviewChange={applyReview}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'jlpt' && (
-              <Jlpt
-                words={words}
-                review={review}
-                onStartSet={startJlptSet}
                 onToast={showToast}
               />
             )}

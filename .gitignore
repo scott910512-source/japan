@@ -3,3 +3,7 @@ dist
 dist-ssr
 *.local
 .DS_Store
+
+# vite가 설정을 읽을 때 잠깐 만드는 파일 — 빌드 중에 git add -A를 하면 딸려 들어온다
+vite.config.js.timestamp-*
+vite.config.*.timestamp-*

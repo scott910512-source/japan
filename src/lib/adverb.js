@@ -6,28 +6,25 @@
  *
  * 여기서도 숙련도를 새로 만들지 않는다. 부사는 이미 단어장에 카드로 있으니
  * 회독 저장소의 그 카드에 붙인다 — 실전 연습과 같은 방식이다. 그래야
- * 여기서 틀린 「あまり」가 다음 날 오늘의 학습에 약점으로 올라온다. */
+ * 여기서 틀린 「あまり」가 다음 날 오늘의 학습에 약점으로 올라온다.
+ *
+ * 빈칸을 다루는 규칙 자체는 lib/blank.js에 있다. 일상문법도 같은 규칙을
+ * 쓰는데 두 벌로 두면 한쪽만 고쳐진다. 여기 남는 건 「부사라서 다른 것」뿐 —
+ * 단어 카드와 잇는 부분이다. */
 
-import { ADVERB_SETS, ALL_ADVERB_ITEMS, BLANK } from '../data/adverbs.js';
-import { shuffled, stateOf, isWeak, VERDICT } from './review.js';
+import { ADVERB_SETS, ALL_ADVERB_ITEMS } from '../data/adverbs.js';
+import { stateOf, isWeak, VERDICT } from './review.js';
+import {
+  BLANK, buildSetFrom, filled, filledKana, retryOf, scoreOf, splitBlank,
+} from './blank.js';
 
 export { BLANK, ADVERB_SETS, ALL_ADVERB_ITEMS };
+export {
+  splitBlank, filled, filledKana, retryOf, scoreOf,
+};
 
-/* 빈칸을 앞뒤로 쪼갠다. 화면이 「앞 [칸] 뒤」로 그린다 —
-   문장을 통째로 두고 밑줄만 치면 어디가 빈칸인지 눈에 안 들어온다. */
-export function splitBlank(text) {
-  const at = String(text || '').indexOf(BLANK);
-  if (at < 0) return { head: String(text || ''), tail: '' };
-  return { head: text.slice(0, at), tail: text.slice(at + BLANK.length) };
-}
-
-/* 답을 넣은 완성 문장. 맞힌 뒤에 보여 준다 — 빈칸인 채로 넘어가면
-   방금 배운 문장이 머리에 통째로 안 남는다. */
-export function filled(item) {
-  return String(item.jp || '').replace(BLANK, item.answer);
-}
-export function filledKana(item) {
-  return String(item.kana || '').replace(BLANK, item.answer);
+export function buildSet(setId, opts) {
+  return buildSetFrom(ADVERB_SETS, setId, opts);
 }
 
 /* 이 부사가 단어장의 어느 카드인가.
@@ -39,37 +36,6 @@ export function cardOf(words, kana) {
   return words.find((w) => w.kana === kana && w.type === 'adv')
     || words.find((w) => w.kana === kana)
     || null;
-}
-
-/* 한 판을 짠다.
- *
- * 묶음 하나를 통째로 돈다. 부정 호응을 배우는 중에 시간 부사가 섞여 나오면
- * 무엇을 배우는 판인지 흐려진다.
- *
- * 보기 순서는 섞되 문제 순서는 안 섞는다 — 자료를 쉬운 것부터 적어 뒀다. */
-export function buildSet(setId, { shuffle = true } = {}) {
-  const set = ADVERB_SETS.find((s) => s.id === setId);
-  if (!set) return [];
-  return set.items.map((it) => ({
-    ...it,
-    options: shuffle ? shuffled(it.options) : [...it.options],
-  }));
-}
-
-/* 틀린 것만 다시. 같은 판 안에서 두 번째로 만나는 자리다 —
-   틀린 채로 넘어가면 그 부사는 오늘 배운 게 없다. */
-export function retryOf(items, wrongIds) {
-  const set = new Set(wrongIds);
-  return items.filter((it) => set.has(it.id)).map((it) => ({
-    ...it,
-    options: shuffled(it.options),
-  }));
-}
-
-/* 몇 개 맞혔나 */
-export function scoreOf(answers, items) {
-  const right = items.filter((it) => answers[it.id]?.good).length;
-  return { right, total: items.length, rate: items.length ? right / items.length : 0 };
 }
 
 /* 회독으로 넘길 판정.

@@ -127,6 +127,17 @@ export function mergeRpg(local = {}, remote = {}) {
   return { exp: Math.max(local.exp || 0, remote.exp || 0), stages };
 }
 
+/* 「몇 개 맞혔나」 꾸러미를 합친다. 두 기기에서 같은 묶음을 풀었으면
+   잘한 쪽이 남아야 한다 — 나중 것이 이기면 어제 다 맞힌 게 오늘 반으로 준다. */
+function mergeBest(local = {}, remote = {}) {
+  const out = { ...(remote || {}) };
+  for (const [id, rec] of Object.entries(local || {})) {
+    const had = out[id];
+    if (!had || (rec?.right || 0) >= (had.right || 0)) out[id] = rec;
+  }
+  return out;
+}
+
 export function mergeProgress(local = {}, remote = {}) {
   return {
     ...remote,
@@ -134,6 +145,8 @@ export function mergeProgress(local = {}, remote = {}) {
     bookmarks: [...new Set([...(remote.bookmarks || []), ...(local.bookmarks || [])])],
     grammarDone: { ...(remote.grammarDone || {}), ...(local.grammarDone || {}) },
     sentenceDone: { ...(remote.sentenceDone || {}), ...(local.sentenceDone || {}) },
+    // 일상문법은 「몇 개 맞혔나」라 잘한 쪽을 남긴다 — 나중 것이 이기면 진도가 뒤로 간다
+    dailyGrammar: mergeBest(local.dailyGrammar, remote.dailyGrammar),
     // 활용 성적은 두 기기에서 푼 게 다 남아야 한다 — local이 통째로 덮으면 사라진다
     conj: mergeConj(local.conj, remote.conj),
     rpg: mergeRpg(local.rpg, remote.rpg),

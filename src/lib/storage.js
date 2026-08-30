@@ -126,6 +126,8 @@ export function saveCustomWords(words) {
 
 const DEFAULT_PROGRESS = {
   known: [], unknown: [], grammarDone: {}, sentenceDone: {}, bookmarks: [],
+  // 일상문법 빈칸 채우기 — { 묶음id: { right, total, at } }
+  dailyGrammar: {},
   // 동사 활용 성적 — forms는 그룹×모양별, words는 동사별
   conj: { forms: {}, words: {} },
   /* 실전 연습 — EXP와 스테이지별 기록.
@@ -141,6 +143,7 @@ export function loadProgress() {
     ...DEFAULT_PROGRESS,
     ...saved,
     conj: { forms: saved?.conj?.forms || {}, words: saved?.conj?.words || {} },
+    dailyGrammar: saved?.dailyGrammar || {},
     rpg: { exp: saved?.rpg?.exp || 0, stages: saved?.rpg?.stages || {} },
   };
 }
@@ -240,10 +243,9 @@ export const DEFAULT_SETTINGS = {
   // 홈 허브에 노출할 메뉴 (설정에서 개별 on/off)
   menus: {
     basics: true,     // 완전기초
-    grammar: true,    // 기초문법
+    grammar: true,    // 문법 — 기초문법 · 일상문법 · 문형 연습
     words: true,      // 단어암기
     repeat: true,     // 회독 학습 — 배운 걸 등급별로 다시
-    jlpt: true,       // JLPT 레벨별 단어
     sentences: true,  // 상황별 문장암기
     quiz: true,       // 단어 시험
     conjugate: true,  // 동사 활용 — 기초 시제

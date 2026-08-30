@@ -10,25 +10,15 @@ import Account from './Account.jsx';
 import KeyVault from '../components/KeyVault.jsx';
 import VoicePicker from '../components/VoicePicker.jsx';
 import { usageSummary, formatChars } from '../lib/usage.js';
+import { MENUS, MENU_GROUPS } from '../lib/menu.js';
 import {
   DEFAULT_GEMINI_MODEL, PROVIDERS, TRANSCRIBE_MINUTES,
   listGeminiModels, looksLikeGeminiKey, resolveProvider,
 } from '../lib/videoTutor.js';
 
-const MENU_LABELS = {
-  basics: '완전기초',
-  grammar: '기초문법',
-  words: '단어암기',
-  repeat: '회독 학습',
-  jlpt: 'JLPT 단어',
-  sentences: '상황별 문장암기',
-  quiz: '단어 시험',
-  conjugate: '동사 활용',
-  adverb: '부사 연습',
-  match: '짝 맞추기',
-  rpg: '실전 연습',
-  translate: '번역기',
-};
+/* 메뉴 목록은 lib/menu.js 하나로 정한다. 여기에 또 적어 두면 학습 탭에서
+   없앤 메뉴가 설정에는 남아, 켜도 아무 데도 안 뜨는 칸이 생긴다 —
+   「JLPT 단어」를 단어암기에 합칠 때 실제로 그럴 뻔했다. */
 
 /* 갈래별 하루 목표. 「약점」이 왜 따로 있는지 한 줄로 적어 둔다 —
    안 적으면 복습과 뭐가 다른지 모른 채로 숫자만 만지게 된다. */
@@ -338,16 +328,23 @@ export default function Settings({
         onToast={onToast}
       />
 
+      {/* 학습 탭과 같은 묶음으로 보여 준다 — 거기선 셋으로 갈라 놓고 여기선
+          한 줄로 늘어놓으면 어느 칸이 어디 것인지 다시 찾아야 한다. */}
       <div className="section-label">학습 메뉴</div>
       <div className="card">
-        {Object.entries(MENU_LABELS).map(([id, label]) => (
-          <button key={id} className="toggle-row setrow" onClick={() => toggleMenu(id)} aria-pressed={Boolean(menus[id])}>
-            <span>
-              <span className="set-title">{label}</span>
-              {id === 'translate' && <span className="set-sub">한국어로 적으면 지금 말할 일본어로 — 발음까지</span>}
-            </span>
-            <span className={`toggle${menus[id] ? ' on' : ''}`} aria-hidden="true" />
-          </button>
+        {MENU_GROUPS.map((g) => (
+          <div key={g.id} className="setgroup">
+            <div className="sg-label">{g.label}</div>
+            {MENUS.filter((m) => m.group === g.id).map(({ id, label, sub }) => (
+              <button key={id} className="toggle-row setrow" onClick={() => toggleMenu(id)} aria-pressed={Boolean(menus[id])}>
+                <span>
+                  <span className="set-title">{label}</span>
+                  <span className="set-sub">{sub}</span>
+                </span>
+                <span className={`toggle${menus[id] ? ' on' : ''}`} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
         ))}
         <div className="set-note">끈 메뉴의 학습 기록은 그대로 남아 있어요.</div>
       </div>

@@ -203,7 +203,7 @@ async function boot(browser, patch = {}, init = null) {
   console.log('\n── 기존 것이 하나도 안 없어졌다');
   await goTab(page, '학습');
   const tiles = await page.locator('.menutile .mt-title').allTextContents();
-  for (const m of ['완전기초', '기초문법', '단어암기', 'JLPT 단어', '상황별 문장암기', '단어 시험', '동사 활용', '번역기']) {
+  for (const m of ['완전기초', '문법', '단어암기', '상황별 문장암기', '단어 시험', '동사 활용', '번역기']) {
     ok(`${m} 그대로 있음`, tiles.includes(m), tiles.join(','));
   }
   ok('영상으로 가는 길도 있음', await page.locator('.hubcard', { hasText: '영상' }).count() === 1);

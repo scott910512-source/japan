@@ -150,9 +150,9 @@ const open = async (page) => {
   /* 기초문법도 열어 본다 — 활용표를 같이 쓰는 자리라 여기가 깨지면 거기도 깨진다 */
   await page.locator('.sub-back').click();
   await page.waitForTimeout(600);
-  await openMenu(page, '기초문법');
+  await openMenu(page, '문법');
   await page.waitForTimeout(900);
-  ok('기초문법도 열림', (await page.textContent('.subscreen')).trim().length > 50);
+  ok('문법도 열림', (await page.textContent('.subscreen')).trim().length > 50);
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
   await page.close();

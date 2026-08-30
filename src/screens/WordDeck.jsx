@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { IconBook, IconRepeat, IconSparkle } from '../components/Icons.jsx';
+import Jlpt from './Jlpt.jsx';
 import {
   GOAL_CHOICES, MASTER_STREAK, planDailySession, summarize, todayKey,
 } from '../lib/review.js';
@@ -14,7 +15,18 @@ export function filterByLevel(words, levels) {
   return words.filter((w) => set.has(w.level) || (!w.level && set.has('N5')));
 }
 
-export default function WordDeck({ words, review, settings, onChange, onStart }) {
+/* 단어암기 — 외울 단어를 고르고 회독을 시작하는 자리.
+ *
+ * 「JLPT 단어」가 따로 있었다. 그런데 그건 다른 공부가 아니라 같은 단어를
+ * 다른 방식으로 끊어 주는 것이었다 — 여기가 「어떻게 도는가」라면 저긴
+ * 「어디까지 끊는가」다. 메뉴를 둘로 두니 「단어암기와 JLPT 단어가 거의
+ * 같은 것 아니냐」는 말이 나왔고, 실제로 그랬다.
+ *
+ * 그래서 한 화면에 넣고 범위 고르는 방법을 둘로 뒀다.
+ *   이어서 외우기 — 고른 레벨을 앱이 짜 주는 대로 이어서
+ *   세트로 끊어서 — 레벨 안에서 100개씩, 어디까지 했는지 눈에 보이게 */
+export default function WordDeck({ words, review, settings, onChange, onStart, onStartSet, onToast }) {
+  const [how, setHow] = useState('flow');
   const levels = settings.levels?.length ? settings.levels : LEVELS;
 
   const pool = useMemo(() => filterByLevel(words, settings.levels), [words, settings.levels]);
@@ -46,6 +58,20 @@ export default function WordDeck({ words, review, settings, onChange, onStart })
 
   return (
     <>
+      {/* 무엇을 외울지가 아니라 어떻게 끊을지를 고르는 자리다 */}
+      <div className="segment wd-how" style={{ marginBottom: 16 }}>
+        <button className={how === 'flow' ? 'active' : ''} onClick={() => setHow('flow')}>
+          이어서 외우기
+        </button>
+        <button className={how === 'set' ? 'active' : ''} onClick={() => setHow('set')}>
+          세트로 끊어서
+        </button>
+      </div>
+
+      {how === 'set' ? (
+        <Jlpt words={words} review={review} onStartSet={onStartSet} onToast={onToast} />
+      ) : (
+      <>
       <div className="section-label" style={{ marginTop: 0 }}>학습할 레벨</div>
       <div className="chiprow">
         {LEVELS.map((lv) => (
@@ -130,6 +156,8 @@ export default function WordDeck({ words, review, settings, onChange, onStart })
           <div className="sr-lab">지금 고른 레벨의 전체 단어</div>
         </div>
       </div>
+      </>
+      )}
     </>
   );
 }
