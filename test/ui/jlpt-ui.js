@@ -42,11 +42,19 @@ const ok = (label, cond, extra) => {
   }
   await page.waitForTimeout(600);
 
-  // 홈에 JLPT 메뉴 카드가 있는가
+  /* JLPT 세트는 단어암기 안으로 들어갔다.
+     따로 둔 메뉴였는데, 그건 다른 공부가 아니라 같은 단어를 다른 방식으로
+     끊어 주는 것이었다 — 「단어암기와 JLPT 단어가 거의 같은 것 아니냐」는
+     말이 나왔고, 실제로 그랬다. */
   await goTab(page, '학습');
-  const card = page.locator('.menutile', { hasText: 'JLPT 단어' });
-  ok('홈에 JLPT 단어 메뉴 노출', await card.count() > 0);
+  ok('JLPT 단어가 따로 있지 않다',
+    await page.locator('.menutile', { hasText: 'JLPT 단어' }).count() === 0);
+  const card = page.locator('.menutile', { hasText: '단어암기' });
+  ok('단어암기로 들어간다', await card.count() > 0);
   await card.first().click();
+  await page.waitForTimeout(600);
+  ok('끊는 방법을 고를 수 있다', await page.locator('.wd-how button').count() === 2);
+  await page.locator('.wd-how button', { hasText: '세트로' }).click();
   await page.waitForTimeout(500);
 
   // 레벨 목록
@@ -84,9 +92,11 @@ const ok = (label, cond, extra) => {
 
   // 뒤로 → 레벨 재선택
   await goTab(page, '학습');
-  const card2 = page.locator('.menutile', { hasText: 'JLPT 단어' });
+  const card2 = page.locator('.menutile', { hasText: '단어암기' });
   if (await card2.count()) {
     await card2.first().click();
+    await page.waitForTimeout(500);
+    await page.locator('.wd-how button', { hasText: '세트로' }).click();
     await page.waitForTimeout(400);
     await page.locator('.jl-level').first().click();
     await page.waitForTimeout(400);
