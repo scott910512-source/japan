@@ -2,7 +2,7 @@
    판정 → 회독 넘어가기 → 되돌리기 → 이어하기 → 기록 저장까지. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { startStudy } from './_nav.js';
+import { startStudy, openReview } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -136,7 +136,7 @@ const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp
   ok('새로고침해도 기록이 남음', Object.keys(await review(page)).length === beforeReload, `${beforeReload}개`);
 
   // 복습 탭이 기록을 읽는다
-  await page.locator('.tabbar .tab', { hasText: '복습' }).click();
+  await openReview(page);
   await page.waitForTimeout(700);
   const body = await page.textContent('body');
   ok('복습 탭이 열림', body.length > 50);

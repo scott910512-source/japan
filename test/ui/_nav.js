@@ -98,6 +98,16 @@ export async function openListen(page, way = 'auto') {
   await page.waitForTimeout(900);
 }
 
+/* 복습 화면. 탭에서 내려왔지만 화면은 그대로다 —
+   오늘 화면의 「복습이 더 남았어요」와 기록 탭에서 여기로 온다. */
+export async function openReview(page) {
+  const back = page.locator('.subscreen.open .sub-back');
+  if (await back.count()) { await back.first().click(); await page.waitForTimeout(600); }
+  await goTab(page, '기록');
+  await page.locator('.rowcard', { hasText: '복습으로 가기' }).click();
+  await page.waitForTimeout(900);
+}
+
 export async function openVideos(page) {
   await openListen(page, 'videos');
 }

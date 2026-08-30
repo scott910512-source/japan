@@ -719,13 +719,18 @@ async function boot(browser, patch = {}, init = null) {
 
     await pv.evaluate(() => { window.__said = []; });
     await startListen(pv);
-    let heard = false;
-    for (let i = 0; i < 22 && !heard; i++) {
+    /* 둘 다 나올 때까지 기다린다. 한쪽만 보고 끊으면 방향에 따라 아직 안 온
+       쪽을 「안 나온다」고 잡는다 — 뒤집은 판은 한국어가 먼저다. */
+    let both = false;
+    for (let i = 0; i < 24 && !both; i++) {
       await pv.waitForTimeout(800);
-      heard = await pv.evaluate(() => (window.__said || []).some((u) => u.lang === 'ko-KR'));
+      both = await pv.evaluate(() => {
+        const l = (window.__said || []).map((u) => u.lang);
+        return l.includes('ko-KR') && l.includes('ja-JP');
+      });
     }
     const langs = await pv.evaluate(() => (window.__said || []).map((u) => u.lang).join(','));
-    ok(`[${dir}] 한국어를 읽으라고 넘긴다`, heard, langs || '조용함');
+    ok(`[${dir}] 한국어를 읽으라고 넘긴다`, langs.includes('ko-KR'), langs || '조용함');
     ok(`[${dir}] 일본어도 읽는다`, langs.includes('ja-JP'), langs);
     await pv.close();
   }

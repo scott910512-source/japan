@@ -1,7 +1,7 @@
 /* 실제로 쓰는 길을 따라 걸어 본다 — 나갔다 오면 진도가 남는가, 되돌리기는 되는가. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, startStudy } from './_nav.js';
+import { goTab, startStudy, openReview } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -92,7 +92,7 @@ const judge = async (page, label) => { await page.locator('.judgerow button', { 
   ok('뜻을 보고도 판정할 수 있음', await page.locator('.judgerow button').count() === 3);
 
   // ── 취약 단어 ──
-  await page.locator('.tabbar .tab', { hasText: '복습' }).click();
+  await openReview(page);
   await page.waitForTimeout(800);
   const rv = await page.textContent('.screen.active');
   ok('복습 화면에 회독 현황이 있음', rv.includes('졸업') && rv.includes('학습 중'));

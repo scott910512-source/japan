@@ -79,10 +79,12 @@ const FAKE = {
     };
   }, FAKE);
 
-  // 학습 → 영상으로 배우기 (예전엔 탭이었는데 학습 탭의 카드로 옮겼다)
-  await goTab(page, '학습');
-  const entry = page.locator('.hubcard', { hasText: '영상' });
-  ok('학습 탭에 영상이 있음', await entry.count() === 1);
+  /* 듣기 → 영상으로 배우기.
+     탭이었다가 학습 탭 카드로 갔다가, 이제 듣기 탭으로 왔다. 보고 듣는 일은
+     앉아서 손으로 하는 공부와 결이 달라서 거기가 제자리다. */
+  await goTab(page, '듣기');
+  const entry = page.locator('.lh-way[data-way="videos"]');
+  ok('듣기 탭에 영상이 있음', await entry.count() === 1);
   await entry.click();
   await page.waitForTimeout(900);
 
@@ -197,8 +199,8 @@ const FAKE = {
   await page.waitForTimeout(700);
   /* 회독을 닫으면 학습 탭으로 빠진다. 목록까지는 걸어서 들어간다 —
      화면이 어디에 있든 같은 길이라 흔들리지 않는다. */
-  await goTab(page, '학습');
-  await page.locator('.hubcard', { hasText: '영상' }).click();
+  await goTab(page, '듣기');
+  await page.locator('.lh-way[data-way="videos"]').click();
   await page.waitForTimeout(900);
   /* 영상 화면은 상세로 열릴 수 있다. 목록이 안 보일 때만 한 단계 나온다 —
      .inner-back은 목록에서는 「학습으로 돌아가기」라, 그냥 누르면 영상 화면을
@@ -229,8 +231,8 @@ const FAKE = {
   console.log('\n[ 넷플릭스 자막 ]');
   await page.locator('.sh-close').first().click();
   await page.waitForTimeout(700);
-  await goTab(page, '학습');
-  await page.locator('.hubcard', { hasText: '영상' }).click();
+  await goTab(page, '듣기');
+  await page.locator('.lh-way[data-way="videos"]').click();
   await page.waitForTimeout(900);
   if (await page.locator('.vd-item').count() === 0) {
     await page.locator('.inner-back').first().click();
