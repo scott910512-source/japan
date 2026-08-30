@@ -79,7 +79,7 @@ function sizeOf(text) {
 export default function Study({
   deck, review, settings, session, bookmarks, memos, onSaveMemo,
   asks, onAsks, onAddWord,
-  onReviewChange, onSessionChange, onSettingsChange, onBookmark, onClose, onToast,
+  onReviewChange, onSessionChange, onSettingsChange, onBookmark, onClose, onNext, onToast,
 }) {
   const cards = deck.cards;
   const byId = useMemo(() => new Map(cards.map((w) => [w.id, w])), [cards]);
@@ -152,6 +152,13 @@ export default function Study({
       date: todayKey(),
     });
     history.current = [];
+    /* 완주 화면을 내린다. 판이 끝난 자리에서 「다음」을 눌러 새 판으로 넘어가면
+       이 화면은 그대로 남는다 — 덱만 바뀌고 이 컴포넌트는 안 새로 만들어져서다.
+       그러면 다음 판이 시작됐는데 앞 판의 결과가 계속 떠 있다. */
+    setFinished(null);
+    setIntroSeen(false);
+    tally.current = { known: 0, vague: 0, unknown: 0, master: 0 };
+    startedAt.current = Date.now();
     // deck이 바뀔 때만 새 세션을 만든다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deck.id]);
@@ -318,6 +325,7 @@ export default function Study({
         deck={deck}
         settings={settings}
         onClose={onClose}
+        onNext={onNext}
         onUndo={history.current.length ? undo : null}
       />
     );
@@ -605,7 +613,7 @@ function StudyHeader({ session, deck, onClose, onUndo, hasKeyboard }) {
   );
 }
 
-function FinishCard({ finished, deck, settings, onClose, onUndo }) {
+function FinishCard({ finished, deck, settings, onClose, onNext, onUndo }) {
   const t = finished.tally || {};
   const known = (t.known || 0) + (t.master || 0);
   return (
@@ -633,7 +641,18 @@ function FinishCard({ finished, deck, settings, onClose, onUndo }) {
           {deck.intro ? <span>오늘 목표 {deck.intro.total}장</span> : null}
         </p>
 
-        <button className="submit-btn" onClick={onClose}>홈으로</button>
+        {/* 끝날 때마다 홈으로 돌려보내면 매번 「다음에 뭐 하지」를 다시 정해야 한다.
+            그날의 다음 순서를 알고 있으면 그걸 먼저 내민다. */}
+        {onNext && deck.next ? (
+          <>
+            <button className="submit-btn" onClick={onNext}>
+              다음: {deck.next.label}
+            </button>
+            <button className="ghost-btn" onClick={onClose}>홈으로</button>
+          </>
+        ) : (
+          <button className="submit-btn" onClick={onClose}>홈으로</button>
+        )}
         {onUndo && (
           <button className="ghost-btn" onClick={onUndo}>↩ 마지막 판정 되돌리기</button>
         )}

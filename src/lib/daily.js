@@ -73,6 +73,19 @@ const SECONDS = { word: 9, sentence: 16 };
  * 0개가 된다. 대신 위에 뚜껑을 씌운다. */
 export const SENTENCE_SHARE = 0.5;
 
+/* 새로 배우는 판에 문장은 세 개까지.
+ *
+ * 단어 외우기는 단어를 외우는 자리다. 문장이 절반까지 들어오면 스무 장 중 열
+ * 장이 문장이 되는데, 문장 한 장은 단어 한 장의 두 배 가까이 걸린다 —
+ * 「단어 20개」라고 적어 놓고 실제로는 30개어치를 시키는 셈이다.
+ *
+ * 그렇다고 0으로 두지는 않는다. 단어만 외우면 그 단어가 문장 안에서 어떻게
+ * 서는지를 영영 안 보게 된다. 두세 개면 그 감을 잡기에 충분하다.
+ *
+ * 복습에는 이 뚜껑을 안 씌운다. 전에 외운 문장은 복습일이 되면 나와야 하고,
+ * 여기서 막으면 외운 게 조용히 새어 나간다. */
+export const FRESH_SENTENCE_MAX = 3;
+
 /* 큐에 담기는 한 개. 단어인지 문장인지를 들고 다녀야 화면이 다르게 그린다. */
 function item(id, kind, bucket) {
   return { id, kind, bucket };
@@ -203,27 +216,39 @@ function arrange(picked) {
  * 없는 날 신규 쪽 몫이 놀게 된다. 바꿔 넣을 단어가 모자라면 그만큼은 그냥
  * 문장으로 둔다. 억지로 채우느라 개수를 줄이지는 않는다. */
 function capSentences(picked, groups, got, goal) {
-  const cap = Math.max(1, Math.floor(goal * SENTENCE_SHARE));
-  const sentences = picked.filter((x) => x.kind === 'sentence');
-  if (sentences.length <= cap) return picked;
-
   const taken = new Set(picked.map((x) => x.id));
   const spare = {
     review: groups.due.filter((x) => x.kind === 'word' && !taken.has(x.id)),
     weak: groups.weak.filter((x) => x.kind === 'word' && !taken.has(x.id)),
     fresh: groups.fresh.filter((x) => x.kind === 'word' && !taken.has(x.id)),
   };
-
-  /* 뒤에서부터 뺀다 — 앞쪽은 복습이라 화면을 여는 자리다 */
   const out = [...picked];
-  let over = sentences.length - cap;
-  for (let i = out.length - 1; i >= 0 && over > 0; i--) {
-    if (out[i].kind !== 'sentence') continue;
-    const lane = spare[out[i].bucket];
-    if (!lane?.length) continue;
-    out[i] = lane.shift();
-    over--;
+
+  /* 뒤에서부터 뺀다 — 앞쪽은 복습이라 화면을 여는 자리다.
+     바꿔 넣을 단어가 모자라면 그만큼은 그냥 문장으로 둔다. 억지로 채우느라
+     개수를 줄이지는 않는다. */
+  const swap = (over, match) => {
+    let left = over;
+    for (let i = out.length - 1; i >= 0 && left > 0; i--) {
+      if (out[i].kind !== 'sentence' || !match(out[i])) continue;
+      const lane = spare[out[i].bucket];
+      if (!lane?.length) continue;
+      out[i] = lane.shift();
+      left--;
+    }
+  };
+
+  // 새로 배우는 문장은 세 개까지 — 단어 외우기는 단어를 외우는 자리다
+  const freshSent = out.filter((x) => x.kind === 'sentence' && x.bucket === 'fresh').length;
+  if (freshSent > FRESH_SENTENCE_MAX) {
+    swap(freshSent - FRESH_SENTENCE_MAX, (x) => x.bucket === 'fresh');
   }
+
+  // 그러고도 판 전체에서 문장이 절반을 넘으면 거기서 더 깎는다
+  const cap = Math.max(1, Math.floor(goal * SENTENCE_SHARE));
+  const all = out.filter((x) => x.kind === 'sentence').length;
+  if (all > cap) swap(all - cap, () => true);
+
   return out;
 }
 

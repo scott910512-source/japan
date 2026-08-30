@@ -17,6 +17,7 @@ import Quiz from './screens/Quiz.jsx';
 import Conjugate from './screens/Conjugate.jsx';
 import Match from './screens/Match.jsx';
 import Rpg from './screens/Rpg.jsx';
+import Repeat from './screens/Repeat.jsx';
 import Jlpt from './screens/Jlpt.jsx';
 import Videos from './screens/Videos.jsx';
 import Translate from './screens/Translate.jsx';
@@ -65,6 +66,15 @@ function LANE_DECK(lanes) {
   return `today:${[...lanes].sort().join('+')}`;
 }
 
+/* 이 판이 끝나면 어디로 가나. 복습을 끝냈으면 새 단어, 새 단어까지 끝냈으면
+   배운 걸 다시 도는 자리다 — 그날 할 것을 다 한 다음이니까. */
+function LANE_NEXT(lanes) {
+  if (!lanes?.length || lanes.length === 3) return null;
+  if (!lanes.includes('fresh')) return { to: 'fresh', label: '단어 외우기' };
+  if (lanes.length === 1 && lanes[0] === 'fresh') return { to: 'repeat', label: '회독 학습' };
+  return null;
+}
+
 function LANE_LABEL(lanes) {
   if (!lanes?.length || lanes.length === 3) return '오늘의 학습';
   if (lanes.length === 1 && lanes[0] === 'fresh') return '단어 외우기';
@@ -83,6 +93,7 @@ const SUB_TITLES = {
   conjugate: '동사 활용',
   match: '짝 맞추기',
   rpg: '실전 연습',
+  repeat: '회독 학습',
   listen: '듣기 · 따라 말하기',
   jlpt: 'JLPT 단어',
 };
@@ -540,6 +551,9 @@ export default function App() {
       label: LANE_LABEL(lanes),
       cards,
       queue: built.queue.map((q) => q.id),
+      /* 한 판이 끝나면 다음으로 이어 준다. 복습 → 단어 외우기 → 회독 학습.
+         끝날 때마다 홈으로 돌려보내면 매번 「다음에 뭐 하지」를 다시 정해야 한다. */
+      next: LANE_NEXT(lanes),
       /* 앱이 짜 준 판이니 방식도 앱이 정한다 — 맞힐수록 단서를 하나씩 뺀다.
          골라 들어간 판에서는 사용자가 정한 방향을 그대로 지킨다. */
       stepped: true,
@@ -687,6 +701,12 @@ export default function App() {
               onSettingsChange={patchSettings}
               onBookmark={toggleBookmark}
               onToast={showToast}
+              onNext={deck.next ? () => {
+                if (deck.next.to === 'fresh') { startToday(['fresh']); return; }
+                setDeck(null);
+                setActiveTab('study');
+                setSub('repeat');
+              } : null}
               onClose={() => setDeck(null)}
             />
           </section>
@@ -917,6 +937,14 @@ export default function App() {
                 settings={settings}
                 onReview={applyVerdicts}
                 onProgress={(rpg) => setProgress((p) => ({ ...p, rpg }))}
+                onToast={showToast}
+              />
+            )}
+            {sub === 'repeat' && (
+              <Repeat
+                words={words}
+                review={review}
+                onStartSet={startJlptSet}
                 onToast={showToast}
               />
             )}

@@ -242,6 +242,7 @@ export const DEFAULT_SETTINGS = {
     basics: true,     // 완전기초
     grammar: true,    // 기초문법
     words: true,      // 단어암기
+    repeat: true,     // 회독 학습 — 배운 걸 등급별로 다시
     jlpt: true,       // JLPT 레벨별 단어
     sentences: true,  // 상황별 문장암기
     quiz: true,       // 단어 시험

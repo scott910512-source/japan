@@ -1846,3 +1846,18 @@ button, input, select { font-family: inherit; }
 .vd-subadd { display: flex; flex-direction: column; gap: 9px; }
 .vd-subadd .vd-script { min-height: 150px; line-height: 1.6; resize: vertical; }
 .vd-subadd .submit-btn { margin: 2px 0 0; }
+
+/* ── 회독 학습 — 등급 고르기 ── */
+.rp-lvcard { display: flex; flex-direction: column; gap: 10px; }
+.rl-head { display: flex; align-items: center; gap: 12px; }
+.rl-badge {
+  width: 44px; height: 44px; flex: 0 0 auto; border-radius: 12px; display: grid; place-items: center;
+  font-size: 15px; font-weight: 800; color: var(--kon); background: var(--kon-soft);
+}
+.rl-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rl-body b { font-size: 16px; font-weight: 700; }
+.rl-body span { font-size: 12px; color: var(--ink-soft); }
+.rp-lvcard .submit-btn,
+.rp-lvcard .ghost-btn { margin: 0; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.rp-lvcard .submit-btn svg { width: 15px; height: 15px; }
+.rp-lvcard .ghost-btn .chev { width: 7px; height: 12px; }
