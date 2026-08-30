@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import {
   IconBook, IconGrid, IconChat, IconMap, IconSparkle, IconRepeat, IconList, IconVideo, IconHeadphone,
-  IconPerson,
+  IconPerson, IconPencil,
 } from '../components/Icons.jsx';
 import { MASTER_STREAK, summarize } from '../lib/review.js';
 import { filterByLevel } from './WordDeck.jsx';
@@ -21,6 +21,7 @@ const MENUS = [
   { id: 'sentences', label: '상황별 문장암기', sub: '이동 · 식당 · 일상', Icon: IconChat },
   { id: 'quiz', label: '단어 시험', sub: '객관식 · 주관식으로 확인', Icon: IconList },
   { id: 'conjugate', label: '동사 활용', sub: '기초 시제 · 1형 2형 3형', Icon: IconRepeat },
+  { id: 'adverb', label: '부사 연습', sub: '빈칸 채우기로 자리 익히기', Icon: IconPencil },
   { id: 'match', label: '짝 맞추기', sub: '게임처럼 · 글자와 소리로', Icon: IconGrid },
   { id: 'rpg', label: '실전 연습', sub: '편의점부터 — 상황을 통째로', Icon: IconPerson },
   { id: 'translate', label: '번역기', sub: '현지에서 바로 — 발음까지', Icon: IconMap },

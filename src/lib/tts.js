@@ -48,6 +48,7 @@ export function cloudTTSReady() {
 /* ── 브라우저 내장 음성 ── */
 
 let cachedVoice = null;
+let cachedKoVoice = null;   // 뜻을 읽어 줄 한국어 음성
 
 function pickJapaneseVoice() {
   const voices = window.speechSynthesis?.getVoices() || [];
@@ -64,6 +65,7 @@ function pickJapaneseVoice() {
 if (typeof window !== 'undefined' && window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = () => {
     cachedVoice = null;
+    cachedKoVoice = null;
   };
 }
 
@@ -74,7 +76,48 @@ function speakLocal(text, rate) {
   utter.lang = 'ja-JP';
   utter.rate = rate;
   const voice = pickJapaneseVoice();
-  if (voice) utter.voice = voice;
+  /* 음성을 못 붙여도 읽기는 한다. 목록이 이상한 브라우저에서 이 한 줄이
+     던지면 화면이 통째로 죽는데, 그건 소리 하나 못 고른 값으로는 너무 크다 —
+     lang만 맞춰 두면 기기가 알아서 고른다. */
+  try { if (voice) utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
+  window.speechSynthesis.speak(utter);
+}
+
+/* ── 한국어 (뜻 읽어 주기) ──
+ *
+ * 듣기 화면은 화면을 못 보는 동안 쓰라고 만든 자리인데, 뜻은 눈으로만
+ * 보여 주고 있었다. 걸으면서 들으면 일본어가 나오고 그다음은 침묵이다 —
+ * 절반이 안 들리는 셈이다.
+ *
+ * 클라우드를 안 쓰고 기기 음성으로만 낸다. 이유가 둘이다.
+ *   · 뜻은 발음 품질이 중요하지 않다. 알아들으면 된다
+ *   · 클라우드 몫은 일본어에 쓰는 유료 자원이다. 뜻을 읽느라 그걸 깎으면
+ *     정작 배우려는 쪽을 못 듣게 된다
+ *
+ * 한국어 음성이 없는 기기면 그냥 소리가 안 난다. 뜻은 화면에도 떠 있으니
+ * 못 들어도 학습이 막히지는 않는다 — 없는 걸 억지로 일본어 음성으로 읽으면
+ * 알아들을 수 없는 소리가 난다. */
+export function koreanVoiceReady() {
+  const voices = window.speechSynthesis?.getVoices() || [];
+  return voices.some((v) => v.lang?.startsWith('ko'));
+}
+
+function pickKoreanVoice() {
+  const voices = window.speechSynthesis?.getVoices() || [];
+  if (cachedKoVoice && voices.includes(cachedKoVoice)) return cachedKoVoice;
+  cachedKoVoice = voices.find((v) => v.lang?.startsWith('ko')) || null;
+  return cachedKoVoice;
+}
+
+export function speakKorean(text, rate = 1) {
+  if (!text || typeof window === 'undefined' || !window.speechSynthesis) return;
+  const voice = pickKoreanVoice();
+  if (!voice) return;   // 한국어 음성이 없으면 조용히 넘어간다
+  stopSpeaking();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ko-KR';
+  utter.rate = rate;
+  try { utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
   window.speechSynthesis.speak(utter);
 }
 
