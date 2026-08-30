@@ -1560,6 +1560,23 @@ button, input, select { font-family: inherit; }
 .ls-ko { font-size: 17px; color: var(--ink-soft); min-height: 26px; margin-top: 10px; }
 .ls-ko.on { color: var(--ink); font-weight: 600; }
 .ls-phase { margin-top: 14px; font-size: 12px; font-weight: 700; color: var(--ink-soft); letter-spacing: .04em; }
+
+/* 뒤집은 판 — 물어보는 건 뜻이다. 뜻을 위에 크게 두고, 일본어 자리는
+   답이 나올 때까지 비워 둔다. 자리까지 없애면 답이 뜰 때 화면이 튄다. */
+.listen.play.back .ls-prompt {
+  font-size: 22px; font-weight: 700; color: var(--ink); margin: 0 0 4px;
+}
+.listen.play.back .ls-jp { font-size: 30px; min-height: 42px; color: var(--kon); }
+.listen.play.back .ls-yomi { min-height: 22px; }
+
+/* 범위마다 몇 개인지. 골라 보고 나서 「들을 게 없어요」를 만나면 왜 없는지 모른다 */
+.ls-scope { justify-content: space-between; }
+.ls-scope .pk-count {
+  flex: 0 0 auto; font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.ls-scope.active .pk-count { color: var(--kon); }
+.ls-scope:disabled { opacity: .45; cursor: default; }
 .ls-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .ls-controls .ghost-btn { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .ls-controls .ghost-btn svg { width: 16px; height: 16px; }

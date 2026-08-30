@@ -256,6 +256,10 @@ export const DEFAULT_SETTINGS = {
   // 학습 기능
   autoTTS: true,      // 카드가 뜨면 자동으로 읽어주기
   listenSayKo: true,  // 듣기 화면에서 뜻도 소리로 (기기 한국어 음성)
+  listenDir: 'jp-ko',     // 'jp-ko' 듣고 뜻 떠올리기 | 'ko-jp' 뜻 듣고 일본어로 말하기
+  listenScope: 'today',   // 'today' | 'seen' | 'weak' | 'all' — 무엇을 들을지
+  listenSayAnswer: true,  // 뒤집은 판에서 정답(일본어)도 소리로 낼지
+  listenGap: 2,       // 문장 사이 뜸 (초)
   speakOnJudge: false, // 답을 고를 때 그 단어를 한 번 더 읽어주기
   // 영상 설명을 만들 곳. 키는 모두 이 기기에만 저장하고 서버로 보내지 않는다.
   aiProvider: 'gemini', // gemini | claude

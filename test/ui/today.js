@@ -232,8 +232,22 @@ async function boot(browser, patch = {}, init = null) {
   await page.waitForTimeout(800);
   const listen = await page.textContent('.sub-body');
   ok('듣기 화면이 열림', await page.locator('.listen').count() === 1);
-  ok('두 가지 방식', await page.locator('.listen .pickrow').count() === 2, listen.slice(0, 40));
+  ok('두 가지 방식', await page.locator('.listen .ls-mode').count() === 2, listen.slice(0, 40));
   ok('간격을 고를 수 있음', await page.locator('.listen .grouppick button', { hasText: '초' }).count() === 4);
+
+  /* ★ 무엇을 들을지 여기서 고른다 ★
+     여태 오늘의 학습 큐를 빌려 써서, 배운 게 수백 개인데 늘 같은 스무 개가
+     같은 차례로 들렸다. 그러면 소리가 아니라 순서를 외운다. */
+  ok('무엇을 들을지 고를 수 있다', await page.locator('.listen .ls-scope').count() === 4);
+  ok('범위마다 몇 개인지 미리 보인다',
+    /\d+개/.test(await page.locator('.ls-scope[data-scope="seen"] .pk-count').innerText()),
+    (await page.locator('.listen .ls-scope .pk-count').allTextContents()).join(' / '));
+  /* 「배운 것」이 오늘 몫보다 넓어야 이 화면을 고친 뜻이 있다 */
+  const seenN = Number((await page.locator('.ls-scope[data-scope="seen"] .pk-count').innerText()).match(/\d+/)[0]);
+  ok('배운 것이 오늘 몫보다 넓다', seenN > 20, `${seenN}개`);
+
+  ok('방향을 고를 수 있다', await page.locator('.listen .ls-dir').count() === 2);
+  ok('뒤집는 길이 있다', await page.locator('.ls-dir[data-dir="ko-jp"]').count() === 1);
 
   /* ── 시작 버튼은 맨 위에 작게 ──
      아래에 커다랗게 두었더니 화면 하나를 먹어서, 간격이나 개수를 바꾸려면
@@ -551,6 +565,117 @@ async function boot(browser, patch = {}, init = null) {
     ok('그래도 일본어는 읽는다', said2.some((u) => u.lang === 'ja-JP'));
 
     await p7.close();
+  }
+
+  /* ── 뒤집어서 — 뜻을 듣고 내가 일본어로 ──
+   *
+   * 듣고 알아듣는 것과, 듣고 말해 보는 것은 다른 연습이다. 여행에서 막히는
+   * 쪽은 뒤엣것인데 여태 앞엣것만 있었다. */
+  console.log('\n── 뜻 → 일본어 (뒤집기)');
+  {
+    const p8 = await boot(browser, { settings: { listenGap: 1, listenDir: 'ko-jp' } }, () => {
+      window.__said = [];
+      const ko = { voiceURI: 'test-ko', name: 'Test Korean', lang: 'ko-KR' };
+      const ja = { voiceURI: 'test-ja', name: 'Test Japanese', lang: 'ja-JP' };
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      synth.getVoices = () => [ko, ja];
+      const real = synth.speak.bind(synth);
+      synth.speak = (u) => {
+        window.__said.push({ text: u?.text || '', lang: u?.lang || '' });
+        try { real(u); } catch { /* 무시 */ }
+      };
+    });
+    const err8 = [];
+    p8.on('pageerror', (e) => err8.push(e.message));
+    await goTab(p8, '학습');
+    await p8.locator('.hubcard', { hasText: '듣기' }).click();
+    await p8.waitForTimeout(900);
+
+    ok('고른 방향이 기억된다',
+      await p8.locator('.ls-dir[data-dir="ko-jp"].active').count() === 1);
+    /* 「따라 말하기」는 들려준 걸 따라 하는 것이라 뒤집은 판에는 없다 */
+    ok('뒤집으면 따라 말하기는 안 보인다', await p8.locator('.listen .ls-mode').count() === 0);
+    const ansRow = p8.locator('.listen .ls-sayans');
+    ok('여기서 끄는 건 일본어 쪽이다', (await ansRow.innerText()).includes('일본어 답도 소리로'),
+      (await ansRow.innerText()).replace(/\n/g, ' ').slice(0, 60));
+
+    await p8.evaluate(() => { window.__said = []; });
+    await startListen(p8);
+    await p8.waitForTimeout(600);
+    ok('재생이 시작된다', await p8.locator('.ls-stage').count() === 1);
+
+    /* ★ 뜻이 먼저다 ★ 물어보는 게 뜻인데 일본어가 먼저 보이면 문제가 아니다 */
+    ok('뜻이 먼저 뜬다', (await p8.textContent('.ls-prompt')).trim().length > 0,
+      (await p8.textContent('.ls-prompt')).trim().slice(0, 30));
+    ok('일본어는 아직 가려져 있다', (await p8.textContent('.ls-jp')).trim() === '···',
+      (await p8.textContent('.ls-jp')).trim().slice(0, 20));
+
+    const first = await p8.evaluate(() => (window.__said || [])[0] || null);
+    ok('한국어부터 읽어 준다', first?.lang === 'ko-KR', JSON.stringify(first));
+
+    /* 말할 틈 → 답. 답이 뜰 때까지 기다린다 */
+    let showed = false;
+    for (let i = 0; i < 20 && !showed; i++) {
+      await p8.waitForTimeout(800);
+      showed = (await p8.textContent('.ls-jp')).trim() !== '···';
+    }
+    ok('말해 본 뒤에 답이 뜬다', showed, await p8.textContent('.ls-phase'));
+    const said8 = await p8.evaluate(() => window.__said || []);
+    ok('답도 읽어 준다', said8.some((u) => u.lang === 'ja-JP'), said8.map((u) => u.lang).join(','));
+    ok('한국어가 일본어보다 먼저 나온다',
+      said8.findIndex((u) => u.lang === 'ko-KR') < said8.findIndex((u) => u.lang === 'ja-JP'),
+      said8.map((u) => u.lang).join(','));
+
+    /* ★ 답 소리를 끌 수 있어야 한다 ★
+       읽어 주면 떠올리기 전에 답이 먼저 들려서, 말하기가 아니라 따라 하기가 된다.
+       그래도 화면에는 떠야 한다 — 맞았는지 확인할 길까지 막을 이유는 없다. */
+    await p8.locator('.listen .sub-back').click();
+    await p8.waitForTimeout(700);
+    await ansRow.click();
+    await p8.waitForTimeout(300);
+    ok('답 소리를 끌 수 있다', await ansRow.locator('.toggle.on').count() === 0);
+    ok('끄면 왜 조용한지 적어 준다', (await ansRow.innerText()).includes('화면으로 확인'),
+      (await ansRow.innerText()).replace(/\n/g, ' ').slice(0, 70));
+
+    await p8.evaluate(() => { window.__said = []; });
+    await startListen(p8);
+    let showed2 = false;
+    for (let i = 0; i < 20 && !showed2; i++) {
+      await p8.waitForTimeout(800);
+      showed2 = (await p8.textContent('.ls-jp')).trim() !== '···';
+    }
+    const said9 = await p8.evaluate(() => window.__said || []);
+    ok('끄면 일본어는 안 읽는다', !said9.some((u) => u.lang === 'ja-JP'),
+      said9.map((u) => u.lang).join(',') || '조용함');
+    ok('그래도 뜻은 읽어 준다 — 그게 문제니까', said9.some((u) => u.lang === 'ko-KR'));
+    ok('꺼도 답은 화면에 뜬다', showed2, await p8.textContent('.ls-jp'));
+
+    /* 뒤집어도 회독 기록은 안 건드린다 */
+    ok('뒤집어도 안 죽는다', err8.length === 0, err8.slice(0, 2).join(' | '));
+    await p8.close();
+  }
+
+  /* ── 순서가 매번 같으면 소리가 아니라 순서를 외운다 ── */
+  console.log('\n── 들을 때마다 순서가 다르다');
+  {
+    const p9 = await boot(browser, { ...seeded(), settings: { listenGap: 1, listenScope: 'seen' } });
+    await goTab(p9, '학습');
+    await p9.locator('.hubcard', { hasText: '듣기' }).click();
+    await p9.waitForTimeout(900);
+
+    const firstCard = async () => {
+      await startListen(p9);
+      await p9.waitForTimeout(400);
+      const t = (await p9.textContent('.ls-jp')).trim();
+      await p9.locator('.listen .sub-back').click();
+      await p9.waitForTimeout(500);
+      return t;
+    };
+    const seq = [];
+    for (let i = 0; i < 6; i++) seq.push(await firstCard());
+    ok('돌릴 때마다 첫 장이 달라진다', new Set(seq).size > 1, seq.join(' / '));
+    await p9.close();
   }
 
   await browser.close();
