@@ -67,8 +67,6 @@ const stub = (page, reply, status = 200) => page.evaluate(({ r, st }) => {
 /* 번역기는 더보기로 갔다. 공부가 아니라 현지에서 쓰는 도구라,
    「오늘 뭘 공부하지」를 고르는 학습 탭에 두면 고를 것만 하나 는다. */
 const openTranslate = async (page) => {
-  const back = page.locator('.subscreen.open .sub-back');
-  if (await back.count()) { await back.first().click(); await page.waitForTimeout(600); }
   await goTab(page, '더보기');
   await page.locator('.listrow', { hasText: '번역기' }).click();
   await page.waitForTimeout(800);

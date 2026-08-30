@@ -183,12 +183,9 @@ async function boot(browser, settings = {}) {
   ok('몇 개 맞혔는지 적힌다', typeof Object.values(done)[0]?.right === 'number');
 
   console.log('\n[ 설정에서도 같은 묶음 ]');
-  /* 열린 화면을 닫고 나간다. 메뉴 화면은 탭 바를 덮는 통짜 화면이라
-     뒤로 없이 탭을 누를 수 없다 — 앱이 그렇게 정한 대로 따라간다. */
+  /* 결과 화면을 닫고 나간다. 탭으로 나가는 일은 goTab이 알아서 한다 */
   await page.locator('.finish .ghost-btn').click();
   await page.waitForTimeout(600);
-  await page.locator('.subscreen.open .sub-back').first().click();
-  await page.waitForTimeout(700);
   await goTab(page, '더보기');
   await page.waitForTimeout(700);
   ok('설정에도 묶음이 있다', await page.locator('.setgroup').count() === 3,

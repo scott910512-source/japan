@@ -92,9 +92,11 @@ const judge = async (page, label) => { await page.locator('.judgerow button', { 
   ok('뜻을 보고도 판정할 수 있음', await page.locator('.judgerow button').count() === 3);
 
   // ── 취약 단어 ──
+  /* 복습은 탭에서 내려와 밀어 넣는 화면이 됐다 — .screen.active가 아니라
+     .sub-body 안에 산다. 화면 자체는 그대로다. */
   await openReview(page);
   await page.waitForTimeout(800);
-  const rv = await page.textContent('.screen.active');
+  const rv = await page.textContent('.sub-body');
   ok('복습 화면에 회독 현황이 있음', rv.includes('졸업') && rv.includes('학습 중'));
   ok('취약 단어 입구가 있음', rv.includes('취약'));
 
