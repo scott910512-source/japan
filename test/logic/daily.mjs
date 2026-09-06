@@ -211,10 +211,16 @@ console.log('\n── 졸업한 건 한참 뒤에 한 번만');
 {
   /* 졸업했다고 영영 빼면 외운 게 조용히 새어 나간다. 그렇다고 매일 내보내면
      졸업한 뜻이 없다. 복습일이 될 때까지만 뺀다. */
+  /* ★ 졸업은 날짜를 두고 확인돼야 붙는다 ★
+     예전엔 같은 날 알아요를 다섯 번 먹여서 졸업을 만들었다. 그게 바로 고친
+     버그라, 이제 그렇게 하면 1회독짜리 카드가 나온다. 복습일에 맞춰 다시
+     오는 것을 흉내 내고, 마지막 확인을 daysAgo 전에 한 것으로 맞춘다. */
   const grad = (daysAgo) => {
     let st = emptyState();
-    for (let i = 0; i < 5; i++) st = applyVerdict(st, VERDICT.KNOWN, addDays(TODAY, -daysAgo), 1000);
-    return { ...st, lastSeen: addDays(TODAY, -daysAgo) };
+    let day = addDays(TODAY, -daysAgo - 60);
+    for (let i = 0; i < 5; i++) { st = applyVerdict(st, VERDICT.KNOWN, day, 1000); day = st.due; }
+    const last = addDays(TODAY, -daysAgo);
+    return { ...st, lastSeen: last, promotedOn: last, due: addDays(last, 30) };
   };
 
   const soon = classifyDaily(W(3), { w0: grad(10) }, TODAY);
