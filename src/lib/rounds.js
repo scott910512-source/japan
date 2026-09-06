@@ -17,7 +17,7 @@
  * 「완료」와 「장기복습」을 가르는 이유는, 완료가 「다시는 안 나옴」이 아니기
  * 때문이다. 그렇게 보이면 완료된 카드가 다시 나올 때 고장으로 읽힌다. */
 
-import { BOX, MASTER_STREAK, stateOf, isMastered } from './review.js';
+import { BOX, MASTER_STREAK, stateOf, isMastered, isSelfKnown } from './review.js';
 
 export const ROUND_MAX = MASTER_STREAK;   // 네 번 이어서 맞히면 완료
 
@@ -28,6 +28,9 @@ export const STAGES = [
   { id: 'round3', label: '3회독', sub: '한 번만 더 맞히면 완료' },
   { id: 'done', label: '완료', sub: '네 번 이어서 맞혔어요' },
   { id: 'long', label: '장기복습', sub: '한 달 · 석 달 · 반년에 한 번씩' },
+  /* 앱이 확인한 적은 없다. 「이미 알아요」로 사용자가 직접 뺀 것이라
+     검증된 완료와 같은 칸에 세지 않는다. */
+  { id: 'self', label: '이미 알아요', sub: '내가 직접 뺀 것 — 앱이 확인한 건 아니에요' },
 ];
 
 /* 카드 한 장이 몇 회독인가. 0이면 아직 안 봤거나 다시 처음으로 돌아간 것이다.
@@ -35,13 +38,17 @@ export const STAGES = [
  * 틀리면 streak이 0으로 돌아간다. 그때 회독 수를 그대로 두면 「3회독인데
  * 모른다」는 말이 되고, 화면과 실제가 어긋난다 — 회독은 「몇 번 봤나」가
  * 아니라 「얼마나 붙었나」를 세는 숫자다. */
+/* 회독 수 = 날짜를 두고 확인된 횟수(level)다.
+   이번 판의 연속(streak)이 아니다 — 같은 날 네 번 누른 것을 4회독이라 부르면
+   화면의 회독 수와 실제 복습 간격이 어긋난다. */
 export function roundOf(st) {
   if (!st?.lastSeen) return 0;
-  return Math.min(ROUND_MAX, st.streak || 0);
+  return Math.min(ROUND_MAX, st.level || 0);
 }
 
 export function stageOf(st) {
   if (!st?.lastSeen) return 'fresh';
+  if (isSelfKnown(st)) return 'self';
   if (isMastered(st)) {
     /* 완료한 뒤로 간격이 한 달 넘게 벌어졌으면 장기복습으로 본다.
        rounds는 이 카드를 몇 번 판정했는지라, 완료 뒤에도 계속 는다. */
@@ -56,7 +63,7 @@ export function stageOf(st) {
 /* 전체가 어느 단계에 얼마나 있는지. 기록 화면이 이걸로 막대를 그린다.
    보고 있는 것만 세지 않는다 — 「아직」이 얼마나 남았는지가 진도의 절반이다. */
 export function roundSummary(ids, review) {
-  const out = { fresh: 0, round1: 0, round2: 0, round3: 0, done: 0, long: 0 };
+  const out = { fresh: 0, round1: 0, round2: 0, round3: 0, done: 0, long: 0, self: 0 };
   for (const id of ids) out[stageOf(stateOf(review, id))] += 1;
   return out;
 }
@@ -65,7 +72,7 @@ export function roundSummary(ids, review) {
    숫자만 적으면 4가 끝인지 10이 끝인지 모른다 — 점은 끝이 어디인지도 같이 말한다. */
 export function dotsOf(st) {
   const r = roundOf(st);
-  const full = isMastered(st);
+  const full = isMastered(st) || isSelfKnown(st);
   return Array.from({ length: ROUND_MAX }, (_, i) => (full || i < r));
 }
 
@@ -73,6 +80,7 @@ export function dotsOf(st) {
 export function roundLabel(st) {
   const stage = stageOf(st);
   if (stage === 'fresh') return '처음 보는 카드';
+  if (stage === 'self') return '이미 알아요';
   if (stage === 'done') return '완료';
   if (stage === 'long') return '장기복습';
   return `${roundOf(st)} / ${ROUND_MAX} 회독`;

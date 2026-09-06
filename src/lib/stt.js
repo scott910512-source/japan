@@ -247,6 +247,8 @@ export function stopBrowserListening() {
  * 글자 단위 편집 거리로 얼마나 가까운지만 본다. 엄밀한 발음 평가가 아니라,
  * "통했는지" 알려주는 용도다. */
 
+import { soundDiff } from './jptext.js';
+
 export function normalizeJa(text) {
   if (!text) return '';
   return text
@@ -274,28 +276,62 @@ function editDistance(a, b) {
   return prev[b.length];
 }
 
-// expected에는 한자 표기와 가나 표기를 모두 넘긴다 — 인식 결과가 어느 쪽으로 나올지 모른다.
-export function scoreSpeech(said, expectedList) {
+/* ★ 이건 발음 점수가 아니다 ★
+ *
+ * 여기서 하는 일은 「음성 인식이 받아 적은 글자」와 「목표 문장」을 견주는
+ * 것뿐이다. 발음이 좋은지 억양이 맞는지는 보지 않는다 — 볼 수단이 없다.
+ * 그런데 이름이 scoreSpeech이고 0~1짜리 score를 돌려주니, 화면이 그걸
+ * 「발음 85점」처럼 보여 주게 된다. 그건 없는 능력을 있다고 말하는 것이다.
+ *
+ * 그래서 「인식 결과」라고 부른다. 돌려주는 것도 점수가 아니라
+ *   match   글자가 얼마나 겹쳤나 (인식 정확도이지 발음 점수가 아니다)
+ *   verdict same | near | differ | none
+ *   diff    의미가 달라지는 차이가 있으면 무엇인지
+ *
+ * 인식이 아예 안 됐을 때(none)는 틀린 게 아니다. 마이크·소음·브라우저 문제일
+ * 수 있어서, 학습자의 오답으로 기록하면 안 된다. */
+export function recognizeResult(said, expectedList) {
   const heard = normalizeJa(said);
-  if (!heard) return { score: 0, verdict: 'none' };
+  if (!heard) return { match: 0, verdict: 'none', heard: '', target: '' };
 
   let best = 0;
   let bestDist = Infinity;
   let bestLen = 0;
+  let bestTarget = '';
 
-  for (const exp of expectedList.filter(Boolean)) {
+  for (const exp of (expectedList || []).filter(Boolean)) {
     const target = normalizeJa(exp);
     if (!target) continue;
     const dist = editDistance(heard, target);
-    const score = Math.max(0, 1 - dist / Math.max(heard.length, target.length));
-    if (score > best) { best = score; bestDist = dist; bestLen = target.length; }
+    const m = Math.max(0, 1 - dist / Math.max(heard.length, target.length));
+    if (m > best) { best = m; bestDist = dist; bestLen = target.length; bestTarget = exp; }
   }
 
-  // 비율만 보면 긴 문장에서 한 글자 틀린 것도 정답이 된다.
-  // 단어는 정확히 맞아야 하고, 긴 문장은 인식 오차를 한 글자까지 봐준다.
-  const exact = bestDist === 0;
-  const nearlyExact = bestDist <= 1 && bestLen >= 12;
-  const verdict = exact || nearlyExact ? 'good' : best >= 0.6 ? 'close' : 'off';
+  /* 비율만 보면 긴 문장에서 한 글자 틀린 것도 같은 말이 된다.
+     낱말은 정확히 맞아야 하고, 긴 문장은 인식 오차를 한 글자까지 봐준다. */
+  const same = bestDist === 0 || (bestDist <= 1 && bestLen >= 12);
 
-  return { score: best, verdict };
+  /* 의미가 달라지는 차이는 「거의 맞음」으로 넘기면 안 된다.
+     장음·촉음이 다르면 다른 낱말이고, 부정이나 수가 다르면 뜻이 뒤집힌다. */
+  const diff = same ? null : soundDiff(bestTarget, said);
+  const flipped = !same && sensesFlip(heard, normalizeJa(bestTarget));
+
+  const verdict = same ? 'same' : (diff || flipped) ? 'differ' : best >= 0.6 ? 'near' : 'differ';
+  return { match: best, verdict, heard: said, target: bestTarget, diff, flipped };
+}
+
+/* 부정·수량처럼 뜻이 뒤집히는 차이인가 */
+function sensesFlip(a, b) {
+  const neg = (s) => /ない|ません|ぬ$|なく/.test(s);
+  if (neg(a) !== neg(b)) return true;
+  const num = (s) => (s.match(/[0-9０-９]|ひとつ|ふたつ|みっつ|いち|に|さん|よん|ご/) || [])[0] || '';
+  return num(a) !== num(b);
+}
+
+/* 옛 이름 — 부르는 곳이 남아 있어 이어 준다.
+   새로 쓰는 곳은 recognizeResult를 쓴다. */
+export function scoreSpeech(said, expectedList) {
+  const r = recognizeResult(said, expectedList);
+  const verdict = r.verdict === 'same' ? 'good' : r.verdict === 'near' ? 'close' : r.verdict === 'none' ? 'none' : 'off';
+  return { ...r, score: r.match, verdict };
 }

@@ -20,6 +20,7 @@ const KEYS = {
   translations: 'jp_manabu_translations_v1',    // 번역기에서 받아 둔 것 — 현지에서 다시 본다
   trends: 'jp_manabu_trends_v1',                // 요즘 일본어 — 받아 둔 목록과 받은 날
   asks: 'jp_manabu_asks_v1',                    // 공부하다 물어본 것 — 비행기 모드에서도 다시 본다
+  plan: 'jp_manabu_plan_v1',                    // 오늘의 계획 — 배정과 완료를 날짜별로 적어 둔다
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -115,6 +116,17 @@ export function loadVideoRemoved() {
 }
 export function saveVideoRemoved(map) {
   write(KEYS.videoRemoved, map);
+}
+
+/* ── 오늘의 계획 ──
+ * 부를 때마다 새로 계산하면 신규 20개를 끝내도 다음 20개가 곧바로 채워서
+ * 「오늘 할 것」이 끝이 없는 목록이 된다. 하루치를 한 번 정해서 적어 둔다. */
+export function loadPlan() {
+  return read(KEYS.plan, null);
+}
+export function savePlan(plan) {
+  if (plan) write(KEYS.plan, plan);
+  else { try { localStorage.removeItem(KEYS.plan); } catch { /* 무시 */ } }
 }
 
 export function loadCustomWords() {
@@ -282,6 +294,10 @@ export const DEFAULT_SETTINGS = {
 
   // 하루 분량 — 복습 섞기 + 신규로 끊어서 학습한다
   levels: ['N5'],     // 학습할 JLPT 레벨. 비우면 전체
+  /* 문장에는 아직 레벨이 안 붙어 있다. 근거 없이 붙이지 않기로 했으니
+     「미분류」로 남는데, 그걸 새 학습에 넣을지 말지는 고를 수 있어야 한다.
+     기본은 넣는 쪽 — 빼면 지금 자료로는 문장이 통째로 사라진다. */
+  sentenceScope: 'all',   // 'all' 미분류도 포함 | 'level' 레벨이 맞는 것만
 
   // 시험 — 회독과 따로 돈다. 마지막에 고른 설정을 기억해 둔다.
   quizCount: 20,

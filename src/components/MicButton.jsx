@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconMic } from './Icons.jsx';
 import {
-  cancelRecording, cloudSTTReady, listenWithBrowser, micReady, scoreSpeech,
+  cancelRecording, cloudSTTReady, listenWithBrowser, micReady, recognizeResult,
   startRecording, stopBrowserListening, stopRecordingAndRecognize, sttAvailable,
 } from '../lib/stt.js';
 
+/* ★ 발음 점수가 아니다 ★
+ *
+ * 여기서 하는 일은 음성 인식이 받아 적은 글자를 목표 문장과 견주는 것뿐이다.
+ * 발음이 좋은지 억양이 맞는지는 볼 수단이 없다. 「잘 통했어요」는 그럴듯하지만
+ * 앱이 알 수 없는 것을 안다고 말하는 문구다 — 인식 결과라고 부른다. */
 const VERDICT_TEXT = {
-  good: '잘 통했어요',
-  close: '거의 맞아요',
-  off: '다시 해볼까요',
-  none: '못 알아들었어요',
+  same: '그대로 인식됐어요',
+  near: '조금 다르게 인식됐어요',
+  differ: '다르게 인식됐어요',
+  none: '인식되지 않았어요',
 };
 
 // 짧은 단어일수록 인식이 잘 빗나간다. 안 됐을 때 무엇을 말해야 했는지 보여준다.
@@ -30,11 +35,24 @@ export default function MicButton({
   const busy = useRef(false);
   const armed = useRef(false);   // 이 카드에서 자동으로 한 번 켰는지
 
-  // 카드가 바뀌면 이전 결과를 지우고, 녹음 중이었다면 끊는다
+  /* ★ 늦게 온 인식 결과가 다음 카드에 붙으면 안 된다 ★
+   *
+   * 클라우드 인식은 「보내고 → 기다리고 → 받는다」라 응답이 늦게 올 수 있다.
+   * 그사이 카드를 넘기면, 이전 카드에 대고 말한 것이 새 카드의 답으로 뜬다.
+   * 부를 때마다 번호를 매겨 두고, 자기 차례가 지난 응답은 버린다. */
+  const turn = useRef(0);
+
+  // 카드가 바뀌면 이전 결과를 지우고, 녹음과 요청을 정리한다
   useEffect(() => {
+    turn.current += 1;
     setResult(null);
+    setState('idle');
+    busy.current = false;
     armed.current = false;
+    cancelRecording();
+    stopBrowserListening();
     return () => {
+      turn.current += 1;
       cancelRecording();
       stopBrowserListening();
     };
@@ -55,24 +73,41 @@ export default function MicButton({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, available]);
 
-  if (!available) return null;
+  /* ★ 못 쓰는 브라우저에 아무것도 안 띄우면 고장으로 읽힌다 ★
+     왜 없는지와 대신 무엇을 하면 되는지를 적어 준다. */
+  if (!available) {
+    return (
+      <div className="micwrap micoff">
+        <p className="set-note">
+          이 브라우저는 음성 인식을 지원하지 않아요. 카드를 소리로 들으며 따라 읽고,
+          뜻은 화면에서 확인해 주세요 — 듣기 탭의 「따라 말하기」도 같은 연습이에요.
+        </p>
+      </div>
+    );
+  }
 
-  const finish = (said) => {
-    const scored = scoreSpeech(said, expected);
-    setResult({ said, ...scored });
+  const finish = (said, mine) => {
+    // 자기 차례가 지났으면 버린다 — 이전 카드의 응답이다
+    if (mine !== turn.current) return;
+    const r = recognizeResult(said, expected);
+    setResult(r);
     setState('idle');
     busy.current = false;
-    onResult?.(scored, said);
+    /* 인식 실패(none)는 학습자의 오답이 아니다. 마이크·소음·브라우저 문제일
+       수 있어서 판정으로 넘기지 않는다. */
+    if (r.verdict !== 'none') onResult?.(r, said);
   };
 
   const stopCloud = async () => {
     if (busy.current) return;
     busy.current = true;
+    const mine = turn.current;
     setState('working');
     try {
       const said = await stopRecordingAndRecognize(hints);
-      finish(said);
+      finish(said, mine);
     } catch (err) {
+      if (mine !== turn.current) return;   // 지난 카드의 실패다 — 지금 화면과 상관없다
       setState('idle');
       busy.current = false;
       // 키에 Speech-to-Text 권한이 없으면 여기서 걸린다 — 원인을 그대로 알려준다
@@ -84,6 +119,7 @@ export default function MicButton({
 
   const start = async () => {
     setResult(null);
+    const mine = turn.current;
     if (cloudSTTReady()) {
       try {
         setState('listening');
@@ -97,8 +133,9 @@ export default function MicButton({
     // 키가 없으면 브라우저 내장 인식으로
     setState('listening');
     const started = listenWithBrowser(
-      (said) => finish(said),
+      (said) => finish(said, mine),
       (err) => {
+        if (mine !== turn.current) return;
         setState('idle');
         if (err) onToast?.('음성 인식을 쓸 수 없어요');
       },
@@ -135,8 +172,14 @@ export default function MicButton({
       {result && (
         <div className={`micresult ${result.verdict}`}>
           <b>{VERDICT_TEXT[result.verdict]}</b>
-          {result.said && <span className="heard">들린 말: {result.said}</span>}
-          {result.verdict !== 'good' && <TargetHint target={target} />}
+          {result.heard && <span className="heard">인식된 말: {result.heard}</span>}
+          {result.verdict !== 'same' && <TargetHint target={target} />}
+          {/* 뜻이 달라지는 차이는 「거의 맞음」으로 넘기지 않고 짚어 준다 */}
+          {result.diff && <span className="micwhy">{result.diff.note}</span>}
+          {result.flipped && <span className="micwhy">부정이나 수가 달라요 — 뜻이 바뀝니다.</span>}
+          {result.verdict === 'none' && (
+            <span className="micwhy">소리가 안 잡혔어요. 틀린 걸로 세지 않았어요.</span>
+          )}
         </div>
       )}
     </div>

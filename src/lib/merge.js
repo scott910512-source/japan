@@ -138,6 +138,9 @@ function mergeBest(local = {}, remote = {}) {
   return out;
 }
 
+/* 오늘의 계획 — plan.js가 규칙을 갖고 있다. 여기선 이름만 이어 준다. */
+export { mergePlan } from './plan.js';
+
 export function mergeProgress(local = {}, remote = {}) {
   return {
     ...remote,
@@ -229,6 +232,7 @@ const SYNCED_SETTINGS = [
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
   'listenDir', 'listenScope', 'listenSayKo', 'listenSayAnswer', 'listenGap',
+  'sentenceScope',
 ];
 
 export function pickSyncedSettings(settings = {}) {

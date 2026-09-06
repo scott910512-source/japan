@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TabBar from './components/TabBar.jsx';
+import {
+  addMore, ensurePlan, markStudied, noteFreeStudy, planStatus, remaining, unmarkStudied,
+} from './lib/plan.js';
 import BottomSheet from './components/BottomSheet.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import Today from './screens/Today.jsx';
@@ -38,6 +41,7 @@ import {
   loadReview, saveReview,
   loadSession, saveSession,
   loadStats, saveStats,
+  loadPlan, savePlan,
   touchStreak, loadStreak, setStorageErrorHandler,
   loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce,
   loadMemos, saveMemos,
@@ -49,7 +53,7 @@ import {
 } from './lib/storage.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
-import { applyVerdict, dueCards, todayKey, weakCards } from './lib/review.js';
+import { applyVerdict, dueCards, isSessionClear, stateOf, todayKey, weakCards } from './lib/review.js';
 import { supabase, supabaseConfigured } from './lib/supabase.js';
 import { syncNow, pushMerged } from './lib/sync.js';
 import { useToday } from './lib/useToday.js';
@@ -115,6 +119,10 @@ export default function App() {
 
   const [customWords, setCustomWords] = useState(() => loadCustomWords());
   const [progress, setProgress] = useState(() => loadProgress());
+  /* 오늘의 계획. 부를 때마다 새로 계산하지 않고 하루치를 적어 둔다 —
+     그래야 신규 20개를 끝냈을 때 「남은 0」이 되고, 완료 수가 판정 횟수로
+     부풀지 않는다. */
+  const [plan, setPlan] = useState(() => loadPlan());
   const [settings, setSettings] = useState(() => loadSettings());
   const [review, setReview] = useState(() => loadReview());
   const [session, setSession] = useState(() => loadSession());
@@ -194,6 +202,7 @@ export default function App() {
   useEffect(() => saveReview(review), [review]);
   useEffect(() => saveSession(session), [session]);
   useEffect(() => saveStats(stats), [stats]);
+  useEffect(() => { if (plan) savePlan(plan); }, [plan]);
   useEffect(() => saveMemos(memos), [memos]);
   useEffect(() => saveAsks(asks), [asks]);
   useEffect(() => saveVideos(videos), [videos]);
@@ -419,8 +428,23 @@ export default function App() {
 
   /* ── 회독 ── */
 
-  const applyReview = useCallback((nextReview, verdict) => {
+  const applyReview = useCallback((nextReview, verdict, cardId, opts) => {
     setReview(nextReview);
+
+    /* ★ 「몇 번 눌렀나」와 「무엇을 끝냈나」는 다른 숫자다 ★
+       아래 stats는 앞엣것(활동 통계), plan은 뒤엣것(고유 학습 완료)이다.
+       한 카드를 세 번 만나면 stats는 3이 오르고 plan은 1이 오른다. */
+    if (cardId) {
+      /* ★ 「만났다」와 「끝냈다」는 다르다 ★
+         몰라요를 누른 카드는 이번 판에서 다시 나온다. 그걸 완료로 세면
+         「남은 0개」인데 화면에는 카드가 계속 나오는 꼴이 된다.
+         이번 판에서 정리된 것(isSessionClear)만 완료로 센다. */
+      const clear = isSessionClear(stateOf(nextReview, cardId));
+      setPlan((prev) => (opts?.undo || !clear
+        ? unmarkStudied(prev, cardId)
+        : markStudied(prev, cardId)));
+    }
+
     if (!verdict) return;
     const day = todayKey();
     // 오늘 처음 판정한 순간에 연속일이 오른다. 같은 날 두 번째부터는 그대로 둔다.
@@ -457,6 +481,10 @@ export default function App() {
       return next;
     });
     setStreak((prev) => (prev.lastDate === day ? prev : touchStreak()));
+    /* 계획 밖 자유 학습이라도 계획의 같은 항목을 채웠으면 한 번만 반영한다.
+       계획에 없는 카드면 여기서 계획 수를 늘리지 않는다 — 자유 학습으로
+       오늘 목표가 저절로 커지면 「오늘 할 것」이 무슨 뜻인지 알 수 없게 된다. */
+    setPlan((prev) => ids.reduce((pl, id) => noteFreeStudy(pl, id), prev));
     setStats((prev) => {
       const cur = prev[day] || { studied: 0, known: 0, vague: 0, unknown: 0 };
       let vague = 0;
@@ -496,10 +524,47 @@ export default function App() {
   /* 오늘의 학습 — 앱이 짜 준 큐 하나로 단어와 문장을 같이 돈다.
      문장은 카드 모양으로 감싸 두면 회독 화면이 그대로 받는다. */
   const sentenceCards = useMemo(() => allSentenceCards(), []);
+  /* 이미 배운 문장 — 레벨을 좁혀도 복습에서 안 사라지게 넘긴다 */
+  const seenIds = useMemo(() => {
+    const out = new Set();
+    for (const [id, st] of Object.entries(review)) if (st?.lastSeen) out.add(id);
+    return out;
+  }, [review]);
   const todayPool = useMemo(
-    () => dailyPool(filterByLevel(words, settings.levels), sentenceCards),
-    [words, settings.levels, sentenceCards],
+    () => dailyPool(filterByLevel(words, settings.levels), sentenceCards, {
+      levels: settings.levels,
+      seen: seenIds,
+      includeUnleveled: settings.sentenceScope !== 'level',
+    }),
+    [words, settings.levels, sentenceCards, seenIds, settings.sentenceScope],
   );
+
+  /* 날짜가 바뀌면 계획을 새로 짠다. 같은 날이면 있던 것을 그대로 쓴다 —
+     여기서 다시 짜면 오늘 끝낸 게 사라진다.
+
+     useToday(today)를 쓰기 때문에 자정을 넘겨도 화면을 켜 둔 채로 갱신된다. */
+  useEffect(() => {
+    if (!todayPool.length) return;
+    setPlan((prev) => ensurePlan(prev, todayPool, review, {
+      goals: settings.goals, today,
+    }));
+    // 회독 기록이 바뀔 때마다 다시 짜면 안 된다 — 배정은 하루에 한 번만 정한다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [today, todayPool.length, settings.goals]);
+
+  /* 화면·큐·통계가 모두 이 하나를 본다 — 같은 정보를 여러 곳에서 다른
+     숫자로 보여 주지 않으려면 셈하는 자리가 하나여야 한다. */
+  const planNow = useMemo(() => planStatus(plan), [plan]);
+
+  /* 「10개 더 배우기」 — 계획을 다 하고도 더 하고 싶을 때만 명시적으로 늘린다.
+     저절로 다음 20개가 따라 나오면 끝냈다는 느낌을 영영 못 받는다. */
+  const learnMore = useCallback((count) => {
+    setPlan((prev) => {
+      const next = addMore(prev, todayPool, review, { count, today });
+      if (next === prev) showToast('더 배울 게 없어요');
+      return next;
+    });
+  }, [todayPool, review, today, showToast]);
 
   /* 세션 저장소가 한 칸이라, 새 판을 열면 하던 판이 말없이 사라진다.
      한 번 묻고 연다 — 「조용히 삼키지 말고」가 이 저장소가 정한 원칙이다.
@@ -550,11 +615,27 @@ export default function App() {
       return;
     }
 
-    const built = buildDailyStudyQueue(todayPool, review, { goals: settings.goals, lanes });
+    /* ★ 큐는 오늘의 계획에서 짠다 ★
+     *
+     * 예전엔 여기서 매번 새로 뽑았다. 그래서 신규 20개를 끝내고 다시 누르면
+     * 아직 안 본 다음 20개가 또 나왔다 — 끝이 없었다. 이제 계획에 배정된 것
+     * 중 아직 안 끝낸 것만 담는다. 다 했으면 다 했다고 말한다. */
+    const left = remaining(plan, lanes);
+    if (!left.length) {
+      showToast(planNow.assigned > 0
+        ? '오늘 몫을 다 했어요 — 더 하려면 「10개 더 배우기」를 눌러요'
+        : (lanes?.length === 1 && lanes[0] === 'fresh'
+          ? '새로 배울 단어가 없어요 — 설정에서 레벨을 넓혀 보세요'
+          : '지금 볼 게 없어요 — 학습 탭에서 골라 보세요'));
+      return;
+    }
+    /* 순서와 약점 두 번은 daily.js가 정한다 — 계획은 「무엇을」만 들고 있다 */
+    const built = buildDailyStudyQueue(left, review, {
+      goals: { fresh: left.length, review: left.length, weak: left.length },
+      lanes,
+    });
     if (!built.queue.length) {
-      showToast(lanes?.length === 1 && lanes[0] === 'fresh'
-        ? '새로 배울 단어가 없어요 — 설정에서 레벨을 넓혀 보세요'
-        : '지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
+      showToast('지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
       return;
     }
     const cards = cardsForQueue(built.queue, filterByLevel(words, settings.levels), sentenceCards);
@@ -574,7 +655,7 @@ export default function App() {
       stepped: true,
       intro: { total: cards.length, review: built.review, weak: built.weak, fresh: built.fresh, minutes: built.minutes },
     });
-  }, [session, todayPool, review, settings.goals, settings.levels, words, sentenceCards, showToast]);
+  }, [session, plan, planNow, review, settings.levels, words, sentenceCards, showToast]);
 
   /* 하다 만 걸 이어서. 세션은 카드 id만 들고 있으니, 덱에는 단어와 문장을
      전부 실어 준다 — 어느 쪽에서 온 카드든 찾을 수 있어야 한다. */
@@ -757,10 +838,10 @@ export default function App() {
       <div className="screens">
         <section className={`screen${activeTab === 'today' && !sub ? ' active' : ''}`}>
           <Today
-            pool={todayPool}
+            plan={plan}
+            planNow={planNow}
             review={review}
             settings={settings}
-            stats={stats}
             streak={streak}
             session={session}
             resumeLabel={session?.label}
@@ -771,6 +852,7 @@ export default function App() {
             onOpenGrammar={() => openMenu('grammar')}
             onResume={resumeSession}
             onOpenReview={() => setSub('review')}
+            onLearnMore={learnMore}
           />
         </section>
 

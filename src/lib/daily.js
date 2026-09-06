@@ -11,7 +11,7 @@
  * 단어만 스무 개 돌고 문장은 따로 들어가야 하는 게 지금 구조의 아쉬운 점이었다. */
 
 import {
-  stateOf, isDue, isMastered, todayKey, dueDate, shuffled,
+  stateOf, isDue, isDoneEnough, todayKey, dueDate, shuffled,
 } from './review.js';
 
 /* 갈래마다 제 목표를 가진다 — 신규 20 · 복습 20 · 약점 20.
@@ -100,7 +100,7 @@ export function classifyDaily(pool, review, today = todayKey()) {
     /* 졸업한 카드도 한참 뒤에는 한 번 다시 나와야 한다 — 안 그러면 외운 게
        조용히 새어 나간다. 통째로 빼 뒀더니 180일 재확인이 영영 안 왔다.
        복습일이 안 됐을 때만 뺀다. */
-    if (isMastered(st) && !isDue(st, today)) continue;
+    if (isDoneEnough(st) && !isDue(st, today)) continue;
     if (!st.lastSeen) { fresh.push(item(id, kind, 'fresh')); continue; }
     if (st.wrongCount + st.vagueCount >= WEAK_THRESHOLD) { weak.push(item(id, kind, 'weak')); continue; }
     if (isDue(st, today)) due.push(item(id, kind, 'review'));
@@ -304,6 +304,13 @@ function draw(pool, review, { goals, lanes, today }) {
   ], groups, got, total);
 
   return { groups, sizes, got, picked, total };
+}
+
+/* 오늘 계획이 배정할 것 — 순서를 짜기 전의 목록.
+   plan.js가 이걸로 하루치를 적어 둔다. 약점 두 번은 그대로 두 칸이다 —
+   「연습 횟수」와 「카드 수」를 가르는 일은 plan.js가 한다. */
+export function takeForPlan(pool, review, { goals, lanes, today = todayKey() } = {}) {
+  return draw(pool, review, { goals, lanes, today }).picked;
 }
 
 export function buildDailyStudyQueue(pool, review, { goals, lanes, today = todayKey() } = {}) {

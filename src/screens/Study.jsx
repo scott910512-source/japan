@@ -239,7 +239,9 @@ export default function Study({
     });
 
     const result = advanceSession(session, review, word.id, verdict, todayKey());
-    onReviewChange(result.progress, verdict);
+    /* 카드 id를 같이 넘긴다 — 오늘 계획이 「무엇을」 끝냈는지 알아야
+       같은 카드를 세 번 만나도 완료 수가 한 번만 오른다. */
+    onReviewChange(result.progress, verdict, word.id);
     tally.current[verdict] = (tally.current[verdict] || 0) + 1;
 
     const next = nextRoundOf(result.session, result.progress);
@@ -274,7 +276,8 @@ export default function Study({
     const nextReview = { ...review };
     if (last.prevReview) nextReview[last.cardId] = last.prevReview;
     else delete nextReview[last.cardId];
-    onReviewChange(nextReview, null);
+    // 되돌리면 완료도 물러야 한다 — 안 그러면 되돌릴 때마다 완료 수만 남는다
+    onReviewChange(nextReview, null, last.cardId, { undo: true });
     onSessionChange(last.prevSession);
     setFinished(null);
     onToast('직전 판정을 되돌렸어요');

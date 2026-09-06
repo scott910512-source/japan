@@ -1,5 +1,14 @@
 name: Deploy to GitHub Pages
 
+# ★ 검사를 통과한 커밋만 배포한다 ★
+#
+# 여태 이 워크플로와 「검사」가 따로 돌았다. 같은 커밋에서 둘 다 시작하고
+# 서로를 안 봤으니, 검사가 깨진 채로도 배포가 나갔다 — 실제로 한 번
+# 「검사 failure · Deploy success」가 같은 커밋에 나란히 찍혔다.
+#
+# 그래서 여기서 검사를 먼저 돌리고, 통과했을 때만 배포한다. 검사 워크플로를
+# 지우지는 않는다 — PR과 작업 브랜치에서는 그쪽이 돈다. 여기서는 같은 일을
+# 재사용(workflow_call)해서 한 번만 적어 둔다.
 on:
   push:
     branches: [main]
@@ -15,7 +24,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 배포 전 관문. 여기가 깨지면 아래 deploy는 시작도 안 한다.
+  test:
+    uses: ./.github/workflows/test.yml
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     environment:
       name: github-pages
