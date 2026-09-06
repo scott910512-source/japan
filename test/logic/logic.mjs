@@ -2,13 +2,14 @@
    화면을 거치지 않으므로 규칙이 깨졌는지 바로 드러난다. */
 import {
   VERDICT, BOX, MASTER_STREAK, applyVerdict, stateOf, emptyState,
-  isSessionClear, isMastered, dueDate, isDue, dueCards, weakCards,
+  isSessionClear, isMastered, isSelfKnown, isDoneEnough, intervalOf,
+  dueDate, isDue, dueCards, weakCards,
   buildDailySession, buildNextRound, advanceSession, nextRoundOf, summarize,
   todayKey, addDays, daysBetween,
 } from '../../src/lib/review.js';
 import {
   QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, meaningsOf, normalizeAnswer, normalizeJp,
-  editDistance, checkTyping, pickDistractors, buildQuestion, buildQuiz,
+  editDistance, checkTyping, judgeTyping, pickDistractors, buildQuestion, buildQuiz,
   scopeWords, gradeQuiz, gradeLabel, CHOICE_COUNT,
 } from '../../src/lib/quiz.js';
 import { ALL_WORDS } from '../../src/data/allWords.js';
@@ -32,8 +33,13 @@ group('암기 · 판정');
   const vague = applyVerdict(e, VERDICT.VAGUE);
   ok('애매해요 → 상자 2', vague.box === BOX.VAGUE && vague.vagueCount === 1);
 
+  /* ★ 「이미 알아요」는 자가 신고다 ★
+     예전엔 이걸 검증된 졸업과 같은 칸에 넣었다. 앱이 확인한 적이 없는 것을
+     확인했다고 세면 기록이 실력을 안 나타낸다. 큐에서 빠지는 건 그대로다. */
   const master = applyVerdict(e, VERDICT.MASTER);
-  ok('기억했어요 → 바로 졸업', isMastered(master) && master.streak === MASTER_STREAK);
+  ok('기억했어요 → 큐에서 빠짐', isDoneEnough(master));
+  ok('기억했어요는 자가 신고로 적힘', isSelfKnown(master));
+  ok('검증된 졸업으로는 안 셈', !isMastered(master));
 
   ok('입력을 건드리지 않음', e.box === BOX.NEW && e.streak === 0);
   ok('회독 수가 오름', known.rounds === 1 && unknown.rounds === 2);
@@ -57,7 +63,19 @@ group('암기 · 세션 종료 조건');
 group('암기 · 복습 간격');
 {
   const T = '2026-01-10';
-  const mk = (box, streak, lastSeen = T) => ({ ...emptyState(), box, streak, lastSeen });
+  /* ★ 간격을 정하는 것은 level이다 ★
+     예전엔 streak(이번 판의 연속)이 간격을 정했다. 그래서 같은 날 네 번
+     누르면 한 달이 밀렸다. 이제 「날짜를 두고 확인된 횟수」가 정한다.
+     판정을 실제로 먹여서 만든다 — 손으로 지어내면 규칙이 바뀌어도 모른다. */
+  const grow = (n, lastDay = T) => {
+    let st = emptyState(); let day = lastDay;
+    for (let i = 0; i < n; i++) { st = applyVerdict(st, VERDICT.KNOWN, day); day = st.due; }
+    // 마지막 판정을 T에 한 것으로 맞춘다 — 간격만 보려는 것이라
+    return { ...st, lastSeen: lastDay, due: addDays(lastDay, daysBetween(st.lastSeen, st.due)) };
+  };
+  const mk = (box, level, lastSeen = T) => ({
+    ...emptyState(), box, level, lastSeen, due: addDays(lastSeen, box < BOX.KNOWN ? 1 : intervalOf(level)),
+  });
 
   ok('미학습은 복습 대상 아님', dueDate(emptyState()) === null);
   // 졸업해도 영영 빠지지는 않는다 — 간격만 벌어진다. 안 그러면 다 잊는다.
@@ -67,9 +85,11 @@ group('암기 · 복습 간격');
   ok('졸업 표시는 그대로', isMastered(mk(BOX.KNOWN, MASTER_STREAK)) === true);
   ok('몰라요는 다음 날', dueDate(mk(BOX.UNKNOWN, 0)) === '2026-01-11');
   ok('애매해요는 다음 날', dueDate(mk(BOX.VAGUE, 0)) === '2026-01-11');
-  ok('알아요 1연속 → 1일', dueDate(mk(BOX.KNOWN, 1)) === '2026-01-11');
-  ok('알아요 2연속 → 3일', dueDate(mk(BOX.KNOWN, 2)) === '2026-01-13');
-  ok('알아요 3연속 → 7일', dueDate(mk(BOX.KNOWN, 3)) === '2026-01-17');
+  ok('1회독 → 1일', dueDate(mk(BOX.KNOWN, 1)) === '2026-01-11');
+  ok('2회독 → 3일', dueDate(mk(BOX.KNOWN, 2)) === '2026-01-13');
+  ok('3회독 → 7일', dueDate(mk(BOX.KNOWN, 3)) === '2026-01-17');
+  /* 실제로 판정을 먹여도 같은 간격이 나오는가 — 표와 코드가 어긋나면 소용없다 */
+  ok('판정으로 키워도 같다', dueDate(grow(2)) === '2026-01-13', dueDate(grow(2)));
 
   ok('간격이 갈수록 벌어짐',
     daysBetween(T, dueDate(mk(BOX.KNOWN, 1))) < daysBetween(T, dueDate(mk(BOX.KNOWN, 2)))
@@ -100,7 +120,10 @@ group('암기 · 복습 큐');
   prog.w0.lastSeen = '2025-12-01'; // 가장 오래 밀린 것
   ok('오래 밀린 것부터', dueCards(ids, prog, '2026-02-01')[0] === 'w0');
 
-  prog.w1 = { ...emptyState(), box: BOX.KNOWN, streak: MASTER_STREAK, lastSeen: '2026-01-01' };
+  prog.w1 = {
+    ...emptyState(), box: BOX.KNOWN, level: MASTER_STREAK, lastSeen: '2026-01-01',
+    due: '2026-01-31',
+  };
   ok('졸업한 건 안 나옴', !dueCards(ids, prog, '2026-02-01').includes('w1'));
 
   ok('빈 목록도 안전', dueCards([], {}, '2026-02-01').length === 0);
@@ -114,7 +137,7 @@ group('암기 · 취약 단어');
     a: { ...emptyState(), wrongCount: 3, lastSeen: '2026-01-01' },
     b: { ...emptyState(), wrongCount: 1, vagueCount: 2, lastSeen: '2026-01-01' },
     c: { ...emptyState(), wrongCount: 2, lastSeen: '2026-01-01' },
-    d: { ...emptyState(), wrongCount: 9, box: BOX.KNOWN, streak: MASTER_STREAK, lastSeen: '2026-01-01' },
+    d: { ...emptyState(), wrongCount: 9, box: BOX.KNOWN, level: MASTER_STREAK, lastSeen: '2026-01-01' },
   };
   const weak = weakCards(['a', 'b', 'c', 'd'], prog);
   ok('기준을 넘으면 취약', weak.includes('a') && weak.includes('b'));
@@ -215,7 +238,7 @@ group('암기 · 세션 진행');
 group('암기 · 집계');
 {
   const prog = {
-    a: { ...emptyState(), box: BOX.KNOWN, streak: MASTER_STREAK, lastSeen: '2026-01-01' },
+    a: { ...emptyState(), box: BOX.KNOWN, level: MASTER_STREAK, lastSeen: '2026-01-01' },
     b: { ...emptyState(), box: BOX.UNKNOWN, lastSeen: '2026-01-01' },
   };
   const s = summarize(['a', 'b', 'c'], prog);
@@ -233,7 +256,12 @@ group('시험 · 답 맞히기');
 
   ok('괄호 주석을 무시', normalizeAnswer('부엌(주방)') === '부엌');
   ok('띄어쓰기를 무시', normalizeAnswer(' 부 엌 ') === '부엌');
-  ok('가타카나를 히라가나로', normalizeJp('ラーメン') === 'らめん');
+  /* ★ 이 검사는 버그를 지키고 있었다 ★
+     정규화가 문장부호를 지우면서 장음 ー까지 지웠고, 여기서 그걸 「らめん」이
+     맞다고 못 박아 뒀다. 그래서 ビール의 답으로 ビル이 통과했다.
+     가타카나→히라가나는 그대로 하되, ー는 남긴다. */
+  ok('가타카나를 히라가나로', normalizeJp('ラーメン') === 'らーめん', normalizeJp('ラーメン'));
+  ok('장음을 지우지 않는다', normalizeJp('ビール') !== normalizeJp('ビル'));
 
   ok('같은 문자열은 거리 0', editDistance('abc', 'abc') === 0);
   ok('한 글자 차이는 1', editDistance('abc', 'abd') === 1);
@@ -244,7 +272,18 @@ group('시험 · 답 맞히기');
   ok('띄어쓰기가 달라도 정답', checkTyping(w, QUIZ_DIR.JP_KO, ' 부엌 ') === 'correct');
   ok('한자로 써도 정답', checkTyping(w, QUIZ_DIR.KO_JP, '台所') === 'correct');
   ok('가나로 써도 정답', checkTyping(w, QUIZ_DIR.KO_JP, 'だいどころ') === 'correct');
-  ok('오타는 거의 맞음', checkTyping(w, QUIZ_DIR.KO_JP, 'だいところ') === 'close');
+  /* ★ 이 검사도 규칙이 바뀐 자리다 ★
+     탁음이 다르면 다른 낱말이다(かがみ 거울 / かかみ 없는 말). 한 글자
+     차이를 일괄로 봐주면 다른 단어가 정답이 되므로, 오타로 안 넘기고
+     무엇이 다른지 적어서 틀렸다고 한다. */
+  ok('탁음이 다르면 오답', checkTyping(w, QUIZ_DIR.KO_JP, 'だいところ') === 'wrong',
+    checkTyping(w, QUIZ_DIR.KO_JP, 'だいところ'));
+  ok('왜 다른지 적어 준다',
+    judgeTyping(w, QUIZ_DIR.KO_JP, 'だいところ').why?.includes('탁음'),
+    judgeTyping(w, QUIZ_DIR.KO_JP, 'だいところ').why);
+  /* 소리를 안 가르는 오타는 여전히 봐준다 — 뜻 쪽이 그렇다 */
+  ok('뜻의 오타는 거의 맞음',
+    checkTyping({ mean: '학교입니다' }, QUIZ_DIR.JP_KO, '학교임니다') === 'close');
   ok('전혀 다르면 오답', checkTyping(w, QUIZ_DIR.JP_KO, '학교') === 'wrong');
   ok('빈 답은 오답', checkTyping(w, QUIZ_DIR.JP_KO, '') === 'wrong' && checkTyping(w, QUIZ_DIR.JP_KO, '   ') === 'wrong');
 
@@ -312,7 +351,7 @@ group('시험 · 범위');
   ok('두 번 틀린 건 아직 약점 아님', scopeWords(words, twice, QUIZ_SCOPE.WEAK).length === 0);
   const mixed = { a: { lastSeen: '2026-01-01', wrongCount: 2, vagueCount: 1 } };
   ok('몰라요와 애매해요를 같이 셈', scopeWords(words, mixed, QUIZ_SCOPE.WEAK).length === 1);
-  const grad = { a: { lastSeen: '2026-01-01', wrongCount: 5, box: 3, streak: 4 } };
+  const grad = { a: { lastSeen: '2026-01-01', wrongCount: 5, box: 3, level: 4 } };
   ok('졸업한 카드는 약점이 아님', scopeWords(words, grad, QUIZ_SCOPE.WEAK).length === 0);
   ok('회독 쪽과 같은 기준을 봄',
     weakCards(['a'], mixed).length === scopeWords(words, mixed, QUIZ_SCOPE.WEAK).length);

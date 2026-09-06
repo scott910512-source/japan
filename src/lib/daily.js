@@ -11,7 +11,7 @@
  * 단어만 스무 개 돌고 문장은 따로 들어가야 하는 게 지금 구조의 아쉬운 점이었다. */
 
 import {
-  stateOf, isDue, isMastered, todayKey, dueDate, shuffled,
+  stateOf, isDue, isDoneEnough, todayKey, dueDate, shuffled,
 } from './review.js';
 
 /* 갈래마다 제 목표를 가진다 — 신규 20 · 복습 20 · 약점 20.
@@ -100,7 +100,7 @@ export function classifyDaily(pool, review, today = todayKey()) {
     /* 졸업한 카드도 한참 뒤에는 한 번 다시 나와야 한다 — 안 그러면 외운 게
        조용히 새어 나간다. 통째로 빼 뒀더니 180일 재확인이 영영 안 왔다.
        복습일이 안 됐을 때만 뺀다. */
-    if (isMastered(st) && !isDue(st, today)) continue;
+    if (isDoneEnough(st) && !isDue(st, today)) continue;
     if (!st.lastSeen) { fresh.push(item(id, kind, 'fresh')); continue; }
     if (st.wrongCount + st.vagueCount >= WEAK_THRESHOLD) { weak.push(item(id, kind, 'weak')); continue; }
     if (isDue(st, today)) due.push(item(id, kind, 'review'));
@@ -241,7 +241,7 @@ function arrange(picked) {
  * 갈래별로 뽑고 나서 세는 게 맞다 — 갈래마다 따로 뚜껑을 씌우면 복습에 문장이
  * 없는 날 신규 쪽 몫이 놀게 된다. 바꿔 넣을 단어가 모자라면 그만큼은 그냥
  * 문장으로 둔다. 억지로 채우느라 개수를 줄이지는 않는다. */
-function capSentences(picked, groups, got, goal) {
+function capSentences(picked, groups, got, goal, sentenceMax = FRESH_SENTENCE_MAX) {
   const taken = new Set(picked.map((x) => x.id));
   const spare = {
     review: groups.due.filter((x) => x.kind === 'word' && !taken.has(x.id)),
@@ -266,8 +266,8 @@ function capSentences(picked, groups, got, goal) {
 
   // 새로 배우는 문장은 세 개까지 — 단어 외우기는 단어를 외우는 자리다
   const freshSent = out.filter((x) => x.kind === 'sentence' && x.bucket === 'fresh').length;
-  if (freshSent > FRESH_SENTENCE_MAX) {
-    swap(freshSent - FRESH_SENTENCE_MAX, (x) => x.bucket === 'fresh');
+  if (freshSent > sentenceMax) {
+    swap(freshSent - sentenceMax, (x) => x.bucket === 'fresh');
   }
 
   // 그러고도 판 전체에서 문장이 절반을 넘으면 거기서 더 깎는다
@@ -284,7 +284,7 @@ function capSentences(picked, groups, got, goal) {
  * lanes: 어느 갈래만 담을지. 홈 화면이 「단어 외우기(신규)」와 「복습하기
  *        (복습+약점)」를 따로 열기 때문에 갈래를 골라 짤 수 있어야 한다.
  * 반환: { queue, review, weak, fresh, left, minutes } */
-function draw(pool, review, { goals, lanes, today }) {
+function draw(pool, review, { goals, lanes, today, sentenceMax }) {
   const want = normalizeGoals(goals);
   const use = new Set(lanes?.length ? lanes : LANES);
   const groups = classifyDaily(pool, review, today);
@@ -301,9 +301,16 @@ function draw(pool, review, { goals, lanes, today }) {
     ...takeMixed(groups.due, got.review),
     ...takeWeak(groups.weak, got.weak, review),
     ...takeMixed(groups.fresh, got.fresh),
-  ], groups, got, total);
+  ], groups, got, total, sentenceMax ?? FRESH_SENTENCE_MAX);
 
   return { groups, sizes, got, picked, total };
+}
+
+/* 오늘 계획이 배정할 것 — 순서를 짜기 전의 목록.
+   plan.js가 이걸로 하루치를 적어 둔다. 약점 두 번은 그대로 두 칸이다 —
+   「연습 횟수」와 「카드 수」를 가르는 일은 plan.js가 한다. */
+export function takeForPlan(pool, review, { goals, lanes, today = todayKey(), sentenceMax } = {}) {
+  return draw(pool, review, { goals, lanes, today, sentenceMax }).picked;
 }
 
 export function buildDailyStudyQueue(pool, review, { goals, lanes, today = todayKey() } = {}) {

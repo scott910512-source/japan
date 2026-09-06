@@ -9,9 +9,13 @@
  *
  * 남은 시간을 적는 게 이 칸의 핵심이다. 「25개 남음」은 결심이 필요한 말이고,
  * 「12분 남음」은 그냥 하면 되는 말이다. */
-export default function ProgressSummary({ done, goal, minutes }) {
+/* goal은 「오늘 실제로 배정된 양」이다. 설정에서 정한 목표(goals)와 다르다 —
+   복습이 하나도 없는 첫날에 목표 60을 띄우면, 있지도 않은 40개를 못 한 것처럼
+   보인다. 설정 목표는 따로, 작게 적어 준다. */
+export default function ProgressSummary({ done, goal, minutes, goals }) {
   const pct = goal ? Math.min(100, (done / goal) * 100) : 0;
   const left = Math.max(0, goal - done);
+  const target = (goals?.fresh || 0) + (goals?.review || 0) + (goals?.weak || 0);
   return (
     <div className="today">
       <div className="td-head">
@@ -20,9 +24,14 @@ export default function ProgressSummary({ done, goal, minutes }) {
       </div>
       <div className="td-bar"><i style={{ width: `${pct}%` }} /></div>
       <div className="td-left">
-        {left === 0
-          ? '오늘 몫을 다 했어요'
-          : minutes > 0 ? `약 ${minutes}분 남음` : `${left}개 남음`}
+        {goal === 0
+          ? '오늘 배정된 게 없어요'
+          : left === 0
+            ? '오늘 몫을 다 했어요'
+            : minutes > 0 ? `약 ${minutes}분 남음` : `${left}개 남음`}
+        {target > goal && (
+          <span className="td-target"> · 목표 {target}개 중 오늘 있는 건 {goal}개</span>
+        )}
       </div>
     </div>
   );

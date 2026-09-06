@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { IconBook, IconMap } from './Icons.jsx';
+import { IconBook, IconMap, IconGrid } from './Icons.jsx';
+import { PURPOSES } from '../lib/purpose.js';
 
-// 질문은 2개뿐이다. 온보딩을 길게 만들면 시작 전에 이탈한다.
+// 질문은 셋뿐이다. 온보딩을 길게 만들면 시작 전에 이탈한다.
 const SLIDES = [
   {
     id: 'kana',
@@ -14,16 +15,23 @@ const SLIDES = [
     ],
   },
   {
+    id: 'purpose',
+    Icon: IconGrid,
+    title: '무엇을 하려고 배우시나요?',
+    /* ★ 하는 만큼만 말한다 ★
+       예전 문구는 「남은 기간에 맞춰 학습량과 우선순위를 잡아 드려요」였는데
+       아무것도 안 했다. 이제 정말로 차례를 바꾸고, 바꾸는 만큼만 적는다. */
+    desc: '무엇을 먼저 배정할지가 달라져요. 나중에 설정에서 바꿔도 기록은 그대로예요.',
+    choices: PURPOSES.map((p) => ({ value: p.id, label: p.label, sub: p.sub })),
+  },
+  {
     id: 'trip',
     Icon: IconMap,
-    title: '일본 여행까지 며칠 남았나요?',
-    desc: '남은 기간에 맞춰 오늘 학습량과 우선순위를 잡아 드려요.',
-    choices: [
-      { value: 'd3', label: '3일 이내' },
-      { value: 'd7', label: '일주일' },
-      { value: 'd14', label: '2주쯤' },
-      { value: 'none', label: '여행 계획은 없어요' },
-    ],
+    title: '일본에 언제 가세요?',
+    /* 「3일 이내」는 고른 날의 이야기라 사흘이 지나면 거짓말이 된다.
+       실제 날짜를 받거나, 아예 안 받는다. */
+    desc: '날짜를 넣으면 홈에 「여행까지 N일」로 세어 드려요. 안 넣어도 학습에는 지장 없어요.',
+    date: true,
   },
 ];
 
@@ -39,7 +47,7 @@ const DEFAULT_GOAL = 20;
 
 export default function Onboarding({ open, onFinish }) {
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState({ kana: null, trip: null });
+  const [answers, setAnswers] = useState({ kana: null, purpose: null, trip: null });
 
   const slide = SLIDES[step];
   const picked = answers[slide.id];
@@ -55,11 +63,13 @@ export default function Onboarding({ open, onFinish }) {
   };
 
   const finish = (a) => {
-    const trip = a.trip ?? 'none';
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(a.trip || '') ? a.trip : null;
     onFinish({
       onboarded: true,
       canReadKana: a.kana ?? true,
-      tripDay: trip,
+      purpose: a.purpose ?? 'talk',
+      /* 실제 날짜만 저장한다. 「3일 이내」 같은 선택을 날짜인 척 넣지 않는다 */
+      tripDate: date,
       goals: { fresh: DEFAULT_GOAL, review: DEFAULT_GOAL, weak: DEFAULT_GOAL },
       hangulPron: a.kana === false,
       showKana: a.kana === false,
@@ -68,7 +78,7 @@ export default function Onboarding({ open, onFinish }) {
 
   return (
     <div className={`onboarding${open ? '' : ' done'}`}>
-      <button className="ob-skip" onClick={() => finish({ kana: true, trip: 'none' })}>건너뛰기</button>
+      <button className="ob-skip" onClick={() => finish({ kana: true, purpose: 'talk', trip: null })}>건너뛰기</button>
 
       <div className="ob-slides">
         {SLIDES.map((s, i) => (
@@ -76,17 +86,36 @@ export default function Onboarding({ open, onFinish }) {
             <div className="ob-badge"><s.Icon /></div>
             <h2>{s.title}</h2>
             <p>{s.desc}</p>
-            <div className="ob-choices">
-              {s.choices.map((c) => (
+            {s.date ? (
+              /* 날짜는 고르는 게 아니라 적는 것이다 — 「3일 이내」로 받아 두면
+                 사흘 뒤에 거짓말이 된다. 안 정했으면 안 정했다고 넘어간다. */
+              <div className="ob-choices">
+                <input
+                  className="ob-date"
+                  type="date"
+                  value={answers.trip || ''}
+                  onChange={(e) => choose(e.target.value || null)}
+                  aria-label="여행 출발일"
+                />
                 <button
-                  key={String(c.value)}
-                  className={`ob-choice${answers[s.id] === c.value ? ' picked' : ''}`}
-                  onClick={() => choose(c.value)}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
+                  className={`ob-choice${answers.trip === null ? ' picked' : ''}`}
+                  onClick={() => choose(null)}
+                >아직 안 정했어요</button>
+              </div>
+            ) : (
+              <div className="ob-choices">
+                {s.choices.map((c) => (
+                  <button
+                    key={String(c.value)}
+                    className={`ob-choice${answers[s.id] === c.value ? ' picked' : ''}`}
+                    onClick={() => choose(c.value)}
+                  >
+                    {c.label}
+                    {c.sub && <span className="ob-sub">{c.sub}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -95,7 +124,8 @@ export default function Onboarding({ open, onFinish }) {
         <div className="ob-dots">
           {SLIDES.map((s, i) => <span key={s.id} className={i === step ? 'active' : ''} />)}
         </div>
-        <button className="ob-next" onClick={next} disabled={picked === null || picked === undefined}>
+        {/* 날짜 화면은 「안 정했어요」도 답이라 비어 있어도 넘어갈 수 있다 */}
+        <button className="ob-next" onClick={next} disabled={!slide.date && (picked === null || picked === undefined)}>
           {step === SLIDES.length - 1 ? '시작하기' : '다음'}
         </button>
       </div>

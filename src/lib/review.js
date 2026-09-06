@@ -23,16 +23,77 @@ export const BOX = { NEW: 0, UNKNOWN: 1, VAGUE: 2, KNOWN: 3 };
 const REVIEW_INTERVAL_DAYS = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 90 };
 const LONG_INTERVAL_DAYS = 180;
 export const MASTER_STREAK = 4;
+export const MAX_LEVEL = 5;
+
+/* ★ 이번 판의 연속과 오래 기억하는 것은 다른 일이다 ★
+ *
+ * 예전엔 하나로 셌다. 「알아요」를 누를 때마다 streak을 올렸고, streak이 4면
+ * 졸업이며 다음 복습은 30일 뒤였다. 그래서 한 자리에서 같은 카드에 알아요를
+ * 네 번 누르면 — 한 판에서 세 번 보고 다음 판에서 한 번만 더 봐도 — 그 카드는
+ * 졸업하고 한 달 동안 안 나왔다. 오늘 세 번 연속 맞힌 것은 「오늘 외웠다」이지
+ * 「사흘 뒤에도 기억한다」가 아니다.
+ *
+ * 그래서 둘로 가른다.
+ *   streak  이번 판에서 이어 맞힌 횟수. 판이 언제 끝나는지를 정한다
+ *   level   날짜를 두고 확인된 기억. 다음 복습 간격을 정한다
+ *
+ * level은 하루에 한 칸만 오른다. 그것도 복습일이 됐을 때만 오른다 —
+ * 기한 전에 미리 연습한 것으로는 안 오르고, 복습일도 안 밀린다. */
 
 // 하루에 처리할 복습 상한 — 복습 부채가 쌓여 이탈하는 것을 막는다.
 export const DAILY_REVIEW_CAP = 100;
 
 export function emptyState() {
-  return { box: BOX.NEW, streak: 0, lastSeen: null, seenAt: 0, rounds: 0, wrongCount: 0, vagueCount: 0 };
+  return {
+    box: BOX.NEW,
+    streak: 0,          // 이번 판에서 이어 맞힌 횟수
+    level: 0,           // 날짜를 두고 확인된 기억 (0~MAX_LEVEL)
+    due: null,          // 다음 복습일. lastSeen에서 계산하지 않고 여기 적어 둔다
+    promotedOn: null,   // level이 마지막으로 오른 날 — 하루 두 칸을 막는다
+    selfKnown: false,   // 「이미 알아요」 자가 신고. 검증된 숙련과 구별한다
+    lastSeen: null,
+    seenAt: 0,
+    rounds: 0,
+    wrongCount: 0,
+    vagueCount: 0,
+  };
+}
+
+/* 옛 기록을 새 칸에 맞춘다.
+ *
+ * ★ 없는 이력을 지어내지 않는다 ★
+ * 옛 기록에는 「어느 날 맞혔는가」가 없다. streak이 4라도 그게 나흘에 걸친
+ * 것인지 한 자리에서 네 번 누른 것인지 알 길이 없다. 그래서 날짜별 성공
+ * 이력을 만들지 않고, 지금 사용자가 보고 있는 상태를 그대로 옮긴다.
+ *
+ *   level ← streak     지금 화면에 뜨는 회독 수가 그대로 남는다
+ *   due   ← 옛 규칙으로 계산한 날짜   오늘 당장 일정이 안 바뀐다
+ *   promotedOn ← lastSeen             오늘 또 오르지는 않는다
+ *
+ * 새 규칙은 여기서부터 적용된다. 옛 기록으로 잘못 졸업한 카드가 있다면
+ * 그건 다음 복습에서 틀리면서 제자리를 찾는다 — 임의로 내리지 않는다. */
+export function migrateState(raw) {
+  const st = { ...emptyState(), ...(raw || {}) };
+  if (raw && raw.level === undefined) {
+    st.level = Math.min(MAX_LEVEL, Math.max(0, raw.streak || 0));
+    st.promotedOn = raw.lastSeen || null;
+    st.due = legacyDue(raw);
+    st.selfKnown = false;
+  }
+  return st;
+}
+
+/* 옛 규칙의 복습일 — 마이그레이션에서만 쓴다 */
+function legacyDue(raw) {
+  if (!raw?.lastSeen) return null;
+  const box = raw.box ?? BOX.NEW;
+  const streak = raw.streak || 0;
+  const days = box < BOX.KNOWN ? 1 : (REVIEW_INTERVAL_DAYS[streak] ?? LONG_INTERVAL_DAYS);
+  return addDays(raw.lastSeen, days);
 }
 
 export function stateOf(progress, id) {
-  return { ...emptyState(), ...(progress?.[id] || {}) };
+  return migrateState(progress?.[id]);
 }
 
 /* ── 날짜 유틸 (YYYY-MM-DD 문자열 기준, 로컬 타임존) ── */
@@ -64,26 +125,73 @@ export function daysBetween(from, to) {
  * 기기 두 대를 합칠 때는 이게 필요하다 — 같은 날 같은 카드를 아이폰과 아이패드에서
  * 다르게 판정하면 날짜만으로는 어느 쪽이 나중인지 알 수가 없다. */
 export function applyVerdict(prev, verdict, today = todayKey(), at = Date.now()) {
-  const s = { ...emptyState(), ...prev };
+  const s = migrateState(prev);
   const next = { ...s, rounds: s.rounds + 1, lastSeen: today, seenAt: at };
 
   if (verdict === VERDICT.MASTER) {
-    // 졸업 기준까지 한 번에 올린다 — 복습 큐에서도 바로 빠진다.
+    /* 「이미 알아요」 — 자가 신고다.
+       복습 큐에서는 빠지되, 검증된 숙련과는 구별해서 적어 둔다. 앱이 확인한
+       적이 없는 것을 확인했다고 세면 기록이 실력을 안 나타낸다. */
     next.box = BOX.KNOWN;
     next.streak = MASTER_STREAK;
-  } else if (verdict === VERDICT.UNKNOWN) {
+    next.level = MAX_LEVEL;
+    next.selfKnown = true;
+    next.promotedOn = today;
+    next.due = addDays(today, LONG_INTERVAL_DAYS);
+    return next;
+  }
+
+  if (verdict === VERDICT.UNKNOWN) {
+    /* 실패하면 내려간다. 오늘 다시 만나게 두어 재학습으로 잇는다. */
     next.box = BOX.UNKNOWN;
     next.streak = 0;
     next.wrongCount = s.wrongCount + 1;
-  } else if (verdict === VERDICT.VAGUE) {
+    next.level = 0;
+    next.selfKnown = false;
+    next.due = today;
+    return next;
+  }
+
+  if (verdict === VERDICT.VAGUE) {
     next.box = BOX.VAGUE;
     next.streak = 0;
     next.vagueCount = s.vagueCount + 1;
+    next.level = Math.max(0, s.level - 1);
+    next.selfKnown = false;
+    next.due = today;
+    return next;
+  }
+
+  // ── 알아요 ──
+  next.box = BOX.KNOWN;
+  next.streak = s.streak + 1;   // 이번 판의 연속. 판이 언제 끝나는지만 정한다
+
+  /* ★ 장기 기억은 하루에 한 칸만, 그것도 복습일이 됐을 때만 오른다 ★
+   *
+   * 같은 날 네 번 맞혀도 level은 한 칸이다 — 오늘 외운 것은 오늘 외운 것이지
+   * 사흘 뒤에도 안다는 뜻이 아니다.
+   *
+   * 복습일 전에 미리 연습한 것으로도 안 오른다. 그때 올려 주면 매일 미리
+   * 연습하는 사람의 복습일이 계속 뒤로 밀려서, 결국 확인을 안 받게 된다. */
+  const first = !s.lastSeen;
+  const ripe = first || (s.due != null && s.due <= today);
+  const promotedToday = s.promotedOn === today;
+
+  if (ripe && !promotedToday) {
+    next.level = Math.min(MAX_LEVEL, s.level + 1);
+    next.promotedOn = today;
+    next.due = addDays(today, intervalOf(next.level));
   } else {
-    next.box = BOX.KNOWN;
-    next.streak = s.streak + 1;
+    /* 안 올린다. 복습일도 그대로 둔다 — 미리 한 연습이 일정을 밀지 않는다.
+       처음 보는 카드가 아니고 due가 없을 수는 없지만, 옛 기록을 대비해 채운다. */
+    next.due = s.due ?? addDays(today, intervalOf(s.level || 1));
   }
   return next;
+}
+
+/* level별 다음 복습까지의 날 수 */
+export function intervalOf(level) {
+  return REVIEW_INTERVAL_DAYS[level] ?? (level > MAX_LEVEL ? LONG_INTERVAL_DAYS : 1);
 }
 
 /* ── 세션(회독) 판정 ── */
@@ -95,18 +203,35 @@ export function isSessionClear(st) {
   return st.vagueCount > 0 ? st.streak >= 2 : st.streak >= 1;
 }
 
+/* ★ 검증된 숙련 ★ — 날짜를 두고 네 번 확인된 것만.
+   같은 날 네 번 누른 것으로는 여기 못 온다. */
 export function isMastered(st) {
-  return st.box === BOX.KNOWN && st.streak >= MASTER_STREAK;
+  return !st?.selfKnown && (st?.level || 0) >= MASTER_STREAK;
+}
+
+/* 「이미 알아요」로 사용자가 직접 뺀 것. 복습 큐에서는 빠지지만
+   앱이 확인한 적은 없다 — 통계에서 검증된 숙련과 섞지 않는다. */
+export function isSelfKnown(st) {
+  return Boolean(st?.selfKnown);
+}
+
+/* 큐에서 뺄 만큼 아는가 — 검증됐든 자가 신고든 */
+export function isDoneEnough(st) {
+  return isMastered(st) || isSelfKnown(st);
 }
 
 /* ── 복습 큐 ── */
 
 /* 다음 복습 예정일. 저장하지 않고 lastSeen + 간격으로 매번 계산한다.
  * null이면 복습 대상이 아님 — 이제는 미학습(한 번도 안 본 것)뿐이다. */
+/* 다음 복습 예정일.
+ *
+ * 이제 상태에 적어 둔 값을 그대로 읽는다. 예전엔 lastSeen + 간격으로 매번
+ * 계산했는데, 그러면 카드를 만질 때마다 복습일이 뒤로 밀렸다 — 기한 전에
+ * 미리 연습만 해도 확인받을 날이 영영 안 왔다. */
 export function dueDate(st) {
-  if (!st.lastSeen) return null;
-  const days = st.box < BOX.KNOWN ? 1 : (REVIEW_INTERVAL_DAYS[st.streak] ?? LONG_INTERVAL_DAYS);
-  return addDays(st.lastSeen, days);
+  if (!st?.lastSeen) return null;
+  return st.due ?? addDays(st.lastSeen, st.box < BOX.KNOWN ? 1 : intervalOf(st.level));
 }
 
 export function isDue(st, today = todayKey()) {
@@ -139,7 +264,7 @@ export const WEAK_THRESHOLD = 3;
    다 외운 것에 「취약」이 붙으면 졸업이라는 말이 취소된다. */
 export function isWeak(st, threshold = WEAK_THRESHOLD) {
   if (!st) return false;
-  return (st.wrongCount || 0) + (st.vagueCount || 0) >= threshold && !isMastered(st);
+  return (st.wrongCount || 0) + (st.vagueCount || 0) >= threshold && !isDoneEnough(st);
 }
 
 export function weakCards(cardIds, progress, threshold = WEAK_THRESHOLD) {
@@ -207,7 +332,7 @@ function classify(cardIds, progress, today) {
     if (!st.lastSeen) { fresh.push(id); continue; }
     if (st.box < BOX.KNOWN) { wrong.push(id); continue; }
     if (!isDue(st, today)) continue;
-    if (isMastered(st)) refresh.push(id);
+    if (isDoneEnough(st)) refresh.push(id);
     else dueKnown.push(id);
   }
   return { fresh, wrong, dueKnown, refresh };

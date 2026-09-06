@@ -1,4 +1,5 @@
-import { isWeak } from './review.js';
+import { isWeak, stateOf } from './review.js';
+import { narrowAscii, normalizeJp, phoneticJp, soundDiff, stripPunct } from './jptext.js';
 /* 시험 출제 · 채점.
  *
  * 회독(review.js)과는 목적이 다르다. 회독은 "다시 볼지"를 내가 정하는 곳이고,
@@ -23,20 +24,18 @@ export function meaningsOf(word) {
     .filter(Boolean);
 }
 
-const KATA_TO_HIRA = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+/* 뜻(한국어) 쪽에서 무시할 것들: 공백, 괄호 주석, 문장부호, 대소문자.
+   손으로 치는 답을 띄어쓰기로 틀렸다고 하면 시험이 아니라 받아쓰기가 된다.
 
-// 채점에서 무시할 것들: 공백, 괄호 주석, 문장부호, 대소문자.
-// 손으로 치는 답을 띄어쓰기로 틀렸다고 하면 시험이 아니라 받아쓰기가 된다.
+   ★ 일본어는 여기로 오면 안 된다 ★
+   예전엔 이 함수 하나로 둘 다 처리했고, 문장부호 목록에 ー가 끼어 있었다.
+   그래서 ビール의 답으로 ビル을 쳐도 정답이 됐다 — 맥주와 빌딩이 같은 답이
+   된 것이다. 일본어는 lib/jptext.js가 따로 다룬다. */
 export function normalizeAnswer(text) {
-  return String(text ?? '')
-    .replace(/[（(][^）)]*[）)]/g, '')
-    .replace(/[\s.,!?~ー・'"“”‘’·]/g, '')
-    .toLowerCase();
+  return narrowAscii(stripPunct(text)).replace(/[·\s]/g, '').toLowerCase();
 }
 
-export function normalizeJp(text) {
-  return KATA_TO_HIRA(normalizeAnswer(text));
-}
+export { normalizeJp };
 
 // 한 글자 차이는 오타일 때가 많다. 바로 오답 처리하지 않고 사용자가 정하게 넘긴다.
 export function editDistance(a, b) {
@@ -57,24 +56,87 @@ export function editDistance(a, b) {
   return prev[b.length];
 }
 
-/* 'correct' | 'close' | 'wrong'.
+/* 이 단어의 답으로 인정하는 일본어 표기.
+ *
+ * 한자와 가나는 같은 낱말의 두 표기라 둘 다 맞다. 그 밖에 인정할 표기는
+ * 자료에 alt로 적어 둔 것만 받는다 — 「비슷하면 맞다」로 열어 두면 규칙이
+ * 아니라 인심이 된다. */
+export function acceptedJp(word) {
+  return [word?.kanji, word?.kana, ...(Array.isArray(word?.alt) ? word.alt : [])]
+    .filter(Boolean);
+}
+
+/* 뜻이 뒤집히거나 수가 달라지는 차이인가.
+ *
+ * 「있다」와 「없다」, 「하나」와 「둘」은 한 글자 차이지만 오타가 아니다.
+ * 오타로 봐주면 정반대 답이 「거의 맞았어요」가 된다. */
+const NEGATION = ['없', '안', '못', '아니', '말고', '불'];
+const NUMBERS = /[0-9０-９]|하나|둘|셋|넷|다섯|여섯|일곱|여덟|아홉|열|한|두|세|네/;
+
+export function sensesDiffer(a, b) {
+  const has = (s, w) => s.includes(w);
+  for (const n of NEGATION) {
+    if (has(a, n) !== has(b, n)) return true;
+  }
+  const na = a.match(NUMBERS)?.[0] || '';
+  const nb = b.match(NUMBERS)?.[0] || '';
+  return na !== nb;
+}
+
+/* 'correct' | 'close' | { verdict: 'wrong', why } .
+ *
  * close는 "거의 맞았어요"로 보여 주고 사용자가 인정할 수 있게 한다 — 오타까지
- * 틀렸다고 세면 점수가 실력을 안 나타낸다. */
-export function checkTyping(word, dir, input) {
+ * 틀렸다고 세면 점수가 실력을 안 나타낸다.
+ *
+ * 다만 일본어에서 한 글자 차이는 오타가 아닐 때가 더 많다. 장음·촉음·작은
+ * 가나·탁음이 다르면 그건 다른 낱말이라 봐주면 안 된다 — 무엇이 다른지
+ * 적어서 틀렸다고 한다. */
+export function judgeTyping(word, dir, input) {
   const raw = String(input ?? '').trim();
-  if (!raw) return 'wrong';
+  if (!raw) return { verdict: 'wrong' };
 
-  const accepted = dir === QUIZ_DIR.KO_JP
-    ? [word.kanji, word.kana].filter(Boolean).map(normalizeJp)
-    : meaningsOf(word).map(normalizeAnswer);
+  if (dir === QUIZ_DIR.KO_JP) {
+    const accepted = acceptedJp(word);
+    const mine = normalizeJp(raw);
+    if (!mine) return { verdict: 'wrong' };
 
-  const mine = dir === QUIZ_DIR.KO_JP ? normalizeJp(raw) : normalizeAnswer(raw);
-  if (!mine) return 'wrong';
-  if (accepted.includes(mine)) return 'correct';
+    if (accepted.some((a) => normalizeJp(a) === mine)) return { verdict: 'correct' };
+    /* 「びいる」처럼 장음을 모음으로 적은 것도 같은 소리다.
+       ー를 지우는 게 아니라 펴서 견주기 때문에 びる과는 여전히 다르다. */
+    const heard = phoneticJp(raw);
+    if (accepted.some((a) => phoneticJp(a) === heard)) return { verdict: 'correct' };
 
-  // 짧은 답에서 한 글자를 봐주면 다른 단어가 정답이 되어 버린다
-  const near = accepted.some((a) => a.length >= 3 && editDistance(a, mine) <= 1);
-  return near ? 'close' : 'wrong';
+    /* ★ 소리를 가르는 차이는 오타가 아니다 ★ */
+    for (const a of accepted) {
+      const diff = soundDiff(a, raw);
+      if (diff) return { verdict: 'wrong', why: diff.note, expected: a };
+    }
+
+    const near = accepted.some((a) => normalizeJp(a).length >= 4
+      && editDistance(normalizeJp(a), mine) <= 1);
+    return { verdict: near ? 'close' : 'wrong' };
+  }
+
+  // 뜻 쪽 — 여러 뜻 중 하나만 맞아도 정답이다
+  const accepted = meaningsOf(word).map(normalizeAnswer);
+  const mine = normalizeAnswer(raw);
+  if (!mine) return { verdict: 'wrong' };
+  if (accepted.includes(mine)) return { verdict: 'correct' };
+
+  for (const a of accepted) {
+    if (a.length < 3 || editDistance(a, mine) > 1) continue;
+    /* 뜻이 뒤집히거나 수가 다르면 오타가 아니다 */
+    if (sensesDiffer(a, mine)) {
+      return { verdict: 'wrong', why: '뜻이 반대이거나 수가 달라요.', expected: a };
+    }
+    return { verdict: 'close' };
+  }
+  return { verdict: 'wrong' };
+}
+
+/* 옛 이름 — 화면 여러 곳이 문자열 하나를 기대한다 */
+export function checkTyping(word, dir, input) {
+  return judgeTyping(word, dir, input).verdict;
 }
 
 /* ── 출제 ── */
@@ -149,7 +211,9 @@ export function scopeWords(words, review = {}, scope = QUIZ_SCOPE.ALL) {
   if (scope === QUIZ_SCOPE.WEAK) {
     /* 약점 기준은 회독 쪽 한 군데서 정한다. 예전엔 여기 ≥1을 손으로 적어 둬서
        같은 「약점」이 시험에서만 56개, 복습에서는 25개였다. */
-    return words.filter((w) => isWeak(review[w.id]));
+    /* stateOf를 거친다 — 날것으로 넘기면 옛 기록이 새 칸 없이 들어와서
+       졸업한 카드가 약점으로 잡힌다. 마이그레이션은 한 곳에서만 한다. */
+    return words.filter((w) => isWeak(stateOf(review, w.id)));
   }
   return words;
 }

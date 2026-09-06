@@ -20,6 +20,7 @@ const KEYS = {
   translations: 'jp_manabu_translations_v1',    // 번역기에서 받아 둔 것 — 현지에서 다시 본다
   trends: 'jp_manabu_trends_v1',                // 요즘 일본어 — 받아 둔 목록과 받은 날
   asks: 'jp_manabu_asks_v1',                    // 공부하다 물어본 것 — 비행기 모드에서도 다시 본다
+  plan: 'jp_manabu_plan_v1',                    // 오늘의 계획 — 배정과 완료를 날짜별로 적어 둔다
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -115,6 +116,17 @@ export function loadVideoRemoved() {
 }
 export function saveVideoRemoved(map) {
   write(KEYS.videoRemoved, map);
+}
+
+/* ── 오늘의 계획 ──
+ * 부를 때마다 새로 계산하면 신규 20개를 끝내도 다음 20개가 곧바로 채워서
+ * 「오늘 할 것」이 끝이 없는 목록이 된다. 하루치를 한 번 정해서 적어 둔다. */
+export function loadPlan() {
+  return read(KEYS.plan, null);
+}
+export function savePlan(plan) {
+  if (plan) write(KEYS.plan, plan);
+  else { try { localStorage.removeItem(KEYS.plan); } catch { /* 무시 */ } }
 }
 
 export function loadCustomWords() {
@@ -236,9 +248,18 @@ export function hasSignedInOnce() {
 export const DEFAULT_SETTINGS = {
   onboarded: false,
 
-  // 온보딩 2문항
+  // 온보딩
   canReadKana: null,  // true면 한자 앞면, false면 히라가나+한글 발음 앞면
-  tripDay: null,      // 'd3' | 'd7' | 'd14' | 'none'
+  /* ★ 무엇을 하려고 배우나 ★
+     'jlpt' 시험 | 'trip' 여행 | 'talk' 회화.
+     무엇을 먼저 배정할지를 정한다(lib/purpose.js). 기록은 안 건드린다 —
+     목적을 바꿨다고 외운 게 사라지면 아무도 못 바꾼다. */
+  purpose: 'talk',
+  /* 실제 출발일(YYYY-MM-DD). 없으면 null.
+     예전엔 「3일 이내」 같은 선택을 tripDay에 넣어 두고 날짜처럼 썼다.
+     그건 고른 날의 이야기라 사흘이 지나면 거짓말이 된다. */
+  tripDate: null,
+  tripDay: null,      // (옛 설정) 'd3' | 'd7' | 'd14' | 'none' — 읽기만 한다
 
   /* 학습 탭에 노출할 메뉴 (설정에서 개별 on/off).
      묶음은 lib/menu.js가 정한다 — 배우기 · 연습하기 · 반복하기. */
@@ -282,6 +303,10 @@ export const DEFAULT_SETTINGS = {
 
   // 하루 분량 — 복습 섞기 + 신규로 끊어서 학습한다
   levels: ['N5'],     // 학습할 JLPT 레벨. 비우면 전체
+  /* 문장에는 아직 레벨이 안 붙어 있다. 근거 없이 붙이지 않기로 했으니
+     「미분류」로 남는데, 그걸 새 학습에 넣을지 말지는 고를 수 있어야 한다.
+     기본은 넣는 쪽 — 빼면 지금 자료로는 문장이 통째로 사라진다. */
+  sentenceScope: 'all',   // 'all' 미분류도 포함 | 'level' 레벨이 맞는 것만
 
   // 시험 — 회독과 따로 돈다. 마지막에 고른 설정을 기억해 둔다.
   quizCount: 20,

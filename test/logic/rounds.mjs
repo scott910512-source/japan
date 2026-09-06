@@ -19,8 +19,24 @@ const ok = (l, c, e) => {
 
 const TODAY = todayKey();
 /* 실제로 판정을 먹여서 만든다. 손으로 상태를 지어내면 review.js가 규칙을
-   바꿔도 이 검사는 옛 규칙 위에서 계속 통과한다. */
-const after = (verdicts) => verdicts.reduce(
+   바꿔도 이 검사는 옛 규칙 위에서 계속 통과한다.
+
+   ★ 날짜를 넘겨 가며 먹인다 ★
+   예전엔 전부 오늘 하루에 먹였다. 그때는 같은 날 네 번 맞히면 졸업이었기
+   때문에 그래도 통과했는데, 그게 바로 고친 버그다. 회독은 「몇 번 눌렀나」가
+   아니라 「날짜를 두고 몇 번 확인됐나」라서, 복습일에 맞춰 다시 와야 오른다. */
+const after = (verdicts) => {
+  let st = emptyState();
+  let day = TODAY;
+  for (const v of verdicts) {
+    st = applyVerdict(st, v, day);
+    day = st.due || day;      // 다음 복습일에 다시 온다
+  }
+  return st;
+};
+
+/* 같은 날 여러 번 누른 경우 — 이건 회독이 아니다 */
+const sameDay = (verdicts) => verdicts.reduce(
   (st, v) => applyVerdict(st, v, TODAY),
   emptyState(),
 );
@@ -34,6 +50,13 @@ ok('두 번 이어서 맞히면 2회독', roundOf(after([K, K])) === 2);
 ok('네 번이 끝', roundOf(after([K, K, K, K, K, K])) === ROUND_MAX, `${ROUND_MAX}`);
 ok('끝이 review.js와 같다', ROUND_MAX === MASTER_STREAK);
 
+/* ★ 같은 날 네 번 누른 것은 1회독이다 ★
+   그걸 4회독이라고 부르면 화면의 회독 수와 실제 복습 간격이 어긋난다. */
+ok('같은 날 네 번은 1회독', roundOf(sameDay([K, K, K, K])) === 1,
+  `${roundOf(sameDay([K, K, K, K]))}`);
+ok('같은 날 네 번으로 완료가 안 된다', stageOf(sameDay([K, K, K, K])) === 'round1',
+  stageOf(sameDay([K, K, K, K])));
+
 /* ★ 회독은 「몇 번 봤나」가 아니라 「얼마나 붙었나」다 ★
    틀리면 0으로 돌아간다. 그때 회독 수를 그대로 두면 「3회독인데 모른다」는
    말이 되고, 화면과 실제 복습 간격이 어긋난다. */
@@ -41,7 +64,11 @@ ok('틀리면 처음으로 돌아간다', roundOf(after([K, K, K, X])) === 0, `$
 ok('다시 맞히면 다시 1회독', roundOf(after([K, K, K, X, K])) === 1);
 
 console.log('\n[ 단계 ]');
-ok('단계는 여섯', STAGES.length === 6, STAGES.map((s) => s.label).join(' / '));
+/* 「이미 알아요」가 하나 늘었다. 사용자가 직접 뺀 것은 앱이 확인한 완료와
+   다른 것이라, 같은 칸에 세면 「내가 확인한 것」과 「앱이 확인한 것」을
+   구별할 수 없게 된다. */
+ok('단계는 일곱', STAGES.length === 7, STAGES.map((s) => s.label).join(' / '));
+ok('자가 신고 칸이 따로 있다', STAGES.some((s) => s.id === 'self'));
 ok('단계마다 설명이 있다', STAGES.every((s) => s.label && s.sub));
 ok('안 본 것', stageOf(emptyState()) === 'fresh');
 ok('한 번 봤으면 1회독', stageOf(after([K])) === 'round1');
