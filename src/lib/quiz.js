@@ -1,4 +1,4 @@
-import { isWeak } from './review.js';
+import { isWeak, stateOf } from './review.js';
 import { narrowAscii, normalizeJp, phoneticJp, soundDiff, stripPunct } from './jptext.js';
 /* 시험 출제 · 채점.
  *
@@ -211,7 +211,9 @@ export function scopeWords(words, review = {}, scope = QUIZ_SCOPE.ALL) {
   if (scope === QUIZ_SCOPE.WEAK) {
     /* 약점 기준은 회독 쪽 한 군데서 정한다. 예전엔 여기 ≥1을 손으로 적어 둬서
        같은 「약점」이 시험에서만 56개, 복습에서는 25개였다. */
-    return words.filter((w) => isWeak(review[w.id]));
+    /* stateOf를 거친다 — 날것으로 넘기면 옛 기록이 새 칸 없이 들어와서
+       졸업한 카드가 약점으로 잡힌다. 마이그레이션은 한 곳에서만 한다. */
+    return words.filter((w) => isWeak(stateOf(review, w.id)));
   }
   return words;
 }

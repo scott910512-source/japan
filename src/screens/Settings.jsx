@@ -11,6 +11,7 @@ import KeyVault from '../components/KeyVault.jsx';
 import VoicePicker from '../components/VoicePicker.jsx';
 import { usageSummary, formatChars } from '../lib/usage.js';
 import { MENUS, MENU_GROUPS } from '../lib/menu.js';
+import { PURPOSES, purposeOf, tripLabel } from '../lib/purpose.js';
 import {
   DEFAULT_GEMINI_MODEL, PROVIDERS, TRANSCRIBE_MINUTES,
   listGeminiModels, looksLikeGeminiKey, resolveProvider,
@@ -330,6 +331,55 @@ export default function Settings({
 
       {/* 학습 탭과 같은 묶음으로 보여 준다 — 거기선 셋으로 갈라 놓고 여기선
           한 줄로 늘어놓으면 어느 칸이 어디 것인지 다시 찾아야 한다. */}
+      {/* ★ 하는 만큼만 말한다 ★
+          온보딩은 「남은 기간에 맞춰 학습량과 우선순위를 잡아 드려요」라고
+          적어 두고 아무것도 안 했다. 이제 정말로 배정 차례를 바꾸고,
+          목적마다 무엇이 달라지는지 그 자리에 적는다. */}
+      <div className="section-label">학습 목적</div>
+      <div className="card">
+        <div className="setrow col">
+          <div className="grouppick">
+            {PURPOSES.map((p) => (
+              <button
+                key={p.id}
+                className={purposeOf(settings) === p.id ? 'active' : ''}
+                onClick={() => onChange({ purpose: p.id })}
+              >{p.label}</button>
+            ))}
+          </div>
+          <div className="set-note">
+            {PURPOSES.find((p) => p.id === purposeOf(settings))?.does}
+            {' '}목적을 바꿔도 회독 기록과 복습일은 그대로예요.
+          </div>
+        </div>
+        <div className="setrow col">
+          <div className="set-title">일본 출발일</div>
+          <input
+            className="ob-date"
+            type="date"
+            value={settings.tripDate || ''}
+            onChange={(e) => onChange({ tripDate: e.target.value || null })}
+            aria-label="여행 출발일"
+          />
+          <div className="set-note">
+            {tripLabel(settings, todayKey())
+              || '넣으면 홈에 남은 날을 세어 드려요. 학습량은 안 바뀌어요.'}
+          </div>
+        </div>
+      </div>
+
+      {/* 문장에는 아직 레벨이 안 붙어 있다. 근거 없이 붙이지 않기로 했으니
+          「미분류」로 남는데, 그걸 새 학습에 넣을지는 고를 수 있어야 한다. */}
+      <div className="section-label">문장 범위</div>
+      <div className="card">
+        <Toggle
+          label="레벨이 안 붙은 문장도 배정"
+          sub="상황별 문장에는 아직 JLPT 레벨이 없어요. 끄면 레벨이 맞는 문장만 새로 배정해요 — 이미 배운 문장은 계속 복습합니다."
+          on={settings.sentenceScope !== 'level'}
+          onClick={() => onChange({ sentenceScope: settings.sentenceScope === 'level' ? 'all' : 'level' })}
+        />
+      </div>
+
       <div className="section-label">학습 메뉴</div>
       <div className="card">
         {MENU_GROUPS.map((g) => (

@@ -241,7 +241,7 @@ function arrange(picked) {
  * 갈래별로 뽑고 나서 세는 게 맞다 — 갈래마다 따로 뚜껑을 씌우면 복습에 문장이
  * 없는 날 신규 쪽 몫이 놀게 된다. 바꿔 넣을 단어가 모자라면 그만큼은 그냥
  * 문장으로 둔다. 억지로 채우느라 개수를 줄이지는 않는다. */
-function capSentences(picked, groups, got, goal) {
+function capSentences(picked, groups, got, goal, sentenceMax = FRESH_SENTENCE_MAX) {
   const taken = new Set(picked.map((x) => x.id));
   const spare = {
     review: groups.due.filter((x) => x.kind === 'word' && !taken.has(x.id)),
@@ -266,8 +266,8 @@ function capSentences(picked, groups, got, goal) {
 
   // 새로 배우는 문장은 세 개까지 — 단어 외우기는 단어를 외우는 자리다
   const freshSent = out.filter((x) => x.kind === 'sentence' && x.bucket === 'fresh').length;
-  if (freshSent > FRESH_SENTENCE_MAX) {
-    swap(freshSent - FRESH_SENTENCE_MAX, (x) => x.bucket === 'fresh');
+  if (freshSent > sentenceMax) {
+    swap(freshSent - sentenceMax, (x) => x.bucket === 'fresh');
   }
 
   // 그러고도 판 전체에서 문장이 절반을 넘으면 거기서 더 깎는다
@@ -284,7 +284,7 @@ function capSentences(picked, groups, got, goal) {
  * lanes: 어느 갈래만 담을지. 홈 화면이 「단어 외우기(신규)」와 「복습하기
  *        (복습+약점)」를 따로 열기 때문에 갈래를 골라 짤 수 있어야 한다.
  * 반환: { queue, review, weak, fresh, left, minutes } */
-function draw(pool, review, { goals, lanes, today }) {
+function draw(pool, review, { goals, lanes, today, sentenceMax }) {
   const want = normalizeGoals(goals);
   const use = new Set(lanes?.length ? lanes : LANES);
   const groups = classifyDaily(pool, review, today);
@@ -301,7 +301,7 @@ function draw(pool, review, { goals, lanes, today }) {
     ...takeMixed(groups.due, got.review),
     ...takeWeak(groups.weak, got.weak, review),
     ...takeMixed(groups.fresh, got.fresh),
-  ], groups, got, total);
+  ], groups, got, total, sentenceMax ?? FRESH_SENTENCE_MAX);
 
   return { groups, sizes, got, picked, total };
 }
@@ -309,8 +309,8 @@ function draw(pool, review, { goals, lanes, today }) {
 /* 오늘 계획이 배정할 것 — 순서를 짜기 전의 목록.
    plan.js가 이걸로 하루치를 적어 둔다. 약점 두 번은 그대로 두 칸이다 —
    「연습 횟수」와 「카드 수」를 가르는 일은 plan.js가 한다. */
-export function takeForPlan(pool, review, { goals, lanes, today = todayKey() } = {}) {
-  return draw(pool, review, { goals, lanes, today }).picked;
+export function takeForPlan(pool, review, { goals, lanes, today = todayKey(), sentenceMax } = {}) {
+  return draw(pool, review, { goals, lanes, today, sentenceMax }).picked;
 }
 
 export function buildDailyStudyQueue(pool, review, { goals, lanes, today = todayKey() } = {}) {

@@ -248,9 +248,18 @@ export function hasSignedInOnce() {
 export const DEFAULT_SETTINGS = {
   onboarded: false,
 
-  // 온보딩 2문항
+  // 온보딩
   canReadKana: null,  // true면 한자 앞면, false면 히라가나+한글 발음 앞면
-  tripDay: null,      // 'd3' | 'd7' | 'd14' | 'none'
+  /* ★ 무엇을 하려고 배우나 ★
+     'jlpt' 시험 | 'trip' 여행 | 'talk' 회화.
+     무엇을 먼저 배정할지를 정한다(lib/purpose.js). 기록은 안 건드린다 —
+     목적을 바꿨다고 외운 게 사라지면 아무도 못 바꾼다. */
+  purpose: 'talk',
+  /* 실제 출발일(YYYY-MM-DD). 없으면 null.
+     예전엔 「3일 이내」 같은 선택을 tripDay에 넣어 두고 날짜처럼 썼다.
+     그건 고른 날의 이야기라 사흘이 지나면 거짓말이 된다. */
+  tripDate: null,
+  tripDay: null,      // (옛 설정) 'd3' | 'd7' | 'd14' | 'none' — 읽기만 한다
 
   /* 학습 탭에 노출할 메뉴 (설정에서 개별 on/off).
      묶음은 lib/menu.js가 정한다 — 배우기 · 연습하기 · 반복하기. */

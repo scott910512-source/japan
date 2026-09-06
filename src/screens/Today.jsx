@@ -5,6 +5,7 @@ import ProgressSummary from '../components/ProgressSummary.jsx';
 import TodayTaskCard from '../components/TodayTaskCard.jsx';
 import { todayKey } from '../lib/review.js';
 import { estimateMinutes } from '../lib/daily.js';
+import { tripLabel } from '../lib/purpose.js';
 
 /* 오늘 화면 — 앱에서 제일 중요한 자리.
  *
@@ -60,6 +61,7 @@ export default function Today({
   const resuming = session?.date === today && session.queue?.length > 0;
   const allDone = Boolean(planNow?.finished);
   const over = planNow?.over || { review: 0, weak: 0 };
+  const trip = tripLabel(settings, today);
 
   return (
     <>
@@ -73,6 +75,9 @@ export default function Today({
           <span className="th-streak"><IconFlame />{streak.count}일</span>
         )}
       </div>
+      {/* 출발일을 넣은 사람에게만. 「3일 이내」를 저장해 두고 한 달 뒤에도
+          그렇게 띄우던 것을 실제 날짜 계산으로 바꿨다. */}
+      {trip && <div className="td-trip">{trip}</div>}
 
       {/* 목표(설정에서 정한 양)와 배정(오늘 정말 있는 양)은 다른 숫자다.
           첫날처럼 복습이 하나도 없는 날 60을 목표로 띄우면, 있지도 않은 40개를

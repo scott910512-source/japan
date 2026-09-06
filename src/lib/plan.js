@@ -17,6 +17,7 @@
 
 import { todayKey } from './review.js';
 import { classifyDaily, normalizeGoals, estimateMinutes, takeForPlan } from './daily.js';
+import { freshSentenceMax, orderByPurpose, purposeOf } from './purpose.js';
 
 export const PLAN_VERSION = 1;
 
@@ -28,12 +29,25 @@ export const MORE_STEP = 10;
  * assigned에는 카드가 한 번씩만 들어간다. 약점 카드가 한 판에 두 번 나오는
  * 것은 「연습 횟수」이지 「배운 카드 수」가 아니다 — 둘을 같은 칸에 세면
  * 20개를 배정하고 22개를 끝낸 것처럼 보인다. */
-export function buildPlan(pool, review, { goals, today = todayKey() } = {}) {
+export function buildPlan(pool, review, {
+  goals, today = todayKey(), purpose, cardOf,
+} = {}) {
   const want = normalizeGoals(goals);
-  const picked = takeForPlan(pool, review, { goals: want, today });
+  /* 무엇을 먼저 배정할지는 학습 목적이 정한다. 거르지 않고 차례만 바꾼다 —
+     목적은 취향이지 자격이 아니라, 「여행」을 골랐다고 시험 단어를 영영
+     못 보게 되면 안 된다. */
+  const use = purpose ? orderByPurpose(pool, purposeOf({ purpose }), cardOf) : pool;
+  /* 차례만 바꿔서는 안 된다. 큐를 짜는 쪽이 종류별로 다시 묶어 비례로 뽑아서,
+     앞뒤를 바꿔도 단어와 문장이 섞이는 비율은 그대로였다. 몇 개까지 넣을지도
+     같이 정해야 목적이 실제로 반영된다. */
+  const picked = takeForPlan(use, review, {
+    goals: want,
+    today,
+    sentenceMax: purpose ? freshSentenceMax(purposeOf({ purpose })) : undefined,
+  });
   /* 오늘 후보가 갈래마다 몇 개였는지. 배정에 다 못 담은 복습이 있으면
      조용히 밀어 두지 않고 알려 줘야 해서 같이 적어 둔다. */
-  const groups = classifyDaily(pool, review, today);
+  const groups = classifyDaily(use, review, today);
   const sizes = { review: groups.due.length, weak: groups.weak.length, fresh: groups.fresh.length };
 
   const assigned = [];
@@ -60,9 +74,10 @@ export function buildPlan(pool, review, { goals, today = todayKey() } = {}) {
 
 /* 날짜가 바뀌었거나 아직 없으면 새로 짠다. 같은 날이면 있던 것을 그대로 쓴다 —
    여기서 다시 짜면 오늘 끝낸 게 사라진다. */
-export function ensurePlan(plan, pool, review, { goals, today = todayKey() } = {}) {
+export function ensurePlan(plan, pool, review, opts = {}) {
+  const today = opts.today || todayKey();
   if (plan?.date === today && plan.v === PLAN_VERSION) return plan;
-  return buildPlan(pool, review, { goals, today });
+  return buildPlan(pool, review, { ...opts, today });
 }
 
 /* 한 카드를 끝냈다고 적는다. 같은 카드를 몇 번 판정하든 한 번만 센다. */

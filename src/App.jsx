@@ -524,6 +524,9 @@ export default function App() {
   /* 오늘의 학습 — 앱이 짜 준 큐 하나로 단어와 문장을 같이 돈다.
      문장은 카드 모양으로 감싸 두면 회독 화면이 그대로 받는다. */
   const sentenceCards = useMemo(() => allSentenceCards(), []);
+  /* 목적에 따라 차례를 바꿀 때 문장이 어느 상황인지 알아야 한다 —
+     「여행」이면 주문·결제·길 찾기·숙소를 먼저 배정한다. */
+  const sentById = useMemo(() => new Map(sentenceCards.map((c) => [c.id, c])), [sentenceCards]);
   /* 이미 배운 문장 — 레벨을 좁혀도 복습에서 안 사라지게 넘긴다 */
   const seenIds = useMemo(() => {
     const out = new Set();
@@ -546,11 +549,14 @@ export default function App() {
   useEffect(() => {
     if (!todayPool.length) return;
     setPlan((prev) => ensurePlan(prev, todayPool, review, {
-      goals: settings.goals, today,
+      goals: settings.goals,
+      today,
+      purpose: settings.purpose,
+      cardOf: (id) => sentById.get(id) || byId.get(id),
     }));
     // 회독 기록이 바뀔 때마다 다시 짜면 안 된다 — 배정은 하루에 한 번만 정한다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today, todayPool.length, settings.goals]);
+  }, [today, todayPool.length, settings.goals, settings.purpose]);
 
   /* 화면·큐·통계가 모두 이 하나를 본다 — 같은 정보를 여러 곳에서 다른
      숫자로 보여 주지 않으려면 셈하는 자리가 하나여야 한다. */
