@@ -72,11 +72,38 @@ export function buildPlan(pool, review, {
   };
 }
 
-/* 날짜가 바뀌었거나 아직 없으면 새로 짠다. 같은 날이면 있던 것을 그대로 쓴다 —
-   여기서 다시 짜면 오늘 끝낸 게 사라진다. */
+/* 아직 손대지 않은 계획인가.
+ *
+ * 계획은 하루에 한 번만 정한다. 그런데 「한 번」을 앱을 켠 순간으로 못 박으면
+ * 문제가 생긴다 — 아침에 앱을 열면 아직 동기화가 안 끝나서 복습 기록이 비어
+ * 있고, 그때 짠 계획은 「복습 0」이다. 잠시 뒤 동기화가 끝나 복습이 스무 개
+ * 들어와도 계획은 하루 종일 비어 있는다.
+ *
+ * 그래서 「아직 아무것도 안 했으면 다시 짠다」로 한다. 안 했으면 다시 짜도
+ * 잃을 게 없다. 한 장이라도 손댔으면 그때부터 얼린다 — 도중에 다시 짜면
+ * 하던 카드가 큐에서 사라진다. */
+export function untouched(plan, review, today) {
+  if (!plan) return true;
+  if (Object.keys(plan.done || {}).length) return false;
+  if (plan.extra) return false;
+  // 몰라요를 눌러 아직 못 끝낸 카드도 「손댄 것」이다
+  return !plan.assigned.some((x) => review?.[x.id]?.lastSeen === today);
+}
+
+/* 날짜가 바뀌었거나, 아직 없거나, 손대기 전이면 새로 짠다.
+   손댄 뒤로는 그대로 쓴다 — 여기서 다시 짜면 하던 것이 사라진다. */
 export function ensurePlan(plan, pool, review, opts = {}) {
   const today = opts.today || todayKey();
-  if (plan?.date === today && plan.v === PLAN_VERSION) return plan;
+  const fresh = plan?.date === today && plan.v === PLAN_VERSION;
+  if (fresh && !untouched(plan, review, today)) return plan;
+  if (fresh) {
+    /* 손대기 전이라면 다시 짜되, 정말 달라졌을 때만 새 객체를 준다 —
+       매번 새 객체를 주면 화면이 끝없이 다시 그려진다. */
+    const next = buildPlan(pool, review, { ...opts, today });
+    const same = next.assigned.length === plan.assigned.length
+      && next.assigned.every((x, i) => x.id === plan.assigned[i].id);
+    return same ? plan : next;
+  }
   return buildPlan(pool, review, { ...opts, today });
 }
 

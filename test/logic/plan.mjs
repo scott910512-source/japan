@@ -12,7 +12,7 @@
  * 화면·큐·통계가 그 하나만 본다. */
 import {
   buildPlan, ensurePlan, planStatus, markStudied, unmarkStudied,
-  addMore, remaining, mergePlan, noteFreeStudy, MORE_STEP,
+  addMore, remaining, mergePlan, noteFreeStudy, untouched, MORE_STEP,
 } from '../../src/lib/plan.js';
 import { applyVerdict, emptyState, VERDICT } from '../../src/lib/review.js';
 
@@ -129,6 +129,40 @@ console.log('\n[ 계획 밖 자유 학습 ]');
   p = noteFreeStudy(p, 'w199');
   ok('★ 계획에 없는 건 목표를 안 늘린다 ★', planStatus(p).assigned === before, `${before} → ${planStatus(p).assigned}`);
   ok('완료도 안 늘어난다', planStatus(p).done === 1);
+}
+
+console.log('\n[ ★ 아침 동기화가 늦게 와도 계획이 비어 있지 않다 ★ ]');
+{
+  /* 앱을 열면 아직 동기화가 안 끝나서 복습 기록이 비어 있다. 그때 짠 계획은
+     「복습 0」인데, 잠시 뒤 복습이 스무 개 들어와도 하루 종일 비어 있었다.
+     아직 아무것도 안 했으면 다시 짜도 잃을 게 없다. */
+  const p0 = buildPlan(pool(), {}, { goals: GOALS, today: T });
+  ok('처음엔 신규만', planStatus(p0).lanes.review.assigned === 0);
+
+  const late = {};
+  for (let i = 100; i < 130; i++) {
+    late[`w${i}`] = {
+      box: 3, streak: 0, level: 1, due: '2026-08-01', promotedOn: '2026-07-31',
+      selfKnown: false, lastSeen: '2026-07-31', seenAt: 1, rounds: 1, wrongCount: 0, vagueCount: 0,
+    };
+  }
+  const p1 = ensurePlan(p0, pool(), late, { goals: GOALS, today: T });
+  ok('★ 늦게 온 복습이 계획에 들어온다 ★', planStatus(p1).lanes.review.assigned === 20,
+    `${planStatus(p1).lanes.review.assigned}`);
+
+  /* 한 장이라도 손댔으면 그때부터 얼린다 — 도중에 다시 짜면 하던 게 사라진다 */
+  const started = markStudied(p1, p1.assigned[0].id);
+  ok('손댄 뒤로는 안 바뀐다',
+    ensurePlan(started, pool(), { ...late, w150: { lastSeen: T, level: 1, due: T } },
+      { goals: GOALS, today: T }) === started);
+  ok('손댔는지 알아본다', !untouched(started, late, T) && untouched(p0, {}, T));
+
+  /* 몰라요를 눌러 아직 못 끝낸 카드도 「손댄 것」이다 */
+  const seenToday = { [p1.assigned[0].id]: { lastSeen: T } };
+  ok('오늘 만난 카드가 있으면 얼린다', !untouched(p1, seenToday, T));
+
+  /* 달라진 게 없으면 같은 객체를 준다 — 매번 새로 주면 화면이 끝없이 다시 그려진다 */
+  ok('안 달라졌으면 그대로', ensurePlan(p1, pool(), late, { goals: GOALS, today: T }) === p1);
 }
 
 console.log('\n[ 날짜가 바뀌면 ]');

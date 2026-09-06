@@ -554,9 +554,10 @@ export default function App() {
       purpose: settings.purpose,
       cardOf: (id) => sentById.get(id) || byId.get(id),
     }));
-    // 회독 기록이 바뀔 때마다 다시 짜면 안 된다 — 배정은 하루에 한 번만 정한다
+    /* review를 같이 본다. 아침에 동기화가 끝나기 전 짠 「복습 0」짜리 계획이
+       하루 종일 남는 것을 막기 위해서다. 손댄 뒤로는 ensurePlan이 얼린다. */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today, todayPool.length, settings.goals, settings.purpose]);
+  }, [today, todayPool.length, settings.goals, settings.purpose, review]);
 
   /* 화면·큐·통계가 모두 이 하나를 본다 — 같은 정보를 여러 곳에서 다른
      숫자로 보여 주지 않으려면 셈하는 자리가 하나여야 한다. */
