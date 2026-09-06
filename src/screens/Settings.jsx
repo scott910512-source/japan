@@ -368,13 +368,14 @@ export default function Settings({
         </div>
       </div>
 
-      {/* 문장에는 아직 레벨이 안 붙어 있다. 근거 없이 붙이지 않기로 했으니
-          「미분류」로 남는데, 그걸 새 학습에 넣을지는 고를 수 있어야 한다. */}
+      {/* 문장 레벨은 문장에 나오는 낱말의 급수로 잰다. 근거를 못 찾은 문장은
+          미분류로 남는데, 그걸 새 학습에 넣을지는 고를 수 있어야 한다.
+          모른다는 게 어렵다는 뜻은 아니라서 기본은 넣는 쪽이다. */}
       <div className="section-label">문장 범위</div>
       <div className="card">
         <Toggle
-          label="레벨이 안 붙은 문장도 배정"
-          sub="상황별 문장에는 아직 JLPT 레벨이 없어요. 끄면 레벨이 맞는 문장만 새로 배정해요 — 이미 배운 문장은 계속 복습합니다."
+          label="레벨을 못 잰 문장도 배정"
+          sub="문장 레벨은 그 문장에 나오는 낱말의 급수로 재요. 낱말을 못 찾은 문장은 미분류로 남는데, 끄면 그런 문장은 새로 배정하지 않아요 — 이미 배운 문장은 계속 복습합니다."
           on={settings.sentenceScope !== 'level'}
           onClick={() => onChange({ sentenceScope: settings.sentenceScope === 'level' ? 'all' : 'level' })}
         />
