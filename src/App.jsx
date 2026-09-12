@@ -1,3 +1,11 @@
+import { useAppData, usePersistAppData } from './app/useAppData.js';
+import { useLayerNavigation } from './app/useLayerNavigation.js';
+import FeatureScreen from './app/FeatureScreen.jsx';
+import { StudyHub, Log, Study, Settings, Videos, NewPassword } from './app/screens.js';
+import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
+import { filterByLevel } from './lib/wordFilters.js';
+import { useAccountSync } from './app/useAccountSync.js';
+import { useToast } from './app/useToast.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TabBar from './components/TabBar.jsx';
 import {
@@ -6,62 +14,24 @@ import {
 import BottomSheet from './components/BottomSheet.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import Today from './screens/Today.jsx';
-import StudyHub from './screens/StudyHub.jsx';
-import Log from './screens/Log.jsx';
-import Listen from './screens/Listen.jsx';
 import ListenHub from './screens/ListenHub.jsx';
-import Study from './screens/Study.jsx';
-import ReviewTab from './screens/ReviewTab.jsx';
-import Settings from './screens/Settings.jsx';
-import Basics from './screens/Basics.jsx';
-import WordManager from './screens/WordManager.jsx';
-import WordDeck, { filterByLevel } from './screens/WordDeck.jsx';
-import Situations from './screens/Situations.jsx';
-import Quiz from './screens/Quiz.jsx';
-import Conjugate from './screens/Conjugate.jsx';
-import Match from './screens/Match.jsx';
-import Rpg from './screens/Rpg.jsx';
-import Repeat from './screens/Repeat.jsx';
-import Adverb from './screens/Adverb.jsx';
-import Videos from './screens/Videos.jsx';
-import Translate from './screens/Translate.jsx';
-import GrammarHub from './screens/GrammarHub.jsx';
 import Gate from './screens/Gate.jsx';
-import NewPassword from './screens/NewPassword.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { ALL_WORDS } from './data/allWords.js';
 import { ALL_SITUATIONS as SITUATIONS } from './data/allSituations.js';
 import { allSentenceCards, dailyPool, cardsForQueue } from './lib/cards.js';
 import { buildDailyStudyQueue } from './lib/daily.js';
 import {
-  DEFAULT_SETTINGS,
-  loadCustomWords, saveCustomWords,
-  loadProgress, saveProgress,
-  loadSettings, saveSettings,
-  loadReview, saveReview,
-  loadSession, saveSession,
-  loadStats, saveStats,
-  loadPlan, savePlan,
   touchStreak, loadStreak, setStorageErrorHandler, setStorageOkHandler,
-  loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce,
-  loadMemos, saveMemos,
-  loadAsks, saveAsks,
-  loadVideos, saveVideos, loadVideoAnalyses, saveVideoAnalyses,
-  loadVideoScripts, saveVideoScripts, loadVideoProgress, saveVideoProgress,
-  loadVideoRemoved, saveVideoRemoved,
-  loadTranslations, saveTranslations, loadTrends, saveTrends,
+  hasSignedInOnce,
 } from './lib/storage.js';
 import { addToDay, removeFromDay, noteActivity as noteActivityIn } from './lib/stats.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
 import { applyVerdict, dueCards, isSessionClear, stateOf, todayKey, weakCards } from './lib/review.js';
-import { supabase, supabaseConfigured } from './lib/supabase.js';
-import { syncNow, pushMerged } from './lib/sync.js';
+import { supabaseConfigured } from './lib/supabase.js';
 import { useToday } from './lib/useToday.js';
-import { mergeSyncedSettings, pickSyncedSettings } from './lib/merge.js';
-import { SEED_VIDEOS } from './data/videos.js';
 import { GRAMMAR_MODULES } from './data/grammar.js';
-import { encryptWithVaultKey, decryptWithVaultKey } from './lib/crypto.js';
 
 /* 갈래에 따라 판 이름이 달라진다. 이어하기 줄에 그대로 뜨니
    「오늘의 학습」 하나로 두면 뭘 하다 말았는지 모른다. */
@@ -118,46 +88,61 @@ export default function App() {
   const [listenMode, setListenMode] = useState('listen');
   const [deck, setDeck] = useState(null); // 학습 중인 덱 (있으면 회독 화면이 전체를 덮는다)
 
-  const [customWords, setCustomWords] = useState(() => loadCustomWords());
-  const [progress, setProgress] = useState(() => loadProgress());
-  /* 오늘의 계획. 부를 때마다 새로 계산하지 않고 하루치를 적어 둔다 —
-     그래야 신규 20개를 끝냈을 때 「남은 0」이 되고, 완료 수가 판정 횟수로
-     부풀지 않는다. */
-  const [plan, setPlan] = useState(() => loadPlan());
-  const [settings, setSettings] = useState(() => loadSettings());
-  const [review, setReview] = useState(() => loadReview());
-  const [session, setSession] = useState(() => loadSession());
-  const [stats, setStats] = useState(() => loadStats());
-  const [memos, setMemos] = useState(() => loadMemos());
-  const [asks, setAsks] = useState(() => loadAsks());   // 공부하다 물어본 것
-  /* 영상은 화면이 아니라 여기서 들고 있다 — 기기 간 동기화에 실어야 한다.
-     처음 켠 사람에게만 기본 영상을 넣는다. 전부 뺀 사람에게 다시 넣으면
-     지운 게 돌아오는 셈이다(loadVideos가 그래서 null을 돌려준다). */
-  const [videos, setVideos] = useState(() => loadVideos() ?? SEED_VIDEOS);
-  const [videoAnalyses, setVideoAnalyses] = useState(() => loadVideoAnalyses());
-  const [videoScripts, setVideoScripts] = useState(() => loadVideoScripts());
-  const [videoProgress, setVideoProgress] = useState(() => loadVideoProgress());
-  const [videoRemoved, setVideoRemoved] = useState(() => loadVideoRemoved());
-  // 번역기에서 받아 둔 것 — 비행기 모드에서도 다시 봐야 해서 기기에 남긴다
-  const [translations, setTranslations] = useState(() => loadTranslations());
-  const [trends, setTrends] = useState(() => loadTrends());
+  const appData = useAppData();
+  const {
+    customWords,
+    setCustomWords,
+    progress,
+    setProgress,
+    plan,
+    setPlan,
+    settings,
+    setSettings,
+    review,
+    setReview,
+    session,
+    setSession,
+    stats,
+    setStats,
+    memos,
+    setMemos,
+    asks,
+    setAsks,
+    videos,
+    setVideos,
+    videoAnalyses,
+    setVideoAnalyses,
+    videoScripts,
+    setVideoScripts,
+    videoProgress,
+    setVideoProgress,
+    translations,
+    setTranslations,
+    trends,
+    setTrends,
+    removeVideo
+  } = appData;
   const [streak, setStreak] = useState({ count: 0, lastDate: null });
   const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [toast, setToast] = useState('');
-  const [authSession, setAuthSession] = useState(null);
-  const [syncState, setSyncState] = useState({ busy: false, at: null, error: null });
+  const { toast, showToast } = useToast();
   /* 저장이 막힌 상태. 해결될 때까지 남는다 — 토스트만으로는 못 알아챈다. */
   const [storeError, setStoreError] = useState(null);
-  const [remoteKeyEnvelope, setRemoteKeyEnvelope] = useState(null);
-  const [vaultKey, setVaultKey] = useState(() => loadVaultKey());
-  const [authReady, setAuthReady] = useState(!supabaseConfigured);
   const [offlinePass, setOfflinePass] = useState(false);
-  const [recovering, setRecovering] = useState(false);
-
-  const showToast = useCallback((message) => {
-    setToast(message);
-    setTimeout(() => setToast(''), 2200);
-  }, []);
+  const {
+    authSession,
+    setAuthSession,
+    syncState,
+    remoteKeyEnvelope,
+    setRemoteKeyEnvelope,
+    vaultKey,
+    authReady,
+    recovering,
+    setRecovering,
+    rememberVaultKey,
+    runSync,
+    syncedFor,
+    patchSettings
+  } = useAccountSync({ data: appData, streak, setStreak, showToast });
 
   useEffect(() => {
     /* 저장 실패는 토스트로 끝내지 않는다 — 두 걸음 걷고 나면 사라지는데 그
@@ -190,47 +175,7 @@ export default function App() {
     };
   }, [showToast]);
 
-  /* ── ★ 뒤로가기로 학습을 잃지 않는다 ★ ──
-   *
-   * 회독 화면이나 메뉴가 덮여 있을 때 뒤로가기를 누르면 앱을 그냥 벗어났다.
-   * 안드로이드와 홈 화면 앱에서는 그게 제일 자연스러운 「닫기」 동작인데,
-   * 여기서는 앱이 닫히는 것으로 읽힌다.
-   *
-   * 덮인 게 있으면 그것만 닫는다. 회독 화면을 닫아도 세션은 저장돼 있어서
-   * 오늘 화면의 이어하기로 그 자리에 돌아간다 — 화면의 닫기 버튼과 같다.
-   *
-   * 덮인 게 없으면 막지 않는다. 거기서 붙잡으면 앱에서 나갈 길이 없어진다.
-   *
-   * ★ 자리는 딱 하나만, 그리고 우리가 되돌리지 않는다 ★
-   *
-   * 처음에는 화면에서 닫을 때 넣어 둔 자리도 history.back()으로 같이 뺐다.
-   * 뒤로가기가 한 번 헛도는 걸 막으려던 것인데, back()은 비동기라서 닫고 바로
-   * 다시 여는 흐름에서 엉뚱한 자리를 뺐다 — 앱 밖으로 나가 버렸고 듣기·디자인
-   * 검사가 통째로 멈췄다. 헛도는 한 번보다 앱에서 튕기는 게 훨씬 나쁘다.
-   *
-   * 그래서 우리가 history를 되돌리지 않는다. 자리가 있는지는 history.state로
-   * 보니 몇 개를 넣었는지 셀 필요도 없다 — 있으면 안 넣고, 없으면 하나 넣는다.
-   * 화면 버튼으로 닫은 뒤 뒤로가기를 누르면 그 자리를 쓰면서 아무 일도 안
-   * 일어나고, 한 번 더 누르면 앱을 벗어난다. */
-  const layerOpen = Boolean(deck || sub);
-
-  useEffect(() => {
-    if (!layerOpen) return;
-    if (window.history.state?.jp === 'layer') return;   // 이미 자리가 있다
-    window.history.pushState({ jp: 'layer' }, '');
-  }, [layerOpen]);
-
-  useEffect(() => {
-    const onPop = () => {
-      // 위에 덮인 것부터 하나씩. 회독 → 메뉴 순이다.
-      if (deck) { setDeck(null); return; }
-      if (sub) { setSub(null); }
-      /* 덮인 게 없으면 아무것도 안 한다 — 브라우저가 하던 대로 나간다.
-         화면에서 닫아 둔 자리가 남아 있었다면 이 한 번이 그걸 쓴다. */
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, [deck, sub]);
+  useLayerNavigation({ deck, sub, setDeck, setSub });
 
   /* 온보딩을 열지 말지 정한다.
    *
@@ -252,47 +197,7 @@ export default function App() {
     setOnboardingOpen(!settings.onboarded && settings.canReadKana == null);
   }, [authReady, authSession, settings.onboarded, settings.canReadKana, syncState.at]);
 
-  useEffect(() => saveCustomWords(customWords), [customWords]);
-  useEffect(() => saveProgress(progress), [progress]);
-  useEffect(() => saveSettings(settings), [settings]);
-  useEffect(() => saveReview(review), [review]);
-  useEffect(() => saveSession(session), [session]);
-  useEffect(() => saveStats(stats), [stats]);
-  useEffect(() => { if (plan) savePlan(plan); }, [plan]);
-  useEffect(() => saveMemos(memos), [memos]);
-  useEffect(() => saveAsks(asks), [asks]);
-  useEffect(() => saveVideos(videos), [videos]);
-  useEffect(() => saveVideoAnalyses(videoAnalyses), [videoAnalyses]);
-  useEffect(() => saveVideoScripts(videoScripts), [videoScripts]);
-  useEffect(() => saveVideoProgress(videoProgress), [videoProgress]);
-  useEffect(() => saveVideoRemoved(videoRemoved), [videoRemoved]);
-  useEffect(() => saveTranslations(translations), [translations]);
-  useEffect(() => { if (trends) saveTrends(trends); }, [trends]);
-
-  /* 동기화에 실을 영상 묶음. 묘비(removed)까지 같이 올려야 한 기기에서 뺀
-     영상이 다른 기기에서 되살아나지 않는다. */
-  const videoBundle = useMemo(() => ({
-    list: videos, removed: videoRemoved,
-    scripts: videoScripts, analyses: videoAnalyses, progress: videoProgress,
-  }), [videos, videoRemoved, videoScripts, videoAnalyses, videoProgress]);
-
-  const applyVideoBundle = useCallback((b) => {
-    if (!b) return;
-    setVideos(b.list || []);
-    setVideoRemoved(b.removed || {});
-    setVideoScripts(b.scripts || {});
-    setVideoAnalyses(b.analyses || {});
-    setVideoProgress(b.progress || {});
-  }, []);
-
-  // 뺀 영상은 묘비를 남긴다. 남기지 않으면 다음 동기화에 서버에서 다시 내려온다.
-  const removeVideo = useCallback((id) => {
-    setVideos((prev) => prev.filter((v) => v.id !== id));
-    setVideoRemoved((prev) => ({ ...prev, [id]: Date.now() }));
-    setVideoAnalyses((prev) => { const next = { ...prev }; delete next[id]; return next; });
-    setVideoScripts((prev) => { const next = { ...prev }; delete next[id]; return next; });
-    setVideoProgress((prev) => { const next = { ...prev }; delete next[id]; return next; });
-  }, []);
+  usePersistAppData(appData);
 
   // 음성 인식도 같은 Google API 키를 쓴다
   useEffect(() => {
@@ -328,159 +233,6 @@ export default function App() {
     [sentenceIds, review, today],
   );
 
-  const patchSettings = useCallback((patch) => setSettings((s) => ({ ...s, ...patch })), []);
-
-  /* ── 계정 · 기기 간 동기화 ── */
-
-  useEffect(() => {
-    if (!supabaseConfigured) return;
-    supabase.auth.getSession().then(({ data }) => {
-      setAuthSession(data.session);
-      setAuthReady(true);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
-      setAuthSession(next);
-      // 재설정 메일 링크로 돌아온 경우다. 세션만 열고 끝내면 비밀번호는 안 바뀐다.
-      if (event === 'PASSWORD_RECOVERY') setRecovering(true);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  const runSync = useCallback(async (silent = false) => {
-    if (!authSession?.user) return;
-    setSyncState((s) => ({ ...s, busy: true }));
-    try {
-      const merged = await syncNow(authSession.user.id, {
-        review, progress, settings, stats, streak, customWords, memos, videos: videoBundle,
-      });
-      setReview(merged.review);
-      setProgress((p) => ({ ...p, ...merged.progress }));
-      setStats(merged.stats);
-      setStreak(merged.streak);
-      setCustomWords(merged.customWords);
-      setMemos(merged.memos);
-      applyVideoBundle(merged.videos);
-      /* 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다.
-         메뉴 목록만은 얹지 않고 합친다. 서버에 저장된 건 새 메뉴가 생기기 전
-         것이라, 그냥 얹으면 만든 적도 없는 것처럼 사라진다. */
-      setSettings((s) => mergeSyncedSettings(s, merged.settings, DEFAULT_SETTINGS));
-      setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
-      /* 안내(note)와 오류(error)를 나눈다. 영상 칸이 없는 건 나머지가 다 올라간
-         상태라, 이걸 오류 자리에 넣으면 "동기화가 안 되고 있어요"로 읽힌다. */
-      setSyncState({
-        busy: false,
-        error: null,
-        note: merged.videoNote || null,
-        at: new Date().toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }),
-      });
-      if (!silent) showToast(merged.videoNote ? '동기화했어요 (영상 제외)' : '동기화했어요');
-    } catch (err) {
-      // 토스트는 2초 뒤 사라져서 왜 안 되는지 확인할 방법이 없다. 계정 칸에 남긴다.
-      setSyncState((s) => ({ ...s, busy: false, error: err.message }));
-      if (!silent) showToast('동기화에 실패했어요');
-    }
-  }, [authSession, review, progress, settings, stats, streak, customWords, memos, videoBundle, applyVideoBundle, showToast]);
-
-  const saveRemoteKey = useCallback(async (envelope) => {
-    if (!authSession?.user) throw new Error('로그인이 필요해요');
-    await pushMerged(authSession.user.id, {
-      review, progress, settings: pickSyncedSettings(settings), stats, streak,
-      customWords, memos, gttsKeyEnc: envelope,
-    });
-    setRemoteKeyEnvelope(envelope);
-  }, [authSession, review, progress, settings, stats, streak, customWords, memos]);
-
-  const rememberVaultKey = useCallback((raw) => {
-    setVaultKey(raw);
-    saveVaultKey(raw);
-  }, []);
-
-  /* API 키를 계정에 자동으로 잠가 두고, 새 기기에서는 자동으로 풀어 온다.
-   * 사용자가 따로 누를 게 없어야 한다 — 눌러야 하면 안 누른다. */
-  useEffect(() => {
-    if (!authSession?.user || !vaultKey) return;
-
-    // 이 기기에 키가 없고 서버에 봉투가 있으면 → 풀어서 가져온다
-    if (!settings.gttsKey && remoteKeyEnvelope) {
-      decryptWithVaultKey(remoteKeyEnvelope, vaultKey).then((key) => {
-        if (key) {
-          patchSettings({ gttsKey: key });
-          showToast('음성 키를 계정에서 가져왔어요');
-        } else {
-          // 비밀번호를 바꿨으면 예전 봉투는 못 연다
-          showToast('계정에 보관된 음성 키를 열지 못했어요. 키를 다시 넣어 주세요');
-        }
-      });
-      return;
-    }
-
-    // 이 기기에 키가 있으면 → 서버 봉투를 이 키로 맞춰 둔다
-    if (settings.gttsKey) {
-      decryptWithVaultKey(remoteKeyEnvelope, vaultKey).then(async (stored) => {
-        if (stored === settings.gttsKey) return; // 이미 같은 키가 올라가 있다
-        const envelope = await encryptWithVaultKey(settings.gttsKey, vaultKey);
-        try {
-          await saveRemoteKey(envelope);
-        } catch { /* 다음 동기화에서 다시 시도한다 */ }
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authSession, vaultKey, settings.gttsKey, remoteKeyEnvelope]);
-
-  /* 공부한 걸 자동으로 올린다.
-   * 로그인할 때와 버튼을 누를 때만 올리면, 메모를 적고 다른 기기를 열었을 때 없다.
-   * 매 판정마다 올리면 너무 잦으니 손을 멈춘 뒤 잠깐 기다렸다 한 번에 보낸다.
-   * 앱을 덮거나 탭을 떠날 때도 밀어 넣는다 — 그때 안 보내면 영영 못 보낸다.
-   *
-   * 다만 기다리기만 하면 안 된다. 회독은 손이 계속 움직이는 일이라 12초가
-   * 도무지 안 오고, 그 사이 앱이 죽으면 한 세션이 통째로 날아간다. 그래서
-   * 마지막으로 올린 지 2분이 넘으면 손이 움직이는 중이라도 한 번 올린다. */
-  const PUSH_IDLE_MS = 12000;
-  const PUSH_MAX_MS = 120000;
-  const dirty = useRef(false);
-  const pushTimer = useRef(null);
-  const pushedAt = useRef(Date.now());
-
-  useEffect(() => {
-    if (!authSession?.user || syncedFor.current !== authSession.user.id) return undefined;
-    dirty.current = true;
-    const send = () => {
-      if (!dirty.current) return;
-      dirty.current = false;
-      pushedAt.current = Date.now();
-      runSync(true);
-    };
-    clearTimeout(pushTimer.current);
-    const waited = Date.now() - pushedAt.current;
-    pushTimer.current = setTimeout(send, Math.max(0, Math.min(PUSH_IDLE_MS, PUSH_MAX_MS - waited)));
-    return () => clearTimeout(pushTimer.current);
-  }, [review, memos, progress, stats, customWords, videoBundle]);
-
-  useEffect(() => {
-    const flush = () => {
-      if (!dirty.current || !authSession?.user) return;
-      dirty.current = false;
-      pushedAt.current = Date.now();
-      clearTimeout(pushTimer.current);
-      runSync(true);
-    };
-    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
-    document.addEventListener('visibilitychange', onHide);
-    window.addEventListener('pagehide', flush);
-    return () => {
-      document.removeEventListener('visibilitychange', onHide);
-      window.removeEventListener('pagehide', flush);
-    };
-  }, [authSession, runSync]);
-
-  // 로그인 직후 한 번은 자동으로 맞춘다. 사용자가 버튼을 눌러야만 이어지면 잊는다.
-  const syncedFor = useRef(null);
-  useEffect(() => {
-    if (!authSession?.user || syncedFor.current === authSession.user.id) return;
-    syncedFor.current = authSession.user.id;
-    markSignedInOnce();
-    runSync(true);
-  }, [authSession, runSync]);
 
   /* ── 회독 ── */
 
@@ -829,12 +581,14 @@ export default function App() {
       <div className="app-shell">
         <div className="screens">
           <section className="screen active">
+            <DeferredScreen>
             <NewPassword
               session={authSession}
               onVaultKey={rememberVaultKey}
               onToast={showToast}
               onDone={() => setRecovering(false)}
             />
+            </DeferredScreen>
           </section>
         </div>
         <Toast message={toast} />
@@ -845,7 +599,7 @@ export default function App() {
   /* 로그인해야 들어올 수 있다. 학습 기록을 계정에 남기는 게 목적이므로
    * 익명 사용은 열어 두지 않는다. 세션은 기기에 남아 다음부터는 이 화면을 건너뛴다. */
   if (supabaseConfigured && !authSession && !offlinePass) {
-    if (!authReady) return <div className="app-shell" />;  // 세션 확인 전 깜빡임 방지
+    if (!authReady) return <div className="app-shell"><ScreenLoading label="학습 기록을 확인하고 있어요" /></div>;
     return (
       <div className="app-shell">
         <div className="screens">
@@ -868,6 +622,7 @@ export default function App() {
       <div className="app-shell">
         <div className="screens">
           <section className="screen active">
+            <DeferredScreen>
             <Study
               deck={deck}
               review={review}
@@ -894,6 +649,7 @@ export default function App() {
               } : null}
               onClose={() => setDeck(null)}
             />
+            </DeferredScreen>
           </section>
         </div>
         {/* 회독 중에도 탭바를 남긴다. 없애 놨더니 다른 데로 가려면 위쪽 뒤로가기를
@@ -914,7 +670,8 @@ export default function App() {
       <Onboarding open={onboardingOpen} onFinish={finishOnboarding} />
 
       <div className="screens">
-        <section className={`screen${activeTab === 'today' && !sub ? ' active' : ''}`}>
+        <ScreenSlot active={activeTab === 'today' && !sub}>
+
           <Today
             plan={plan}
             planNow={planNow}
@@ -935,18 +692,20 @@ export default function App() {
             onOpenReview={() => setSub('review')}
             onLearnMore={learnMore}
           />
-        </section>
+        </ScreenSlot>
 
-        <section className={`screen${activeTab === 'study' && !sub ? ' active' : ''}`}>
+        <ScreenSlot active={activeTab === 'study' && !sub}>
+
           <StudyHub
             words={words}
             review={review}
             settings={settings}
             onOpen={openMenu}
           />
-        </section>
+        </ScreenSlot>
 
-        <section className={`screen${activeTab === 'log' && !sub ? ' active' : ''}`}>
+        <ScreenSlot active={activeTab === 'log' && !sub}>
+
           <Log
             words={words}
             review={review}
@@ -958,7 +717,7 @@ export default function App() {
             grammarLeft={grammarLeft}
             onOpenReview={() => setSub('review')}
           />
-        </section>
+        </ScreenSlot>
 
         {/* 영상은 제 탭에서 산다. 홈 카드로 두면 단어 외우기 메뉴들 사이에 섞여
             버리는데, 보고 듣고 따라 말하는 일은 결이 다르다.
@@ -966,7 +725,8 @@ export default function App() {
             탭은 숨겨져 있어도 화면에 붙어 있어서, 그대로 두면 앱을 켜자마자
             열지도 않은 탭이 유튜브에서 제목과 섬네일을 받아 온다. 한 번 들어간
             뒤부터 붙이고, 그 뒤로는 계속 붙여 둔다 — 보던 자리를 잃지 않게. */}
-        <section className={`screen${activeTab === 'videos' && !sub ? ' active' : ''}`}>
+        <ScreenSlot active={activeTab === 'videos' && !sub}>
+
           {videosSeen && (
           <Videos
             active={activeTab === 'videos' && !sub}
@@ -990,17 +750,19 @@ export default function App() {
             onBack={() => setActiveTab('listen')}
           />
           )}
-        </section>
+        </ScreenSlot>
 
         {/* 듣기가 최상위 탭이 됐다. 앉아서 손으로 하는 공부와 걸으면서 손 없이
             하는 공부는 쓰는 시간대가 아예 달라서, 지하철에서 꺼내려면 한 번에
             닿아야 한다. 대신 「복습」 탭을 뺐다 — 오늘 화면 첫 버튼이자 학습 탭
             「반복하기」 첫 칸이라 탭까지 두면 같은 곳으로 가는 길이 셋이 된다. */}
-        <section className={`screen${activeTab === 'listen' && !sub ? ' active' : ''}`}>
-          <ListenHub onOpen={openListen} />
-        </section>
+        <ScreenSlot active={activeTab === 'listen' && !sub}>
 
-        <section className={`screen${activeTab === 'more' && !sub ? ' active' : ''}`}>
+          <ListenHub onOpen={openListen} />
+        </ScreenSlot>
+
+        <ScreenSlot active={activeTab === 'more' && !sub}>
+
           <Settings
             settings={settings}
             onChange={patchSettings}
@@ -1023,7 +785,7 @@ export default function App() {
             remoteKeyEnvelope={remoteKeyEnvelope}
             vaultReady={Boolean(vaultKey)}
           />
-        </section>
+        </ScreenSlot>
       </div>
 
       {sub && (
@@ -1034,146 +796,39 @@ export default function App() {
             <div className="sub-title">{SUB_TITLES[sub]}</div>
           </div>
           <div className="sub-body">
-            {sub === 'worddeck' && (
-              <WordDeck
+            <DeferredScreen key={sub}>
+              <FeatureScreen
+                sub={sub}
                 words={words}
                 review={review}
                 settings={settings}
-                onChange={patchSettings}
-                onStart={startWordDeck}
-                onStartSet={startJlptSet}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'basics' && <Basics settings={settings} onToast={showToast} />}
-            {sub === 'grammar' && (
-              <GrammarHub
-                words={words}
+                patchSettings={patchSettings}
+                startWordDeck={startWordDeck}
+                startJlptSet={startJlptSet}
+                showToast={showToast}
                 progress={progress}
-                settings={settings}
-                onProgress={(moduleId, delta) => setProgress((p) => ({
-                  ...p, grammarDone: { ...p.grammarDone, [moduleId]: (p.grammarDone[moduleId] || 0) + delta },
-                }))}
-                onPatternDone={(patternId) => setProgress((p) => ({
-                  ...p, sentenceDone: { ...p.sentenceDone, [patternId]: true },
-                }))}
-                onDailyGrammar={(dailyGrammar) => setProgress((p) => ({ ...p, dailyGrammar }))}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'sentences' && (
-              <Situations
-                review={review}
-                settings={settings}
-                onReviewChange={applyReview}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'translate' && (
-              <Translate
-                settings={settings}
-                history={translations}
-                onHistory={setTranslations}
+                setProgress={setProgress}
+                applyReview={applyReview}
+                translations={translations}
+                setTranslations={setTranslations}
                 trends={trends}
-                onTrends={setTrends}
-                onAddWord={(w) => setCustomWords((prev) => (
-                  prev.some((x) => x.id === w.id) ? prev : [...prev, w]
-                ))}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'quiz' && (
-              <Quiz
-                words={words}
-                review={review}
-                settings={settings}
-                onChange={patchSettings}
-                onToast={showToast}
-                onRetryWrong={startQuizWrongDeck}
-                onActivity={noteActivity}
-              />
-            )}
-            {sub === 'listen' && (
-              <Listen
-                onSettingsChange={patchSettings}
-                initialMode={listenMode}
-                pool={todayPool}
-                words={words}
-                sentences={sentenceCards}
-                review={review}
-                settings={settings}
-                onClose={() => setSub(null)}
-                onToast={showToast}
-                onActivity={noteActivity}
-              />
-            )}
-            {/* 복습은 탭에서 내려왔지만 화면은 그대로다.
-                오늘 화면의 「복습이 더 남았어요」와 기록 탭에서 여기로 온다. */}
-            {sub === 'review' && (
-              <ReviewTab
-                words={words}
-                review={review}
+                setTrends={setTrends}
+                setCustomWords={setCustomWords}
+                startQuizWrongDeck={startQuizWrongDeck}
+                noteActivity={noteActivity}
+                listenMode={listenMode}
+                todayPool={todayPool}
+                sentenceCards={sentenceCards}
+                setSub={setSub}
                 streak={streak}
                 stats={stats}
-                onStartDeck={startDueDeck}
-                onOpenWeak={startWeakDeck}
-                onOpenSentences={() => setSub('sentences')}
+                startDueDeck={startDueDeck}
+                startWeakDeck={startWeakDeck}
                 sentenceDue={sentenceDue}
-              />
-            )}
-            {sub === 'conjugate' && (
-              <Conjugate
-                words={words}
-                progress={progress}
-                settings={settings}
-                onProgress={(conj) => setProgress((p) => ({ ...p, conj }))}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'match' && (
-              <Match
-                cards={filterByLevel(words, settings.levels)}
-                review={review}
-                settings={settings}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'rpg' && (
-              <Rpg
-                review={review}
-                progress={progress}
-                settings={settings}
-                onReview={applyVerdicts}
-                onProgress={(rpg) => setProgress((p) => ({ ...p, rpg }))}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'repeat' && (
-              <Repeat
-                words={words}
-                review={review}
-                onStartSet={startJlptSet}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'adverb' && (
-              <Adverb
-                words={words}
-                review={review}
-                settings={settings}
-                onReview={applyVerdicts}
-                onToast={showToast}
-              />
-            )}
-            {sub === 'manage' && (
-              <WordManager
-                words={words}
+                applyVerdicts={applyVerdicts}
                 customWords={customWords}
-                onAddWord={(w) => setCustomWords((prev) => [...prev, w])}
-                onDeleteWord={(id) => setCustomWords((prev) => prev.filter((w) => w.id !== id))}
-                onToast={showToast}
               />
-            )}
+            </DeferredScreen>
           </div>
         </div>
       )}
@@ -1214,5 +869,5 @@ export default function App() {
 }
 
 function Toast({ message }) {
-  return <div className={`toast${message ? ' show' : ''}`}>{message}</div>;
+  return <div role="status" aria-live="polite" aria-atomic="true" className={`toast${message ? ' show' : ''}`}>{message}</div>;
 }

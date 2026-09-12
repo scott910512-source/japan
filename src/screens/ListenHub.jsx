@@ -26,7 +26,7 @@ const WAYS = [
     Icon: IconRepeat,
     title: '따라 말하기',
     sub: '듣고 · 따라 하고 · 한 번 더',
-    note: '입이 안 떨어지는 건 연습을 한쪽만 해서예요',
+    note: '짧게 듣고 직접 말하면서 익혀요',
   },
   {
     id: 'videos',
@@ -41,12 +41,12 @@ export default function ListenHub({ onOpen }) {
   return (
     <>
       <div className="navtitle">
-        <small>화면 안 보고</small>
+        <small>듣고 말하며 익히기</small>
         듣기
       </div>
       <p className="vd-note" style={{ marginTop: 0 }}>
-        이동 중에도 화면을 보지 않고 공부하세요. 회독 기록은 건드리지 않아요 —
-        귀에 넣는 것만 해요.
+        자동 듣기는 화면을 보지 않고도 할 수 있어요. 들은 문장은 활동 기록에 남고,
+        회독 진도는 직접 판정할 때 올라가요.
       </p>
 
       <div className="stack lh-ways">

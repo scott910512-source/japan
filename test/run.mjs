@@ -43,8 +43,9 @@ function runOne(cmd, args, label) {
   const out = `${r.stdout || ''}${r.stderr || ''}`;
   const m = out.match(/통과\s+(\d+)\s*\/\s*실패\s+(\d+)/);
   const passed = m ? Number(m[1]) : 0;
-  const failed = m ? Number(m[2]) : 1;
-  const crashed = !m;
+  // 성공 요약을 찍은 뒤 프로세스가 죽어도 통과로 처리하지 않는다.
+  const crashed = !m || r.status !== 0 || Boolean(r.error);
+  const failed = Math.max(m ? Number(m[2]) : 1, crashed ? 1 : 0);
   console.log(`\n── ${label}`);
   if (failed > 0 || crashed) {
     const tail = out.trim().split('\n').slice(-25).join('\n');

@@ -1,0 +1,59 @@
+/* 공통 상호작용: 두 테마에서 같은 크기·초점·상태를 사용한다. */
+:root {
+  --touch-target: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+}
+
+:is(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--kon);
+  outline-offset: 3px;
+}
+
+.speak-btn { width: var(--touch-target); height: var(--touch-target); }
+.tab { min-height: var(--touch-target); }
+.gate-benefits {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0 0;
+}
+.gate-benefits li {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.screen-feedback {
+  min-height: 180px;
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  text-align: center;
+  color: var(--ink-soft);
+}
+.screen-feedback p { margin: 0; line-height: 1.6; max-width: 32ch; }
+.screen-feedback h2 { margin: 0; color: var(--ink); font-size: 20px; }
+.screen-feedback .submit-btn { min-height: var(--touch-target); }
+.loading-mark {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--line);
+  border-top-color: var(--kon);
+  border-radius: 50%;
+  animation: screen-loading .8s linear infinite;
+}
+@keyframes screen-loading { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .loading-mark { animation: none; }
+}

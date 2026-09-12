@@ -28,7 +28,7 @@ const TABS = [
 
 export default function TabBar({ active, onChange, reviewCount = 0 }) {
   return (
-    <nav className="tabbar">
+    <nav className="tabbar" aria-label="주요 메뉴">
       {TABS.map(({ id, label, Icon }) => (
         <button
           key={id}
