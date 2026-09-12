@@ -37,6 +37,14 @@ const boot = async (page) => {
 
 const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'));
 
+/* 오늘 칸에 실제로 저장된 활동 수. 화면의 숫자가 아니라 기기에 남은 것을 본다 —
+   화면은 맞게 그려 놓고 저장이 어긋나 있으면, 다시 켰을 때 드러난다. */
+const savedToday = (page) => page.evaluate(() => {
+  const d = new Date();
+  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return (JSON.parse(localStorage.getItem('jp_manabu_stats_v1') || '{}'))[key] || null;
+});
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
@@ -69,6 +77,12 @@ const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp
   ok('알아요 → 다음 단어', (await head()) !== before, `${before} → ${await head()}`);
   ok('알아요가 기록됨', Object.values(await review(page)).some((s) => s.box === 3 && s.streak === 1));
 
+  /* ★ 판정이 기기에 실제로 적혔나 ★
+     화면에 「1개」가 떠도 저장이 어긋나 있으면 다시 켰을 때 사라진다.
+     그래서 화면 숫자가 아니라 localStorage를 본다. */
+  const st1 = await savedToday(page);
+  ok('★ 판정이 기기에 적힘 ★', st1?.studied === 1 && st1?.known === 1, JSON.stringify(st1));
+
   // 되돌리기
   const at2 = await head();
   const undo = page.locator('button', { hasText: '되돌리기' });
@@ -77,10 +91,21 @@ const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp
     await page.waitForTimeout(500);
     ok('되돌리면 이전 단어로', (await head()) === before, `${at2} → ${await head()}`);
     ok('되돌리면 같은 단어', (await word()) === first, await word());
+
+    /* ★ 되돌리기가 저장된 숫자에서도 빠진다 ★
+       예전엔 화면만 물러나고 활동 집계는 그대로여서, 잘못 눌러 되돌리고 다시
+       누르면 카드 하나를 한 번 판정했는데 기록에는 둘로 남았다. */
+    const st2 = await savedToday(page);
+    ok('★ 되돌리면 기기에서도 빠진다 ★',
+      (st2?.studied || 0) === 0 && (st2?.known || 0) === 0, JSON.stringify(st2));
+
     await page.locator('.studycard').first().click().catch(() => {});
     await page.waitForTimeout(250);
     await known.click();
     await page.waitForTimeout(450);
+
+    const st3 = await savedToday(page);
+    ok('★ 다시 판정해도 하나다 ★', st3?.studied === 1 && st3?.known === 1, JSON.stringify(st3));
   } else ok('되돌리기 버튼이 있음', false);
 
   // 몰라요는 같은 회독에서 다시 나와야 한다
