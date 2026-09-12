@@ -850,6 +850,9 @@ export default function App() {
             resumeLabel={session?.label}
             grammarLeft={grammarLeft}
             grammarNext={grammarNext}
+            /* ★ 주요 버튼 하나 ★ 갈래를 안 주면 배정된 것을 순서대로 다 돈다.
+               고를 것 셋을 나란히 놓으니 초보자가 무엇부터인지 고민했다. */
+            onStartAll={() => guardDeck(() => startToday(null), LANE_DECK(null))}
             onStartWords={() => guardDeck(() => startToday(['fresh']), LANE_DECK(['fresh']))}
             onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
             onOpenGrammar={() => openMenu('grammar')}
