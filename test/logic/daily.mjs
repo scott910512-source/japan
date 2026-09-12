@@ -60,23 +60,37 @@ console.log('\n── 갈래마다 제 목표를 가진다');
   for (let i = 0; i < 60; i++) review[`w${i}`] = known(5);        // 복습 60
   for (let i = 60; i < 120; i++) review[`w${i}`] = weak(5);       // 약점 60
   const p = planToday(pool, review, { today: TODAY });
-  ok('셋을 다 채운다', p.total === 60, `${p.total}개`);
-  ok('복습 20', p.review === 20, String(p.review));
-  ok('약점 20', p.weak === 20, String(p.weak));
-  ok('신규 20', p.fresh === 20, String(p.fresh));
-  ok('기본값이 20/20/20', DEFAULT_GOALS.fresh === 20 && DEFAULT_GOALS.review === 20 && DEFAULT_GOALS.weak === 20);
+  /* ★ 숫자를 박아 두지 않는다 ★
+     예전엔 「복습 20 · 약점 20 · 신규 20」과 「기본값이 20/20/20」을 따로
+     적어 두었다. 그래서 기본값을 총 스무 장으로 낮추자 여섯 줄이 같이
+     깨졌다 — 규칙이 아니라 그때의 값을 검사하고 있었던 것이다.
+     검사할 규칙은 「갈래마다 제 목표만큼 담긴다」다. */
+  ok('갈래마다 제 목표만큼', p.review === DEFAULT_GOALS.review
+    && p.weak === DEFAULT_GOALS.weak && p.fresh === DEFAULT_GOALS.fresh,
+  `${p.fresh}/${p.review}/${p.weak}`);
+  ok('셋을 다 채우면 목표의 합', p.total === DEFAULT_GOALS.fresh + DEFAULT_GOALS.review + DEFAULT_GOALS.weak,
+    `${p.total}개`);
+  /* ★ 기본값이 하루 총량이어야 한다 ★
+     셋을 각각 20으로 두었더니 자료가 쌓인 뒤 하루가 예순 장이 됐다.
+     「20」 셋을 본 사람은 스무 장을 고른 줄로 아는데 세 배였다. */
+  ok('★ 기본 하루치가 총 스무 장 ★',
+    DEFAULT_GOALS.fresh + DEFAULT_GOALS.review + DEFAULT_GOALS.weak === 20,
+    `${DEFAULT_GOALS.fresh}+${DEFAULT_GOALS.review}+${DEFAULT_GOALS.weak}`);
+  /* 복습에 제일 많이 준다 — 이미 본 걸 안 잃는 것이 새로 배우는 것보다 앞선다 */
+  ok('복습 몫이 제일 크다', DEFAULT_GOALS.review >= DEFAULT_GOALS.fresh
+    && DEFAULT_GOALS.review > DEFAULT_GOALS.weak);
 
   /* ★ 서로 안 빌린다 ★
      예전엔 하나를 4:3:3으로 쪼갰다. 그러면 복습이 밀린 날 신규가 여섯 장으로
      줄어서, 진도가 밀린 벌로 새로 배우는 걸 뺏겼다. */
   const noReview = planToday(W(300), {}, { today: TODAY });
-  ok('복습이 없어도 신규는 제 몫만', noReview.fresh === 20, `신규 ${noReview.fresh}`);
+  ok('복습이 없어도 신규는 제 몫만', noReview.fresh === DEFAULT_GOALS.fresh, `신규 ${noReview.fresh}`);
   ok('복습이 없으면 그냥 0', noReview.review === 0 && noReview.weak === 0);
 
   const onlyReview = {};
   for (let i = 0; i < 200; i++) onlyReview[`w${i}`] = known(9);
   const noFresh = planToday(W(200), onlyReview, { today: TODAY });
-  ok('신규가 없어도 복습은 제 몫만', noFresh.review === 20, `복습 ${noFresh.review}`);
+  ok('신규가 없어도 복습은 제 몫만', noFresh.review === DEFAULT_GOALS.review, `복습 ${noFresh.review}`);
   ok('신규가 없으면 그냥 0', noFresh.fresh === 0);
 
   // 갈래마다 따로 정할 수 있다
@@ -94,18 +108,23 @@ console.log('\n── 갈래를 골라서 짤 수 있다');
   for (let i = 0; i < 60; i++) review[`w${i}`] = known(5);
   for (let i = 60; i < 120; i++) review[`w${i}`] = weak(5);
 
+  /* 고른 갈래가 제 목표만큼 담기고 안 고른 갈래는 0이다.
+     숫자를 박아 두면 기본값을 바꿀 때마다 같이 깨진다 — 목표로 견준다. */
   const f = planToday(pool, review, { lanes: ['fresh'], today: TODAY });
-  ok('신규만 고르면 신규만', f.total === 20 && f.fresh === 20 && f.review === 0 && f.weak === 0,
+  ok('신규만 고르면 신규만',
+    f.fresh === DEFAULT_GOALS.fresh && f.total === f.fresh && f.review === 0 && f.weak === 0,
     `${f.fresh}/${f.review}/${f.weak}`);
 
   const b = planToday(pool, review, { lanes: ['review', 'weak'], today: TODAY });
-  ok('복습·약점만 고르면 신규가 안 섞인다', b.fresh === 0 && b.total === 40,
+  ok('복습·약점만 고르면 신규가 안 섞인다',
+    b.fresh === 0 && b.total === DEFAULT_GOALS.review + DEFAULT_GOALS.weak,
     `${b.fresh}/${b.review}/${b.weak}`);
 
   const q = buildDailyStudyQueue(pool, review, { lanes: ['fresh'], today: TODAY });
   ok('큐에도 신규만', q.queue.every((x) => x.bucket === 'fresh'), q.queue.map((x) => x.bucket).join(',').slice(0, 40));
 
-  ok('안 고르면 셋 다', planToday(pool, review, { today: TODAY }).total === 60);
+  ok('안 고르면 셋 다', planToday(pool, review, { today: TODAY }).total
+    === DEFAULT_GOALS.fresh + DEFAULT_GOALS.review + DEFAULT_GOALS.weak);
 }
 
 console.log('\n── 몰라요가 열 번 넘으면 한 판에 두 번');
@@ -117,7 +136,15 @@ console.log('\n── 몰라요가 열 번 넘으면 한 판에 두 번');
   for (let i = 0; i < 5; i++) review[`w${i}`] = stuck(5);      // 열 번 넘게 틀린 것 5개
   for (let i = 5; i < 40; i++) review[`w${i}`] = weak(5);      // 그냥 약점 35개
 
-  const b = buildDailyStudyQueue(pool, review, { lanes: ['weak'], today: TODAY });
+  /* 몫을 이 검사가 직접 정한다.
+     열 번 넘게 틀린 카드 다섯 장이 각각 두 자리를 쓰려면 열 자리가 필요하다.
+     기본 약점 몫(세 장)으로는 규칙이 보일 자리가 없어서, 기본값을 낮추자
+     「다섯 개가 두 번 나온다」가 깨졌다 — 규칙이 틀린 게 아니라 검사가
+     기본값에 얹혀 있었던 것이다. 볼 것을 보려면 조건을 갖춰야 한다. */
+  const WEAK_ROOM = 20;
+  const b = buildDailyStudyQueue(pool, review, {
+    lanes: ['weak'], goals: { weak: WEAK_ROOM }, today: TODAY,
+  });
   const ids = b.queue.map((x) => x.id);
   const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
   ok('많이 틀린 게 두 번 나온다', twice.length === 5, `${twice.length}개 (${twice.join(',')})`);
@@ -125,7 +152,7 @@ console.log('\n── 몰라요가 열 번 넘으면 한 판에 두 번');
     twice.every((id) => Number(id.slice(1)) < 5), twice.join(','));
 
   /* 목표를 넘겨서 늘리지 않는다 — 그러면 제일 안 외워지는 사람의 하루가 제일 길어진다 */
-  ok('몫 안에서 두 자리를 쓴다', b.queue.length === 20, `${b.queue.length}개`);
+  ok('몫 안에서 두 자리를 쓴다', b.queue.length === WEAK_ROOM, `${b.queue.length}개`);
 
   /* 붙여 놓으면 두 번째가 그냥 따라 나온다 — 방금 본 걸 다시 보는 건 외운 게 아니다 */
   const gaps = twice.map((id) => {
@@ -151,7 +178,7 @@ console.log('\n── 새로 배우는 문장은 세 개까지');
   const f = planToday(pool, {}, { lanes: ['fresh'], today: TODAY });
   ok('단어 외우기에는 문장이 세 개까지', f.sentences <= FRESH_SENTENCE_MAX,
     `단어 ${f.words} 문장 ${f.sentences}`);
-  ok('그래도 개수는 채운다', f.total === 20, `${f.total}개`);
+  ok('그래도 개수는 채운다', f.total === DEFAULT_GOALS.fresh, `${f.total}개`);
   ok('아예 빼지는 않는다', f.sentences >= 2, `문장 ${f.sentences}`);
 
   /* ★ 복습에는 이 뚜껑을 안 씌운다 ★
@@ -171,7 +198,7 @@ console.log('\n── 새로 배우는 문장은 세 개까지');
 
   /* 문장밖에 없으면 바꿔 넣을 단어가 없다 — 억지로 개수를 줄이지 않는다 */
   const only = planToday(S(100), {}, { lanes: ['fresh'], today: TODAY });
-  ok('바꿔 넣을 단어가 없으면 개수를 지킨다', only.total === 20, `${only.total}개`);
+  ok('바꿔 넣을 단어가 없으면 개수를 지킨다', only.total === DEFAULT_GOALS.fresh, `${only.total}개`);
 
   ok('상한이 셋', FRESH_SENTENCE_MAX === 3);
 }
@@ -181,8 +208,8 @@ console.log('\n── 옛 설정도 읽힌다');
   /* 목표가 셋으로 갈라지기 전에는 숫자 하나였다. 20장 하던 사람이 갑자기
      60장이 되지 않게, 자기가 정한 값을 세 갈래에 그대로 편다. */
   ok('숫자 하나면 셋에 그대로', JSON.stringify(normalizeGoals(15)) === JSON.stringify({ fresh: 15, review: 15, weak: 15 }));
-  ok('빠진 칸은 기본값', normalizeGoals({ fresh: 5 }).review === 20);
-  ok('아무것도 없으면 기본값', normalizeGoals().fresh === 20);
+  ok('빠진 칸은 기본값', normalizeGoals({ fresh: 5 }).review === DEFAULT_GOALS.review);
+  ok('아무것도 없으면 기본값', normalizeGoals().fresh === DEFAULT_GOALS.fresh);
   ok('음수는 0으로', normalizeGoals({ fresh: -3, review: 0, weak: 0 }).fresh === 0);
 }
 
@@ -367,8 +394,12 @@ console.log('\n── 여러 번 돌려도 두 번째는 안 붙는다');
     const review = {};
     for (let i = 0; i < 5; i++) review[`w${i}`] = stuck(5);
     for (let i = 5; i < 40; i++) review[`w${i}`] = weak(5);
-    const ids = buildDailyStudyQueue(pool, review, { lanes: ['weak'], today: TODAY })
-      .queue.map((x) => x.id);
+    /* 위의 검사와 같은 이유로 몫을 직접 준다. 기본 약점 몫(세 장)으로는
+       두 번 나오는 카드가 한 장뿐이라, 「붙어 나오지 않는가」를 볼 자리가
+       아예 안 생긴다 — 간격을 보려면 간격을 둘 만큼 자리가 있어야 한다. */
+    const ids = buildDailyStudyQueue(pool, review, {
+      lanes: ['weak'], goals: { weak: 20 }, today: TODAY,
+    }).queue.map((x) => x.id);
     for (const id of new Set(ids)) {
       const at = ids.map((x, i) => (x === id ? i : -1)).filter((i) => i >= 0);
       if (at.length < 2) continue;

@@ -291,8 +291,14 @@ async function boot(browser, patch = {}, init = null) {
     ok('없는 복습 줄을 안 만든다',
       !tasks2.some((t) => t.split('\n')[0] === '복습'),
       tasks2.map((t) => t.split('\n')[0]).join(' / '));
-    ok('새로 배울 것은 목표만큼 담김',
-      tasks2.some((t) => t.includes('새로 배우기') && /20/.test(t)),
+    /* ★ 첫날 하루치가 총 스무 장이다 ★
+       예전엔 갈래마다 20이 기본이라 자료가 쌓이면 하루가 예순 장이 됐다.
+       처음 쓰는 사람이 첫날에 접는 양이다. 신규 몫만 세던 /20/ 확인을
+       「총량이 스무 장을 넘지 않는다」로 바꾼다. */
+    const sum2 = Number((await p2.textContent('.today')).match(/(\d+)\s*\/\s*(\d+)/)?.[2] || 0);
+    ok('★ 첫날 배정이 총 스무 장 이하 ★', sum2 > 0 && sum2 <= 20, `${sum2}장`);
+    ok('새로 배울 것이 실제로 담긴다',
+      tasks2.some((t) => t.includes('새로 배우기') && /\d/.test(t)),
       tasks2.find((t) => t.includes('새로 배우기'))?.replace(/\n/g, ' '));
     /* 공부하기 전에는 연속일이 없다. 예전엔 앱을 켜기만 해도 1일째가 붙었는데,
        그건 아무것도 안 한 사람에게 했다고 말하는 것이다. */
@@ -322,13 +328,27 @@ async function boot(browser, patch = {}, init = null) {
    * 큐를 새로 짰고, 옛 세션의 남은 카드가 새 덱에 없어서 「학습할 카드가
    * 없어요」만 뜬 채 나갈 수도 없었다. */
   {
-    const p3 = await boot(browser, { goals: { fresh: 10, review: 10, weak: 10 } });
+    /* ★ 목표를 settings 안에 넣어야 먹는다 ★
+       여태 boot(browser, { goals: … })로 넘겼는데 boot은 patch.settings만 읽는다.
+       그래서 이 검사는 줄곧 기본 목표로 돌고 있었고, 기본값이 예순 장이라
+       16번 판정해도 판이 안 끝나서 우연히 통과했다. 기본값을 스무 장으로
+       낮추자 판이 먼저 끝나 「회독이 넘어간 상태」를 볼 수 없게 됐다 —
+       조용히 무시되던 설정이 드러난 것이다. */
+    const p3 = await boot(browser, { settings: { goals: { fresh: 10, review: 10, weak: 10 } } });
     const errs = []; p3.on('pageerror', (e) => errs.push(e.message));
     await startStudy(p3);
 
-    // 몰라요를 섞어 2회독까지 밀어 둔 뒤 나간다
-    for (let i = 0; i < 16; i++) {
+    /* ★ 2회독까지 밀어 둔 뒤 나간다 ★
+     *
+     * 여태 16번 무조건 판정하고 「'회독'이라는 글자가 있나」만 봤다. 그런데
+     * 목표가 조용히 무시돼 스무 장으로 돌고 있었으니 16번으로는 1회독도 못
+     * 끝냈다 — 「1회독」도 '회독'을 포함하니 통과했을 뿐, 회독이 넘어간 적은
+     * 없었다. 진짜로 넘어갈 때까지 돌리고, 넘어간 것을 확인한다. */
+    let midRound = '';
+    for (let i = 0; i < 20; i++) {
       if (await p3.locator('.studycard').count() === 0) break;
+      midRound = (await p3.locator('.sh-sub').textContent().catch(() => '')) || '';
+      if (/2회독/.test(midRound)) break;          // 넘어갔고 아직 판 안에 있다
       await p3.locator('.studycard').click();
       await p3.waitForTimeout(150);
       const btn = p3.locator('.judgerow button', { hasText: i % 3 === 0 ? '몰라요' : '알아요' });
@@ -336,14 +356,19 @@ async function boot(browser, patch = {}, init = null) {
       await btn.click();
       await p3.waitForTimeout(300);
     }
-    const midRound = (await p3.locator('.sh-sub').textContent().catch(() => '')) || '';
-    ok('회독이 넘어간 상태로 나감', midRound.includes('회독'), midRound.replace(/\s+/g, ' ').trim());
+    ok('★ 회독이 실제로 넘어간 상태로 나감 ★', /2회독/.test(midRound),
+      midRound.replace(/\s+/g, ' ').trim() || '판이 먼저 끝났음');
     await p3.locator('.sh-close').click();
     await p3.waitForTimeout(700);
 
     // 다시 시작을 누른다 — 갇히면 안 된다
     await p3.locator('.tdtask', { hasText: '새로 배우기' }).click();
     await p3.waitForTimeout(900);
+    /* 하던 판이 남아 있으면 접을지 물어본다 — 조용히 날려 버리지 않는 게 맞다.
+       예전엔 이 검사가 1회독에 머물러 있어서 물어보는 창을 만난 적이 없었다.
+       실제로 2회독까지 밀어 두고 나갔다 오니 창이 떠서, 접고 간다. */
+    const swap3 = p3.locator('.swapask .submit-btn');
+    if (await swap3.count()) { await swap3.click(); await p3.waitForTimeout(900); }
     const intro = p3.locator('.intro-go, .bigstart').first();
     if (await intro.count()) { await intro.click(); await p3.waitForTimeout(900); }
 

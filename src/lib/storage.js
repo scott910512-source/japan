@@ -320,7 +320,10 @@ export const DEFAULT_SETTINGS = {
 
   /* 하루 목표. 갈래마다 따로 센다 — 복습이 밀렸다고 새로 배우는 걸 뺏지 않는다.
      dailyGoal은 옛 이름이다. 읽을 때 goals로 펴 주고, 화면은 goals만 본다. */
-  goals: { fresh: 20, review: 20, weak: 20 },
+  /* 총 스무 장. 셋을 각각 20으로 두었더니 자료가 쌓인 뒤 하루가 예순 장이
+     됐다 — 처음 쓰는 사람이 첫날에 접는 양이다. 갈래 배분은 daily.js가 정한다.
+     이미 저장된 목표가 있으면 아래 loadSettings가 그걸 쓴다. */
+  goals: { fresh: 8, review: 9, weak: 3 },
   dailyGoal: 20,      // (옛 설정) 숫자 하나였던 시절
   shuffle: true,
   direction: 'kanji-mean', // 'kanji-mean' | 'mean-kanji' | 'kanji-kana'

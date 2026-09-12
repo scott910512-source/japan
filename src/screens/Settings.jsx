@@ -6,7 +6,9 @@ import {
 } from '../lib/storage.js';
 import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
 import { GOAL_CHOICES, todayKey } from '../lib/review.js';
-import { normalizeGoals } from '../lib/daily.js';
+import {
+  normalizeGoals, DAY_PRESETS, spreadGoal, goalTotal, presetOf,
+} from '../lib/daily.js';
 import Account from './Account.jsx';
 import KeyVault from '../components/KeyVault.jsx';
 import VoicePicker from '../components/VoicePicker.jsx';
@@ -185,6 +187,11 @@ export default function Settings({
   session, syncState, onSync, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
 }) {
   const goals = normalizeGoals(settings.goals ?? settings.dailyGoal);
+  /* 총량으로 고르고 갈래는 접어 둔다. 기존에 직접 맞춰 둔 목표는 프리셋에
+     억지로 끼우지 않는다 — presetOf가 null이면 「직접 정함」이 사실이다. */
+  const total = goalTotal(goals);
+  const preset = presetOf(goals);
+  const [showLanes, setShowLanes] = useState(false);
   const fileRef = useRef(null);
   /* 백업 범위는 열었을 때만 센다 — 저장소를 읽는 일이라 매번 그릴 때마다
      하면 설정 화면이 스크롤할 때 같이 무거워진다. */
@@ -462,33 +469,69 @@ export default function Settings({
           />
         </div>
 
-        {/* 갈래마다 따로 정한다. 하나로 묶어 두면 복습이 밀린 날 새로 배우는
-            몫을 뺏기고, 진도가 밀린 벌로 새 단어를 못 보게 된다. */}
+        {/* ★ 고르는 자리는 총량 하나 ★
+         *
+         * 갈래마다 따로 세는 것은 이유가 있다 — 복습이 밀린 날 새로 배우는 몫을
+         * 뺏기면 진도가 밀린 벌로 새 단어를 못 보게 된다. 그 판단은 그대로 둔다.
+         *
+         * 문제는 처음 쓰는 사람이 보는 숫자였다. 기본값이 셋 다 20이라 자료가
+         * 쌓이면 하루가 예순 장이 되는데, 「20」 셋을 본 사람은 스무 장을 고른
+         * 줄로 안다. 총량으로 고르고, 갈래 배분은 아래 고급에서 만진다. */}
         <div className="setrow col">
-          <div className="set-title">오늘 학습량</div>
+          <div className="set-title">
+            오늘 학습량
+            <span className="set-val">하루 최대 {total}장</span>
+          </div>
           <div className="set-sub">
-            갈래마다 따로 셉니다. 복습이 밀려도 새 단어 몫은 그대로예요.
+            고른 양을 복습 · 새로 배우기 · 약점으로 나눠 배정해요. 있는 만큼만
+            담기니 실제로는 이보다 적을 수 있어요.
           </div>
-          <div className="goalrow">
-            {LANE_GOALS.map(({ key, label, note }) => (
-              <div key={key} className="goalone">
-                <div className="set-title">
-                  {label}
-                  <span className="set-val">{goals[key]}장</span>
-                </div>
-                <div className="set-sub">{note}</div>
-                <div className="grouppick">
-                  {GOAL_CHOICES.map((g) => (
-                    <button key={g} className={goals[key] === g ? 'active' : ''}
-                      onClick={() => onChange({ goals: { ...goals, [key]: g } })}>{g}</button>
-                  ))}
-                </div>
-              </div>
+          <div className="grouppick">
+            {DAY_PRESETS.map((p) => (
+              <button key={p.id} className={preset === p.id ? 'active' : ''}
+                onClick={() => onChange({ goals: spreadGoal(p.total) })}>
+                {p.label} {p.total}
+              </button>
             ))}
+            {/* 기존에 직접 맞춰 둔 목표를 프리셋에 억지로 끼우지 않는다.
+                고른 적 없는 사람에게 「직접 정함」이 켜져 있으면 그게 사실이다. */}
+            {!preset && <button className="active" disabled>직접 정함 {total}</button>}
           </div>
-          <div className="set-sub" style={{ marginTop: 10 }}>
-            다 하면 하루 {goals.fresh + goals.review + goals.weak}장이에요.
+          <div className="set-sub" style={{ marginTop: 8 }}>
+            복습 {goals.review} · 새로 배우기 {goals.fresh} · 약점 {goals.weak}
+            {goals.review > goals.fresh && ' — 복습에 더 많이 배정했어요'}
           </div>
+
+          {/* 갈래를 직접 만지는 자리는 접어 둔다. 처음부터 셋을 들이밀면
+              무엇을 고르는 건지 모른 채로 숫자를 만지게 된다. */}
+          <button className="ghost-btn" style={{ marginTop: 10 }}
+            onClick={() => setShowLanes((v) => !v)} aria-expanded={showLanes}>
+            {showLanes ? '갈래별 설정 접기' : '갈래별로 직접 정하기'}
+          </button>
+          {showLanes && (
+            <>
+              <div className="set-sub" style={{ marginTop: 8 }}>
+                갈래마다 따로 셉니다. 복습이 밀려도 새 단어 몫은 그대로예요.
+              </div>
+              <div className="goalrow">
+                {LANE_GOALS.map(({ key, label, note }) => (
+                  <div key={key} className="goalone">
+                    <div className="set-title">
+                      {label}
+                      <span className="set-val">{goals[key]}장</span>
+                    </div>
+                    <div className="set-sub">{note}</div>
+                    <div className="grouppick">
+                      {GOAL_CHOICES.map((g) => (
+                        <button key={g} className={goals[key] === g ? 'active' : ''}
+                          onClick={() => onChange({ goals: { ...goals, [key]: g } })}>{g}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="setrow col">

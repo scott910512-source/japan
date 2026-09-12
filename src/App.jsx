@@ -639,10 +639,23 @@ export default function App() {
           : '지금 볼 게 없어요 — 학습 탭에서 골라 보세요'));
       return;
     }
-    /* 순서와 약점 두 번은 daily.js가 정한다 — 계획은 「무엇을」만 들고 있다 */
+    /* 순서와 약점 두 번은 daily.js가 정한다 — 계획은 「무엇을」만 들고 있다.
+     *
+     * ★ 여기에 lanes를 또 넘기면 안 된다 ★
+     *
+     * left는 이미 remaining(plan, lanes)로 갈래를 걸러 온 것이다. 그런데 큐를
+     * 짜는 쪽에 lanes를 다시 넘기면, 그쪽은 카드의 갈래를 지금 회독 상태에서
+     * 다시 따져 본다 — 그리고 둘이 어긋난다.
+     *
+     * 실제로 이렇게 막혔다. 새 단어를 몇 장 「몰라요」로 판정하고 나가면, 그
+     * 카드들은 이제 「오늘 본 적 있고 오늘 다시 볼 것」이라 복습으로 분류된다.
+     * 계획에는 여전히 신규 칸에 남아 있는데, lanes: ['fresh']로 다시 거르니
+     * 하나도 안 남아서 「지금 볼 게 없어요」가 떴다 — 화면에는 「새로 배우기
+     * 4개」가 뜬 채로.
+     *
+     * 무엇을 할지는 계획이 이미 정했다. 여기서는 순서만 정한다. */
     const built = buildDailyStudyQueue(left, review, {
       goals: { fresh: left.length, review: left.length, weak: left.length },
-      lanes,
     });
     if (!built.queue.length) {
       showToast('지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
