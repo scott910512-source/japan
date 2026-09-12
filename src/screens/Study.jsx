@@ -13,7 +13,8 @@ import { STEP, STEP_HINT, STEP_LABEL, hidesFront, needsSound, settingsForStep, s
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { normalizeGoals } from '../lib/daily.js';
 import {
-  VERDICT, advanceSession, buildDailySession, buildRound1, isWeak, nextRoundOf, stateOf, todayKey,
+  VERDICT, advanceSession, buildDailySession, buildRound1, isWeak, nextRoundOf,
+  selfKnownLabel, stateOf, todayKey,
 } from '../lib/review.js';
 
 const ROUND_LABEL = (round) => (round === 1 ? '1회독 (전체)' : `${round}회독 (틀린 것만 복습)`);
@@ -265,7 +266,11 @@ export default function Study({
       });
     }
 
-    if (verdict === VERDICT.MASTER) onToast('졸업 처리했어요 — 한 달 뒤에 한 번만 다시 나와요');
+    /* 「한 달 뒤」를 적어 두었는데 이 판정이 잡는 복습일은 180일 뒤였다.
+       게다가 이건 자가 신고라 졸업이 아니다 — 실제 상태에서 문구를 만든다. */
+    if (verdict === VERDICT.MASTER) {
+      onToast(selfKnownLabel(stateOf(result.progress, word.id)));
+    }
     setTimeout(() => setLocked(false), 220);
   };
 

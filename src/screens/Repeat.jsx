@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { IconRepeat, IconChevron } from '../components/Icons.jsx';
-import { MASTER_STREAK, stateOf, isMastered, dueDate, todayKey } from '../lib/review.js';
+import { MASTERY_RULE, stateOf, isMastered, dueDate, todayKey } from '../lib/review.js';
 
 /* 회독 학습 — 배운 걸 등급별로 다시 돈다.
  *
@@ -111,9 +111,10 @@ export default function Repeat({ words, review, onStartSet, onToast }) {
         </div>
       )}
 
+      {/* 「n번 이어서 맞히면」은 같은 판에서 몰아서 되는 것처럼 읽힌다.
+          날짜를 나눈 확인이라는 걸 정책 문구가 말해 준다. */}
       <p className="set-note">
-        {MASTER_STREAK}번 이어서 맞히면 「외웠음」이 돼요. 외운 것도 같이 돌아요 —
-        다시 보는 게 목적이라 빼지 않습니다.
+        {MASTERY_RULE} 외운 것도 같이 돌아요 — 다시 보는 게 목적이라 빼지 않습니다.
       </p>
     </>
   );

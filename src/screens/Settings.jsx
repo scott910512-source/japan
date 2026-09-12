@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconDownload, IconUpload, IconTrash, IconSpeaker, IconRewind, IconList, IconMap } from '../components/Icons.jsx';
 import {
-  exportBackup, importBackup, backupSummary, clearAll, DEFAULT_SETTINGS,
+  exportBackup, importBackup, backupSummary, backupContents, BACKUP_EXCLUDED,
+  clearAll, DEFAULT_SETTINGS,
 } from '../lib/storage.js';
 import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
 import { GOAL_CHOICES, todayKey } from '../lib/review.js';
@@ -185,6 +186,13 @@ export default function Settings({
 }) {
   const goals = normalizeGoals(settings.goals ?? settings.dailyGoal);
   const fileRef = useRef(null);
+  /* 백업 범위는 열었을 때만 센다 — 저장소를 읽는 일이라 매번 그릴 때마다
+     하면 설정 화면이 스크롤할 때 같이 무거워진다. */
+  const [showScope, setShowScope] = useState(false);
+  const scope = useMemo(
+    () => (showScope ? backupContents(exportBackup()) : []),
+    [showScope],
+  );
   const [keyDraft, setKeyDraft] = useState(settings.gttsKey || '');
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -254,12 +262,18 @@ export default function Settings({
     try {
       const backup = JSON.parse(await file.text());
       const s = backupSummary(backup);
+      /* ★ 이 파일에 실제로 든 것만 교체된다 ★
+         「완전히 교체」라고만 적어 두면, 이 파일에 없는 칸(옛 백업의 영상·자막)이
+         지워진 줄 알거나 남은 줄 알거나 둘 다 짐작이 된다. 든 것을 세어 보여 준다. */
+      const has = backupContents(backup).filter((r) => r.present && r.count !== 0);
       const ok = window.confirm(
-        `이 백업으로 되돌릴까요?\n\n내 단어 ${s.customWords}개 · 학습한 단어 ${s.reviewed}개 · 연속 ${s.streak}일` +
-        `${s.lastDate ? `\n마지막 학습일 ${s.lastDate}` : ''}\n\n지금 기기의 학습 기록은 이 백업으로 완전히 교체돼요.`,
+        `이 백업으로 되돌릴까요?\n\n내 단어 ${s.customWords}개 · 학습한 단어 ${s.reviewed}개 · 연속 ${s.streak}일`
+        + `${s.lastDate ? `\n마지막 학습일 ${s.lastDate}` : ''}`
+        + `\n\n이 파일에 든 것: ${has.map((r) => r.label).join(' · ') || '없음'}`
+        + '\n이 항목만 교체돼요. 파일에 없는 기록과 이 기기의 API 키는 그대로 남아요.',
       );
       if (!ok) return;
-      importBackup(backup);
+      importBackup(backup);   // 하나라도 저장에 실패하면 되돌리고 던진다
       onToast('복원했어요. 앱을 다시 불러올게요');
       setTimeout(onReload, 600);
     } catch (err) {
@@ -589,6 +603,34 @@ export default function Settings({
           학습 기록은 이 브라우저에만 저장돼요. 브라우저 데이터를 지우면 함께 사라지니 가끔 백업해 두세요.
           {settings.lastBackup && <><br />마지막 백업 {settings.lastBackup}</>}
         </div>
+
+        {/* ★ 무엇이 들어가는지 내보내기 전에 보여 준다 ★
+            여태 일곱 칸만 담으면서 「완전히 교체」라고 안내했다. 빠진 걸 모르면
+            브라우저가 데이터를 비운 뒤에야 없다는 걸 알게 된다. */}
+        <button className="ghost-btn" style={{ width: '100%', marginBottom: 10 }}
+          onClick={() => setShowScope((v) => !v)} aria-expanded={showScope}>
+          {showScope ? '백업 범위 접기' : '무엇이 백업되나요?'}
+        </button>
+        {showScope && (
+          <div className="bk-scope">
+            <div className="bk-head">백업에 들어가요</div>
+            <ul className="bk-list">
+              {scope.map((r) => (
+                <li key={r.key}>
+                  <span>{r.label}</span>
+                  <b>{r.count == null ? (r.present ? '있음' : '없음') : `${r.count}개`}</b>
+                </li>
+              ))}
+            </ul>
+            <div className="bk-head">안 들어가요</div>
+            <ul className="bk-list bk-out">
+              {BACKUP_EXCLUDED.map((r) => (
+                <li key={r.label}><span>{r.label}</span><em>{r.why}</em></li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="btnrow">
           <button className="ghost-btn" onClick={download}><IconDownload /> 백업 내려받기</button>
           <button className="ghost-btn" onClick={() => fileRef.current?.click()}><IconUpload /> 복원하기</button>

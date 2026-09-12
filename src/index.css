@@ -567,6 +567,16 @@ button, input, select { font-family: inherit; }
 .btnrow { display: flex; gap: 8px; }
 .btnrow .ghost-btn { flex: 1; margin-top: 0; }
 
+/* 백업 범위 — 무엇이 들어가고 무엇이 빠지는지 내보내기 전에 보여 준다 */
+.bk-scope { margin-bottom: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.bk-head { font-size: 11px; font-weight: 700; color: var(--ink-soft); margin: 6px 0 4px; }
+.bk-head:first-child { margin-top: 0; }
+.bk-list { list-style: none; margin: 0; padding: 0; }
+.bk-list li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 12px; }
+.bk-list b { flex: none; color: var(--ink-soft); font-weight: 600; }
+.bk-out li { flex-direction: column; gap: 1px; }
+.bk-out em { font-style: normal; font-size: 11px; color: var(--ink-soft); line-height: 1.5; }
+
 /* ── 복습 · 기록 ── */
 .notice { margin-top: 10px; padding: 11px 14px; border-radius: 12px; background: var(--surface-2); font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; }
 .statrow { display: flex; align-items: center; gap: 12px; }

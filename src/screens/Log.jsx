@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { IconFlame, IconChevron } from '../components/Icons.jsx';
-import { addDays, summarize, isMastered, stateOf } from '../lib/review.js';
+import { addDays, summarize, isMastered, stateOf, MASTERY_RULE } from '../lib/review.js';
 import { roundSummary } from '../lib/rounds.js';
 import { useToday } from '../lib/useToday.js';
 
@@ -173,9 +173,12 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
             </div>
           );
         })}
+        {/* 「이어서 네 번 고르면」이라고 적어 두었더니 한자리에서 네 번 누르면
+            되는 것처럼 읽혔다. 실제로는 하루에 한 칸씩, 복습일에만 오른다.
+            규칙은 정책(review.js)이 한 문장으로 만들어 준다. */}
         <div className="set-note" style={{ marginTop: 8 }}>
-          「알아요」를 이어서 네 번 고르면 완료예요. 완료한 뒤에도 한 달 · 석 달 ·
-          반년에 한 번씩 다시 나와요 — 그게 장기복습이에요.
+          {MASTERY_RULE} 완료한 뒤에도 한 달 · 석 달 · 반년에 한 번씩 다시 나와요 —
+          그게 장기복습이에요.
         </div>
       </div>
 

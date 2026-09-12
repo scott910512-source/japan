@@ -10,7 +10,8 @@ import BuildQuiz from '../components/BuildQuiz.jsx';
 import { ALL_SITUATIONS as SITUATIONS } from '../data/allSituations.js';
 import { chunksOf, hasChunks } from '../data/allChunks.js';
 import {
-  VERDICT, advanceSession, buildRound1, dueCards, isMastered, nextRoundOf, stateOf, todayKey,
+  VERDICT, advanceSession, buildRound1, dueCards, isMastered, nextRoundOf,
+  selfKnownLabel, stateOf, todayKey,
 } from '../lib/review.js';
 
 const MODES = [
@@ -258,7 +259,11 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     } else {
       setFinished({ done: result.session.done, carried: next.carried || 0 });
     }
-    if (verdict === VERDICT.MASTER) onToast('졸업 처리했어요 — 한 달 뒤에 한 번만 다시 나와요');
+    /* 하드코딩한 「한 달 뒤」가 실제 복습일(180일 뒤)과 달랐다.
+       자가 신고를 졸업이라고 부르던 것도 같이 고친다. */
+    if (verdict === VERDICT.MASTER) {
+      onToast(selfKnownLabel(stateOf(result.progress, item.id)));
+    }
     setTimeout(() => setLocked(false), 220);
   };
 

@@ -239,6 +239,49 @@ export function isDue(st, today = todayKey()) {
   return due != null && due <= today;
 }
 
+/* ── 안내 문구는 정책에서 만든다 ──
+ *
+ * ★ 화면에 날짜를 적어 두면 정책과 어긋난다 ★
+ *
+ * 판정 화면 둘이 「졸업 처리했어요 — 한 달 뒤에 한 번만 다시 나와요」를 적어
+ * 두고 있었다. 그런데 그 판정(「이미 알아요」)이 실제로 잡는 복습일은 180일
+ * 뒤다. 사용자는 한 달 뒤를 기다리는데 앱은 반년을 센다.
+ *
+ * 게다가 「졸업」이라고 부른 것도 틀렸다. 이 판정은 자가 신고라서 앱이 확인한
+ * 적이 없고, 코드는 그걸 selfKnown으로 따로 적어 검증된 숙련(isMastered)과
+ * 구별한다. 화면만 둘을 같은 말로 불렀다.
+ *
+ * 그래서 문구를 여기서 만든다. 간격을 바꾸면 안내도 같이 바뀐다. */
+
+/* 실제 복습일에서 만든 사람 말. 날짜를 세는 곳이 한 군데여야 한다. */
+export function nextReviewLabel(st, today = todayKey()) {
+  const due = dueDate(st);
+  if (!due) return null;
+  const n = daysBetween(today, due);
+  if (n <= 0) return '오늘 다시 나와요';
+  if (n === 1) return '내일 다시 나와요';
+  if (n < 14) return `${n}일 뒤에 다시 나와요`;
+  const months = Math.round(n / 30);
+  if (months <= 1) return '한 달쯤 뒤에 다시 나와요';
+  if (months < 12) return `${months}달쯤 뒤에 다시 나와요`;
+  return '1년쯤 뒤에 다시 나와요';
+}
+
+/* 「이미 알아요」를 눌렀을 때 실제로 일어난 일.
+   졸업이라고 하지 않는다 — 앱이 확인한 게 아니라 사용자가 말한 것이다. */
+export function selfKnownLabel(st, today = todayKey()) {
+  const when = nextReviewLabel(st, today);
+  return `이미 아는 것으로 표시했어요${when ? ` — ${when}` : ''}`;
+}
+
+/* 완료(검증된 숙련)가 붙는 규칙 한 줄.
+ *
+ * 기록 화면은 「'알아요'를 이어서 네 번 고르면 완료예요」라고 적어 두었다.
+ * 한자리에서 네 번 누르면 되는 것처럼 읽히는데, 기억 단계는 하루에 한 칸만,
+ * 그것도 복습일이 됐을 때만 오른다. 오늘 네 번 맞혀도 한 칸이다. */
+export const MASTERY_RULE = `복습일에 「알아요」가 ${MASTER_STREAK}번 쌓이면 완료예요. `
+  + '기억 단계는 하루에 한 칸만 올라서, 오늘 여러 번 맞혀도 한 칸이에요.';
+
 // 오늘 복습해야 할 카드 id 목록. 오래 밀린 것부터, 상한까지만.
 export function dueCards(cardIds, progress, today = todayKey(), cap = DAILY_REVIEW_CAP) {
   return cardIds

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { IconBook, IconRepeat, IconSparkle } from '../components/Icons.jsx';
 import Jlpt from './Jlpt.jsx';
 import {
-  GOAL_CHOICES, MASTER_STREAK, planDailySession, summarize, todayKey,
+  GOAL_CHOICES, MASTERY_RULE, planDailySession, summarize, todayKey,
 } from '../lib/review.js';
 import { normalizeGoals } from '../lib/daily.js';
 
@@ -144,9 +144,10 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
         <div className="progress-cell"><div className="val">{stat.learning}</div><div className="lab">학습 중</div></div>
         <div className="progress-cell"><div className="val">{stat.fresh}</div><div className="lab">아직 안 봄</div></div>
       </div>
+      {/* 「n회독 연속」은 세션 반복·누적 숙련·범위 재학습을 한 말로 부르던 것의
+          잔재다. 규칙은 정책에서 한 문장으로 가져온다. */}
       <div className="set-note">
-        졸업은 「알아요」가 {MASTER_STREAK}회독 연속 이어져야 붙어요 — 오늘 다 맞혀도 바로 오르진 않아요.
-        졸업 뒤에는 한 달·석 달·반년에 한 번씩만 다시 나옵니다.
+        {MASTERY_RULE} 졸업 뒤에는 한 달·석 달·반년에 한 번씩만 다시 나옵니다.
       </div>
 
       <div className="statrow card" style={{ marginTop: 12 }}>

@@ -407,21 +407,100 @@ export function loadStreak() {
  * iOS Safari는 앱을 오래 안 쓰면 사이트 데이터를 지우므로 백업은 부가 기능이 아니라 방어선이다. */
 
 export const BACKUP_FORMAT = 'js-japanese-backup';
+export const BACKUP_VERSION = 2;
+
+/* ★ 「전체 백업」이라고 부르면 전체여야 한다 ★
+ *
+ * 여태 스무 개 칸 중 일곱 개만 담았다. 담아 둔 영상, 붙여넣은 자막, 영상별
+ * 진도, 받아 둔 번역, 공부하다 물어본 것, 요즘 일본어, 오늘의 계획이 빠졌다.
+ * 빠진 걸 모르고 「현재 기록을 완전히 교체」라고 안내했으니, 브라우저가
+ * 사이트 데이터를 비운 뒤에야 없다는 걸 알게 되는 구조였다.
+ *
+ * 그래서 무엇을 담는지 여기 한 줄씩 적어 둔다. 새 칸을 만들면 이 표에도
+ * 넣어야 한다 — 표에 없으면 백업에도 없다. 화면은 이 표를 그대로 읽어
+ * 내보내기 전에 「무엇이 들어가는지」를 보여 준다. */
+const BACKUP_ITEMS = [
+  { key: 'customWords', label: '내가 넣은 단어', fallback: [] },
+  { key: 'review', label: '회독 기록', fallback: {} },
+  { key: 'progress', label: '학습 진도', fallback: {} },
+  { key: 'stats', label: '일별 활동 기록', fallback: {} },
+  { key: 'streak', label: '연속 학습일', fallback: { count: 0, lastDate: null } },
+  { key: 'memos', label: '단어 메모', fallback: {} },
+  { key: 'settings', label: '설정', fallback: {} },
+  /* videos와 trends는 「아직 없음」과 「비어 있음」이 다르다. 없을 때 null로
+     두는 쪽이 loadVideos·loadTrends의 규칙이라 여기서도 null로 맞춘다 —
+     []로 적어 두면 「한 번도 안 담았다」가 「전부 뺐다」로 바뀐다. */
+  { key: 'videos', label: '담아 둔 영상', fallback: null },
+  { key: 'videoScripts', label: '붙여넣은 자막', fallback: {} },
+  { key: 'videoAnalyses', label: '영상 설명 자료', fallback: {} },
+  { key: 'videoProgress', label: '영상 학습 진도', fallback: {} },
+  { key: 'videoRemoved', label: '뺀 영상 표시', fallback: {} },
+  { key: 'translations', label: '받아 둔 번역', fallback: [] },
+  { key: 'trends', label: '요즘 일본어', fallback: null },
+  { key: 'asks', label: '물어본 것', fallback: [] },
+  { key: 'plan', label: '오늘의 계획', fallback: null },
+];
+
+/* ★ 비밀값은 백업 파일에 넣지 않는다 ★
+ *
+ * 백업은 사용자가 메일로 보내고 드라이브에 올리고 메신저로 옮기는 파일이다.
+ * 그런데 settings를 통째로 담고 있었고, settings에는 음성·AI API 키가
+ * 평문으로 들어 있다. 키가 든 JSON이 그렇게 돌아다니면 요금은 남이 쓰고
+ * 청구는 주인에게 간다.
+ *
+ * 동기화 쪽은 이미 이 구분을 하고 있다(merge.js의 SYNCED_SETTINGS — 「음성
+ * API 키는 자격 증명이라 서버에 올리지 않는다」). 백업만 안 하고 있었다.
+ * 기기 사이로 키를 옮기는 길은 그대로 있다 — 계정 동기화가 암호화한 봉투로
+ * 보낸다. 파일로 내보내는 길만 막는다. */
+const SECRET_SETTINGS = ['gttsKey', 'geminiKey'];
+
+/* 백업에 안 담는 것과 그 이유. 화면이 이걸 그대로 보여 준다 —
+   무엇이 빠지는지 내보내기 전에 알아야 뒤늦게 없다는 걸 알지 않는다. */
+export const BACKUP_EXCLUDED = [
+  {
+    label: '음성 · AI API 키',
+    why: '백업 파일에 비밀값을 넣지 않아요. 계정 동기화로 옮기거나 기기마다 다시 넣어 주세요.',
+  },
+  {
+    label: '진행 중이던 학습(이어하기)',
+    why: '복원한 기기에서는 새로 시작해요. 회독 기록은 그대로 남습니다.',
+  },
+  {
+    label: '로그인 상태 · 금고 열쇠',
+    why: '기기마다 다른 값이라 옮기지 않아요.',
+  },
+];
+
+/* 백업에 실제로 담긴 것을 항목별로 센다. 내보내기 전에도(exportBackup의
+   결과를 넣어서), 복원 전에도(받은 파일을 넣어서) 같은 함수로 보여 준다. */
+export function backupContents(backup) {
+  const d = backup?.data || {};
+  return BACKUP_ITEMS.map(({ key, label }) => {
+    const v = d[key];
+    let n = null;
+    if (Array.isArray(v)) n = v.length;
+    else if (v && typeof v === 'object') n = Object.keys(v).length;
+    return { key, label, count: n, present: v !== undefined && v !== null };
+  });
+}
 
 export function exportBackup() {
+  const data = {};
+  for (const { key, fallback } of BACKUP_ITEMS) {
+    data[key] = read(KEYS[key], fallback);
+  }
+  /* 설정은 담되 비밀값만 뺀다. 설정을 통째로 빼면 학습 범위·음성 속도까지
+     잃으니, 뺄 것만 뺀다. */
+  if (data.settings && typeof data.settings === 'object') {
+    const clean = { ...data.settings };
+    for (const k of SECRET_SETTINGS) delete clean[k];
+    data.settings = clean;
+  }
   return {
     format: BACKUP_FORMAT,
-    version: 1,
+    version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    data: {
-      customWords: read(KEYS.customWords, []),
-      progress: read(KEYS.progress, {}),
-      settings: read(KEYS.settings, {}),
-      streak: read(KEYS.streak, { count: 0, lastDate: null }),
-      review: read(KEYS.review, {}),
-      stats: read(KEYS.stats, {}),
-      memos: read(KEYS.memos, {}),
-    },
+    data,
   };
 }
 
@@ -437,19 +516,76 @@ export function backupSummary(backup) {
   };
 }
 
-// 부분 병합은 충돌 규칙이 배보다 커진다 — 전체 교체만 지원한다.
+/* 복원할 값을 만든다. 저장하기 전에 다 만들어 둬야 반쯤 쓰다 마는 일이 없다. */
+function restorePayload(d) {
+  const out = [];
+  for (const { key, fallback } of BACKUP_ITEMS) {
+    let value = d[key];
+    if (value === undefined || value === null) {
+      /* 옛 백업에는 없던 칸이다. 없는 칸을 기본값으로 덮어써 지우지 않는다 —
+         v1 백업으로 복원했다고 이 기기의 영상·자막이 사라지면 안 된다. */
+      if (fallback === null) continue;
+      if (!Object.prototype.hasOwnProperty.call(d, key)) continue;
+      value = fallback;
+    }
+    if (key === 'progress') value = { ...DEFAULT_PROGRESS, ...(value || {}) };
+    if (key === 'settings') {
+      /* ★ 백업에 키가 없다고 이 기기의 키를 지우면 안 된다 ★
+         비밀값을 백업에서 뺀 결과로 복원이 키를 날려 버리면, 새는 곳을
+         막으려다 쓰던 기능을 끄는 셈이다. 이 기기 값을 남긴다. */
+      const mine = read(KEYS.settings, {});
+      const merged = { ...(value || {}) };
+      for (const k of SECRET_SETTINGS) {
+        if (!merged[k] && mine?.[k]) merged[k] = mine[k];
+      }
+      value = merged;
+    }
+    out.push([KEYS[key], value]);
+  }
+  return out;
+}
+
+/* 부분 병합은 충돌 규칙이 배보다 커진다 — 전체 교체만 지원한다.
+ *
+ * ★ 다 저장된 것을 확인하고서 성공이라고 한다 ★
+ *
+ * 여태 write()를 열 번 부르고 성공 여부를 한 번도 안 봤다. write는 실패하면
+ * false를 주고 토스트를 띄우는데, 부르는 쪽이 그걸 버렸다. 그래서 저장 공간이
+ * 가득 찬 기기에서 앞의 몇 개만 저장되고도 화면은 「복원했어요」라고 했다 —
+ * 사용자는 기록이 돌아온 줄 알고 원본 파일을 지울 수 있다.
+ *
+ * 이제 쓰기 전에 지금 값을 떠 두고, 하나라도 실패하면 떠 둔 값으로 되돌린다.
+ * 반쯤 덮인 상태로 남기지 않는다 — 그게 원래 기록도 백업도 아닌 제일 나쁜 칸이다. */
 export function importBackup(backup) {
   if (backup?.format !== BACKUP_FORMAT || !backup?.data) {
     throw new Error('이 파일은 JS일본어 백업 파일이 아니에요.');
   }
-  const d = backup.data;
-  write(KEYS.customWords, d.customWords || []);
-  write(KEYS.progress, { ...DEFAULT_PROGRESS, ...(d.progress || {}) });
-  write(KEYS.settings, d.settings || {});
-  write(KEYS.streak, d.streak || { count: 0, lastDate: null });
-  write(KEYS.review, d.review || {});
-  write(KEYS.stats, d.stats || {});
-  write(KEYS.memos, d.memos || {});
+  const payload = restorePayload(backup.data);
+  if (!payload.length) {
+    throw new Error('이 백업에는 되돌릴 기록이 없어요.');
+  }
+
+  // 되돌릴 때 쓸 지금 값. 없던 칸은 null로 적어 둬야 「지우기」로 되돌린다.
+  const before = payload.map(([key]) => {
+    let raw = null;
+    try { raw = localStorage.getItem(key); } catch { raw = null; }
+    return [key, raw];
+  });
+  const rollback = () => {
+    for (const [key, raw] of before) {
+      try {
+        if (raw === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, raw);
+      } catch { /* 되돌리기까지 막히면 더 할 수 있는 게 없다 */ }
+    }
+  };
+
+  for (const [key, value] of payload) {
+    if (!write(key, value)) {
+      rollback();
+      throw new Error('기록을 저장하지 못해 되돌렸어요. 저장 공간을 비우고 다시 시도해 주세요.');
+    }
+  }
   saveSession(null);
 }
 
