@@ -5,7 +5,7 @@
  * 여기서는 화면이 그 답을 제대로 쓰는지, 성적이 남는지, 표가 펼쳐지는지를 본다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { openMenu } from './_nav.js';
+import { goTab, openMenu } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -52,7 +52,11 @@ const open = async (page) => {
   const page = await boot(browser);
   page.on('pageerror', (e) => errors.push(e.message));
 
-  ok('홈에 메뉴가 있음', await page.locator('.menutile', { hasText: '동사 활용' }).count() === 1);
+  // 메뉴는 학습 탭을 방문했을 때 로드된다. 사용자가 보는 경로로 확인한다.
+  await goTab(page, '학습');
+  const menu = page.locator('.screen.active .menutile', { hasText: '동사 활용' });
+  await menu.waitFor({ state: 'visible' });
+  ok('학습 탭에서 동사 활용 메뉴가 보임', await menu.count() === 1 && await menu.isVisible());
   await open(page);
 
   const body = await page.textContent('.subscreen');
