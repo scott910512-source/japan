@@ -1,7 +1,7 @@
 /* 번역기 화면 — 여행 중에 한 손으로 끝나는가. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab } from './_nav.js';
+import { goTab, openMore } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -67,7 +67,7 @@ const stub = (page, reply, status = 200) => page.evaluate(({ r, st }) => {
 /* 번역기는 더보기로 갔다. 공부가 아니라 현지에서 쓰는 도구라,
    「오늘 뭘 공부하지」를 고르는 학습 탭에 두면 고를 것만 하나 는다. */
 const openTranslate = async (page) => {
-  await goTab(page, '더보기');
+  await openMore(page, 'tools');   // 번역기는 학습 도구에
   await page.locator('.listrow', { hasText: '번역기' }).click();
   await page.waitForTimeout(800);
 };

@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, startStudy } from './_nav.js';
+import { goTab, openMore, startStudy } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -46,7 +46,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   });
 
   // 설정에서 "판정할 때 읽어주기"를 켠다
-  await goTab(page, '더보기');
+  await openMore(page, 'study');   // 판정할 때 읽어주기
   await page.waitForTimeout(500);
   const toggle = page.locator('.setrow', { hasText: '판정할 때 읽어주기' });
   ok('설정에 옵션이 생김', await toggle.count() > 0);

@@ -1,7 +1,7 @@
 /* 영상에서 자막 직접 받아오기 — 설정에서 켠 사람만 쓸 수 있는가. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, openVideos } from './_nav.js';
+import { goTab, openMore, openVideos } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -85,7 +85,7 @@ const toast = async (page) => {
   ok('앱으로 하는 길은 그대로 있음', await p1.locator('button', { hasText: '이 글 복사' }).count() === 1);
 
   // 설정 화면에 스위치가 있다
-  await goTab(p1, '더보기');
+  await openMore(p1, 'tools');   // 영상 자막 받아오기 스위치
   await p1.waitForTimeout(700);
   const sw = p1.locator('.toggle-row', { hasText: '영상에서 자막 직접 받아오기' });
   ok('설정에 스위치가 있음', await sw.count() === 1);
@@ -129,7 +129,7 @@ const toast = async (page) => {
   await stub(p3);
   await openVideo(p3);
   ok('Claude에서는 안 보임', await p3.locator('button', { hasText: '영상에서 가져오기' }).count() === 0);
-  await goTab(p3, '더보기');
+  await openMore(p3, 'tools');
   await p3.waitForTimeout(700);
   ok('Claude에서는 스위치도 안 보임', await p3.locator('.toggle-row', { hasText: '영상에서 자막 직접 받아오기' }).count() === 0);
   await p3.close();

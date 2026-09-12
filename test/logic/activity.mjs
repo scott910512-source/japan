@@ -10,8 +10,9 @@
  *
  * 세는 자리를 하나로 모으고, 올리기와 내리기를 같은 표로 검사한다. */
 import {
-  EMPTY_DAY, tallyVerdicts, addToDay, removeFromDay,
+  EMPTY_DAY, tallyVerdicts, addToDay, removeFromDay, noteActivity,
 } from '../../src/lib/stats.js';
+import { mergeStats } from '../../src/lib/merge.js';
 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => {
@@ -93,6 +94,48 @@ console.log('\n[ ★ 실전 연습도 맞힌 것을 센다 ★ ]');
   const s = addToDay({}, D, ['known', 'known', 'vague']);
   ok('★ 맞힌 것이 남는다 ★', s[D].known === 2, `${s[D].known}`);
   ok('판정 수도 맞다', s[D].studied === 3);
+}
+
+console.log('\n[ ★ 판정이 아닌 활동도 남는다 ★ ]');
+{
+  /* 듣기와 시험은 회독 진도를 안 올린다 — 들으면서 흘려보낸 것과 떠올려서
+     맞힌 것은 다른 일이다. 그런데 아무 데도 안 남으니 한 시간 듣고도 기록이
+     그대로였다. 활동 칸에만 적고 기억 단계는 안 건드린다. */
+  let s = noteActivity({}, D, { listened: 3 });
+  ok('들은 문장이 남는다', s[D].listened === 3, `${s[D].listened}`);
+  ok('★ 판정 수는 안 오른다 ★', (s[D].studied || 0) === 0, `${s[D].studied}`);
+
+  s = noteActivity(s, D, { listened: 2, quizzed: 20 });
+  ok('쌓인다', s[D].listened === 5 && s[D].quizzed === 20,
+    `들음 ${s[D].listened} / 시험 ${s[D].quizzed}`);
+
+  // 0이나 빈 값으로는 칸을 만들지 않는다
+  ok('0은 안 센다', noteActivity({}, D, { listened: 0 })[D] === undefined);
+  ok('빈 것도 괜찮다', noteActivity({}, D)[D] === undefined);
+
+  /* 판정과 활동이 같은 날에 같이 있어도 서로 안 섞인다 */
+  let both = addToDay({}, D, ['known']);
+  both = noteActivity(both, D, { listened: 4 });
+  ok('판정과 활동이 같은 칸에 따로 남는다',
+    both[D].studied === 1 && both[D].known === 1 && both[D].listened === 4,
+    JSON.stringify(both[D]));
+}
+
+console.log('\n[ ★ 새 칸이 동기화에서 사라지지 않는다 ★ ]');
+{
+  /* mergeStats가 칸 이름을 손으로 적어 두고 있었다. 그러면 새 칸을 만들 때
+     그 줄을 같이 고쳐야 하고, 잊으면 기기 두 대를 쓰는 사람에게만 그 칸이
+     조용히 사라진다 — 한참 뒤에야 드러난다. 양쪽에 있는 칸을 다 훑게 했다. */
+  const local = { [D]: { studied: 3, listened: 10, quizzed: 20 } };
+  const remote = { [D]: { studied: 5, listened: 2 } };
+  const m = mergeStats(local, remote);
+  ok('★ 듣기 칸이 살아남는다 ★', m[D].listened === 10, `${m[D].listened}`);
+  ok('★ 시험 칸도 살아남는다 ★', m[D].quizzed === 20, `${m[D].quizzed}`);
+  ok('원래 규칙(큰 쪽)은 그대로', m[D].studied === 5, `${m[D].studied}`);
+
+  /* 이름을 모르는 칸이 생겨도 마찬가지다 — 다음 칸을 만들 때 여기를 안 고쳐도 된다 */
+  const future = mergeStats({ [D]: { 나중칸: 7 } }, { [D]: { 나중칸: 2 } });
+  ok('앞으로 생길 칸도 살아남는다', future[D]['나중칸'] === 7, `${future[D]['나중칸']}`);
 }
 
 console.log('\n[ 다른 날과 원래 값을 건드리지 않는다 ]');

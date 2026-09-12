@@ -37,7 +37,7 @@ const SCOPE_OPTS = [
 /* 시험 화면.
  * 회독과 달리 정답을 앱이 판정한다. 그래서 회독 기록(review)은 읽기만 하고 쓰지 않는다 —
  * 시험 때문에 복습 간격이 흔들리면 시험을 마음 편히 못 본다. */
-export default function Quiz({ words, review, settings, onChange, onToast, onRetryWrong }) {
+export default function Quiz({ words, review, settings, onChange, onToast, onRetryWrong, onActivity }) {
   const [config, setConfig] = useState({
     count: settings.quizCount ?? 20,
     type: settings.quizType ?? QUIZ_TYPE.CHOICE,
@@ -252,6 +252,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
         onQuit={onQuit}
         onRetryWrong={onRetryWrong}
         onToast={onToast}
+        onActivity={onActivity}
       />
     );
   }
@@ -388,8 +389,17 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
 
 /* ── 결과 ── */
 
-function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onToast }) {
+function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onToast, onActivity }) {
   const result = useMemo(() => gradeQuiz(questions, answers), [questions, answers]);
+
+  /* 시험도 회독 진도를 올리지 않는다. 다만 몇 문항 풀었는지는 활동에 남긴다 —
+     안 남기면 스무 문항 풀고도 기록이 그대로다. 결과 화면에 들어올 때 한 번만. */
+  const noted = useRef(false);
+  useEffect(() => {
+    if (noted.current) return;
+    noted.current = true;
+    onActivity?.({ quizzed: questions.length });
+  }, [questions.length, onActivity]);
   const grade = gradeLabel(result.score);
 
   const wrongWords = result.wrongIds.map((id) => byId.get(id)).filter(Boolean);

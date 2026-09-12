@@ -10,7 +10,7 @@
  *   · 문법 안에 셋(기초 · 일상 · 문형)이 다 있는가 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, openMenu } from './_nav.js';
+import { goTab, openMenu, openMore } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -186,7 +186,7 @@ async function boot(browser, settings = {}) {
   /* 결과 화면을 닫고 나간다. 탭으로 나가는 일은 goTab이 알아서 한다 */
   await page.locator('.finish .ghost-btn').click();
   await page.waitForTimeout(600);
-  await goTab(page, '더보기');
+  await openMore(page, 'study');   // 학습 메뉴 묶음
   await page.waitForTimeout(700);
   ok('설정에도 묶음이 있다', await page.locator('.setgroup').count() === 3,
     (await page.locator('.sg-label').allTextContents()).join(' / '));

@@ -36,7 +36,7 @@ export const GAPS = [1, 2, 3, 5];
 
 export default function Listen({
   pool, words, sentences, review, settings, onSettingsChange, onClose, onToast,
-  initialMode = 'listen',
+  onActivity, initialMode = 'listen',
 }) {
   const [mode, setMode] = useState(initialMode);
   /* 어느 쪽을 먼저 들려줄까. 「뜻 → 일본어」가 있어야 입이 열린다 —
@@ -51,8 +51,31 @@ export default function Listen({
      흐름이 다시 안 걸리고 조용히 멈춘다 — 이 숫자를 올려서 다시 걸어 준다. */
   const [nudge, setNudge] = useState(0);
   const [gap, setGap] = useState(settings.listenGap || 2);
+
   const [count, setCount] = useState(settings.listenCount || 20);
   const [run, setRun] = useState(null);   // { cards, at }
+
+  /* ★ 들은 것도 기록에 남는다 ★
+   *
+   * 듣기는 회독 진도를 올리지 않는다. 들으면서 흘려보낸 것과 떠올려서 맞힌
+   * 것은 다른 일이라 그 판단은 그대로 둔다. 그런데 아무 데도 안 남으니
+   * 한 시간 듣고도 기록이 그대로였다 — 노력한 내역은 보여야 한다.
+   *
+   * 장이 넘어갈 때마다 한 문장으로 센다. 넘어가는 곳(setRun 갱신 안)에서
+   * 부르면 갱신 함수 안에서 부모 상태를 건드리게 되니, 바뀐 뒤에 여기서 센다.
+   *
+   * ★ run 선언보다 아래에 있어야 한다 ★
+   * 처음엔 이 블록을 위쪽에 뒀는데, 의존성 배열의 run이 그릴 때 평가되면서
+   * 선언 전 접근(TDZ)이 됐다 — 듣기 화면이 그려질 때마다 죽었고 듣기·디자인
+   * 검사가 통째로 멈췄다. 효과 본문은 나중에 돌지만 배열은 지금 읽힌다. */
+  const countedAt = useRef(-1);
+  useEffect(() => {
+    if (!run) { countedAt.current = -1; return; }
+    if (run.at > countedAt.current) {
+      countedAt.current = run.at;
+      onActivity?.({ listened: 1 });
+    }
+  }, [run, onActivity]);
 
   /* 뜻도 소리로 낼지. 화면을 못 보는 동안 쓰라고 만든 자리인데 뜻이 눈으로만
      나오면 절반이 안 들린다. 기본은 켬 — 끄고 싶은 사람은 여기서 끈다. */

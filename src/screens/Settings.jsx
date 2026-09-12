@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { IconDownload, IconUpload, IconTrash, IconSpeaker, IconRewind, IconList, IconMap } from '../components/Icons.jsx';
+import {
+  IconDownload, IconUpload, IconTrash, IconSpeaker, IconRewind, IconList, IconMap, IconChevron,
+} from '../components/Icons.jsx';
 import {
   exportBackup, importBackup, backupSummary, backupContents, BACKUP_EXCLUDED,
   clearAll, DEFAULT_SETTINGS,
@@ -30,6 +32,18 @@ const LANE_GOALS = [
   { key: 'fresh', label: '새 단어', note: '오늘 처음 보는 것' },
   { key: 'review', label: '복습', note: '복습일이 된 것' },
   { key: 'weak', label: '약점', note: '세 번 넘게 틀린 것 — 열 번 넘으면 한 판에 두 번 나와요' },
+];
+
+/* ★ 더보기는 고를 것 여섯 줄 ★
+   긴 한 화면을 내려가며 찾던 것을, 이름을 보고 들어가는 목록으로 바꾼다.
+   sub에 무엇이 들어 있는지 적는다 — 이름만으로는 어디에 뭐가 있는지 모른다. */
+const MORE_GROUPS = [
+  { id: 'study', label: '학습 설정', sub: '학습 목적 · 하루 분량 · 문장 범위 · 메뉴 · 표시 방식' },
+  { id: 'voice', label: '음성', sub: '목소리 · 속도 · 자동 읽기 · 소리 테스트' },
+  { id: 'account', label: '계정과 동기화', sub: '로그인 · 기기 간 동기화 상태' },
+  { id: 'backup', label: '기록 백업', sub: '내려받기 · 복원 · 무엇이 들어가나' },
+  { id: 'tools', label: '학습 도구', sub: '내 단어장 · 번역기 · 영상 AI 연결' },
+  { id: 'about', label: '앱 정보', sub: '버전 · 최신 버전 받기 · 초기화' },
 ];
 
 const DIRECTIONS = [
@@ -192,6 +206,8 @@ export default function Settings({
   const total = goalTotal(goals);
   const preset = presetOf(goals);
   const [showLanes, setShowLanes] = useState(false);
+  // 어느 묶음을 보고 있나. null이면 고르는 목록.
+  const [group, setGroup] = useState(null);
   /* ── 저장 상태 한 줄 ──
    *
    * 화면에 「계정에 저장돼요」와 「이 브라우저에만 저장돼요」가 같이 있어서,
@@ -398,13 +414,60 @@ export default function Settings({
     onToast(result.ok ? '클라우드 음성이 연결됐어요' : `키를 확인해 주세요 — ${result.message}`);
   };
 
+  /* ★ 긴 한 화면을 짧은 목록으로 ★
+   *
+   * 계정 · 목적 · 문장 범위 · 학습 메뉴 · 학습 기능 · 영상 · 음성 · 데이터 ·
+   * 도구 · 기타가 한 화면에 이어져 있었다. 음성 속도를 바꾸려면 열 덩이를
+   * 지나쳐 내려가야 하고, 무엇이 어디 있는지는 외워야 알았다.
+   *
+   * 여섯 묶음으로 나눈다. 처음 화면은 고를 것 여섯 줄이고, 하나를 고르면
+   * 그 묶음만 나온다. 안에 있는 설정은 그대로 두었다 — 자리만 옮긴다. */
+  const open = MORE_GROUPS.find((x) => x.id === group);
+  const G = (id) => group === id;
+
   return (
     <>
-      <div className="navtitle">
-        <small>JS일본어</small>
-        설정
-      </div>
+      {!group && (
+        <>
+          <div className="navtitle">
+            <small>JS일본어</small>
+            더보기
+          </div>
+          <div className="card">
+            {MORE_GROUPS.map((x) => (
+              <button key={x.id} className="listrow moregroup" onClick={() => setGroup(x.id)}>
+                <span className="mg-body">
+                  <b>{x.label}</b>
+                  <span>{x.sub}</span>
+                </span>
+                <IconChevron className="chev" />
+              </button>
+            ))}
+          </div>
+          {/* 저장 상태는 묶음 안에 숨기지 않는다 — 저장이 막혔으면 설정을
+              열자마자 보여야 한다. */}
+          {storeError && (
+            <div className="savestate bad" style={{ marginTop: 12 }}>
+              <b>기록을 저장하지 못했어요</b>
+              <span>{storeError} 「기록 백업」에서 백업해 두고 저장 공간을 비워 주세요.</span>
+            </div>
+          )}
+        </>
+      )}
 
+      {group && (
+        <>
+          <button className="ghost-btn moreback" onClick={() => setGroup(null)}>
+            ← 더보기
+          </button>
+          <div className="navtitle" style={{ marginTop: 10 }}>
+            <small>더보기</small>
+            {open?.label}
+          </div>
+        </>
+      )}
+
+      {G('account') && (<>
       <div className="section-label">계정</div>
       <Account
         session={session}
@@ -421,6 +484,8 @@ export default function Settings({
           온보딩은 「남은 기간에 맞춰 학습량과 우선순위를 잡아 드려요」라고
           적어 두고 아무것도 안 했다. 이제 정말로 배정 차례를 바꾸고,
           목적마다 무엇이 달라지는지 그 자리에 적는다. */}
+      </>)}
+      {G('study') && (<>
       <div className="section-label">학습 목적</div>
       <div className="card">
         <div className="setrow col">
@@ -457,6 +522,8 @@ export default function Settings({
       {/* 문장 레벨은 문장에 나오는 낱말의 급수로 잰다. 근거를 못 찾은 문장은
           미분류로 남는데, 그걸 새 학습에 넣을지는 고를 수 있어야 한다.
           모른다는 게 어렵다는 뜻은 아니라서 기본은 넣는 쪽이다. */}
+      </>)}
+      {G('study') && (<>
       <div className="section-label">문장 범위</div>
       <div className="card">
         <Toggle
@@ -467,6 +534,8 @@ export default function Settings({
         />
       </div>
 
+      </>)}
+      {G('study') && (<>
       <div className="section-label">학습 메뉴</div>
       <div className="card">
         {MENU_GROUPS.map((g) => (
@@ -486,6 +555,8 @@ export default function Settings({
         <div className="set-note">끈 메뉴의 학습 기록은 그대로 남아 있어요.</div>
       </div>
 
+      </>)}
+      {G('study') && (<>
       <div className="section-label">학습 기능</div>
       <div className="card">
         <Toggle label="자동 음성" sub="카드가 나오면 바로 읽어줘요"
@@ -604,9 +675,13 @@ export default function Settings({
         </div>
       </div>
 
+      </>)}
+      {G('tools') && (<>
       <div className="section-label">영상 학습</div>
       <VideoAI settings={settings} onChange={onChange} onToast={onToast} />
 
+      </>)}
+      {G('voice') && (<>
       <div className="section-label">음성</div>
       <div className="card">
         <div className={`ttsbadge ${status.mode}`}>{STATUS_TEXT[status.mode]}</div>
@@ -711,6 +786,8 @@ export default function Settings({
         </div>
       </div>
 
+      </>)}
+      {G('backup') && (<>
       <div className="section-label">데이터</div>
       <div className="card">
         {/* ★ 저장 상태를 한 줄로 ★
@@ -770,6 +847,8 @@ export default function Settings({
           번역기와 내 단어장은 학습 탭에 있었다. 그런데 학습 탭은 「오늘 뭘
           공부하지」를 고르는 자리다 — 거기에 현지에서 쓰는 도구가 끼어 있으면
           고를 것이 하나 더 늘 뿐이다. */}
+      </>)}
+      {G('tools') && (<>
       <div className="section-label">도구</div>
       <div className="card">
         <button className="listrow tool-translate" onClick={onOpenTranslate}>
@@ -782,6 +861,8 @@ export default function Settings({
         </button>
       </div>
 
+      </>)}
+      {G('about') && (<>
       <div className="section-label">기타</div>
       <div className="card">
         <button className="listrow" onClick={onReplayOnboarding}>
@@ -797,6 +878,7 @@ export default function Settings({
           학습 기록은 지워지지 않아요.
         </div>
       </div>
+      </>)}
     </>
   );
 }
