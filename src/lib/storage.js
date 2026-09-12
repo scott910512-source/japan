@@ -184,15 +184,19 @@ export function saveSession(session) {
   }
 }
 
-/* ── 일별 집계 (최근 60일만 유지) ── */
+/* ── 일별 집계 ──
+ *
+ * 최근 이만큼만 남긴다. 기록 화면의 달력은 얼마든지 과거로 갈 수 있어서,
+ * 이 숫자를 화면도 알아야 한다 — 모르면 버린 달을 「안 한 달」로 그린다. */
+export const STATS_KEEP_DAYS = 60;
 
 export function loadStats() {
   return read(KEYS.stats, {});
 }
 export function saveStats(stats) {
   const days = Object.keys(stats).sort();
-  const trimmed = days.length > 60
-    ? Object.fromEntries(days.slice(-60).map((d) => [d, stats[d]]))
+  const trimmed = days.length > STATS_KEEP_DAYS
+    ? Object.fromEntries(days.slice(-STATS_KEEP_DAYS).map((d) => [d, stats[d]]))
     : stats;
   write(KEYS.stats, trimmed);
 }
@@ -380,7 +384,18 @@ function todayKey() {
  * 한 장도 안 한 사람에게 했다고 말한 것이다. 관대한 것과 거짓은 다르다.
  *
  * 하루 빠졌다고 0으로 되돌리진 않는다. 이틀까지는 봐준다 — 하루 놓쳤다고
- * 접어버리는 게 이 숫자가 막으려는 일이다. */
+ * 접어버리는 게 이 숫자가 막으려는 일이다.
+ *
+ * ★ 그런데 화면이 이 관용을 「하루도 안 빠지고」라고 불렀다 ★
+ *
+ * 규칙은 그대로 둔다. 하루 놓친 사람을 0으로 되돌리는 게 이 숫자의 목적이
+ * 아니고, 지금 이어 가는 사람의 기록을 규칙을 바꿔 끊을 이유도 없다.
+ * 대신 규칙을 그대로 말한다 — 관대한 것과 거짓은 다르다. */
+
+/* 며칠까지 쉬어도 이어 주나. 화면 문구도 이 값에서 만든다. */
+export const STREAK_GRACE_DAYS = 1;
+export const STREAK_RULE = '하루 쉬어도 이어져요 · 이틀 쉬면 처음부터';
+
 export function touchStreak() {
   const s = read(KEYS.streak, { count: 0, lastDate: null });
   const today = todayKey();
@@ -393,7 +408,7 @@ export function touchStreak() {
     gap = Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
   }
 
-  const next = { count: gap <= 2 ? s.count + 1 : 1, lastDate: today };
+  const next = { count: gap <= STREAK_GRACE_DAYS + 1 ? s.count + 1 : 1, lastDate: today };
   write(KEYS.streak, next);
   return next;
 }

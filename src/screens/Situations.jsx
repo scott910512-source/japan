@@ -246,7 +246,11 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     if (!item || locked) return;
     // 판정은 언제든 누를 수 있다. 아는 것을 굳이 확인시키면 그게 다 마찰이 된다.
     setLocked(true);
-    history.current.push({ id: item.id, prevReview: review[item.id], prevSession: session });
+    history.current.push({
+      id: item.id, prevReview: review[item.id], prevSession: session,
+      // 무엇을 어느 날 올렸는지 — 되돌릴 때 그 칸에서 빼려면 둘 다 필요하다
+      verdict, day: todayKey(),
+    });
 
     const result = advanceSession(session, review, item.id, verdict, todayKey());
     onReviewChange(result.progress, verdict);
@@ -273,7 +277,10 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     const nextReview = { ...review };
     if (last.prevReview) nextReview[last.id] = last.prevReview;
     else delete nextReview[last.id];
-    onReviewChange(nextReview, null);
+    /* ★ 카드 id를 안 넘겨서 되돌려도 완료가 그대로 남았다 ★
+       문장 판정을 무르면 회독 기록은 돌아오는데 오늘 계획의 「끝낸 것」에는
+       그대로 남아, 되돌릴 때마다 완료 수만 쌓였다. 활동 수도 안 뺐다. */
+    onReviewChange(nextReview, last.verdict, last.id, { undo: true, day: last.day });
     setSession(last.prevSession);
     setFinished(null);
     onToast('직전 판정을 되돌렸어요');

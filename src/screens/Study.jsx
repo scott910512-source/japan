@@ -237,6 +237,9 @@ export default function Study({
       prevReview: review[word.id],
       prevSession: session,
       verdict,
+      /* 어느 날 통계에 올렸는지 적어 둔다. 자정을 넘겨 되돌릴 때 오늘에서
+         빼면 어제 올린 것이 오늘에서 사라진다. */
+      day: todayKey(),
     });
 
     const result = advanceSession(session, review, word.id, verdict, todayKey());
@@ -281,8 +284,9 @@ export default function Study({
     const nextReview = { ...review };
     if (last.prevReview) nextReview[last.cardId] = last.prevReview;
     else delete nextReview[last.cardId];
-    // 되돌리면 완료도 물러야 한다 — 안 그러면 되돌릴 때마다 완료 수만 남는다
-    onReviewChange(nextReview, null, last.cardId, { undo: true });
+    /* 되돌리면 완료도, 활동 수도 물러야 한다. 판정을 같이 넘기는 이유가
+       뒤엣것이다 — 무엇을 물리는지 알아야 그 칸에서 뺄 수 있다. */
+    onReviewChange(nextReview, last.verdict, last.cardId, { undo: true, day: last.day });
     onSessionChange(last.prevSession);
     setFinished(null);
     onToast('직전 판정을 되돌렸어요');

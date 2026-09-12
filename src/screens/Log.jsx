@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { IconFlame, IconChevron } from '../components/Icons.jsx';
 import { addDays, summarize, isMastered, stateOf, MASTERY_RULE } from '../lib/review.js';
+import { STATS_KEEP_DAYS, STREAK_RULE } from '../lib/storage.js';
 import { roundSummary } from '../lib/rounds.js';
 import { useToday } from '../lib/useToday.js';
 
@@ -49,14 +50,31 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
     [now, shift],
   );
 
-  const week = useMemo(() => {
-    const from = addDays(today, -6);
+  /* ★ 제목과 계산을 맞춘다 ★
+   *
+   * 「이번 주」라고 적어 두고 최근 7일(오늘부터 6일 전까지)을 셌다. 월요일
+   * 아침에 지난주 것이 섞여 보이고, 일요일에는 「이번 주」가 이레치로 보였다.
+   *
+   * 계산을 바꾸지 않고 제목을 바꾼다. 굴러가는 7일 창은 요일이 바뀔 때마다
+   * 0으로 꺼지지 않아서 학습 앱에는 오히려 이쪽이 쓸모 있다 — 고칠 것은
+   * 숫자가 아니라 그 숫자를 부르는 이름이었다. */
+  const RECENT_DAYS = 7;
+  const recent = useMemo(() => {
+    const from = addDays(today, -(RECENT_DAYS - 1));
     const days = Object.entries(stats).filter(([d]) => d >= from && d <= today);
+    /* 이 창에서 기억 단계가 오른 카드. 누적 「외운 것」을 여기 두면 이번 주에
+       한 것과 여태 한 것이 한 줄에 섞인다 — promotedOn이 있는 날짜만 센다. */
+    let promoted = 0;
+    for (const id of Object.keys(review)) {
+      const st = stateOf(review, id);
+      if (st.promotedOn && st.promotedOn >= from && st.promotedOn <= today) promoted += 1;
+    }
     return {
       days: days.filter(([, v]) => (v.studied || 0) > 0).length,
       studied: days.reduce((s, [, v]) => s + (v.studied || 0), 0),
+      promoted,
     };
-  }, [stats, today]);
+  }, [stats, today, review]);
 
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
   const stat = useMemo(() => summarize(wordIds, review), [wordIds, review]);
@@ -85,6 +103,17 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
   const cells = monthGrid(shown.getFullYear(), shown.getMonth());
   const monthTotal = cells.reduce((s, c) => s + (c ? (stats[c.key]?.studied || 0) : 0), 0);
 
+  /* 이 달이 보관 범위 밖인가.
+     최근 60일치만 남기니(STATS_KEEP_DAYS), 그 수만큼 차 있고 이 달 전체가
+     제일 오래된 기록보다 앞서면 「안 했다」인지 「버렸다」인지 알 수 없다.
+     알 수 없을 때 「기록이 없다」고 하지 않는다. */
+  const beyondKeep = useMemo(() => {
+    const keys = Object.keys(stats).sort();
+    if (keys.length < STATS_KEEP_DAYS) return false;   // 아직 버린 적이 없다
+    const last = cells.filter(Boolean).at(-1)?.key;
+    return Boolean(last && last < keys[0]);
+  }, [stats, cells]);
+
   return (
     <>
       <div className="navtitle">
@@ -92,19 +121,23 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
         기록
       </div>
 
+      {/* 「하루도 안 빠지고」라고 적어 두었지만 이 숫자는 하루 쉬어도 이어진다.
+          규칙을 바꾸는 대신 규칙을 그대로 말한다 — 관대한 것과 거짓은 다르다. */}
       {streak.count > 0 && (
         <div className="streakline">
           <IconFlame />
           <b>{streak.count}일째</b>
-          <span>하루도 안 빠지고</span>
+          <span>{STREAK_RULE}</span>
         </div>
       )}
 
-      <div className="section-label">이번 주</div>
+      {/* 최근 7일과 여태 쌓은 것을 갈라 둔다. 한 줄에 섞여 있으면
+          이번 주 성과인지 누적인지 알 수 없다. */}
+      <div className="section-label">최근 {RECENT_DAYS}일</div>
       <div className="logweek">
-        <div className="lw-cell"><b>{week.days}</b><span>학습한 날</span></div>
-        <div className="lw-cell"><b>{week.studied}</b><span>공부한 개수</span></div>
-        <div className="lw-cell"><b>{totalSeen.done}</b><span>외운 것</span></div>
+        <div className="lw-cell"><b>{recent.days}</b><span>학습한 날</span></div>
+        <div className="lw-cell"><b>{recent.studied}</b><span>공부한 개수</span></div>
+        <div className="lw-cell"><b>{recent.promoted}</b><span>기억 단계 오름</span></div>
       </div>
 
       <div className="section-label">
@@ -141,15 +174,24 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
           );
         })}
       </div>
+      {/* ★ 「기록이 없어요」와 「기록을 안 갖고 있어요」는 다르다 ★
+          일별 집계는 최근 60일만 남긴다(saveStats). 그런데 달력은 얼마든지
+          과거로 갈 수 있어서, 그때 공부했어도 안 한 달처럼 보였다.
+          보관 범위 밖이면 그렇게 말한다 — 없는 것과 버린 것을 구별한다. */}
       <p className="set-note">
-        {monthTotal > 0 ? `이 달에 ${monthTotal}개 공부했어요.` : '이 달은 아직 기록이 없어요.'}
-        {' '}진한 칸일수록 많이 한 날이에요.
+        {beyondKeep
+          ? '이 달은 보관 범위 밖이에요 — 일별 기록은 최근 60일만 남겨요. 회독 기록과 외운 개수는 그대로예요.'
+          : (monthTotal > 0 ? `이 달에 ${monthTotal}개 공부했어요.` : '이 달은 아직 기록이 없어요.')}
+        {!beyondKeep && ' 진한 칸일수록 많이 한 날이에요.'}
       </p>
 
+      {/* 한 줄에 세는 범위를 맞춘다. 「한 번이라도 본 것」은 단어와 문장을 같이
+          세는데 「외운 단어」는 단어만 세고 있었다 — 나란히 두면 문장을 외운 것이
+          어디로 갔나 싶어진다. 셋 다 단어·문장을 같이 센다. */}
       <div className="section-label">전체</div>
       <div className="logweek">
         <div className="lw-cell"><b>{totalSeen.seen}</b><span>한 번이라도 본 것</span></div>
-        <div className="lw-cell"><b>{stat.mastered}</b><span>외운 단어</span></div>
+        <div className="lw-cell"><b>{totalSeen.done}</b><span>외운 것</span></div>
         <div className="lw-cell"><b>{stat.total - stat.seen}</b><span>아직 안 본 단어</span></div>
       </div>
 

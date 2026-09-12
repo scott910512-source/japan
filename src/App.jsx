@@ -51,6 +51,7 @@ import {
   loadVideoRemoved, saveVideoRemoved,
   loadTranslations, saveTranslations, loadTrends, saveTrends,
 } from './lib/storage.js';
+import { addToDay, removeFromDay } from './lib/stats.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
 import { applyVerdict, dueCards, isSessionClear, stateOf, todayKey, weakCards } from './lib/review.js';
@@ -446,22 +447,27 @@ export default function App() {
     }
 
     if (!verdict) return;
-    const day = todayKey();
+
+    /* 되돌릴 때는 그 판정이 적힌 날에서 뺀다. 오늘로 잡으면 자정을 넘겨
+       되돌렸을 때 어제 올린 것을 오늘에서 빼게 된다. */
+    const day = opts?.day || todayKey();
+
+    /* ★ 되돌리면 활동 수도 물러야 한다 ★
+     *
+     * 여태 판정은 올리고 되돌리기는 안 뺐다. 그래서 잘못 눌러 되돌리고 다시
+     * 누르면 카드 하나를 한 번 판정했는데 활동이 둘로 셌다. 화면에 「오늘 40개」가
+     * 뜨는데 실제로 본 카드는 스무 장인 식이다 — 고칠 데를 찾으려고 기록을
+     * 보는 사람에게 기록이 거짓말을 하면 볼 이유가 없다. */
+    if (opts?.undo) {
+      setStats((prev) => removeFromDay(prev, day, [verdict]));
+      /* 연속일은 되돌리지 않는다. 「오늘 공부했나」는 판정 하나에 달린 게 아니고,
+         한 장을 물렀다고 그 날 안 한 것이 되지도 않는다. 되돌릴 근거가 없다. */
+      return;
+    }
+
     // 오늘 처음 판정한 순간에 연속일이 오른다. 같은 날 두 번째부터는 그대로 둔다.
     setStreak((prev) => (prev.lastDate === day ? prev : touchStreak()));
-    setStats((prev) => {
-      const cur = prev[day] || { studied: 0, known: 0, vague: 0, unknown: 0 };
-      return {
-        ...prev,
-        [day]: {
-          ...cur,
-          studied: cur.studied + 1,
-          known: cur.known + (verdict === 'known' || verdict === 'master' ? 1 : 0),
-          vague: cur.vague + (verdict === 'vague' ? 1 : 0),
-          unknown: cur.unknown + (verdict === 'unknown' ? 1 : 0),
-        },
-      };
-    });
+    setStats((prev) => addToDay(prev, day, [verdict]));
   }, []);
 
   /* 회독 화면 밖에서 판정이 들어올 때 — 지금은 실전 연습이 유일하다.
@@ -485,19 +491,9 @@ export default function App() {
        계획에 없는 카드면 여기서 계획 수를 늘리지 않는다 — 자유 학습으로
        오늘 목표가 저절로 커지면 「오늘 할 것」이 무슨 뜻인지 알 수 없게 된다. */
     setPlan((prev) => ids.reduce((pl, id) => noteFreeStudy(pl, id), prev));
-    setStats((prev) => {
-      const cur = prev[day] || { studied: 0, known: 0, vague: 0, unknown: 0 };
-      let vague = 0;
-      let unknown = 0;
-      for (const id of ids) {
-        if (map[id] === 'vague') vague += 1;
-        if (map[id] === 'unknown') unknown += 1;
-      }
-      return {
-        ...prev,
-        [day]: { ...cur, studied: cur.studied + ids.length, vague: cur.vague + vague, unknown: cur.unknown + unknown },
-      };
-    });
+    /* 여기도 같은 표를 쓴다. 손으로 세던 때는 known을 빼먹어서, 실전에서
+       맞힌 것이 어느 칸에도 안 남았다. */
+    setStats((prev) => addToDay(prev, day, ids.map((id) => map[id])));
   }, []);
 
   const saveMemo = useCallback((id, text) => {
