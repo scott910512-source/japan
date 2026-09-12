@@ -7,7 +7,7 @@
  *   - 같은 게 두 번 들어가지 않는지 (약점이면서 복습일인 카드가 있다)
  *   - 첫 문제가 약점이 아닌지 (시작하자마자 모르는 게 나오면 그날은 거기서 끝난다) */
 import {
-  buildDailyStudyQueue, planToday, classifyDaily, estimateMinutes, normalizeGoals, spaceOut,
+  buildDailyStudyQueue, buildPlannedStudyQueue, planToday, classifyDaily, estimateMinutes, normalizeGoals, spaceOut,
   DEFAULT_GOALS, HARD_WRONG, WEAK_THRESHOLD, SENTENCE_SHARE, FRESH_SENTENCE_MAX,
 } from '../../src/lib/daily.js';
 import { applyVerdict, emptyState, todayKey, addDays, VERDICT } from '../../src/lib/review.js';
@@ -125,6 +125,33 @@ console.log('\n── 갈래를 골라서 짤 수 있다');
 
   ok('안 고르면 셋 다', planToday(pool, review, { today: TODAY }).total
     === DEFAULT_GOALS.fresh + DEFAULT_GOALS.review + DEFAULT_GOALS.weak);
+}
+
+console.log('\n── 확정된 오늘 계획은 다시 분류하지 않는다');
+{
+  /* 신규로 배정된 뒤 오늘 「알아요」를 누른 카드다. 회독 기록은 다음 복습일로
+     넘어갔는데 계획 완료 기록이 동기화에서 늦거나 빠지면, 화면에는 남은 것으로
+     보이면서 재분류 큐에서는 사라진다. 두 저장소가 어긋나도 시작은 돼야 한다. */
+  const planned = [
+    { id: 'w0', kind: 'word', bucket: 'fresh' },
+    { id: 's0', kind: 'sentence', bucket: 'fresh' },
+  ];
+  const review = {
+    w0: seen([VERDICT.KNOWN], TODAY),
+    s0: seen([VERDICT.KNOWN], TODAY),
+  };
+  const reclassified = buildDailyStudyQueue(planned, review, {
+    goals: { fresh: 2, review: 2, weak: 2 }, today: TODAY,
+  });
+  ok('재분류하면 공백 상태의 카드가 사라지는 조건을 재현', reclassified.queue.length === 0);
+
+  const resumed = buildPlannedStudyQueue(planned);
+  ok('★ 화면에 남은 두 장이 시작 큐에도 그대로 있음 ★',
+    resumed.queue.length === 2 && new Set(resumed.queue.map((x) => x.id)).size === 2,
+    resumed.queue.map((x) => x.id).join(','));
+  ok('계획에 적힌 갈래와 예상 시간이 유지됨',
+    resumed.fresh === 2 && resumed.review === 0 && resumed.weak === 0 && resumed.minutes === 1,
+    `${resumed.fresh}/${resumed.review}/${resumed.weak} · ${resumed.minutes}분`);
 }
 
 console.log('\n── 몰라요가 열 번 넘으면 한 판에 두 번');

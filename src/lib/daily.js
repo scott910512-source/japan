@@ -386,6 +386,31 @@ export function buildDailyStudyQueue(pool, review, { goals, lanes, today = today
   };
 }
 
+/* 이미 확정된 오늘 계획을 다시 분류하지 않고 학습 순서만 짠다.
+ *
+ * 계획에 남은 신규 카드를 오늘 한 번 봤지만 아직 정리하지 못한 상태가 있다.
+ * 그 카드를 classifyDaily에 다시 넣으면 「처음」도, 「복습일」도, 「약점」도
+ * 아니라서 어느 갈래에도 들지 않는다. 화면에는 계획상 남은 카드가 있는데
+ * 시작 큐만 비는 원인이었다.
+ *
+ * 오늘 계획은 이미 무엇을 볼지와 갈래를 확정했다. 재개할 때 필요한 일은 그
+ * 결정을 다시 내리는 게 아니라 남은 항목을 보기 좋은 순서로 놓는 것뿐이다. */
+export function buildPlannedStudyQueue(planned = []) {
+  const picked = planned
+    .filter((x) => x?.id && x?.kind)
+    .map(({ id, kind, bucket }) => ({
+      id, kind, bucket: LANES.includes(bucket) ? bucket : 'fresh',
+    }));
+  const counts = { review: 0, weak: 0, fresh: 0 };
+  for (const it of picked) counts[it.bucket] += 1;
+  return {
+    queue: arrange(picked),
+    ...counts,
+    left: { review: 0, weak: 0, fresh: 0 },
+    minutes: estimateMinutes(picked),
+  };
+}
+
 /* 몇 분 걸릴지. 30초 미만이면 0분이 되어 "약 0분"이 되니 최소 1분으로 둔다. */
 export function estimateMinutes(items) {
   if (!items?.length) return 0;

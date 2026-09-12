@@ -20,7 +20,7 @@ import { IconArrowLeft } from './components/Icons.jsx';
 import { ALL_WORDS } from './data/allWords.js';
 import { ALL_SITUATIONS as SITUATIONS } from './data/allSituations.js';
 import { allSentenceCards, dailyPool, cardsForQueue } from './lib/cards.js';
-import { buildDailyStudyQueue } from './lib/daily.js';
+import { buildPlannedStudyQueue } from './lib/daily.js';
 import {
   touchStreak, loadStreak, setStorageErrorHandler, setStorageOkHandler,
   hasSignedInOnce,
@@ -446,29 +446,16 @@ export default function App() {
           : '지금 볼 게 없어요 — 학습 탭에서 골라 보세요'));
       return;
     }
-    /* 순서와 약점 두 번은 daily.js가 정한다 — 계획은 「무엇을」만 들고 있다.
-     *
-     * ★ 여기에 lanes를 또 넘기면 안 된다 ★
-     *
-     * left는 이미 remaining(plan, lanes)로 갈래를 걸러 온 것이다. 그런데 큐를
-     * 짜는 쪽에 lanes를 다시 넘기면, 그쪽은 카드의 갈래를 지금 회독 상태에서
-     * 다시 따져 본다 — 그리고 둘이 어긋난다.
-     *
-     * 실제로 이렇게 막혔다. 새 단어를 몇 장 「몰라요」로 판정하고 나가면, 그
-     * 카드들은 이제 「오늘 본 적 있고 오늘 다시 볼 것」이라 복습으로 분류된다.
-     * 계획에는 여전히 신규 칸에 남아 있는데, lanes: ['fresh']로 다시 거르니
-     * 하나도 안 남아서 「지금 볼 게 없어요」가 떴다 — 화면에는 「새로 배우기
-     * 4개」가 뜬 채로.
-     *
-     * 무엇을 할지는 계획이 이미 정했다. 여기서는 순서만 정한다. */
-    const built = buildDailyStudyQueue(left, review, {
-      goals: { fresh: left.length, review: left.length, weak: left.length },
-    });
+    /* 무엇을 할지는 계획이 이미 정했다. 현재 회독 상태로 다시 분류하면, 오늘
+       한 번 봤지만 아직 끝내지 못한 신규 카드가 어느 갈래에도 들지 않아
+       「2개 남음」인데 빈 큐가 될 수 있다. 여기서는 순서만 정한다. */
+    const built = buildPlannedStudyQueue(left);
     if (!built.queue.length) {
       showToast('지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
       return;
     }
-    const cards = cardsForQueue(built.queue, filterByLevel(words, settings.levels), sentenceCards);
+    /* 계획을 만든 뒤 레벨 설정을 바꿔도 이미 배정된 카드는 사라지면 안 된다. */
+    const cards = cardsForQueue(built.queue, words, sentenceCards);
     setSub(null);
     /* daily를 켜지 않는다 — 큐를 여기서 이미 짰다. 회독 화면이 또 짜면
        복습·약점 비율이 통째로 어긋난다. */
@@ -485,7 +472,7 @@ export default function App() {
       stepped: true,
       intro: { total: cards.length, review: built.review, weak: built.weak, fresh: built.fresh, minutes: built.minutes },
     });
-  }, [session, plan, planNow, review, settings.levels, words, sentenceCards, showToast]);
+  }, [session, plan, planNow, words, sentenceCards, showToast]);
 
   /* 하다 만 걸 이어서. 세션은 카드 id만 들고 있으니, 덱에는 단어와 문장을
      전부 실어 준다 — 어느 쪽에서 온 카드든 찾을 수 있어야 한다. */
