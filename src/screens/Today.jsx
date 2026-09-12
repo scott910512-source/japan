@@ -32,7 +32,7 @@ const HELLO = [
 export default function Today({
   plan, planNow, review, settings, streak, session, resumeLabel,
   grammarLeft, grammarNext,
-  onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore,
+  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore,
 }) {
   const today = todayKey();
 
@@ -50,7 +50,22 @@ export default function Today({
     done: (lanes.review?.done || 0) + (lanes.weak?.done || 0),
   };
   const backLeft = Math.max(0, backLane.assigned - backLane.done);
-  const freshLeft = Math.max(0, (lanes.fresh?.assigned || 0) - (lanes.fresh?.done || 0));
+  const freshLane = {
+    assigned: lanes.fresh?.assigned || 0,
+    done: lanes.fresh?.done || 0,
+  };
+  const freshLeft = Math.max(0, freshLane.assigned - freshLane.done);
+
+  /* 「새로 배우기」에 무엇이 몇 개인지. 단어만 있는 줄에 「단어 12 · 문장 0」을
+     적으면 없는 것을 셈하는 셈이라, 있는 것만 적는다. */
+  const freshMix = (() => {
+    const left = (plan?.assigned || []).filter((x) => x.bucket === 'fresh' && !plan.done[x.id]);
+    const w = left.filter((x) => x.kind !== 'sentence').length;
+    const s = left.length - w;
+    if (w && s) return `단어 ${w} · 문장 ${s}`;
+    if (s) return `문장 ${s}개`;
+    return `단어 ${w}개`;
+  })();
 
   const minutesOf = (bucket) => estimateMinutes(
     (plan?.assigned || []).filter((x) => !plan.done[x.id]
@@ -91,81 +106,120 @@ export default function Today({
 
       {/* ★ 하다 만 게 있으면 그게 무조건 먼저다 ★
           다른 걸 누르면 「하던 학습을 접을까요?」가 뜨는데, 그 창을 만나기
-          전에 이어하기가 먼저 눈에 들어와야 한다. */}
-      {resuming && (
-        <button className="rowcard resume" onClick={onResume}>
-          <span className="rc-icon"><IconPlay /></span>
-          <span className="rc-body">
-            <b>이어하기</b>
-            <span>{resumeLabel || '학습'} · {session.round}회독 · {session.queue.length}개 남음</span>
+          전에 이어하기가 먼저 눈에 들어와야 한다. 그래서 이어하기를 따로
+          한 줄 두지 않고, 아래 주요 버튼 자체가 이어하기가 된다. */}
+
+      {/* ★ 누를 것은 하나 ★
+       *
+       * 「복습하기 · 새 단어 · 오늘의 문법」 셋을 나란히 놓았더니, 처음 쓰는
+       * 사람이 무엇부터 해야 하는지 고민했다. 셋은 고를 것이 셋이라는 뜻이고,
+       * 고르는 일은 학습 탭이 할 일이다.
+       *
+       * 그래서 큰 버튼 하나만 둔다. 하던 게 있으면 이어하기, 없으면 오늘 학습
+       * 시작이다. 갈래를 안 주니 배정된 것을 순서대로 다 돈다 — 복습이 없는
+       * 날은 저절로 새로 배우기부터 시작한다. */}
+      {!allDone && (
+        <button className="bigcta" onClick={resuming ? onResume : onStartAll}>
+          <span className="bc-icon"><IconPlay /></span>
+          <span className="bc-body">
+            <b>{resuming ? '이어하기' : (backLeft === 0 ? '새로 배우기' : '오늘 학습 시작')}</b>
+            <span>
+              {resuming
+                ? `${resumeLabel || '학습'} · ${session.round}회독 · ${session.queue.length}개 남음`
+                : `${planNow?.left || 0}개 · 약 ${planNow?.minutes || 0}분`}
+            </span>
           </span>
           <IconChevron className="chev" />
         </button>
       )}
 
-      <div className="section-label">오늘 할 것</div>
-      <div className="tdtasks">
-        <TodayTaskCard
-          primary
-          icon={<IconRepeat />}
-          title="복습하기"
-          note={backLane.assigned === 0
-            ? '오늘 복습할 게 없어요'
-            : backLeft === 0
-              ? `오늘 몫 ${backLane.assigned}개를 다 했어요`
-              : `복습 ${lanes.review?.assigned - lanes.review?.done || 0} · 약점 ${lanes.weak?.assigned - lanes.weak?.done || 0}`}
-          minutes={minutesOf('back')}
-          count={backLeft}
-          done={backLeft === 0}
-          onClick={onStartReview}
-        />
-        <TodayTaskCard
-          icon={<IconBook />}
-          title="새 단어"
-          note={freshLeft > 0
-            ? `오늘 새 단어 ${freshLeft}개 남음`
-            : `오늘 몫 ${lanes.fresh?.assigned || 0}개를 다 했어요`}
-          minutes={minutesOf('fresh')}
-          count={freshLeft}
-          done={freshLeft === 0}
-          onClick={onStartWords}
-        />
-        {/* 개수만 적으면 무엇을 배우는지 모른 채로 누른다 —
-            오늘 볼 꼭지 이름을 하나 보여 준다 */}
-        <TodayTaskCard
-          icon={<IconGrid />}
-          title="오늘의 문법"
-          note={grammarLeft > 0
-            ? (grammarNext || `아직 안 본 것 ${grammarLeft}개`)
-            : '문법을 한 바퀴 돌았어요'}
-          minutes={grammarLeft > 0 ? 3 : 0}
-          count={grammarLeft}
-          done={grammarLeft === 0}
-          onClick={onOpenGrammar}
-        />
-      </div>
+      {/* 배정 내역. 무엇이 몇 개 담겼는지 확인하는 자리이고, 갈래만 따로
+          하고 싶으면 눌러서 할 수도 있다 — 주요 버튼보다 작게 둔다. */}
+      {(backLane.assigned > 0 || freshLane.assigned > 0) && (
+        <>
+          <div className="section-label">오늘 배정</div>
+          <div className="tdtasks">
+            {backLane.assigned > 0 && (
+              <TodayTaskCard
+                icon={<IconRepeat />}
+                title="복습"
+                note={backLeft === 0
+                  ? `오늘 몫 ${backLane.assigned}개를 다 했어요`
+                  : `복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`}
+                minutes={minutesOf('back')}
+                count={backLeft}
+                done={backLeft === 0}
+                onClick={onStartReview}
+              />
+            )}
+            {/* ★ 「새 단어」라고 불렀지만 문장도 같이 배정된다 ★
+                단어 버튼을 눌렀는데 문장이 나오면 범위를 오해한다.
+                이름을 바꾸고 무엇이 몇 개인지 적는다. */}
+            {freshLane.assigned > 0 && (
+              <TodayTaskCard
+                icon={<IconBook />}
+                title="새로 배우기"
+                note={freshLeft === 0
+                  ? `오늘 몫 ${freshLane.assigned}개를 다 했어요`
+                  : freshMix}
+                minutes={minutesOf('fresh')}
+                count={freshLeft}
+                done={freshLeft === 0}
+                onClick={onStartWords}
+              />
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ★ 문법은 선택이다 ★
+       *
+       * 오늘 완료는 카드 계획으로 세는데 문법은 그 밖에 있었다. 그래서 문법이
+       * 남아도 「오늘 학습 완료」가 떴다 — 완료가 무엇의 완료인지 알 수 없었다.
+       * 계획에 넣는 대신 선택이라고 적는다. 문법은 꼭지 단위라 하루 몫으로
+       * 쪼개 세기 어렵고, 안 해도 회독은 굴러간다. */}
+      <div className="section-label">곁들여서 · 선택</div>
+      <TodayTaskCard
+        icon={<IconGrid />}
+        title="오늘의 문법"
+        note={grammarLeft > 0
+          ? (grammarNext || `아직 안 본 것 ${grammarLeft}개`)
+          : '문법을 한 바퀴 돌았어요'}
+        minutes={grammarLeft > 0 ? 3 : 0}
+        count={grammarLeft}
+        done={grammarLeft === 0}
+        onClick={onOpenGrammar}
+      />
 
       {/* ★ 계획을 다 하면 거기서 끝이다 ★
           더 하고 싶으면 명시적으로 늘린다. 저절로 다음 20개가 따라 나오면
-          「오늘 할 것」이 끝이 없는 목록이 되고, 끝냈다는 느낌을 못 받는다. */}
+          「오늘 할 것」이 끝이 없는 목록이 되고, 끝냈다는 느낌을 못 받는다.
+
+          성공과 미완료를 같은 크기로 외치지 않는다. 끝냈다는 것이 먼저고,
+          더 할 수 있다는 것은 그 아래 한 줄이다. */}
       {allDone && (
         <div className="td-done">
           <b>오늘 학습 완료</b>
-          <span>{planNow.assigned}개를 끝냈어요. 내일 복습으로 다시 만나요.</span>
+          <span>
+            오늘 정한 {planNow.assigned}개를 마쳤어요. 내일 복습으로 다시 만나요.
+            {grammarLeft > 0 && ' 문법은 선택이라 안 해도 괜찮아요.'}
+          </span>
           <button className="ghost-btn td-more" onClick={() => onLearnMore(10)}>
             10개 더 배우기
           </button>
         </div>
       )}
 
-      {/* 오늘 큐에 다 못 담은 복습이 있으면 알려 준다 — 조용히 밀어 두지 않는다 */}
+      {/* 오늘 큐에 다 못 담은 복습이 있으면 알려 준다 — 조용히 밀어 두지 않는다.
+          다 한 뒤라면 「추가로」라고 말한다. 끝냈는데 아직 남았다고만 하면
+          끝낸 것이 안 끝난 것처럼 읽힌다. */}
       {over.review + over.weak > 0 && (
         <button className="rowcard" onClick={onOpenReview}>
           <span className="rc-icon"><IconRepeat /></span>
           <span className="rc-body">
-            <b>복습이 더 남았어요</b>
+            <b>{allDone ? '더 복습할 수도 있어요' : '복습이 더 남았어요'}</b>
             <span>
-              {over.review > 0 && `오늘 안 담은 복습 ${over.review}개`}
+              {over.review > 0 && `${allDone ? '추가 복습' : '오늘 안 담은 복습'} ${over.review}개`}
               {over.review > 0 && over.weak > 0 && ' · '}
               {over.weak > 0 && `약점 ${over.weak}개`}
             </span>

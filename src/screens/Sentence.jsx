@@ -46,7 +46,7 @@ export default function Sentence({ words, progress, onPatternDone }) {
         ))}
       </div>
 
-      <BottomSheet open={!!pattern} onClose={close}>
+      <BottomSheet open={!!pattern} onClose={close} label="문장 패턴">
         {pattern && built && (
           <>
             <h3>{pattern.jp}</h3>

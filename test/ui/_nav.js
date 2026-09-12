@@ -25,25 +25,30 @@ export async function goTab(page, label, wait = 700) {
 
 /* 학습 시작.
  *
- * 오늘 화면이 「복습하기 · 새 단어 · 오늘의 문법」 셋으로 갈렸다. 예전에는
- * 「오늘의 학습 시작」 버튼 하나였고, 검사 열 곳이 그 버튼을 직접 눌렀다 —
- * 화면이 바뀌자 열 곳이 한꺼번에 30초씩 멈췄다. 그래서 어느 줄을 누를지는
- * 여기서만 정한다.
+ * 오늘 화면의 모양이 두 번 바뀌었다. 처음엔 「오늘의 학습 시작」 버튼 하나,
+ * 다음엔 「복습하기 · 새 단어 · 오늘의 문법」 셋, 이제는 주요 버튼 하나에
+ * 배정 내역이 아래 붙는 꼴이다. 그때마다 검사 열 곳이 한꺼번에 30초씩
+ * 멈췄다 — 그래서 어디를 누를지는 여기서만 정한다.
  *
- * 할 게 남은 첫 줄을 누른다. 검사마다 심어 두는 기록이 달라서(어떤 건 전부
- * 복습일, 어떤 건 전부 신규) 갈래를 못 박으면 그쪽이 0인 검사가 빈손으로
+ * 갈래를 안 주면 주요 버튼을 누른다. 그게 지금 상황에 맞는 행동(이어하기든
+ * 오늘 학습 시작이든)이라 사람이 누르는 것과 같다.
+ *
+ * 갈래를 주면 그 줄을 찾아 누른다. 검사마다 심어 두는 기록이 달라서(어떤 건
+ * 전부 복습일, 어떤 건 전부 신규) 갈래를 못 박으면 그쪽이 0인 검사가 빈손으로
  * 돌아온다. 다 했으면 아무것도 안 한 채로 false를 돌려준다. */
 export async function startStudy(page, want = null) {
   await goTab(page, '오늘');
 
-  /* 하던 게 있으면 그게 먼저다 — 앱이 「이어하기」를 맨 위에 두는 이유고,
-     사람도 그걸 누른다. 갈래가 갈린 뒤로는 이걸 건너뛰면 다른 갈래를 눌러
-     「하던 학습을 접을까요?」 창에 막힌다. */
+  /* 주요 버튼 하나가 「지금 할 것」이다. 하던 게 있으면 이어하기가 되고,
+     없으면 오늘 학습 시작이 된다 — 갈래를 안 물었으면 이걸 누르면 된다. */
   if (!want) {
-    const resume = page.locator('.rowcard', { hasText: '이어하기' });
-    if (await resume.count()) {
-      await resume.click();
+    const cta = page.locator('.bigcta');
+    if (await cta.count()) {
+      await cta.click();
       await page.waitForTimeout(900);
+      /* 이어하기면 바로 카드가 뜨고, 새로 시작이면 무슨 판인지 먼저 알려 준다 */
+      const intro0 = page.locator('.study.intro .bigstart');
+      if (await intro0.count()) { await intro0.click(); await page.waitForTimeout(900); }
       return true;
     }
   }
@@ -74,9 +79,35 @@ export async function startStudy(page, want = null) {
   return true;
 }
 
-// 갈래를 못 박고 싶은 검사용
-export const startWords = (page) => startStudy(page, '새 단어');
-export const startReview = (page) => startStudy(page, '복습하기');
+/* 카드 한 장을 판정한다.
+ *
+ * ★ 이제 답을 보고 나서 판정한다 ★
+ *
+ * 여태 판정 버튼이 앞면에서도 눌렸다. 자기평가의 기준은 「답을 보기 전에
+ * 떠올렸는지」인데, 앞면에서 누르면 「떠올린 것 같나」를 적게 된다.
+ * 그래서 앞면에는 「답 보기」만 있고, 판정은 뒤집은 뒤에 나온다.
+ *
+ * 검사 여덟 곳이 판정 버튼을 바로 눌렀다. 사람이 하는 순서(뒤집고 → 고른다)를
+ * 여기 한 번만 적어 둔다 — 화면이 또 바뀌어도 여기만 고치면 된다.
+ * 판정이 안 나오면 false를 준다(판이 끝났거나 카드가 없다). */
+export async function judgeCard(page, label = '알아요', wait = 500) {
+  const card = page.locator('.studycard');
+  if (await card.count() === 0) return false;
+  // 뒤집는다. 이미 뒤집혀 있으면 카드를 눌러도 아무 일 없다.
+  await card.first().click();
+  await page.waitForTimeout(180);
+  const btn = page.locator('.judgerow button', { hasText: label });
+  if (await btn.count() === 0) return false;
+  await btn.first().click();
+  await page.waitForTimeout(wait);
+  return true;
+}
+
+/* 갈래를 못 박고 싶은 검사용.
+   「새 단어」는 문장도 같이 배정되니 「새로 배우기」로, 「복습하기」는
+   배정 내역 줄 이름이 「복습」으로 바뀌었다. */
+export const startWords = (page) => startStudy(page, '새로 배우기');
+export const startReview = (page) => startStudy(page, '복습');
 
 export async function openMenu(page, label) {
   await goTab(page, '학습');

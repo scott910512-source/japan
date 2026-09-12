@@ -427,7 +427,7 @@ export default function Listen({
       </p>
 
       {/* 무엇으로 시작하는지 한 번 보여 주고 확인을 받는다 */}
-      <BottomSheet open={ask} onClose={() => setAsk(false)}>
+      <BottomSheet open={ask} onClose={() => setAsk(false)} label="재생 시작">
         <div className="ls-ask">
           <h3>이렇게 시작할까요?</h3>
           <div className="td-mix">

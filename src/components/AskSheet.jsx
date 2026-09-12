@@ -91,7 +91,7 @@ export default function AskSheet({
   const mine = history.filter((h) => h.cardId === card?.id && h.key !== shown?.key);
 
   return (
-    <BottomSheet open={open} onClose={onClose}>
+    <BottomSheet open={open} onClose={onClose} label="궁금한 것 물어보기">
       <div className="asksheet">
         <div className="ask-head">
           <h3>궁금한 거 물어보기</h3>

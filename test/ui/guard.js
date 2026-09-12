@@ -45,11 +45,14 @@ const boot = async (page) => {
   // ── 회독 중에도 탭바 ──
   await startStudy(page);
   await page.waitForTimeout(900);
-  ok('회독으로 들어감', await page.locator('.judgerow').count() === 1);
+  ok('회독으로 들어감', await page.locator('.studycard').count() === 1);
   ok('탭바가 남아 있음', await page.locator('.tabbar').isVisible());
   ok('탭 다섯 개 그대로', await page.locator('.tabbar .tab').count() === 5);
   ok('시작한 자리(오늘)가 켜져 있음', await page.locator('.tabbar .tab.active').textContent() === '오늘');
 
+  /* 판정 버튼은 뒤집은 뒤에 나온다 — 재려면 먼저 뒤집는다 */
+  await page.locator('.studycard').click();
+  await page.waitForTimeout(300);
   const box = await page.locator('.judgerow').boundingBox();
   const bar = await page.locator('.tabbar').boundingBox();
   ok('판정 버튼이 탭바에 안 가림', box.y + box.height <= bar.y + 1, `${Math.round(box.y + box.height)} vs ${Math.round(bar.y)}`);
@@ -64,7 +67,7 @@ const boot = async (page) => {
   // 다른 탭으로 나갈 수 있다
   await openVideos(page);
   await page.waitForTimeout(900);
-  ok('탭바로 회독을 빠져나옴', await page.locator('.judgerow').count() === 0);
+  ok('탭바로 회독을 빠져나옴', await page.locator('.studycard').count() === 0);
   ok('영상 화면이 열림', await page.locator('.vd-item').count() >= 1);
 
   // ── 영상 삭제 ──

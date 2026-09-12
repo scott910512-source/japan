@@ -42,7 +42,7 @@ import {
   loadSession, saveSession,
   loadStats, saveStats,
   loadPlan, savePlan,
-  touchStreak, loadStreak, setStorageErrorHandler,
+  touchStreak, loadStreak, setStorageErrorHandler, setStorageOkHandler,
   loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce,
   loadMemos, saveMemos,
   loadAsks, saveAsks,
@@ -51,6 +51,7 @@ import {
   loadVideoRemoved, saveVideoRemoved,
   loadTranslations, saveTranslations, loadTrends, saveTrends,
 } from './lib/storage.js';
+import { addToDay, removeFromDay } from './lib/stats.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
 import { applyVerdict, dueCards, isSessionClear, stateOf, todayKey, weakCards } from './lib/review.js';
@@ -145,6 +146,8 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [authSession, setAuthSession] = useState(null);
   const [syncState, setSyncState] = useState({ busy: false, at: null, error: null });
+  /* 저장이 막힌 상태. 해결될 때까지 남는다 — 토스트만으로는 못 알아챈다. */
+  const [storeError, setStoreError] = useState(null);
   const [remoteKeyEnvelope, setRemoteKeyEnvelope] = useState(null);
   const [vaultKey, setVaultKey] = useState(() => loadVaultKey());
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
@@ -157,8 +160,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    setStorageErrorHandler(showToast);
+    /* 저장 실패는 토스트로 끝내지 않는다 — 두 걸음 걷고 나면 사라지는데 그
+       사이 기록은 계속 저장되지 않는다. 해결될 때까지 설정의 저장 상태에 남는다. */
+    setStorageErrorHandler((msg) => { showToast(msg); setStoreError(msg); });
+    // 켜져 있을 때만 끈다 — write가 성공할 때마다 화면을 다시 그리지 않게
+    setStorageOkHandler(() => setStoreError((cur) => (cur ? null : cur)));
     setTTSErrorHandler(showToast);
+    /* 새 버전이 준비됐는데 학습 중이라 미뤄 둔 경우(main.jsx). 조용히 미루면
+       왜 안 바뀌는지 알 수 없으니 한 번 알린다 — 판을 끝내면 적용된다. */
+    const onWaiting = () => showToast('새 버전이 준비됐어요 · 학습을 마치면 적용돼요');
+    window.addEventListener('jp:update-waiting', onWaiting);
     /* 연속일은 여기서 올리지 않는다 — 앱을 켠 것과 공부한 것은 다르다.
        올리는 자리는 오늘 첫 판정(applyReview)이다. */
     setStreak(loadStreak());
@@ -173,7 +184,10 @@ export default function App() {
       if (audioUnlocked()) window.removeEventListener('pointerdown', unlock);
     };
     window.addEventListener('pointerdown', unlock);
-    return () => window.removeEventListener('pointerdown', unlock);
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('jp:update-waiting', onWaiting);
+    };
   }, [showToast]);
 
   /* 온보딩을 열지 말지 정한다.
@@ -446,22 +460,27 @@ export default function App() {
     }
 
     if (!verdict) return;
-    const day = todayKey();
+
+    /* 되돌릴 때는 그 판정이 적힌 날에서 뺀다. 오늘로 잡으면 자정을 넘겨
+       되돌렸을 때 어제 올린 것을 오늘에서 빼게 된다. */
+    const day = opts?.day || todayKey();
+
+    /* ★ 되돌리면 활동 수도 물러야 한다 ★
+     *
+     * 여태 판정은 올리고 되돌리기는 안 뺐다. 그래서 잘못 눌러 되돌리고 다시
+     * 누르면 카드 하나를 한 번 판정했는데 활동이 둘로 셌다. 화면에 「오늘 40개」가
+     * 뜨는데 실제로 본 카드는 스무 장인 식이다 — 고칠 데를 찾으려고 기록을
+     * 보는 사람에게 기록이 거짓말을 하면 볼 이유가 없다. */
+    if (opts?.undo) {
+      setStats((prev) => removeFromDay(prev, day, [verdict]));
+      /* 연속일은 되돌리지 않는다. 「오늘 공부했나」는 판정 하나에 달린 게 아니고,
+         한 장을 물렀다고 그 날 안 한 것이 되지도 않는다. 되돌릴 근거가 없다. */
+      return;
+    }
+
     // 오늘 처음 판정한 순간에 연속일이 오른다. 같은 날 두 번째부터는 그대로 둔다.
     setStreak((prev) => (prev.lastDate === day ? prev : touchStreak()));
-    setStats((prev) => {
-      const cur = prev[day] || { studied: 0, known: 0, vague: 0, unknown: 0 };
-      return {
-        ...prev,
-        [day]: {
-          ...cur,
-          studied: cur.studied + 1,
-          known: cur.known + (verdict === 'known' || verdict === 'master' ? 1 : 0),
-          vague: cur.vague + (verdict === 'vague' ? 1 : 0),
-          unknown: cur.unknown + (verdict === 'unknown' ? 1 : 0),
-        },
-      };
-    });
+    setStats((prev) => addToDay(prev, day, [verdict]));
   }, []);
 
   /* 회독 화면 밖에서 판정이 들어올 때 — 지금은 실전 연습이 유일하다.
@@ -485,19 +504,9 @@ export default function App() {
        계획에 없는 카드면 여기서 계획 수를 늘리지 않는다 — 자유 학습으로
        오늘 목표가 저절로 커지면 「오늘 할 것」이 무슨 뜻인지 알 수 없게 된다. */
     setPlan((prev) => ids.reduce((pl, id) => noteFreeStudy(pl, id), prev));
-    setStats((prev) => {
-      const cur = prev[day] || { studied: 0, known: 0, vague: 0, unknown: 0 };
-      let vague = 0;
-      let unknown = 0;
-      for (const id of ids) {
-        if (map[id] === 'vague') vague += 1;
-        if (map[id] === 'unknown') unknown += 1;
-      }
-      return {
-        ...prev,
-        [day]: { ...cur, studied: cur.studied + ids.length, vague: cur.vague + vague, unknown: cur.unknown + unknown },
-      };
-    });
+    /* 여기도 같은 표를 쓴다. 손으로 세던 때는 known을 빼먹어서, 실전에서
+       맞힌 것이 어느 칸에도 안 남았다. */
+    setStats((prev) => addToDay(prev, day, ids.map((id) => map[id])));
   }, []);
 
   const saveMemo = useCallback((id, text) => {
@@ -636,10 +645,23 @@ export default function App() {
           : '지금 볼 게 없어요 — 학습 탭에서 골라 보세요'));
       return;
     }
-    /* 순서와 약점 두 번은 daily.js가 정한다 — 계획은 「무엇을」만 들고 있다 */
+    /* 순서와 약점 두 번은 daily.js가 정한다 — 계획은 「무엇을」만 들고 있다.
+     *
+     * ★ 여기에 lanes를 또 넘기면 안 된다 ★
+     *
+     * left는 이미 remaining(plan, lanes)로 갈래를 걸러 온 것이다. 그런데 큐를
+     * 짜는 쪽에 lanes를 다시 넘기면, 그쪽은 카드의 갈래를 지금 회독 상태에서
+     * 다시 따져 본다 — 그리고 둘이 어긋난다.
+     *
+     * 실제로 이렇게 막혔다. 새 단어를 몇 장 「몰라요」로 판정하고 나가면, 그
+     * 카드들은 이제 「오늘 본 적 있고 오늘 다시 볼 것」이라 복습으로 분류된다.
+     * 계획에는 여전히 신규 칸에 남아 있는데, lanes: ['fresh']로 다시 거르니
+     * 하나도 안 남아서 「지금 볼 게 없어요」가 떴다 — 화면에는 「새로 배우기
+     * 4개」가 뜬 채로.
+     *
+     * 무엇을 할지는 계획이 이미 정했다. 여기서는 순서만 정한다. */
     const built = buildDailyStudyQueue(left, review, {
       goals: { fresh: left.length, review: left.length, weak: left.length },
-      lanes,
     });
     if (!built.queue.length) {
       showToast('지금 볼 게 없어요 — 학습 탭에서 골라 보세요');
@@ -854,6 +876,9 @@ export default function App() {
             resumeLabel={session?.label}
             grammarLeft={grammarLeft}
             grammarNext={grammarNext}
+            /* ★ 주요 버튼 하나 ★ 갈래를 안 주면 배정된 것을 순서대로 다 돈다.
+               고를 것 셋을 나란히 놓으니 초보자가 무엇부터인지 고민했다. */
+            onStartAll={() => guardDeck(() => startToday(null), LANE_DECK(null))}
             onStartWords={() => guardDeck(() => startToday(['fresh']), LANE_DECK(['fresh']))}
             onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
             onOpenGrammar={() => openMenu('grammar')}
@@ -878,6 +903,10 @@ export default function App() {
             review={review}
             stats={stats}
             streak={streak}
+            /* 오늘 배정·완료는 계획 하나에서 나온다 — 기록 화면이 따로 세면
+               오늘 화면과 숫자가 어긋난다 */
+            planNow={planNow}
+            grammarLeft={grammarLeft}
             onOpenReview={() => setSub('review')}
           />
         </section>
@@ -933,6 +962,9 @@ export default function App() {
             onReload={() => window.location.reload()}
             session={authSession}
             syncState={syncState}
+            /* 저장이 막혔으면 그 표시는 해결될 때까지 남는다 — 잠깐 뜨는
+               토스트만으로는 그날 공부한 게 안 저장되는 걸 모른다. */
+            storeError={storeError}
             onSync={() => runSync(false)}
             onSignedOut={() => {
               setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null); setOfflinePass(false);
@@ -1096,7 +1128,7 @@ export default function App() {
       )}
 
       {/* 하던 판이 사라지기 전에 한 번 알린다 */}
-      <BottomSheet open={Boolean(askSwap)} onClose={() => setAskSwap(null)}>
+      <BottomSheet open={Boolean(askSwap)} onClose={() => setAskSwap(null)} label="하던 학습을 접을까요?">
         {askSwap && (
           <div className="swapask">
             <h3>하던 학습을 접을까요?</h3>
@@ -1105,7 +1137,10 @@ export default function App() {
               새로 시작하면 그 진행은 접히고, 푼 만큼은 기록에 남아요.
             </p>
             <div className="swapask-acts">
-              <button className="ghost-btn" onClick={() => setAskSwap(null)}>그만두기</button>
+              {/* 「그만두기」는 무엇을 그만두는지가 거꾸로 읽힌다 — 하던 학습을
+                  그만두는 것처럼 보이는데 실제로는 새로 시작하는 것을 그만두는
+                  버튼이다. 결과를 그대로 적는다. */}
+              <button className="ghost-btn" onClick={() => setAskSwap(null)}>하던 학습 계속하기</button>
               <button
                 className="submit-btn"
                 onClick={() => { const go = askSwap.run; setAskSwap(null); go(); }}

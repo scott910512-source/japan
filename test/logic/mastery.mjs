@@ -13,6 +13,7 @@
 import {
   applyVerdict, emptyState, stateOf, dueDate, isDue, isMastered, isSelfKnown,
   isDoneEnough, isSessionClear, migrateState, intervalOf, MASTER_STREAK, VERDICT,
+  addDays, nextReviewLabel, selfKnownLabel, MASTERY_RULE,
 } from '../../src/lib/review.js';
 import { roundOf, stageOf, roundSummary } from '../../src/lib/rounds.js';
 
@@ -135,6 +136,50 @@ ok('1회독 하루', intervalOf(1) === 1);
 ok('2회독 사흘', intervalOf(2) === 3);
 ok('4회독 한 달', intervalOf(4) === 30);
 ok('졸업 뒤에도 계속 만난다', intervalOf(9) === 180, `${intervalOf(9)}`);
+
+console.log('\n[ ★ 안내 문구는 실제 복습일에서 만든다 ★ ]');
+{
+  /* 판정 화면 둘이 「졸업 처리했어요 — 한 달 뒤에 한 번만 다시 나와요」를
+     적어 두었다. 그런데 그 판정이 실제로 잡는 복습일은 180일 뒤다.
+     사용자는 한 달을 기다리는데 앱은 반년을 셌다. */
+  const st = applyVerdict(emptyState(), VERDICT.MASTER, D0);
+  const label = selfKnownLabel(st, D0);
+  ok('★ 「한 달」이라고 하지 않는다 ★', !label.includes('한 달'), label);
+  ok('실제 간격(반년)을 말한다', /6달/.test(label), label);
+  ok('날짜도 실제 due와 맞다', dueDate(st) === addDays(D0, 180), dueDate(st));
+
+  /* ★ 졸업이라고 부르지 않는다 ★
+     이 판정은 자가 신고다. 코드는 selfKnown으로 따로 적어 검증된 숙련과
+     구별하는데, 화면만 둘을 같은 말로 불렀다. */
+  ok('★ 졸업이라고 하지 않는다 ★', !label.includes('졸업'), label);
+  ok('자가 신고임을 말한다', /이미 아는/.test(label), label);
+  ok('실제로도 검증된 숙련이 아니다', isMastered(st) === false && isSelfKnown(st) === true);
+}
+
+console.log('\n[ 복습일 문구가 간격마다 달라진다 ]');
+{
+  const at = (days) => nextReviewLabel({ lastSeen: D0, due: addDays(D0, days), level: 1 }, D0);
+  ok('오늘', at(0) === '오늘 다시 나와요', at(0));
+  ok('내일', at(1) === '내일 다시 나와요', at(1));
+  ok('사흘', at(3) === '3일 뒤에 다시 나와요', at(3));
+  ok('한 달', at(30) === '한 달쯤 뒤에 다시 나와요', at(30));
+  ok('석 달', at(90) === '3달쯤 뒤에 다시 나와요', at(90));
+  ok('반년', at(180) === '6달쯤 뒤에 다시 나와요', at(180));
+  /* 지난 복습일은 「지났다」가 아니라 「오늘」이다 — 오늘 큐에 들어오니까 */
+  ok('밀린 것은 오늘', at(-5) === '오늘 다시 나와요', at(-5));
+  ok('한 번도 안 본 것은 문구가 없다', nextReviewLabel(emptyState(), D0) === null);
+}
+
+console.log('\n[ ★ 완료 규칙을 한자리 반복으로 설명하지 않는다 ★ ]');
+{
+  /* 기록 화면이 「'알아요'를 이어서 네 번 고르면 완료예요」라고 적어 두었다.
+     한자리에서 네 번 누르면 되는 것처럼 읽히는데, 실제로는 하루에 한 칸만,
+     복습일에만 오른다. mastery.mjs 앞쪽에서 그 동작을 이미 검사한다. */
+  ok('★ 「이어서」로 설명하지 않는다 ★', !MASTERY_RULE.includes('이어서'), MASTERY_RULE);
+  ok('하루 한 칸을 말한다', /하루에 한 칸/.test(MASTERY_RULE));
+  ok('복습일 조건을 말한다', /복습일/.test(MASTERY_RULE));
+  ok('필요한 횟수를 말한다', MASTERY_RULE.includes(String(MASTER_STREAK)));
+}
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

@@ -101,9 +101,12 @@ const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp
   // 25장을 돌려 진행이 계속되는지 본다
   for (let i = 0; i < 25; i++) {
     if (await page.locator('.studycard').count() === 0) break;
-    if (await known.count() === 0) break;
+    /* ★ 뒤집기가 먼저다 ★ 판정 버튼은 뒤집은 뒤에 생기는데, known.count()를
+       먼저 보고 0이면 빠져나오게 되어 있었다 — 앞면에서 늘 0이라 한 바퀴도
+       못 돌고 나왔다. */
     await page.locator('.studycard').first().click().catch(() => {});
     await page.waitForTimeout(160);
+    if (await known.count() === 0) break;
     await known.click();
     await page.waitForTimeout(260);
   }

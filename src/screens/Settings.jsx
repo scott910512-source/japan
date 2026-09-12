@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconDownload, IconUpload, IconTrash, IconSpeaker, IconRewind, IconList, IconMap } from '../components/Icons.jsx';
 import {
-  exportBackup, importBackup, backupSummary, clearAll, DEFAULT_SETTINGS,
+  exportBackup, importBackup, backupSummary, backupContents, BACKUP_EXCLUDED,
+  clearAll, DEFAULT_SETTINGS,
 } from '../lib/storage.js';
 import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
 import { GOAL_CHOICES, todayKey } from '../lib/review.js';
-import { normalizeGoals } from '../lib/daily.js';
+import {
+  normalizeGoals, DAY_PRESETS, spreadGoal, goalTotal, presetOf,
+} from '../lib/daily.js';
 import Account from './Account.jsx';
 import KeyVault from '../components/KeyVault.jsx';
 import VoicePicker from '../components/VoicePicker.jsx';
@@ -181,10 +184,69 @@ const STATUS_TEXT = {
 
 export default function Settings({
   settings, onChange, onReplayOnboarding, onOpenWordManager, onOpenTranslate, onToast, onReload,
-  session, syncState, onSync, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
+  session, syncState, storeError, onSync, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
 }) {
   const goals = normalizeGoals(settings.goals ?? settings.dailyGoal);
+  /* 총량으로 고르고 갈래는 접어 둔다. 기존에 직접 맞춰 둔 목표는 프리셋에
+     억지로 끼우지 않는다 — presetOf가 null이면 「직접 정함」이 사실이다. */
+  const total = goalTotal(goals);
+  const preset = presetOf(goals);
+  const [showLanes, setShowLanes] = useState(false);
+  /* ── 저장 상태 한 줄 ──
+   *
+   * 화면에 「계정에 저장돼요」와 「이 브라우저에만 저장돼요」가 같이 있어서,
+   * 무엇이 어디에 있는지 알 수 없었다. 실제 상태에서 하나만 만든다.
+   *
+   * 없는 정보는 말하지 않는다. 「미전송 변경 N개」는 그걸 세는 장치가 없어서
+   * 적지 않는다 — 숫자를 지어내는 것보다 안 적는 게 낫다. */
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => {
+      window.removeEventListener('online', up);
+      window.removeEventListener('offline', down);
+    };
+  }, []);
+
+  const save = (() => {
+    /* 저장이 막힌 건 다른 무엇보다 먼저 알려야 한다 — 지금 공부하는 게
+       하나도 안 남고 있다는 뜻이다. */
+    if (storeError) {
+      return { tone: 'bad', title: '기록을 저장하지 못했어요', sub: `${storeError} 지금 백업해 두고 저장 공간을 비워 주세요.` };
+    }
+    if (!session) {
+      return {
+        tone: 'warn',
+        title: '이 기기에만 저장 중',
+        sub: '브라우저 데이터를 지우면 함께 사라져요. 가끔 백업하거나 로그인해 주세요.',
+      };
+    }
+    if (syncState?.busy) return { tone: 'ok', title: '동기화 중이에요', sub: '잠시만 기다려 주세요.' };
+    if (syncState?.error) {
+      return { tone: 'bad', title: '마지막 동기화가 실패했어요', sub: `${syncState.error} — 이 기기에는 저장돼 있어요.` };
+    }
+    if (!online) {
+      return { tone: 'warn', title: '이 기기에 저장됨 · 연결 후 동기화', sub: '지금은 오프라인이에요. 연결되면 계정으로 올려요.' };
+    }
+    if (syncState?.at) {
+      const at = new Date(syncState.at);
+      const when = Number.isNaN(at.getTime()) ? '' : ` ${at.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+      return { tone: 'ok', title: '계정에 동기화됨', sub: `마지막 성공${when}. 영상 자료는 따로 올라가요.` };
+    }
+    return { tone: 'warn', title: '아직 동기화하지 않았어요', sub: '계정에 올리려면 위에서 「지금 동기화」를 눌러 주세요.' };
+  })();
+
   const fileRef = useRef(null);
+  /* 백업 범위는 열었을 때만 센다 — 저장소를 읽는 일이라 매번 그릴 때마다
+     하면 설정 화면이 스크롤할 때 같이 무거워진다. */
+  const [showScope, setShowScope] = useState(false);
+  const scope = useMemo(
+    () => (showScope ? backupContents(exportBackup()) : []),
+    [showScope],
+  );
   const [keyDraft, setKeyDraft] = useState(settings.gttsKey || '');
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -254,12 +316,18 @@ export default function Settings({
     try {
       const backup = JSON.parse(await file.text());
       const s = backupSummary(backup);
+      /* ★ 이 파일에 실제로 든 것만 교체된다 ★
+         「완전히 교체」라고만 적어 두면, 이 파일에 없는 칸(옛 백업의 영상·자막)이
+         지워진 줄 알거나 남은 줄 알거나 둘 다 짐작이 된다. 든 것을 세어 보여 준다. */
+      const has = backupContents(backup).filter((r) => r.present && r.count !== 0);
       const ok = window.confirm(
-        `이 백업으로 되돌릴까요?\n\n내 단어 ${s.customWords}개 · 학습한 단어 ${s.reviewed}개 · 연속 ${s.streak}일` +
-        `${s.lastDate ? `\n마지막 학습일 ${s.lastDate}` : ''}\n\n지금 기기의 학습 기록은 이 백업으로 완전히 교체돼요.`,
+        `이 백업으로 되돌릴까요?\n\n내 단어 ${s.customWords}개 · 학습한 단어 ${s.reviewed}개 · 연속 ${s.streak}일`
+        + `${s.lastDate ? `\n마지막 학습일 ${s.lastDate}` : ''}`
+        + `\n\n이 파일에 든 것: ${has.map((r) => r.label).join(' · ') || '없음'}`
+        + '\n이 항목만 교체돼요. 파일에 없는 기록과 이 기기의 API 키는 그대로 남아요.',
       );
       if (!ok) return;
-      importBackup(backup);
+      importBackup(backup);   // 하나라도 저장에 실패하면 되돌리고 던진다
       onToast('복원했어요. 앱을 다시 불러올게요');
       setTimeout(onReload, 600);
     } catch (err) {
@@ -271,14 +339,32 @@ export default function Settings({
 
   /* 서비스워커가 옛 화면을 붙잡고 있으면 고친 게 안 보인다.
    * 홈 화면에 추가한 iOS 앱은 사실상 안 닫혀서 갱신이 늦다.
-   * 캐시만 비우고 다시 받는다 — 학습 기록은 localStorage에 있어서 그대로 남는다. */
+   * 캐시만 비우고 다시 받는다 — 학습 기록은 localStorage에 있어서 그대로 남는다.
+   *
+   * ★ 우리 것만 지운다 ★
+   *
+   * 여태 getRegistrations()와 caches.keys()로 가져온 것을 전부 해제·삭제했다.
+   * 같은 출처(scott910512-source.github.io)에 다른 앱도 올라가니, 이 버튼이
+   * 남의 앱 캐시와 서비스워커까지 지울 수 있는 구조였다. 다른 앱에 실제로
+   * 서비스워커가 있다는 뜻은 아니지만, 「최신 버전 받기」가 옆 앱을 망가뜨릴
+   * 수 있게 두어야 할 이유는 없다.
+   *
+   * 서비스워커는 scope가 이 앱 밑인 것만, 캐시는 이름표(cacheId)가 붙은 것만
+   * 골라 지운다. */
   const forceUpdate = async () => {
     onToast('최신 버전을 받는 중이에요');
     try {
+      const here = new URL(__BASE_PATH__, window.location.origin).href;
       const regs = await navigator.serviceWorker?.getRegistrations?.() ?? [];
-      await Promise.all(regs.map((r) => r.unregister()));
+      await Promise.all(regs
+        .filter((r) => (r.scope || '').startsWith(here))
+        .map((r) => r.unregister()));
       const keys = await caches?.keys?.() ?? [];
-      await Promise.all(keys.map((k) => caches.delete(k)));
+      await Promise.all(keys
+        /* workbox가 만든 이름에는 cacheId가 들어간다. 옛 배포에서 만든 캐시는
+           이름표가 없을 수 있어서 경로로도 한 번 걸러 준다. */
+        .filter((k) => k.includes(__CACHE_ID__) || k.includes(__BASE_PATH__))
+        .map((k) => caches.delete(k)));
     } catch { /* 지우지 못해도 새로고침은 해 본다 */ }
     window.location.reload(true);
   };
@@ -368,13 +454,14 @@ export default function Settings({
         </div>
       </div>
 
-      {/* 문장에는 아직 레벨이 안 붙어 있다. 근거 없이 붙이지 않기로 했으니
-          「미분류」로 남는데, 그걸 새 학습에 넣을지는 고를 수 있어야 한다. */}
+      {/* 문장 레벨은 문장에 나오는 낱말의 급수로 잰다. 근거를 못 찾은 문장은
+          미분류로 남는데, 그걸 새 학습에 넣을지는 고를 수 있어야 한다.
+          모른다는 게 어렵다는 뜻은 아니라서 기본은 넣는 쪽이다. */}
       <div className="section-label">문장 범위</div>
       <div className="card">
         <Toggle
-          label="레벨이 안 붙은 문장도 배정"
-          sub="상황별 문장에는 아직 JLPT 레벨이 없어요. 끄면 레벨이 맞는 문장만 새로 배정해요 — 이미 배운 문장은 계속 복습합니다."
+          label="레벨을 못 잰 문장도 배정"
+          sub="문장 레벨은 그 문장에 나오는 낱말의 급수로 재요. 낱말을 못 찾은 문장은 미분류로 남는데, 끄면 그런 문장은 새로 배정하지 않아요 — 이미 배운 문장은 계속 복습합니다."
           on={settings.sentenceScope !== 'level'}
           onClick={() => onChange({ sentenceScope: settings.sentenceScope === 'level' ? 'all' : 'level' })}
         />
@@ -411,6 +498,12 @@ export default function Settings({
           on={settings.hangulPron} onClick={() => onChange({ hangulPron: !settings.hangulPron })} />
         <Toggle label="자동 마이크" sub="뜻을 열면 바로 듣기 시작해요 (처음 한 번은 직접 눌러 권한을 주세요)"
           on={settings.autoMic} onClick={() => onChange({ autoMic: !settings.autoMic })} />
+        {/* ★ 답을 보기 전에 판정할 수 있게 할까 ★
+            기본은 끈다 — 답을 보기 전에 누르면 「떠올렸나」가 아니라 「떠올린 것
+            같나」를 적게 되고, 그 기록이 복습 간격을 정한다. 대신 없애지는 않는다.
+            아는 것만 많은 회독에서는 카드마다 한 번 더 두드리는 게 전부 마찰이다. */}
+        <Toggle label="빠른 판정" sub="답을 보기 전에도 바로 판정해요. 아는 게 많아 넘기기만 할 때 씁니다 — 끄면 답을 보고 고르게 돼요"
+          on={settings.quickJudge} onClick={() => onChange({ quickJudge: !settings.quickJudge })} />
         <Toggle label="예문 보기" sub="뜻과 함께 예문을 보여줘요"
           on={settings.showExample} onClick={() => onChange({ showExample: !settings.showExample })} />
         <Toggle label="카드 섞기" sub="순서를 외워버리는 걸 막아요"
@@ -429,33 +522,69 @@ export default function Settings({
           />
         </div>
 
-        {/* 갈래마다 따로 정한다. 하나로 묶어 두면 복습이 밀린 날 새로 배우는
-            몫을 뺏기고, 진도가 밀린 벌로 새 단어를 못 보게 된다. */}
+        {/* ★ 고르는 자리는 총량 하나 ★
+         *
+         * 갈래마다 따로 세는 것은 이유가 있다 — 복습이 밀린 날 새로 배우는 몫을
+         * 뺏기면 진도가 밀린 벌로 새 단어를 못 보게 된다. 그 판단은 그대로 둔다.
+         *
+         * 문제는 처음 쓰는 사람이 보는 숫자였다. 기본값이 셋 다 20이라 자료가
+         * 쌓이면 하루가 예순 장이 되는데, 「20」 셋을 본 사람은 스무 장을 고른
+         * 줄로 안다. 총량으로 고르고, 갈래 배분은 아래 고급에서 만진다. */}
         <div className="setrow col">
-          <div className="set-title">오늘 학습량</div>
+          <div className="set-title">
+            오늘 학습량
+            <span className="set-val">하루 최대 {total}장</span>
+          </div>
           <div className="set-sub">
-            갈래마다 따로 셉니다. 복습이 밀려도 새 단어 몫은 그대로예요.
+            고른 양을 복습 · 새로 배우기 · 약점으로 나눠 배정해요. 있는 만큼만
+            담기니 실제로는 이보다 적을 수 있어요.
           </div>
-          <div className="goalrow">
-            {LANE_GOALS.map(({ key, label, note }) => (
-              <div key={key} className="goalone">
-                <div className="set-title">
-                  {label}
-                  <span className="set-val">{goals[key]}장</span>
-                </div>
-                <div className="set-sub">{note}</div>
-                <div className="grouppick">
-                  {GOAL_CHOICES.map((g) => (
-                    <button key={g} className={goals[key] === g ? 'active' : ''}
-                      onClick={() => onChange({ goals: { ...goals, [key]: g } })}>{g}</button>
-                  ))}
-                </div>
-              </div>
+          <div className="grouppick">
+            {DAY_PRESETS.map((p) => (
+              <button key={p.id} className={preset === p.id ? 'active' : ''}
+                onClick={() => onChange({ goals: spreadGoal(p.total) })}>
+                {p.label} {p.total}
+              </button>
             ))}
+            {/* 기존에 직접 맞춰 둔 목표를 프리셋에 억지로 끼우지 않는다.
+                고른 적 없는 사람에게 「직접 정함」이 켜져 있으면 그게 사실이다. */}
+            {!preset && <button className="active" disabled>직접 정함 {total}</button>}
           </div>
-          <div className="set-sub" style={{ marginTop: 10 }}>
-            다 하면 하루 {goals.fresh + goals.review + goals.weak}장이에요.
+          <div className="set-sub" style={{ marginTop: 8 }}>
+            복습 {goals.review} · 새로 배우기 {goals.fresh} · 약점 {goals.weak}
+            {goals.review > goals.fresh && ' — 복습에 더 많이 배정했어요'}
           </div>
+
+          {/* 갈래를 직접 만지는 자리는 접어 둔다. 처음부터 셋을 들이밀면
+              무엇을 고르는 건지 모른 채로 숫자를 만지게 된다. */}
+          <button className="ghost-btn" style={{ marginTop: 10 }}
+            onClick={() => setShowLanes((v) => !v)} aria-expanded={showLanes}>
+            {showLanes ? '갈래별 설정 접기' : '갈래별로 직접 정하기'}
+          </button>
+          {showLanes && (
+            <>
+              <div className="set-sub" style={{ marginTop: 8 }}>
+                갈래마다 따로 셉니다. 복습이 밀려도 새 단어 몫은 그대로예요.
+              </div>
+              <div className="goalrow">
+                {LANE_GOALS.map(({ key, label, note }) => (
+                  <div key={key} className="goalone">
+                    <div className="set-title">
+                      {label}
+                      <span className="set-val">{goals[key]}장</span>
+                    </div>
+                    <div className="set-sub">{note}</div>
+                    <div className="grouppick">
+                      {GOAL_CHOICES.map((g) => (
+                        <button key={g} className={goals[key] === g ? 'active' : ''}
+                          onClick={() => onChange({ goals: { ...goals, [key]: g } })}>{g}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="setrow col">
@@ -584,10 +713,48 @@ export default function Settings({
 
       <div className="section-label">데이터</div>
       <div className="card">
-        <div className="set-sub" style={{ marginBottom: 10 }}>
-          학습 기록은 이 브라우저에만 저장돼요. 브라우저 데이터를 지우면 함께 사라지니 가끔 백업해 두세요.
-          {settings.lastBackup && <><br />마지막 백업 {settings.lastBackup}</>}
+        {/* ★ 저장 상태를 한 줄로 ★
+         *
+         * 「계정에 저장돼요」와 「이 브라우저에만 저장돼요」가 화면에 같이 있었다.
+         * 무엇이 어디에 저장됐는지 사용자가 판단할 방법이 없었다. 실제 상태를
+         * 보고 한 가지만 말한다 — 모르는 것은 말하지 않는다. */}
+        <div className={`savestate ${save.tone}`}>
+          <b>{save.title}</b>
+          <span>{save.sub}</span>
         </div>
+        {settings.lastBackup && (
+          <div className="set-sub" style={{ marginBottom: 10 }}>
+            마지막 백업 {settings.lastBackup}
+          </div>
+        )}
+
+        {/* ★ 무엇이 들어가는지 내보내기 전에 보여 준다 ★
+            여태 일곱 칸만 담으면서 「완전히 교체」라고 안내했다. 빠진 걸 모르면
+            브라우저가 데이터를 비운 뒤에야 없다는 걸 알게 된다. */}
+        <button className="ghost-btn" style={{ width: '100%', marginBottom: 10 }}
+          onClick={() => setShowScope((v) => !v)} aria-expanded={showScope}>
+          {showScope ? '백업 범위 접기' : '무엇이 백업되나요?'}
+        </button>
+        {showScope && (
+          <div className="bk-scope">
+            <div className="bk-head">백업에 들어가요</div>
+            <ul className="bk-list">
+              {scope.map((r) => (
+                <li key={r.key}>
+                  <span>{r.label}</span>
+                  <b>{r.count == null ? (r.present ? '있음' : '없음') : `${r.count}개`}</b>
+                </li>
+              ))}
+            </ul>
+            <div className="bk-head">안 들어가요</div>
+            <ul className="bk-list bk-out">
+              {BACKUP_EXCLUDED.map((r) => (
+                <li key={r.label}><span>{r.label}</span><em>{r.why}</em></li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="btnrow">
           <button className="ghost-btn" onClick={download}><IconDownload /> 백업 내려받기</button>
           <button className="ghost-btn" onClick={() => fileRef.current?.click()}><IconUpload /> 복원하기</button>

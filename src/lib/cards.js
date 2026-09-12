@@ -8,11 +8,12 @@
  * 보여 주고 일본어를 떠올리게 된다 — 회화에 제일 가까운 연습이다. */
 
 import { ALL_SITUATIONS } from '../data/allSituations.js';
+import { defaultLexicon, gradeSentence } from './sentlevel.js';
 
 /* 문장 하나 → 카드 하나.
  * kind를 남겨 두는 이유는 화면이 글자 크기를 달리 잡아야 하기 때문이다.
  * 문장을 단어만 한 크기로 띄우면 화면 밖으로 나간다. */
-export function sentenceToCard(item, place) {
+export function sentenceToCard(item, place, grade = null) {
   return {
     id: item.id,
     kanji: item.jp,
@@ -29,9 +30,19 @@ export function sentenceToCard(item, place) {
      *
      * 그래서 둘을 갈라 둔다. importance는 자료에 있는 값 그대로, level은
      * 모르면 모른다고 한다(null). 레벨을 고른 사람에게 미분류 문장을 새로
-     * 배정하지 않는 판단은 daily.js가 한다. */
+     * 배정하지 않는 판단은 daily.js가 한다.
+     *
+     * 추측을 안 하는 것과 재지 않는 것은 다르다. 이제 문장에 실제로 나오는
+     * 낱말의 급수를 세어 레벨을 매긴다(sentlevel.js) — 그건 근거가 있으니
+     * 쓴다. 다만 그 계산은 여기서 하지 않는다. 이 함수는 자료 한 줄을 카드
+     * 모양으로 바꾸는 일만 하고, 잰 값은 grade로 받는다. 자료에 레벨이
+     * 적혀 있으면 그게 우선이다 — 사람이 적어 둔 값이 계산보다 낫다.
+     *
+     * levelBy에는 그렇게 판정한 근거(어느 낱말·어느 문형)를 남긴다.
+     * 근거를 못 대는 레벨은 다시 추측이 된다. */
     importance: item.star ?? null,
-    level: item.level ?? null,
+    level: item.level ?? grade?.level ?? null,
+    levelBy: item.level ? '자료' : (grade?.by ?? null),
     // 대답이 있으면 예문 자리에 넣는다 — 실제로 주고받는 모양이 같이 보인다
     example: item.reply?.jp || '',
     exampleKana: item.reply?.kana || '',
@@ -44,8 +55,14 @@ export function sentenceToCard(item, place) {
 let cached = null;
 export function allSentenceCards() {
   if (!cached) {
+    /* 레벨은 여기서 한 번만 잰다. 600문장에 3ms라 화면마다 다시 재도
+       티는 안 나지만, 같은 문장이 화면마다 다른 레벨로 보일 여지를 아예
+       안 만드는 편이 낫다. */
+    const lex = defaultLexicon();
     cached = ALL_SITUATIONS.flatMap((s) => s.parts.flatMap(
-      (p) => p.items.map((i) => sentenceToCard(i, `${s.label} · ${p.label}`)),
+      (p) => p.items.map((i) => sentenceToCard(
+        i, `${s.label} · ${p.label}`, gradeSentence(i, lex),
+      )),
     ));
   }
   return cached;
@@ -67,12 +84,16 @@ export function dailyPool(words, sentences, {
    *
    * 미분류 문장은 어떻게 하나. 레벨을 모르니 거를 수도 없다.
    *
-   *   빼면  — 지금 자료에는 레벨이 하나도 안 적혀 있어서 문장이 통째로
-   *           사라진다. 문제를 기능을 없애서 푸는 것이다
+   * 처음에는 600문장이 전부 미분류였다. 그때 빼는 쪽을 기본으로 뒀다면
+   * 문장이 통째로 사라졌을 것이다 — 문제를 기능을 없애서 푸는 셈이다.
+   * 이제 문장에 나오는 낱말로 레벨을 재고(sentlevel.js), 근거를 못 찾은
+   * 90여 개만 미분류로 남는다. 그래도 갈림길은 그대로 둔다.
+   *
+   *   빼면  — 근거가 없다는 이유로 쉬운 문장까지 안 나온다
    *   넣으면 — 「N5만 골랐는데 왜 이게 나오나」가 남는다
    *
-   * 기본은 넣는 쪽이다. 대신 미분류라고 말하고, 빼고 싶으면 뺄 수 있게 한다
-   * (설정의 sentenceScope). 자료에 레벨이 붙는 날 이 갈림길은 없어진다. */
+   * 기본은 넣는 쪽이다. 모른다는 것은 어렵다는 뜻이 아니라서, 모르면 보여
+   * 주고 판단은 사람에게 맡긴다(설정의 sentenceScope). */
   const want = levels?.length ? new Set(levels) : null;
   const known = seen instanceof Set ? seen : null;
   const fits = (c) => {

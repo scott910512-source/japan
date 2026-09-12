@@ -467,7 +467,7 @@ export default function Videos({
           })}
         </div>
 
-        <BottomSheet open={Boolean(pendingDel)} onClose={() => setPendingDel(null)}>
+        <BottomSheet open={Boolean(pendingDel)} onClose={() => setPendingDel(null)} label="영상 빼기">
           <h3>영상 빼기</h3>
           <p className="vd-delwhat">
             {titles[pendingDel]?.title || `youtu.be/${pendingDel}`}

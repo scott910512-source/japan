@@ -23,8 +23,17 @@ import {
  * 갈래를 갈라 두면 서로 안 뺏는다. 복습이 밀려도 새 단어 스무 개는 그대로고,
  * 복습할 게 없는 날은 그냥 복습이 0이다 — 그게 정직하다.
  *
- * 대신 몫을 서로 못 빌린다. 그게 이 방식의 값이다. */
-export const DEFAULT_GOALS = { fresh: 20, review: 20, weak: 20 };
+ * 대신 몫을 서로 못 빌린다. 그게 이 방식의 값이다.
+ *
+ * ★ 기본값은 총 스무 장이다 ★
+ *
+ * 셋을 각각 20으로 두었더니 자료가 쌓인 뒤 하루가 예순 장이 됐다. 갈래를
+ * 가른 판단은 맞았지만 기본값이 세 배였던 것이다 — 「20」 셋을 본 사람은
+ * 스무 장을 고른 줄로 안다. 처음 쓰는 사람의 하루가 예순 장이면 첫날에 접는다.
+ *
+ * 이미 쓰던 사람의 목표는 안 건드린다. 저장된 값이 있으면 그걸 쓰고, 이
+ * 기본값은 한 번도 고른 적 없는 사람에게만 쓰인다(loadSettings). */
+export const DEFAULT_GOALS = { fresh: 8, review: 9, weak: 3 };
 export const LANES = ['review', 'weak', 'fresh'];
 
 /* 몰라요·애매해요가 이만큼 쌓이면 약점으로 본다. 회독 쪽 기준과 같은 값이다. */
@@ -56,6 +65,54 @@ export function normalizeGoals(goals) {
     review: Math.max(0, Math.round(goals?.review ?? DEFAULT_GOALS.review) || 0),
     weak: Math.max(0, Math.round(goals?.weak ?? DEFAULT_GOALS.weak) || 0),
   };
+}
+
+/* ── 하루 총량 ──
+ *
+ * ★ 기본값이 20·20·20이라 하루가 60장이었다 ★
+ *
+ * 갈래마다 따로 세는 것은 이유가 있다 — 복습이 밀린 날 새로 배우는 몫을
+ * 뺏기면 진도가 밀린 벌로 새 단어를 못 보게 된다. 그 판단은 그대로 둔다.
+ *
+ * 문제는 처음 쓰는 사람이 보는 숫자다. 셋을 각각 20으로 두면 자료가 쌓인 뒤
+ * 하루가 예순 장이 되는데, 「20」 셋을 본 사람은 스무 장을 고른 줄로 안다.
+ * 그래서 고르는 자리는 총량 하나로 두고, 갈래 배분은 고급에서 만진다.
+ *
+ * 갈래 목표는 「여기까지만」이라는 상한이라, 실제 배정은 있는 만큼만 담긴다.
+ * 총량도 마찬가지로 「최대 이만큼」이다. */
+export const DAY_PRESETS = [
+  { id: 'light', label: '가볍게', total: 10, note: '5분 남짓' },
+  { id: 'normal', label: '보통', total: 20, note: '10분 남짓' },
+  { id: 'more', label: '많이', total: 40, note: '20분 남짓' },
+];
+
+/* 총량을 갈래로 나눈다.
+ *
+ * 복습에 제일 많이 준다. 이미 본 걸 안 잃는 것이 새로 배우는 것보다 앞선다 —
+ * 새 단어를 스무 개 더 넣어도 어제 것이 새어 나가면 제자리다.
+ * 약점은 적게 준다. 약점은 한 판에 두 번 나오니 몫이 적어도 자주 마주친다. */
+export function spreadGoal(total) {
+  const t = Math.max(1, Math.round(total) || 1);
+  const review = Math.max(1, Math.round(t * 0.45));
+  const weak = t >= 7 ? Math.max(1, Math.round(t * 0.15)) : 0;
+  const fresh = Math.max(0, t - review - weak);
+  return { fresh, review, weak };
+}
+
+/* 설정된 목표의 총량. 화면이 「하루 몇 장인가」를 물을 때 쓴다. */
+export function goalTotal(goals) {
+  const g = normalizeGoals(goals);
+  return g.fresh + g.review + g.weak;
+}
+
+/* 지금 목표가 어느 프리셋인가. 아니면 null —
+   기존 사용자의 목표를 프리셋에 맞춰 덮어쓰지 않기 위해 알아야 한다. */
+export function presetOf(goals) {
+  const g = normalizeGoals(goals);
+  return DAY_PRESETS.find((p) => {
+    const s = spreadGoal(p.total);
+    return s.fresh === g.fresh && s.review === g.review && s.weak === g.weak;
+  })?.id || null;
 }
 
 /* 한 개에 걸리는 시간(초). 문장이 더 오래 걸린다 — 읽고 뜻을 떠올리는 양이 다르다.

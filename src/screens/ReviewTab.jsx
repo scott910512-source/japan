@@ -101,7 +101,8 @@ export default function ReviewTab({ words, review, streak, stats, onStartDeck, o
       <div className="section-label">단어 회독 현황</div>
       <div className="card">
         <div className="bar-line">
-          <span>졸업 {stat.mastered}</span>
+          {/* 같은 상태를 화면마다 다른 이름으로 부르지 않는다 — 막대도 카드도 「익숙함」이다 */}
+          <span>익숙함 {stat.mastered}</span>
           <span>학습 중 {stat.learning}</span>
           <span>미학습 {stat.fresh}</span>
         </div>

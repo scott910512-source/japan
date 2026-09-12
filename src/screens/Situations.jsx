@@ -10,7 +10,8 @@ import BuildQuiz from '../components/BuildQuiz.jsx';
 import { ALL_SITUATIONS as SITUATIONS } from '../data/allSituations.js';
 import { chunksOf, hasChunks } from '../data/allChunks.js';
 import {
-  VERDICT, advanceSession, buildRound1, dueCards, isMastered, nextRoundOf, stateOf, todayKey,
+  VERDICT, advanceSession, buildRound1, dueCards, isMastered, nextRoundOf,
+  selfKnownLabel, stateOf, todayKey,
 } from '../lib/review.js';
 
 const MODES = [
@@ -245,7 +246,11 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     if (!item || locked) return;
     // 판정은 언제든 누를 수 있다. 아는 것을 굳이 확인시키면 그게 다 마찰이 된다.
     setLocked(true);
-    history.current.push({ id: item.id, prevReview: review[item.id], prevSession: session });
+    history.current.push({
+      id: item.id, prevReview: review[item.id], prevSession: session,
+      // 무엇을 어느 날 올렸는지 — 되돌릴 때 그 칸에서 빼려면 둘 다 필요하다
+      verdict, day: todayKey(),
+    });
 
     const result = advanceSession(session, review, item.id, verdict, todayKey());
     onReviewChange(result.progress, verdict);
@@ -258,7 +263,11 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     } else {
       setFinished({ done: result.session.done, carried: next.carried || 0 });
     }
-    if (verdict === VERDICT.MASTER) onToast('졸업 처리했어요 — 한 달 뒤에 한 번만 다시 나와요');
+    /* 하드코딩한 「한 달 뒤」가 실제 복습일(180일 뒤)과 달랐다.
+       자가 신고를 졸업이라고 부르던 것도 같이 고친다. */
+    if (verdict === VERDICT.MASTER) {
+      onToast(selfKnownLabel(stateOf(result.progress, item.id)));
+    }
     setTimeout(() => setLocked(false), 220);
   };
 
@@ -268,7 +277,10 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     const nextReview = { ...review };
     if (last.prevReview) nextReview[last.id] = last.prevReview;
     else delete nextReview[last.id];
-    onReviewChange(nextReview, null);
+    /* ★ 카드 id를 안 넘겨서 되돌려도 완료가 그대로 남았다 ★
+       문장 판정을 무르면 회독 기록은 돌아오는데 오늘 계획의 「끝낸 것」에는
+       그대로 남아, 되돌릴 때마다 완료 수만 쌓였다. 활동 수도 안 뺐다. */
+    onReviewChange(nextReview, last.verdict, last.id, { undo: true, day: last.day });
     setSession(last.prevSession);
     setFinished(null);
     onToast('직전 판정을 되돌렸어요');

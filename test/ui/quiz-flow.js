@@ -35,12 +35,35 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
 
-  await openMenu(page, '단어 시험');
-  await page.waitForTimeout(700);
-  await page.locator('button', { hasText: '시험 시작' }).first().click().catch(async () => {
-    await page.locator('.submit-btn').first().click();
-  });
-  await page.waitForTimeout(800);
+  /* 시험 화면을 빠져나온다.
+   *
+   * 시험 중에는 앱 헤더가 접혀서 닫는 버튼이 .sub-back이 아니라 .sh-close다.
+   * _nav의 goTab은 .subscreen.open .sub-back만 찾아 누르는데, 시험 중에는
+   * 그게 안 보여서 아무것도 못 닫고 탭바를 누르려다 「element is not visible」로
+   * 30초를 기다리다 죽는다. 실제로 그렇게 죽는 걸 보고 이 함수를 만들었다.
+   * 그래서 보이는 쪽을 눌러 덮개를 걷고 나간다. */
+  const leaveExam = async () => {
+    for (let i = 0; i < 3; i++) {
+      const close = page.locator('.sh-close:visible, .subscreen.open .sub-back:visible');
+      if (!await close.count()) break;
+      await close.first().click();
+      await page.waitForTimeout(600);
+      // 시험을 벗어났고 덮개도 걷혔으면 끝
+      if (!await page.locator('.qoptions').count()
+        && !await page.locator('.subscreen.open').count()) break;
+    }
+  };
+
+  const startExam = async () => {
+    await leaveExam();
+    await openMenu(page, '단어 시험');
+    await page.waitForTimeout(700);
+    await page.locator('button', { hasText: '시험 시작' }).first().click().catch(async () => {
+      await page.locator('.submit-btn').first().click();
+    });
+    await page.waitForTimeout(800);
+  };
+  await startExam();
 
   ok('시험이 시작됨', await page.locator('.qoptions').count() === 1);
 
@@ -80,31 +103,53 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
 
   // 나머지 문항을 돌며 두 흐름을 모두 본다
   let sawRight = firstWasRight, sawWrong = !firstWasRight;
-  for (let i = 0; i < 19 && (!sawRight || !sawWrong); i++) {
-    if (await page.locator('.qoptions').count() === 0) break;
-    const at = await idxOf();
-    await page.locator('.qopt').first().click();
-    await page.waitForTimeout(450);
-    const right = (await page.locator('.qopt').first().getAttribute('class') || '').includes('correct');
-    if (right) {
-      if (!sawRight) {
-        ok('정답이면 다음 버튼이 없음', await page.locator('.qnext').count() === 0);
-        await page.waitForTimeout(1100);
-        ok('정답이면 저절로 다음 문제', (await idxOf()) !== at, `${at} → ${await idxOf()}`);
-        sawRight = true;
-      } else { await page.waitForTimeout(1000); }
-    } else {
-      if (!sawWrong) {
-        ok('틀리면 설명이 정답 보기 안에 붙음', await page.locator('.qopt.correct .qo-why').count() === 1);
-        ok('틀리면 아래 상자는 안 뜸', await page.locator('.qverdict').count() === 0);
-        const box = await page.locator('.qnext .submit-btn').boundingBox();
-        ok('다음 버튼이 화면 안에 있음', box && box.y + box.height <= 900, box ? `y=${Math.round(box.y + box.height)}` : 'none');
-        ok('틀리면 저절로 안 넘어감', (await idxOf()) === at, await idxOf());
-        sawWrong = true;
+  const playRest = async () => {
+    for (let i = 0; i < 19 && (!sawRight || !sawWrong); i++) {
+      if (await page.locator('.qoptions').count() === 0) break;
+      const at = await idxOf();
+      await page.locator('.qopt').first().click();
+      await page.waitForTimeout(450);
+      const right = (await page.locator('.qopt').first().getAttribute('class') || '').includes('correct');
+      if (right) {
+        if (!sawRight) {
+          ok('정답이면 다음 버튼이 없음', await page.locator('.qnext').count() === 0);
+          await page.waitForTimeout(1100);
+          ok('정답이면 저절로 다음 문제', (await idxOf()) !== at, `${at} → ${await idxOf()}`);
+          sawRight = true;
+        } else { await page.waitForTimeout(1000); }
+      } else {
+        if (!sawWrong) {
+          ok('틀리면 설명이 정답 보기 안에 붙음', await page.locator('.qopt.correct .qo-why').count() === 1);
+          ok('틀리면 아래 상자는 안 뜸', await page.locator('.qverdict').count() === 0);
+          const box = await page.locator('.qnext .submit-btn').boundingBox();
+          ok('다음 버튼이 화면 안에 있음', box && box.y + box.height <= 900, box ? `y=${Math.round(box.y + box.height)}` : 'none');
+          ok('틀리면 저절로 안 넘어감', (await idxOf()) === at, await idxOf());
+          sawWrong = true;
+        }
+        await page.locator('.qnext .submit-btn').click();
+        await page.waitForTimeout(400);
       }
-      await page.locator('.qnext .submit-btn').click();
-      await page.waitForTimeout(400);
     }
+  };
+  await playRest();
+
+  /* ★ 한 판으로 안 되면 새 판을 잡는다 ★
+   *
+   * 이 검사는 늘 첫 보기를 누르고, 거기 정답 표시가 붙었는지로 맞았는지를
+   * 안다. 보기 순서는 앱이 Math.random으로 섞으니 첫 보기가 정답일 확률은
+   * 1/4이고, 스무 문제를 다 풀어도 한 번도 안 맞을 확률이 0.75^20 ≈ 0.3%
+   * 남는다. 실제로 CI에서 한 번 그 0.3%가 나와 「정답 false / 오답 true」로
+   * 깨졌다 — 앱은 멀쩡한데 검사만 운이 나빴다.
+   *
+   * 검사가 배포 관문이 된 뒤로 이건 그냥 흔들리는 검사가 아니다. 아무 이유
+   * 없이 배포를 막고, 그런 실패가 몇 번 쌓이면 사람이 빨간 불을 그냥 넘기게
+   * 된다 — 관문이 있으나 마나가 되는 가장 흔한 경로다.
+   *
+   * 그래서 못 본 흐름이 남으면 새 판을 잡아 이어 본다. 세 판이면 3e-8이라
+   * 사실상 운에 안 기댄다. 판정 자체는 그대로다 — 두 흐름을 다 봐야 통과다. */
+  for (let round = 0; round < 2 && (!sawRight || !sawWrong); round++) {
+    await startExam();
+    await playRest();
   }
   ok('맞은 흐름·틀린 흐름 둘 다 확인', sawRight && sawWrong, `정답 ${sawRight} / 오답 ${sawWrong}`);
 

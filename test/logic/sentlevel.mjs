@@ -8,8 +8,20 @@
  *
  * 게다가 오늘의 후보에서 단어만 레벨로 걸러졌다. N5만 켠 사람은 단어가
  * 534개로 줄었는데 문장은 600개가 그대로 남아서, 고르지도 않은 범위의
- * 문장이 새 학습에 섞였다. */
+ * 문장이 새 학습에 섞였다.
+ *
+ * ── 그다음에 알게 된 것 ──
+ *
+ * 추측을 안 하는 것과 재지 않는 것은 다르다. star를 걷어내고 600문장을 전부
+ * 미분류로 두었더니, 설정의 「문장 범위」를 레벨로 좁히면 문장이 통째로
+ * 사라졌다. 켜면 전부 없어지는 스위치는 스위치가 아니다.
+ *
+ * 그래서 잰다. 문장에 실제로 나오는 낱말의 급수 중 제일 높은 것 — 우리
+ * 단어장이 2336개 낱말의 급수를 알고 있으니 추측할 게 아니라 세면 된다.
+ * 「근거 없는 레벨은 안 붙인다」는 규칙은 그대로다. 근거가 생겼을 뿐이다.
+ * 근거를 못 찾은 문장은 여전히 미분류로 남는다. */
 import { sentenceToCard, dailyPool, allSentenceCards } from '../../src/lib/cards.js';
+import { buildLexicon, gradeSentence } from '../../src/lib/sentlevel.js';
 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => {
@@ -72,16 +84,111 @@ console.log('\n[ 배운 문장은 레벨을 좁혀도 복습에서 안 사라진
     strictSeen.includes('s-n4') && strictSeen.includes('s-none'), strictSeen.join(','));
 }
 
+console.log('\n[ ★ 레벨은 문장에 나오는 낱말로 잰다 ★ ]');
+{
+  const lex = buildLexicon([
+    { kanji: '電車', level: 'N5' },
+    { kanji: '駅', level: 'N5' },
+    { kanji: '指定席', level: 'N3' },
+    { kanji: '現金', level: 'N4' },
+    { kanji: 'カード', level: 'N5' },
+  ]);
+  ok('제일 높은 급수가 문장의 레벨',
+    gradeSentence({ jp: '電車で指定席をお願いします' }, lex).level === 'N3');
+  ok('쉬운 낱말만 있으면 쉬운 문장',
+    gradeSentence({ jp: '電車は駅にいます' }, lex).level === 'N5');
+  ok('근거를 남긴다', gradeSentence({ jp: '指定席です' }, lex).by === '指定席',
+    gradeSentence({ jp: '指定席です' }, lex).by);
+  ok('★ 근거가 없으면 레벨도 없다 ★',
+    gradeSentence({ jp: 'ここです' }, lex).level === null);
+}
+
+console.log('\n[ 낱말 경계를 지킨다 — 오탐은 쉬운 문장을 없앤다 ]');
+{
+  /* 히라가나에서 찾으면 現金しか(げんきんしか)에서 「きんし」(금지)가 걸린다.
+     한자·가타카나 표기로만 찾는 이유다. */
+  const lex = buildLexicon([
+    { kanji: '禁止', kana: 'きんし', level: 'N3' },
+    { kanji: '現金', level: 'N4' },
+    { kanji: '宿', level: 'N3' },
+    { kanji: '谷', level: 'N3' },
+    { kanji: 'パン', level: 'N5' },
+    { kanji: '駅', level: 'N5' },
+  ]);
+  ok('가나 속에서 낱말을 줍지 않는다',
+    gradeSentence({ jp: '現金しか使えませんか', kana: 'げんきんしかつかえませんか' }, lex).level === 'N4');
+  /* 한 글자 낱말·가타카나는 덩어리 전체가 같을 때만 — 안 그러면 지명이 걸린다 */
+  ok('★ 新宿이 宿으로 걸리지 않는다 ★',
+    gradeSentence({ jp: '新宿までいくらですか' }, lex).level === null);
+  ok('★ 渋谷가 谷로 걸리지 않는다 ★',
+    gradeSentence({ jp: '渋谷の駅はどこですか' }, lex).level === 'N5');
+  ok('한 글자 낱말은 덩어리가 같으면 센다',
+    gradeSentence({ jp: '谷はどこですか' }, lex).level === 'N3');
+}
+
+console.log('\n[ 한 글자 조각은 N4까지만 ]');
+{
+  /* 「次」는 단어장에 次ぐ(N3)로만 있다. 조각을 그대로 믿으면
+     「次の駅はどこですか」가 N3이 되어 N5 학습에서 사라진다.
+     쉬운 쪽으로 틀리면 조금 일찍 나올 뿐, 어려운 쪽으로 틀리면 없어진다. */
+  const lex = buildLexicon([
+    { kanji: '次ぐ', level: 'N3' },
+    { kanji: '買う', level: 'N5' },
+    { kanji: '調べる', level: 'N4' },
+    { kanji: '駅', level: 'N5' },
+  ]);
+  ok('★ N3 조각으로는 레벨을 못 올린다 ★',
+    gradeSentence({ jp: '次の駅はどこですか' }, lex).level === 'N5');
+  ok('N5 조각은 근거가 된다', gradeSentence({ jp: '買えますか' }, lex).level === 'N5');
+  ok('N4 조각까지는 센다', gradeSentence({ jp: '調べていただけますか' }, lex).level === 'N4');
+}
+
+console.log('\n[ 문형도 근거다 — 낱말이 쉬워도 초급이 아닌 문장이 있다 ]');
+{
+  const lex = buildLexicon([
+    { kanji: '教える', level: 'N5' },
+    { kanji: '必要', level: 'N4' },
+    { kanji: '特急', level: 'N4' },
+  ]);
+  ok('겸양 의뢰형은 N4',
+    gradeSentence({ jp: '教えていただけますか' }, lex).level === 'N4');
+  /* 문형을 가나에서 찾으면 必要ですか(ひつようですか)가 「ようです」로 걸려
+     N3이 된다. 표기에서 찾으면 그 일이 없다. */
+  ok('★ 必要ですか가 「ようです」로 걸리지 않는다 ★',
+    gradeSentence({ jp: '特急券も必要ですか', kana: 'とっきゅうけんもひつようですか' }, lex).level === 'N4');
+}
+
 console.log('\n[ 실제 자료 ]');
 {
   const cards = allSentenceCards();
   ok('문장 카드가 만들어진다', cards.length > 100, `${cards.length}개`);
-  /* 지금 자료에는 레벨이 안 적혀 있다. 없는 걸 있다고 하지 않는다 */
-  const guessed = cards.filter((c) => c.level != null).length;
-  ok('★ 임의 레벨이 하나도 안 붙는다 ★', guessed === 0, `${guessed}개`);
   ok('중요도는 살아 있다', cards.some((c) => c.importance != null));
   ok('회독에 필요한 칸은 다 있다',
     cards.every((c) => c.id && c.kanji && c.kana && c.mean && c.kind === 'sentence'));
+
+  /* ★ 예전엔 「임의 레벨이 하나도 안 붙는다」를 검사했다 ★
+     그때는 붙일 근거가 없었으니 맞는 검사였다. 지금은 문장에 나오는 낱말로
+     재니 근거가 있다. 대신 붙었다는 것만으로는 안 되고, 근거를 댈 수 있어야
+     한다 — 그래서 검사도 「레벨이 있으면 levelBy가 있다」로 바꾼다. */
+  const graded = cards.filter((c) => c.level != null);
+  ok('★ 레벨이 붙었으면 근거가 있다 ★',
+    graded.every((c) => c.levelBy), `${graded.filter((c) => !c.levelBy).length}개 무근거`);
+  ok('★ star가 레벨로 새지 않는다 ★',
+    cards.every((c) => c.levelBy !== c.importance));
+  ok('대부분은 레벨을 잰다', graded.length > cards.length * 0.7,
+    `${graded.length}/${cards.length}`);
+  /* 다 재려 들면 다시 추측이 된다. 못 잰 것은 못 잰 채로 남아야 한다 */
+  ok('★ 못 잰 문장은 미분류로 남는다 ★', graded.length < cards.length,
+    `미분류 ${cards.length - graded.length}개`);
+  for (const lv of ['N5', 'N4', 'N3']) {
+    ok(`${lv} 문장이 실제로 있다`, cards.some((c) => c.level === lv),
+      `${cards.filter((c) => c.level === lv).length}개`);
+  }
+  /* 레벨을 좁히는 게 실제로 뜻이 있어야 한다 — N5만 골랐을 때 N3 문장이 빠진다 */
+  const n5only = dailyPool([], cards, { levels: ['N5'] });
+  ok('★ N5만 고르면 N3 문장이 새로 안 나온다 ★',
+    !n5only.some((x) => cards.find((c) => c.id === x.id)?.level === 'N3'));
+  ok('그래도 배정할 문장은 넉넉히 남는다', n5only.length > 200, `${n5only.length}개`);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
