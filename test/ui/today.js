@@ -416,26 +416,42 @@ async function boot(browser, patch = {}, init = null) {
   {
     const p4 = await boot(browser, { goals: { fresh: 10, review: 10, weak: 10 } });
     await startStudy(p4);
+    /* ★ 답 보기가 한 번 밀리면 그냥 포기하지 않는다 ★
+     *
+     * 카드를 눌러 답을 보고 판정하는데, 그 누름이 카드가 자리 잡기 전에
+     * 들어가면 판정 줄이 안 뜬다. 예전엔 그 자리에서 판정 버튼이 없다고 보고
+     * 판을 빠져나왔다 — 끝까지 못 갔으니 축하 화면도 없고, 다음 줄에서
+     * .finish를 30초 기다리다 파일이 통째로 멈췄다. 실제로 CI에서 한 번
+     * 그렇게 깨졌고, 이 파일의 나머지 여든몇 개도 같이 사라졌다.
+     *
+     * 판정 줄이 안 뜨면 카드를 한 번 더 누른다. 세 번 해도 안 뜨면 그때 나간다. */
     for (let i = 0; i < 120; i++) {
       if (await p4.locator('.finish').count()) break;
       if (await p4.locator('.studycard').count() === 0) break;
-      await p4.locator('.studycard').click();
-      await p4.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
       const label = i % 4 === 0 ? '몰라요' : (i % 4 === 1 ? '애매해요' : '알아요');
       const btn = p4.locator('.judgerow button', { hasText: label });
-      if (await btn.count() === 0) break;
+      let ready = false;
+      for (let t = 0; t < 3 && !ready; t += 1) {
+        await p4.locator('.studycard').click().catch(() => {});
+        await p4.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
+        ready = await btn.count() > 0;
+      }
+      if (!ready) break;
       await btn.click();
       await p4.waitForTimeout(230);
     }
     ok('끝나면 축하 화면이 뜸', await p4.locator('.finish').count() === 1);
-    const fin = (await p4.textContent('.finish')).replace(/\s+/g, ' ');
+    /* ★ 여기서부터는 없더라도 기다리지 않는다 ★
+       위가 깨졌을 때 .finish를 30초씩 기다리면 파일이 멈추고, 이 파일의 나머지
+       검사 결과가 통째로 사라진다. 하나가 깨져도 나머지는 봐야 한다. */
+    const fin = ((await p4.textContent('.finish').catch(() => '')) || '').replace(/\s+/g, ' ');
     ok('몇 장을 끝냈는지 보임', /\d+ ?\/ ?\d+장 끝냄/.test(fin), fin.slice(0, 40));
     ok('판정 셋을 갈라 보여 줌', await p4.locator('.fin-cell').count() === 3);
     /* 「장」과 「번」을 뭉뚱그리면 거짓이 된다 — 몰라요가 섞이면 둘이 다르다 */
     ok('누른 횟수는 「번」으로 적음', fin.includes('번 봤어요'), fin);
     ok('걸린 시간도', /약 \d+분/.test(fin));
     ok('홈으로 버튼이 있음', await p4.locator('.finish .submit-btn').count() === 1);
-    await p4.locator('.finish .submit-btn').click();
+    await p4.locator('.finish .submit-btn').click({ timeout: 5000 }).catch(() => {});
     await p4.waitForTimeout(800);
     ok('눌러서 홈으로 감', await p4.locator('.today').count() === 1);
     ok('세션이 정리됨', await p4.evaluate(() => localStorage.getItem('jp_manabu_session_v1')) === null);
@@ -459,11 +475,16 @@ async function boot(browser, patch = {}, init = null) {
     const intro5 = p5.locator('.study.intro .bigstart');
     if (await intro5.count()) { await intro5.click(); await p5.waitForTimeout(700); }
 
+    /* 답 보기가 한 번 밀려도 포기하지 않는다 — 위 판과 같은 이유다. */
     for (let i = 0; i < 4; i++) {
       if (await p5.locator('.studycard').count() === 0) break;
-      await p5.locator('.studycard').click();        // 판정은 뒤집은 뒤에
-      await p5.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
-      if (await p5.locator('.judge.known').count() === 0) break;
+      let ready = false;
+      for (let t = 0; t < 3 && !ready; t += 1) {
+        await p5.locator('.studycard').click().catch(() => {});   // 판정은 뒤집은 뒤에
+        await p5.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
+        ready = await p5.locator('.judge.known').count() > 0;
+      }
+      if (!ready) break;
       await p5.locator('.judge.known').click();
       await p5.waitForTimeout(500);
     }
@@ -472,9 +493,9 @@ async function boot(browser, patch = {}, init = null) {
       fin5.replace(/\n/g, ' ').slice(0, 90));
     ok('홈으로 가는 길도 남아 있다', fin5.includes('홈으로'));
 
-    await p5.locator('.finish .submit-btn').click();
+    await p5.locator('.finish .submit-btn').click({ timeout: 5000 }).catch(() => {});
     await p5.waitForTimeout(1000);
-    const where = await p5.locator('.sh-title, .si-label').first().innerText();
+    const where = await p5.locator('.sh-title, .si-label').first().innerText().catch(() => '');
     ok('눌렀더니 새 단어가 열린다', where.includes('새 단어'), where);
     await p5.close();
   }
