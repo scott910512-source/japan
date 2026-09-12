@@ -88,14 +88,41 @@ button, input, select { font-family: inherit; }
   mix-blend-mode: overlay;
 }
 
+/* ★ 넓은 화면에서는 넓게, 카드 본문은 읽기 좋은 폭으로 ★
+ *
+ * 앱 전체가 560px에 묶여 있었다. 휴대폰에는 맞지만 PC에서는 목록도 달력도
+ * 통계도 다 그 좁은 기둥 안에 들어가서, 옆은 텅 비고 안은 빽빽했다.
+ *
+ * 그렇다고 전부 늘리면 안 된다. 카드 본문이 1200px로 늘어나면 한 줄이 너무
+ * 길어져 읽는 눈이 되돌아올 자리를 잃는다. 그래서 담는 그릇만 넓히고,
+ * 읽는 것(회독 카드·첫 설정)은 제 폭을 지킨다. */
+@media (min-width: 900px) {
+  .app-shell { max-width: 880px; }
+  /* 회독 화면과 첫 설정은 읽는 자리다 — 그릇이 넓어져도 본문은 제 폭을 지킨다.
+     .study 하나로 회독 화면과 시작 안내(.study.intro)를 같이 잡는다. */
+  .study, .onboarding .ob-slide { max-width: 560px; margin-left: auto; margin-right: auto; }
+  /* 달력은 칸이 일곱이라 늘리면 한 칸이 손보다 커진다 — 제 폭으로 둔다 */
+  .logcal { max-width: 560px; }
+}
+
 .screens { flex: 1 1 auto; position: relative; z-index: 1; min-height: 0; }
+/* ★ 안 보이는 화면은 키보드에도 안 걸려야 한다 ★
+ *
+ * 여섯 화면이 늘 DOM에 남아 있고, 꺼진 것은 opacity: 0과 pointer-events: none으로
+ * 가렸다. 손가락으로는 못 눌러도 Tab 키는 그 안의 버튼을 그대로 밟고 지나간다 —
+ * 스크린리더도 읽는다. 「오늘」 화면에서 Tab을 누르다 보면 안 보이는 설정 화면의
+ * 버튼에 초점이 가 있고, 화면에는 아무 표시가 없다.
+ *
+ * visibility: hidden을 더한다. 이것만으로 초점 순서와 접근성 트리에서 함께
+ * 빠진다. 상태(스크롤 위치·입력 중이던 값)는 그대로 남는다 — 조건부 렌더링으로
+ * 지워 버리면 탭을 옮길 때마다 하던 게 사라진다. */
 .screen {
   position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
   padding: calc(env(safe-area-inset-top, 0px) + 16px) 18px 28px;
-  opacity: 0; pointer-events: none; transform: translateY(6px);
-  transition: opacity .22s ease, transform .22s ease;
+  opacity: 0; pointer-events: none; visibility: hidden; transform: translateY(6px);
+  transition: opacity .22s ease, transform .22s ease, visibility .22s ease;
 }
-.screen.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.screen.active { opacity: 1; pointer-events: auto; visibility: visible; transform: translateY(0); }
 
 .navtitle { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 0 16px; text-wrap: balance; }
 .navtitle small { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 2px; }
@@ -376,6 +403,17 @@ button, input, select { font-family: inherit; }
 .ob-badge svg { width: 36px; height: 36px; }
 .ob-slide h2 { font-size: 20px; margin: 0 0 8px; text-wrap: balance; }
 .ob-slide p { font-size: 13.5px; color: var(--ink-soft); line-height: 1.65; margin: 0 0 22px; max-width: 280px; }
+/* 첫 설정의 마지막 장 — 카드 한 장이 어떻게 흘러가는지.
+   처음 쓰는 사람이 제일 먼저 막히는 곳이 「이 카드를 어떻게 하라는 거지」다. */
+.ob-how { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.ob-how li { display: flex; align-items: flex-start; gap: 10px; }
+.ob-how b {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  background: var(--kon-soft); color: var(--kon);
+}
+.ob-how span { font-size: 13px; line-height: 1.55; color: var(--ink-soft); }
+
 .ob-choices { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .ob-choice { padding: 10px 16px; border-radius: 100px; border: 1.5px solid var(--line); background: var(--surface); font-size: 13px; font-weight: 650; color: var(--ink); cursor: pointer; }
 .ob-choice.picked { background: linear-gradient(135deg, var(--kon), var(--kon-deep)); border-color: transparent; color: #fff; box-shadow: var(--glow-btn); }
@@ -530,6 +568,13 @@ button, input, select { font-family: inherit; }
 
 /* 판정 3버튼 — 한 손 엄지가 닿는 하단에, 오터치하지 않을 크기로 */
 .judgerow { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+/* ★ 답을 보기 전에는 판정이 아니라 「답 보기」 ★
+   자기평가의 기준은 「답을 보기 전에 떠올렸는지」다. 판정 버튼이 앞면에서도
+   눌리면 그 기준이 흐려진다. 못 떠올린 사람에게도 답은 보여 준다. */
+.revealrow { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.revealrow .sc-reveal { min-height: 56px; font-size: 15.5px; margin-top: 0; }
+.revealrow .sc-miss { min-height: 44px; margin-top: 0; }
 .judge {
   min-height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; padding: 8px 4px;

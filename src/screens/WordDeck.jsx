@@ -139,7 +139,7 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
         <div className="progress-cell">
           <div className="ring" style={{ '--p': stat.total ? (stat.mastered / stat.total) * 100 : 0 }} />
           <div className="val">{stat.mastered}</div>
-          <div className="lab">졸업</div>
+          <div className="lab">익숙함</div>
         </div>
         <div className="progress-cell"><div className="val">{stat.learning}</div><div className="lab">학습 중</div></div>
         <div className="progress-cell"><div className="val">{stat.fresh}</div><div className="lab">아직 안 봄</div></div>
@@ -147,7 +147,7 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
       {/* 「n회독 연속」은 세션 반복·누적 숙련·범위 재학습을 한 말로 부르던 것의
           잔재다. 규칙은 정책에서 한 문장으로 가져온다. */}
       <div className="set-note">
-        {MASTERY_RULE} 졸업 뒤에는 한 달·석 달·반년에 한 번씩만 다시 나옵니다.
+        {MASTERY_RULE} 익숙해진 뒤에도 한 달·석 달·반년에 한 번씩 다시 나옵니다.
       </div>
 
       <div className="statrow card" style={{ marginTop: 12 }}>

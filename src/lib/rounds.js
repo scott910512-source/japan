@@ -9,10 +9,20 @@
  * 이어서 몇 번 골랐는가 — review.js가 이미 그걸로 복습 간격을 정하니,
  * 새 숫자를 만들지 않고 그것을 그대로 읽는다. 두 벌로 두면 반드시 어긋난다.
  *
- *   아직          한 번도 안 봤다
- *   1~3회독       보고 있는 중. 「알아요」 연속 횟수가 그대로 회독 수다
- *   완료          네 번 이어서 맞혔다 (MASTER_STREAK)
- *   장기복습      완료한 뒤로도 한 달·석 달·반년에 한 번씩 다시 만난다
+ *   아직 안 봄     한 번도 안 봤다
+ *   확인 1~3단계   보고 있는 중. 복습일에 확인된 횟수가 그대로 단계다
+ *   익숙함         복습일에 네 번 확인됐다 (MASTER_STREAK)
+ *   장기복습      익숙해진 뒤로도 한 달·석 달·반년에 한 번씩 다시 만난다
+ *
+ * ★ 「n회독」이라고 부르지 않는다 ★
+ *
+ * 「회독」 하나로 세 가지를 부르고 있었다 — 한 판 안의 반복, 날짜를 나눈 확인,
+ * 범위를 정해 다시 도는 학습(회독 학습 메뉴). 셋이 같은 말을 쓰니 「3회독」이
+ * 오늘 세 번 본 것인지 사흘에 나눠 세 번 확인한 것인지 알 수 없었다.
+ * 여기 있는 것은 날짜를 나눈 확인이라 「확인 n단계」로 부른다.
+ *
+ * sub도 고쳤다. 「두 번 이어서 맞혔어요」는 한자리에서 몰아서 되는 것처럼
+ * 읽히는데, 단계는 하루에 한 칸만, 그것도 복습일에만 오른다.
  *
  * 「완료」와 「장기복습」을 가르는 이유는, 완료가 「다시는 안 나옴」이 아니기
  * 때문이다. 그렇게 보이면 완료된 카드가 다시 나올 때 고장으로 읽힌다. */
@@ -22,11 +32,11 @@ import { BOX, MASTER_STREAK, stateOf, isMastered, isSelfKnown } from './review.j
 export const ROUND_MAX = MASTER_STREAK;   // 네 번 이어서 맞히면 완료
 
 export const STAGES = [
-  { id: 'fresh', label: '아직', sub: '한 번도 안 봤어요' },
-  { id: 'round1', label: '1회독', sub: '처음 만났어요' },
-  { id: 'round2', label: '2회독', sub: '두 번 이어서 맞혔어요' },
-  { id: 'round3', label: '3회독', sub: '한 번만 더 맞히면 완료' },
-  { id: 'done', label: '완료', sub: '네 번 이어서 맞혔어요' },
+  { id: 'fresh', label: '아직 안 봄', sub: '한 번도 안 봤어요' },
+  { id: 'round1', label: '확인 1단계', sub: '복습일에 한 번 확인했어요' },
+  { id: 'round2', label: '확인 2단계', sub: '다른 날에 두 번 확인했어요' },
+  { id: 'round3', label: '확인 3단계', sub: '한 번만 더 확인하면 익숙함이에요' },
+  { id: 'done', label: '익숙함', sub: `복습일에 ${MASTER_STREAK}번 확인했어요` },
   { id: 'long', label: '장기복습', sub: '한 달 · 석 달 · 반년에 한 번씩' },
   /* 앱이 확인한 적은 없다. 「이미 알아요」로 사용자가 직접 뺀 것이라
      검증된 완료와 같은 칸에 세지 않는다. */
@@ -76,14 +86,17 @@ export function dotsOf(st) {
   return Array.from({ length: ROUND_MAX }, (_, i) => (full || i < r));
 }
 
-/* 이 카드가 지금 어떤 상태인지 한 줄로. 회독 화면이 카드 위에 적는다. */
+/* 이 카드가 지금 어떤 상태인지 한 줄로. 회독 화면이 카드 위에 적는다.
+ *
+ * 이름은 STAGES에서 가져온다. 여기서 또 적어 두면 같은 상태가 막대에서는
+ * 「익숙함」, 카드 위에서는 「완료」로 불린다. */
 export function roundLabel(st) {
   const stage = stageOf(st);
   if (stage === 'fresh') return '처음 보는 카드';
-  if (stage === 'self') return '이미 알아요';
-  if (stage === 'done') return '완료';
-  if (stage === 'long') return '장기복습';
-  return `${roundOf(st)} / ${ROUND_MAX} 회독`;
+  const found = STAGES.find((s) => s.id === stage);
+  if (stage === 'self' || stage === 'done' || stage === 'long') return found.label;
+  /* 「2 / 4 회독」은 오늘 두 번 본 것처럼 읽힌다 — 날짜를 나눈 확인이라고 적는다 */
+  return `확인 ${roundOf(st)} / ${ROUND_MAX}단계`;
 }
 
 export { BOX };

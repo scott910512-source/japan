@@ -232,7 +232,7 @@ const SYNCED_SETTINGS = [
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
   'listenDir', 'listenScope', 'listenSayKo', 'listenSayAnswer', 'listenGap',
-  'sentenceScope', 'purpose', 'tripDate',
+  'sentenceScope', 'purpose', 'tripDate', 'quickJudge',
 ];
 
 export function pickSyncedSettings(settings = {}) {

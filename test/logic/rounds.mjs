@@ -96,8 +96,16 @@ ok('완료 뒤에도 다 찬 채로', dotsOf(after([K, K, K, K, K, K, K])).every
 
 console.log('\n[ 한 줄 설명 ]');
 ok('안 본 것', roundLabel(emptyState()) === '처음 보는 카드');
-ok('보는 중이면 몇 회독인지', roundLabel(after([K, K])) === `2 / ${ROUND_MAX} 회독`);
-ok('완료', roundLabel(after([K, K, K, K])) === '완료');
+/* ★ 「회독」 하나로 세 가지를 부르고 있었다 ★
+   한 판 안의 반복 · 날짜를 나눈 확인 · 범위를 정해 다시 도는 학습이 같은 말을
+   써서, 「2 / 4 회독」이 오늘 두 번 본 것인지 이틀에 나눠 두 번 확인한 것인지
+   알 수 없었다. 이름을 「확인 n / 4단계」로 바꿨다 — 뜻은 그대로고 말만 갈랐다. */
+ok('보는 중이면 몇 단계인지', roundLabel(after([K, K])) === `확인 2 / ${ROUND_MAX}단계`,
+  roundLabel(after([K, K])));
+/* 같은 상태를 화면마다 다른 이름으로 부르지 않는다 — 막대·카드·진행률이 모두
+   STAGES의 이름을 쓴다. 「완료」와 「졸업」이 섞여 있던 것을 「익숙함」으로 모았다. */
+ok('익숙함', roundLabel(after([K, K, K, K])) === '익숙함',
+  roundLabel(after([K, K, K, K])));
 
 console.log('\n[ 전체 현황 ]');
 {

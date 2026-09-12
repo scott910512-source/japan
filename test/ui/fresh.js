@@ -74,7 +74,10 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   // ── 바로 회독 ──
   await startStudy(page);
   await page.waitForTimeout(1500);
-  ok('회독이 바로 열림', await page.locator('.judgerow').count() === 1);
+  /* 판정은 뒤집은 뒤에만 나온다 — .judgerow는 「열렸나」가 아니라 「뒤집혔나」다.
+     화면이 열린 것은 카드가 있는지로 본다. */
+  ok('회독이 바로 열림', await page.locator('.studycard').count() === 1);
+  ok('앞면에는 판정이 없다', await page.locator('.judgerow').count() === 0);
   const head = await page.textContent('.sh-title');
   ok('첫날 장수가 나옴', /\d+\s*\/\s*\d+/.test(head), head.trim());
 

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { IconFlame, IconChevron } from '../components/Icons.jsx';
 import { addDays, summarize, isMastered, stateOf, MASTERY_RULE } from '../lib/review.js';
 import { STATS_KEEP_DAYS, STREAK_RULE } from '../lib/storage.js';
-import { roundSummary } from '../lib/rounds.js';
+import { roundSummary, STAGES } from '../lib/rounds.js';
 import { useToday } from '../lib/useToday.js';
 
 /* 기록 — 이미 쌓이고 있던 걸 이제야 보여 준다.
@@ -13,16 +13,25 @@ import { useToday } from '../lib/useToday.js';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 
-/* 회독 막대에 그릴 줄. 「아직」을 빼지 않는다 —
-   남은 게 얼마인지가 진도의 절반이다. */
-const ROUND_ROWS = [
-  { id: 'round1', label: '1회독' },
-  { id: 'round2', label: '2회독' },
-  { id: 'round3', label: '3회독' },
-  { id: 'done', label: '완료' },
-  { id: 'long', label: '장기복습' },
-  { id: 'fresh', label: '아직' },
-];
+/* 기억 수준 막대에 그릴 줄. 「아직」을 빼지 않는다 —
+   남은 게 얼마인지가 진도의 절반이다.
+ *
+ * ★ 「회독」 하나로 세 가지를 부르고 있었다 ★
+ *
+ *   이번 판에서 다시 보는 차례   (한 판 안의 반복)
+ *   날짜를 나누어 확인한 단계     (복습 간격을 정하는 것)
+ *   범위를 정해 다시 도는 학습    (회독 학습 메뉴)
+ *
+ * 세 개가 같은 말을 쓰니 「3회독」이 오늘 세 번 본 것인지 사흘에 나눠 세 번
+ * 확인한 것인지 알 수 없었다. 여기 있는 것은 두 번째다 — 날짜를 나눈 확인이라
+ * 그렇게 부른다.
+ *
+ * 이름은 여기서 또 적지 않는다. rounds.js의 STAGES 하나만 본다 — 두 벌로 두면
+ * 한쪽만 고쳐서 같은 상태가 화면마다 다른 이름으로 불린다. 순서만 여기서 정한다
+ * (「아직 안 봄」을 맨 아래로). */
+const ROUND_ORDER = ['round1', 'round2', 'round3', 'done', 'long', 'fresh'];
+const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.id, s.label]));
+const ROUND_ROWS = ROUND_ORDER.map((id) => ({ id, label: STAGE_LABEL[id] }));
 
 function monthGrid(year, month) {
   const first = new Date(year, month, 1);
@@ -37,7 +46,9 @@ function monthGrid(year, month) {
   return cells;
 }
 
-export default function Log({ words, review, stats, streak, onOpenReview }) {
+export default function Log({
+  words, review, stats, streak, planNow, grammarLeft, onOpenReview,
+}) {
   /* 자정을 넘기면 이 값이 바뀌고 화면이 다시 그려진다. 예전엔 마운트 때
      한 번 잡아 둬서, 8/31에 켜 놓고 9/1이 되면 달력이 8월에 머물렀다 —
      오늘 칸이 없고 「다음 달」 버튼도 비활성이었다. */
@@ -131,13 +142,41 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
         </div>
       )}
 
-      {/* 최근 7일과 여태 쌓은 것을 갈라 둔다. 한 줄에 섞여 있으면
-          이번 주 성과인지 누적인지 알 수 없다. */}
-      <div className="section-label">최근 {RECENT_DAYS}일</div>
+      {/* ★ 세 가지를 갈라 둔다 ★
+       *
+       * 오늘 진행 · 학습 활동 · 기억 수준은 서로 다른 숫자다. 섞어 놓으면
+       * 「40개 했다」가 카드 마흔 장인지 판정 마흔 번인지 알 수 없고, 듣기를
+       * 많이 한 날이 외운 게 많은 날처럼 보인다. */}
+      {planNow?.assigned > 0 && (
+        <>
+          <div className="section-label">오늘</div>
+          <div className="logweek">
+            <div className="lw-cell"><b>{planNow.assigned}</b><span>배정</span></div>
+            <div className="lw-cell"><b>{planNow.done}</b><span>끝낸 카드</span></div>
+            <div className="lw-cell"><b>{planNow.left}</b><span>남음</span></div>
+          </div>
+          {/* 완료가 무엇의 완료인지 적어 둔다 — 문법은 이 수에 안 들어간다 */}
+          <div className="set-note" style={{ marginTop: 6 }}>
+            카드 기준이에요. 같은 카드를 여러 번 만나도 하나로 세요.
+            {grammarLeft > 0 && ' 오늘의 문법은 선택이라 이 수에 안 들어가요.'}
+          </div>
+        </>
+      )}
+
+      {/* 학습 활동 — 「몇 번 했나」. 여기 오른 수가 외운 수는 아니다. */}
+      <div className="section-label">학습 활동 · 최근 {RECENT_DAYS}일</div>
       <div className="logweek">
         <div className="lw-cell"><b>{recent.days}</b><span>학습한 날</span></div>
-        <div className="lw-cell"><b>{recent.studied}</b><span>공부한 개수</span></div>
+        <div className="lw-cell"><b>{recent.studied}</b><span>판정 횟수</span></div>
         <div className="lw-cell"><b>{recent.promoted}</b><span>기억 단계 오름</span></div>
+      </div>
+      {/* ★ 노력한 내역은 보이되, 기억 단계와 섞지 않는다 ★
+          듣기·시험·짝 맞추기를 회독 진도에 바로 반영하지 않는 판단은 그대로 둔다.
+          다만 왜 안 오르는지는 말해 줘야 한다 — 안 그러면 한 시간 듣고도
+          아무것도 안 변한 것처럼 보인다. */}
+      <div className="set-note" style={{ marginTop: 6 }}>
+        판정 횟수는 카드를 몇 번 만났는지예요. 듣기 · 시험 · 짝 맞추기는
+        회독 기록에 판정으로 남을 때만 여기 세고, 기억 단계는 복습일에만 올라요.
       </div>
 
       <div className="section-label">
@@ -202,7 +241,10 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
 
           「완료」와 「장기복습」을 따로 세는 이유는, 완료가 「다시는 안 나옴」이
           아니기 때문이다. 그렇게 보이면 완료된 카드가 다시 나올 때 고장으로 읽힌다. */}
-      <div className="section-label">회독 현황</div>
+      {/* 이름을 「기억 수준」으로 바꿨다. 같은 화면에 있는 「판정 횟수」와
+          다른 종류의 숫자임이 이름에서 드러나야 한다 — 하나는 몇 번 했나,
+          하나는 얼마나 남아 있나다. */}
+      <div className="section-label">기억 수준</div>
       <div className="card roundstat">
         {ROUND_ROWS.map(({ id, label }) => {
           const n = rounds[id] || 0;
@@ -219,7 +261,8 @@ export default function Log({ words, review, stats, streak, onOpenReview }) {
             되는 것처럼 읽혔다. 실제로는 하루에 한 칸씩, 복습일에만 오른다.
             규칙은 정책(review.js)이 한 문장으로 만들어 준다. */}
         <div className="set-note" style={{ marginTop: 8 }}>
-          {MASTERY_RULE} 완료한 뒤에도 한 달 · 석 달 · 반년에 한 번씩 다시 나와요 —
+          {MASTERY_RULE} 단계는 날짜를 나눈 확인이라, 한 판에서 여러 번 본 것과는
+          다릅니다. 익숙해진 뒤에도 한 달 · 석 달 · 반년에 한 번씩 다시 나와요 —
           그게 장기복습이에요.
         </div>
       </div>

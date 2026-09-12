@@ -126,7 +126,9 @@ const OLD = {
   // 회독 — seenAt 없는 기록으로 판정까지
   await startStudy(page);
   await page.waitForTimeout(1400);
-  ok('낡은 회독 기록으로도 학습이 열림', await page.locator('.judgerow').count() === 1);
+  ok('낡은 회독 기록으로도 학습이 열림', await page.locator('.studycard').count() === 1);
+  await page.locator('.studycard').click();          // 판정은 뒤집은 뒤에
+  await page.waitForTimeout(300);
   await page.locator('.judgerow button', { hasText: '알아요' }).click();
   await page.waitForTimeout(700);
   const rec = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'));

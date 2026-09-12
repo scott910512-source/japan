@@ -182,6 +182,18 @@ export default function Study({
   const revealed = revealedFor === visitKey;
   const reveal = () => setRevealedFor(visitKey);
 
+  /* ★ 자기평가는 답을 보고 나서 ★
+   *
+   * 여태 판정 버튼과 숫자 단축키가 답을 열기 전에도 그대로 동작했다. 「판정은
+   * 언제든 누를 수 있다 — 아는 단어를 확인시키려고 한 번 더 두드리게 하면 그
+   * 두드림이 전부 마찰이 된다」는 이유였는데, 그 마찰을 없앤 대가가 컸다.
+   * 답을 안 보고 누르면 「떠올렸나」가 아니라 「떠올린 것 같나」를 적게 되고,
+   * 그러면 회독 기록이 실력을 안 재게 된다 — 간격을 정하는 게 그 기록이다.
+   *
+   * 그래서 기본은 답을 보고 판정한다. 대신 옛 방식을 지운 건 아니다.
+   * 익숙해진 사람은 설정에서 빠른 판정을 켜서 예전처럼 쓴다. */
+  const canJudge = revealed || Boolean(settings.quickJudge);
+
   const speakCurrent = useCallback(() => {
     if (faces?.speak) speakJapanese(faces.speak, settings.speechRate);
   }, [faces, settings.speechRate]);
@@ -302,10 +314,12 @@ export default function Study({
     ' ': speakCurrent,
     Space: speakCurrent,
     Enter: () => (revealed ? judge(VERDICT.KNOWN) : reveal()),
-    1: () => judge(VERDICT.UNKNOWN),
-    2: () => judge(VERDICT.VAGUE),
-    3: () => judge(VERDICT.KNOWN),
-    0: () => judge(VERDICT.MASTER),
+    /* 답을 열기 전에 숫자를 치면 판정이 아니라 뒤집기다. 손이 1·2·3에 가 있는
+       사람이 실수로 기록을 남기는 일을 막는다 — 빠른 판정을 켜면 예전대로다. */
+    1: () => (canJudge ? judge(VERDICT.UNKNOWN) : reveal()),
+    2: () => (canJudge ? judge(VERDICT.VAGUE) : reveal()),
+    3: () => (canJudge ? judge(VERDICT.KNOWN) : reveal()),
+    0: () => (canJudge ? judge(VERDICT.MASTER) : reveal()),
     ArrowLeft: undo,
     Backspace: undo,
     /* 뒤집기를 4에도 건다. 판정이 1·2·3이라 손이 거기 가 있는데, 뒤집으려고
@@ -533,6 +547,29 @@ export default function Study({
         </>
       )}
 
+      {/* ★ 답을 보기 전에는 판정이 아니라 「답 보기」 ★
+       *
+       * 자기평가의 기준은 「정답을 보고 이해했는지」가 아니라 「답을 보기 전에
+       * 떠올렸는지」다. 그런데 판정 버튼이 앞면에서도 눌리면 그 기준이 흐려진다.
+       *
+       * 못 떠올린 사람에게도 답은 보여 준다. 「모르겠어요」를 누르면 바로 넘기지
+       * 않고 답을 펼친다 — 답을 못 본 채로 다음 카드로 가면 그 카드는 그냥
+       * 틀린 채로 지나간 것이다. 판정은 펼친 뒤에 누른다. */}
+      {!canJudge && (
+        <div className="revealrow">
+          <button className="submit-btn sc-reveal" disabled={locked} onClick={reveal}>
+            답 보기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}
+          </button>
+          <button className="ghost-btn sc-miss" disabled={locked} onClick={reveal}>
+            모르겠어요
+          </button>
+        </div>
+      )}
+
+      {/* hidden 속성으로는 안 숨는다 — .judgerow에 display: grid가 걸려 있어서
+          작성자 스타일이 브라우저 기본 [hidden]을 이긴다. 실제로 두 줄이 같이
+          떠서 앞면에서도 판정이 눌렸다. 아예 그리지 않는다. */}
+      {canJudge && (
       <div className="judgerow">
         <button className="judge unknown" disabled={locked} onClick={() => judge(VERDICT.UNKNOWN)}>
           {hasKeyboard && <kbd className="judge-key">1</kbd>}
@@ -555,6 +592,7 @@ export default function Study({
           <span>기억했어요</span>
         </button>
       </div>
+      )}
 
       <div className="studyfoot">
         <button onClick={() => speakSlow(faces.speak)}>

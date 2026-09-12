@@ -60,9 +60,12 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   // 학습으로 들어가 판정해 본다
   await startStudy(page);
   await page.waitForTimeout(1200);
-  const card = await page.locator('.judge.known').count();
-  ok('학습 카드 진입', card > 0);
+  ok('학습 카드 진입', await page.locator('.studycard').count() > 0);
 
+  /* 판정은 답을 보고 나서 한다. 뒤집은 다음에 음성 기록을 비우는 순서가
+     중요하다 — 뒤집기 자체가 읽어 줄 수 있어서, 먼저 비우면 그게 섞인다. */
+  await page.locator('.studycard').click();
+  await page.waitForTimeout(400);
   await page.evaluate(() => { window._spoken = []; });
   await page.locator('.judge.known').click();          // 알아요
   await page.waitForTimeout(200);
@@ -83,6 +86,10 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   // 빠르게 연속 판정해도 뒤늦게 겹쳐 울리지 않아야 한다
   await page.evaluate(() => { window._spoken = []; });
   for (let i = 0; i < 3; i += 1) {
+    if (await page.locator('.studycard').count() === 0) break;
+    await page.locator('.studycard').click();      // 판정은 뒤집은 뒤에
+    await page.waitForTimeout(160);
+    if (await page.locator('.judge.known').count() === 0) break;
     await page.locator('.judge.known').click();
     await page.waitForTimeout(260);
   }

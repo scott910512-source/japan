@@ -176,7 +176,8 @@ async function boot(browser, patch = {}, init = null) {
 
   await page.locator('.study.intro .bigstart').click();
   await page.waitForTimeout(900);
-  ok('회독 화면으로 들어감', await page.locator('.judgerow').count() === 1);
+  /* 판정은 뒤집은 뒤에 나온다 — 들어왔는지는 카드가 있는지로 본다 */
+  ok('회독 화면으로 들어감', await page.locator('.studycard').count() === 1);
   /* 갈래마다 판 이름이 달라야 한다. 「오늘의 학습」 하나로 두면 이어하기 줄에
      떴을 때 뭘 하다 말았는지 모른다. */
   ok('무슨 판인지 이름에 적힘', (await page.textContent('.sh-title')).includes('복습하기'),
@@ -186,7 +187,10 @@ async function boot(browser, patch = {}, init = null) {
   const before = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}')).length);
   for (let i = 0; i < 6; i++) {
     const cardEl = page.locator('.studycard');
-    if (await cardEl.count()) { await cardEl.click(); await page.waitForTimeout(250); }
+    if (await cardEl.count()) {
+      await cardEl.click();
+      await page.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
+    }
     const btn = page.locator('.judgerow button', { hasText: i % 3 === 0 ? '몰라요' : '알아요' });
     if (await btn.count() === 0) break;
     await btn.first().click();
@@ -219,7 +223,10 @@ async function boot(browser, patch = {}, init = null) {
   console.log('\n── 나갔다 와도 이어진다');
   /* 방금 새로 연 판이라 아직 0장이다. 한 장 풀어야 「이어진다」가 볼 게 생긴다. */
   const one = page.locator('.studycard');
-  if (await one.count()) { await one.click(); await page.waitForTimeout(300); }
+  if (await one.count()) {
+    await one.click();
+    await page.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
+  }
   const knownBtn = page.locator('.judgerow button', { hasText: '알아요' });
   if (await knownBtn.count()) { await knownBtn.click(); await page.waitForTimeout(700); }
   await goTab(page, '오늘');
@@ -230,7 +237,7 @@ async function boot(browser, patch = {}, init = null) {
     (await page.textContent('.bigcta')).replace(/\n/g, ' '));
   await page.locator('.bigcta').click();
   await page.waitForTimeout(900);
-  ok('하던 자리로 돌아감', await page.locator('.judgerow').count() === 1);
+  ok('하던 자리로 돌아감', await page.locator('.studycard').count() === 1);
   ok('처음부터 다시 시작하지 않음', !(await page.textContent('.sh-title')).includes(' 0 /'));
   await page.locator('.sh-close').first().click();
   await page.waitForTimeout(600);
@@ -310,14 +317,17 @@ async function boot(browser, patch = {}, init = null) {
     const go2 = p2.locator('.intro-go, .bigstart').first();
     if (await go2.count()) { await go2.click(); await p2.waitForTimeout(900); }
     const card2 = p2.locator('.studycard');
-    if (await card2.count()) { await card2.click(); await p2.waitForTimeout(400); }
+    if (await card2.count()) {
+      await card2.click();
+      await p2.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
+    }
     const known2 = p2.locator('.judgerow button', { hasText: '알아요' });
     if (await known2.count()) { await known2.click(); await p2.waitForTimeout(800); }
     const st2 = await p2.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_streak_v1') || '{}'));
     ok('한 장 하면 1일째가 됨', st2.count === 1, JSON.stringify(st2));
     ok('남은 복습 줄도 안 나옴', await p2.locator('.rowcard', { hasText: '복습이 더' }).count() === 0);
     const started = await startStudy(p2);
-    ok('처음 켠 사람도 시작됨', started && await p2.locator('.judgerow').count() === 1);
+    ok('처음 켠 사람도 시작됨', started && await p2.locator('.studycard').count() === 1);
     ok('처음 켠 사람도 안 죽음', errs.length === 0, errs.slice(0, 2).join(' | '));
     await p2.close();
   }
@@ -350,7 +360,7 @@ async function boot(browser, patch = {}, init = null) {
       midRound = (await p3.locator('.sh-sub').textContent().catch(() => '')) || '';
       if (/2회독/.test(midRound)) break;          // 넘어갔고 아직 판 안에 있다
       await p3.locator('.studycard').click();
-      await p3.waitForTimeout(150);
+      await p3.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
       const btn = p3.locator('.judgerow button', { hasText: i % 3 === 0 ? '몰라요' : '알아요' });
       if (await btn.count() === 0) break;
       await btn.click();
@@ -410,7 +420,7 @@ async function boot(browser, patch = {}, init = null) {
       if (await p4.locator('.finish').count()) break;
       if (await p4.locator('.studycard').count() === 0) break;
       await p4.locator('.studycard').click();
-      await p4.waitForTimeout(120);
+      await p4.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
       const label = i % 4 === 0 ? '몰라요' : (i % 4 === 1 ? '애매해요' : '알아요');
       const btn = p4.locator('.judgerow button', { hasText: label });
       if (await btn.count() === 0) break;
@@ -449,7 +459,11 @@ async function boot(browser, patch = {}, init = null) {
     const intro5 = p5.locator('.study.intro .bigstart');
     if (await intro5.count()) { await intro5.click(); await p5.waitForTimeout(700); }
 
-    for (let i = 0; i < 4 && await p5.locator('.judge.known').count(); i++) {
+    for (let i = 0; i < 4; i++) {
+      if (await p5.locator('.studycard').count() === 0) break;
+      await p5.locator('.studycard').click();        // 판정은 뒤집은 뒤에
+      await p5.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
+      if (await p5.locator('.judge.known').count() === 0) break;
       await p5.locator('.judge.known').click();
       await p5.waitForTimeout(500);
     }

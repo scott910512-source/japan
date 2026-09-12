@@ -897,6 +897,10 @@ export default function App() {
             review={review}
             stats={stats}
             streak={streak}
+            /* 오늘 배정·완료는 계획 하나에서 나온다 — 기록 화면이 따로 세면
+               오늘 화면과 숫자가 어긋난다 */
+            planNow={planNow}
+            grammarLeft={grammarLeft}
             onOpenReview={() => setSub('review')}
           />
         </section>

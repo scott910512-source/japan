@@ -451,6 +451,12 @@ export default function Settings({
           on={settings.hangulPron} onClick={() => onChange({ hangulPron: !settings.hangulPron })} />
         <Toggle label="자동 마이크" sub="뜻을 열면 바로 듣기 시작해요 (처음 한 번은 직접 눌러 권한을 주세요)"
           on={settings.autoMic} onClick={() => onChange({ autoMic: !settings.autoMic })} />
+        {/* ★ 답을 보기 전에 판정할 수 있게 할까 ★
+            기본은 끈다 — 답을 보기 전에 누르면 「떠올렸나」가 아니라 「떠올린 것
+            같나」를 적게 되고, 그 기록이 복습 간격을 정한다. 대신 없애지는 않는다.
+            아는 것만 많은 회독에서는 카드마다 한 번 더 두드리는 게 전부 마찰이다. */}
+        <Toggle label="빠른 판정" sub="답을 보기 전에도 바로 판정해요. 아는 게 많아 넘기기만 할 때 씁니다 — 끄면 답을 보고 고르게 돼요"
+          on={settings.quickJudge} onClick={() => onChange({ quickJudge: !settings.quickJudge })} />
         <Toggle label="예문 보기" sub="뜻과 함께 예문을 보여줘요"
           on={settings.showExample} onClick={() => onChange({ showExample: !settings.showExample })} />
         <Toggle label="카드 섞기" sub="순서를 외워버리는 걸 막아요"

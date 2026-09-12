@@ -79,6 +79,30 @@ export async function startStudy(page, want = null) {
   return true;
 }
 
+/* 카드 한 장을 판정한다.
+ *
+ * ★ 이제 답을 보고 나서 판정한다 ★
+ *
+ * 여태 판정 버튼이 앞면에서도 눌렸다. 자기평가의 기준은 「답을 보기 전에
+ * 떠올렸는지」인데, 앞면에서 누르면 「떠올린 것 같나」를 적게 된다.
+ * 그래서 앞면에는 「답 보기」만 있고, 판정은 뒤집은 뒤에 나온다.
+ *
+ * 검사 여덟 곳이 판정 버튼을 바로 눌렀다. 사람이 하는 순서(뒤집고 → 고른다)를
+ * 여기 한 번만 적어 둔다 — 화면이 또 바뀌어도 여기만 고치면 된다.
+ * 판정이 안 나오면 false를 준다(판이 끝났거나 카드가 없다). */
+export async function judgeCard(page, label = '알아요', wait = 500) {
+  const card = page.locator('.studycard');
+  if (await card.count() === 0) return false;
+  // 뒤집는다. 이미 뒤집혀 있으면 카드를 눌러도 아무 일 없다.
+  await card.first().click();
+  await page.waitForTimeout(180);
+  const btn = page.locator('.judgerow button', { hasText: label });
+  if (await btn.count() === 0) return false;
+  await btn.first().click();
+  await page.waitForTimeout(wait);
+  return true;
+}
+
 /* 갈래를 못 박고 싶은 검사용.
    「새 단어」는 문장도 같이 배정되니 「새로 배우기」로, 「복습하기」는
    배정 내역 줄 이름이 「복습」으로 바뀌었다. */
