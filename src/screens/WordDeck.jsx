@@ -6,14 +6,8 @@ import {
 } from '../lib/review.js';
 import { normalizeGoals } from '../lib/daily.js';
 
-export const LEVELS = ['N5', 'N4', 'N3'];
-
-// 레벨 필터. 고른 게 없으면 전체를 쓴다 — 빈 덱으로 들어가는 일이 없게.
-export function filterByLevel(words, levels) {
-  if (!levels?.length) return words;
-  const set = new Set(levels);
-  return words.filter((w) => set.has(w.level) || (!w.level && set.has('N5')));
-}
+import { LEVELS, filterByLevel } from '../lib/wordFilters.js';
+export { LEVELS, filterByLevel } from '../lib/wordFilters.js';
 
 /* 단어암기 — 외울 단어를 고르고 회독을 시작하는 자리.
  *

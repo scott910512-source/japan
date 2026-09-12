@@ -27,6 +27,11 @@ export default function Gate({ onVaultKey, onToast, signedInOnce, onContinueOffl
         <div className="gate-mark">あ</div>
         <h1>JS일본어</h1>
         <p>회독으로 반복해서 외우는 일본어</p>
+        <ul className="gate-benefits" aria-label="학습 방식">
+          <li>매일 정한 분량만</li>
+          <li>틀린 표현 다시 보기</li>
+          <li>하던 학습 이어하기</li>
+        </ul>
       </div>
 
       <Account

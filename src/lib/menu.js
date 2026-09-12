@@ -18,9 +18,9 @@
  * 두면 「오늘 뭘 공부하지」를 고르는 자리에 공부 아닌 것이 끼어든다. */
 
 export const MENU_GROUPS = [
-  { id: 'learn', label: '배우기', sub: '아직 모르는 것을 처음 넣어요' },
-  { id: 'practice', label: '연습하기', sub: '아는 걸 다른 방식으로 굴려 봐요' },
-  { id: 'repeat', label: '반복하기', sub: '샌 것을 다시 만나요' },
+  { id: 'learn', label: '배우기', sub: '새 단어와 표현을 익혀요' },
+  { id: 'practice', label: '연습하기', sub: '배운 것을 직접 써 봐요' },
+  { id: 'repeat', label: '반복하기', sub: '잊기 전에 다시 확인해요' },
 ];
 
 /* icon은 이름만 적는다. 이 파일은 화면이 아니라 짜임새를 적는 곳이라
@@ -44,7 +44,7 @@ export const MENUS = [
 
   // ── 반복하기 ──
   { id: 'repeat', group: 'repeat', label: '회독 학습', sub: '배운 걸 등급별로 다시', icon: 'repeat', big: true },
-  { id: 'weak', group: 'repeat', label: '약점 복습', sub: '세 번 넘게 틀린 것만', icon: 'flame', big: true },
+  { id: 'weak', group: 'repeat', label: '약점 복습', sub: '몰라요·애매해요가 합쳐서 3회 이상', icon: 'flame', big: true },
 ];
 
 /* 설정에서 켠 것만, 묶음 순서대로.

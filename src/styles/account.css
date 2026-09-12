@@ -1,0 +1,244 @@
+/* ── 로그인 관문 ── */
+.gate { min-height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 8px 0 24px; }
+.gate-brand { text-align: center; margin-bottom: 26px; }
+.gate-mark {
+  width: 76px; height: 76px; margin: 0 auto 16px; border-radius: 24px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #fff;
+  font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 38px; font-weight: 800;
+  box-shadow: var(--glow-btn);
+}
+.gate-brand h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.02em; }
+.gate-brand p { font-size: 13px; color: var(--ink-soft); margin: 0; }
+.gate-note { margin-top: 16px; text-align: center; font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
+.gate-offline { width: 100%; margin-top: 18px; }
+
+.syncerror {
+  margin-top: 12px; padding: 11px 13px; border-radius: 12px;
+  background: var(--shu-soft); color: var(--shu);
+  display: flex; flex-direction: column; gap: 4px;
+}
+/* 안내는 오류처럼 안 보이게 — 붉은색은 진짜 문제일 때만 쓴다 */
+.syncnote {
+  margin-top: 12px; padding: 11px 13px; border-radius: 12px;
+  background: var(--kon-soft); color: var(--kon);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.syncnote b { font-size: 12.5px; }
+.syncnote span { font-size: 12px; line-height: 1.55; color: var(--ink-soft); }
+.syncsql {
+  display: block; margin-top: 4px; padding: 10px; border-radius: 10px;
+  background: var(--surface-2); color: var(--ink); font-family: var(--font-mono);
+  font-size: 11px; line-height: 1.6; word-break: break-all; user-select: all;
+}
+.syncnote .ghost-btn { margin-top: 8px; }
+.syncerror b { font-size: 12.5px; }
+.syncerror span { font-size: 12px; line-height: 1.55; }
+
+/* ── 계정 ── */
+.acct-head { display: flex; align-items: center; gap: 12px; }
+.acct-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #fff;
+}
+.acct-avatar svg { width: 20px; height: 20px; }
+.acct-notice {
+  margin: 10px 0 2px; padding: 10px 12px; border-radius: 10px;
+  background: var(--kon-soft); color: var(--kon); font-size: 12.5px; line-height: 1.55;
+}
+.acct-links { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 12px; }
+.acct-links button {
+  background: none; border: none; color: var(--ink-soft); font-size: 12.5px; font-weight: 600;
+  cursor: pointer; padding: 11px 6px; text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* ── 음성 상태 배지 ── */
+.ttsbadge {
+  display: inline-block; padding: 6px 12px; border-radius: 100px;
+  font-size: 12px; font-weight: 700; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft);
+}
+.ttsbadge.cloud { background: var(--kon-soft); color: var(--kon); border-color: transparent; }
+.ttsbadge.device { background: var(--surface-2); color: var(--ink); }
+.ttsbadge.device-nojp, .ttsbadge.unknown { background: var(--shu-soft); color: var(--shu); border-color: transparent; }
+
+/* ── 오늘 학습 구성 미리보기 ── */
+.planrow { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.pl-icon {
+  width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+}
+.pl-icon svg { width: 18px; height: 18px; }
+.pl-icon.review { background: var(--shu-soft); color: var(--shu); }
+.pl-icon.new { background: var(--kon-soft); color: var(--kon); }
+.pl-body { display: flex; flex-direction: column; gap: 2px; }
+.pl-body b { font-size: 14px; font-weight: 700; }
+.pl-body span { font-size: 11.5px; color: var(--ink-soft); }
+.plantotal { padding-top: 11px; text-align: right; font-size: 13px; font-weight: 700; color: var(--kon); font-variant-numeric: tabular-nums; }
+.bigstart:disabled { opacity: .5; cursor: default; }
+
+/* ── 키보드 단축키 표시 ──
+   따로 안내 줄을 두면 화면만 길어진다. 누르는 버튼 위에 바로 적는다. */
+.judge-key, .corner-key, .inline-key {
+  font-family: var(--font-mono); font-size: 9.5px; line-height: 1; font-weight: 700;
+  padding: 2px 4px; border-radius: 4px;
+  border: 1px solid var(--line); border-bottom-width: 2px;
+  background: var(--surface-2); color: var(--ink-soft);
+}
+.judge-key { position: absolute; top: 5px; left: 6px; }
+.corner-key { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); }
+.inline-key { margin-left: 5px; }
+.judge { position: relative; }
+.sc-speak { position: relative; }
+
+.ob-next:disabled { opacity: .45; cursor: default; }
+
+.set-warn {
+  font-size: 12.5px; line-height: 1.6; color: var(--shu); margin: 2px 0 8px;
+  padding: 9px 11px; border-radius: 10px; background: var(--shu-soft);
+}
+.set-warn b { font-weight: 700; }
+
+/* 영상 설명을 만들 곳 고르기 */
+.pickrow-group { display: flex; gap: 8px; margin-top: 10px; }
+.ai-pick { flex: 1; flex-direction: column; align-items: flex-start; gap: 2px; padding: 11px 13px; }
+.ai-pick b { font-size: 14px; font-weight: 700; }
+.ai-pick span { font-size: 11.5px; color: var(--ink-soft); }
+.modellist { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.modelpick {
+  font-size: 11.5px; font-weight: 600; padding: 7px 11px; border-radius: 9px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-soft);
+  word-break: break-all;
+}
+.modelpick.on { border-color: var(--kon); background: var(--kon-soft); color: var(--kon); }
+
+/* ── 단어 시험 ── */
+.pickstack { display: flex; flex-direction: column; gap: 8px; }
+.pickrow {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+  padding: 12px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.pickrow.active { border-color: var(--kon); background: var(--kon-soft); box-shadow: var(--glow-soft); }
+.pk-icon {
+  width: 34px; height: 34px; border-radius: 11px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--ink-soft);
+}
+.pickrow.active .pk-icon { background: var(--kon); color: #fff; }
+.pk-icon svg { width: 17px; height: 17px; }
+.pk-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pk-body b { font-size: 14px; font-weight: 700; }
+.pk-body span { font-size: 11.5px; color: var(--ink-soft); }
+
+/* 시험을 보는 동안에는 앱 헤더를 접는다. 시험 화면이 제 헤더(뒤로가기·진행·점수)를
+ * 갖고 있어서, 그대로 두면 뒤로가기 화살표가 위아래로 두 개 겹친다 —
+ * 한 앱이 아니라 앱 위에 앱을 얹은 것처럼 보인다. */
+.subscreen:has(.quizhead) .sub-header,
+.subscreen:has(.vl-head) .sub-header { display: none; }
+
+.quizhead { margin-bottom: 14px; }
+.qh-row { display: flex; align-items: center; gap: 8px; }
+.qh-score { font-size: 12.5px; font-weight: 700; color: var(--kon); font-variant-numeric: tabular-nums; }
+
+.quizcard {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  min-height: 150px; padding: 26px 18px; margin-bottom: 14px;
+  border-radius: 20px; border: 1px solid var(--line); background: var(--surface);
+}
+.qc-tag { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); letter-spacing: .02em; }
+.qc-prompt {
+  font-size: clamp(26px, 8vw, 40px); font-weight: 800; text-align: center; line-height: 1.35;
+  word-break: normal; overflow-wrap: anywhere;
+}
+.qc-prompt.ko { font-size: clamp(22px, 6.5vw, 32px); }
+.qc-sub { font-size: 14px; color: var(--ink-soft); font-weight: 600; }
+.qc-speak {
+  position: relative; margin-top: 4px; padding: 7px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; color: var(--ink-soft);
+}
+.qc-speak svg { width: 19px; height: 19px; display: block; }
+
+.qoptions { display: flex; flex-direction: column; gap: 8px; }
+.qopt {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; cursor: pointer;
+  padding: 13px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.qopt:disabled { cursor: default; }
+/* 설명이 붙어 길어진 정답 보기는 번호·표시를 위로 붙여야 균형이 맞는다 */
+.qopt:has(.qo-why) { align-items: flex-start; }
+.qopt:has(.qo-why) .qo-num, .qopt:has(.qo-why) .qo-mark { margin-top: 2px; }
+.qo-num {
+  width: 26px; height: 26px; flex: 0 0 auto; border-radius: 8px; background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+.qo-num kbd { font-family: var(--font-mono); font-size: 11px; }
+.qo-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.qo-body b { font-size: 14.5px; font-weight: 700; word-break: normal; overflow-wrap: anywhere; }
+.qo-body span { font-size: 11.5px; color: var(--ink-soft); }
+/* 정답은 파랑, 내가 고른 오답은 빨강. 정답을 빨강으로 칠하면 뭐가 맞는지 못 읽는다. */
+.qopt.correct { border-color: var(--kon); background: var(--kon-soft); }
+.qopt.wrong { border-color: var(--shu); background: var(--shu-soft); }
+.qopt.dim { opacity: .45; }
+.qo-mark { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; font-size: 10.5px; font-weight: 800; }
+.qo-mark svg { width: 13px; height: 13px; }
+.qo-mark.ok { color: var(--kon); }
+.qo-mark.no { color: var(--shu); }
+
+/* 정답 보기 안에 붙는 설명 */
+.qo-why {
+  display: flex; flex-direction: column; gap: 3px;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
+  white-space: normal;
+}
+.qo-why b { font-size: 12.5px; font-weight: 700; color: var(--kon); }
+.qw-jp { font-size: 13px; color: var(--ink); line-height: 1.6; }
+.qw-ko { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+
+.qtyping { display: flex; flex-direction: column; gap: 10px; }
+.qtyping .search-input { font-size: 17px; text-align: center; padding: 14px; }
+
+.qverdict {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  margin-top: 14px; padding: 14px; border-radius: 14px; font-size: 14px; font-weight: 650; line-height: 1.6;
+}
+.qverdict svg { width: 17px; height: 17px; vertical-align: -3px; }
+.qverdict b { font-weight: 800; }
+.qverdict.correct { background: var(--kon-soft); color: var(--kon); }
+.qverdict.close { background: var(--surface-2); color: var(--ink); }
+.qverdict.wrong { background: var(--shu-soft); color: var(--shu); }
+.qv-ex { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; font-weight: 500; color: var(--ink-soft); }
+.qnext { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+
+.quizscore {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  padding: 30px 18px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface);
+}
+.qs-num { font-size: 54px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.qs-num small { font-size: 18px; font-weight: 700; margin-left: 3px; }
+.qs-label { font-size: 16px; font-weight: 700; margin-top: 6px; }
+.qs-sub { font-size: 12.5px; color: var(--ink-soft); }
+.quizscore.great .qs-num, .quizscore.great .qs-label { color: var(--kon); }
+.quizscore.good .qs-num, .quizscore.good .qs-label { color: var(--kon); }
+.quizscore.okay .qs-num, .quizscore.okay .qs-label { color: var(--ink); }
+.quizscore.weak .qs-num, .quizscore.weak .qs-label { color: var(--shu); }
+
+.qwronglist { display: flex; flex-direction: column; }
+.qwrow { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.qwrow:last-child { border-bottom: none; }
+.qw-speak { background: none; border: none; padding: 4px; cursor: pointer; color: var(--ink-soft); display: flex; }
+.qw-speak svg { width: 17px; height: 17px; }
+.qw-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.qw-body b { font-size: 15px; font-weight: 700; }
+.qw-body span { font-size: 11.5px; color: var(--ink-soft); }
+
+/* ── 음성 사용량 ── */
+.usagebox { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ub-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ub-label { font-size: 13px; font-weight: 650; }
+.ub-val { font-size: 12.5px; font-weight: 700; color: var(--kon); font-variant-numeric: tabular-nums; }
+.ub-val.over { color: var(--shu); }
+.ub-bar { height: 6px; border-radius: 4px; background: var(--surface-2); margin-top: 8px; overflow: hidden; }
+.ub-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--kon), var(--kon-deep)); transition: width .3s ease; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+

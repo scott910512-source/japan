@@ -11,6 +11,7 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab, openMenu, openMore } from './_nav.js';
+import { DAILY_GRAMMAR_SETS } from '../../src/data/grammar-daily.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -132,15 +133,17 @@ async function boot(browser, settings = {}) {
   ok('보기가 셋', await page.locator('.qopt').count() === 3);
   ok('한국어 뜻이 같이 보인다', (await page.locator('.av-ko').innerText()).length > 0);
 
-  /* 일부러 틀려 본다 — 왜 틀렸는지가 이 화면의 전부다 */
-  let wrongPicked = false;
-  for (let q = 0; q < 4 && !wrongPicked; q++) {
-    if (await page.locator('.qopt').count() === 0) break;
-    await page.locator('.qopt').first().click();
-    await page.waitForTimeout(600);
-    if (await page.locator('.av-why').count()) { wrongPicked = true; break; }
-    await page.waitForTimeout(900);
-  }
+  /* 보기 순서는 무작위다. 첫 보기를 반복해서 누르면 모두 정답일 수도 있다.
+     실제 첫 문제의 오답을 명시적으로 골라 오류 설명 경로를 검사한다. */
+  const firstItem = DAILY_GRAMMAR_SETS[0].items[0];
+  ok('선택한 묶음의 첫 문제를 표시한다',
+    (await page.locator('.av-jp').textContent()) === firstItem.jp.replace('【　】', '？'));
+  const options = await page.locator('.qopt .qo-body b').allTextContents();
+  const wrongIndex = options.findIndex((text) => text !== firstItem.answer && firstItem.why[text]);
+  if (wrongIndex < 0) throw new Error('첫 문제에 설명이 있는 오답 보기가 없습니다');
+  await page.locator('.qopt').nth(wrongIndex).click();
+  await page.locator('.av-why').waitFor({ state: 'visible' });
+  const wrongPicked = await page.locator('.av-why').isVisible();
   ok('틀리면 설명이 뜬다', wrongPicked);
   if (wrongPicked) {
     ok('내가 고른 게 왜 틀렸는지 적혀 있다', await page.locator('.av-wrong').count() === 1,

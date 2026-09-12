@@ -4,7 +4,7 @@ import {
 } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
-import { filterByLevel, LEVELS } from './WordDeck.jsx';
+import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
 import {
   QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords,
 } from '../lib/quiz.js';

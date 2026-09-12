@@ -3,7 +3,7 @@ import StudyMenuCard from '../components/StudyMenuCard.jsx';
 import { summarize, weakCards } from '../lib/review.js';
 import { roundSummary } from '../lib/rounds.js';
 import { groupedMenus } from '../lib/menu.js';
-import { filterByLevel } from './WordDeck.jsx';
+import { filterByLevel } from '../lib/wordFilters.js';
 
 /* 학습 탭 — 직접 골라서 하는 공부.
  *
@@ -40,7 +40,7 @@ export default function StudyHub({ words, review, settings, onOpen }) {
       const doing = rounds.round1 + rounds.round2 + rounds.round3;
       return doing > 0 ? `보고 있는 것 ${doing}개 · 완료 ${rounds.done + rounds.long}개` : '아직 배운 게 없어요';
     }
-    if (id === 'weak') return weak > 0 ? `세 번 넘게 틀린 것 ${weak}개` : '아직 없어요. 잘하고 있어요';
+    if (id === 'weak') return weak > 0 ? `다시 익힐 표현 ${weak}개` : '아직 복습할 약점이 없어요';
     return null;
   };
 
@@ -79,7 +79,7 @@ export default function StudyHub({ words, review, settings, onOpen }) {
       })}
 
       {groups.length === 0 && (
-        <div className="empty-state">더보기 → 설정에서 학습 메뉴를 켜 주세요</div>
+        <div className="empty-state">더보기 → 학습 설정에서 학습 메뉴를 켜 주세요</div>
       )}
 
       <p className="set-note">

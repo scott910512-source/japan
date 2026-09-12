@@ -1,0 +1,341 @@
+/* ── JLPT 레벨별 단어 ── */
+.jl-note { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+.jl-note svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.jl-level, .jl-set {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  color: var(--ink); font: inherit; cursor: pointer;
+}
+.jl-level:disabled { opacity: .45; cursor: default; }
+.jl-badge {
+  flex: 0 0 auto; width: 46px; height: 46px; border-radius: 14px;
+  display: grid; place-items: center; font-weight: 800; font-size: 15px;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14;
+}
+.jl-level:disabled .jl-badge { background: var(--surface-2); color: var(--ink-soft); }
+.jl-setno {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 12px;
+  display: grid; place-items: center; font-weight: 700; font-size: 14px;
+  background: var(--surface-2); color: var(--ink-soft);
+}
+.jl-setno svg { width: 18px; height: 18px; color: var(--kon); }
+.jl-body { flex: 1; min-width: 0; }
+.jl-title { font-size: 15px; font-weight: 600; }
+.jl-sub {
+  font-size: 12px; color: var(--ink-soft); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jl-bar { height: 5px; border-radius: 3px; background: var(--surface-2); margin-top: 8px; overflow: hidden; }
+.jl-bar span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--kon), var(--kon-deep)); transition: width .3s ease; }
+.jl-pct { flex: 0 0 auto; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* ── 영상으로 배우기 ── */
+.vd-note { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+.vd-note svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.vd-add { display: flex; gap: 8px; margin-top: 14px; }
+.vd-add input {
+  flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px; color: var(--ink); font: inherit;
+}
+.vd-addbtn {
+  flex: 0 0 auto; width: 46px; border-radius: 12px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14;
+}
+.vd-addbtn svg { width: 20px; height: 20px; }
+
+.vd-item { display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; padding: 10px; }
+
+/* 설명을 이미 만들어 둔 영상에만 붙는다. 줄을 따로 잡아 영상 줄과 안 섞이게 한다 */
+.vd-quickstudy {
+  flex: 1 0 100%; display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer;
+  padding: 11px; border-radius: 12px; font-size: 13px; font-weight: 700;
+  background: var(--kon-soft); border: 1px solid var(--line); color: var(--kon);
+}
+.vd-quickstudy svg { width: 15px; height: 15px; }
+.vd-quickstudy span { font-weight: 600; opacity: .75; font-variant-numeric: tabular-nums; }
+.vd-open {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+  background: none; border: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.vd-thumb { width: 96px; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; flex: 0 0 auto; background: var(--surface-2); }
+.vd-body { flex: 1; min-width: 0; }
+/* 제목은 두 줄까지만. 유튜브 주소가 그대로 들어오는 경우가 있어(제목을 못 받은
+   영상) 끊어 주지 않으면 좁은 기기에서 카드 밖으로 흘러나간다. */
+.vd-title {
+  font-size: 14px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.vd-meta { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+.vd-del { flex: 0 0 auto; background: none; border: none; color: var(--ink-soft); cursor: pointer; padding: 0 13px; }
+.vd-del svg { width: 18px; height: 18px; }
+
+.vd-player { margin-top: 14px; border-radius: 16px; overflow: hidden; background: #000; }
+.vd-player iframe { width: 100%; aspect-ratio: 16/9; border: 0; display: block; }
+
+.vd-sec { margin-top: 12px; }
+.vd-h { font-size: 15px; font-weight: 700; }
+.vd-sub { font-size: 12px; color: var(--ink-soft); margin-top: 4px; line-height: 1.5; }
+.vd-p { font-size: 13px; line-height: 1.65; margin-top: 8px; }
+.vd-dim { color: var(--ink-soft); }
+.vd-ul { margin: 8px 0 0 18px; font-size: 13px; line-height: 1.7; }
+.vd-badges { margin-top: 8px; }
+.vd-badge {
+  display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14;
+}
+
+.vd-script {
+  width: 100%; margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px; color: var(--ink); font: inherit; line-height: 1.6; resize: vertical;
+}
+/* ── 번역기 ──
+   여행 중에 한 손으로 30초 안에 끝나야 한다. 한글 발음이 제일 크고,
+   나머지는 그 아래로 물러난다. */
+.tr-ask { display: flex; flex-direction: column; gap: 8px; }
+.tr-input {
+  width: 100%; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 13px; color: var(--ink); font: inherit;
+  font-size: 15px; line-height: 1.5; resize: vertical;
+}
+.tr-input:focus { outline: none; border-color: var(--kon); box-shadow: 0 0 0 3px var(--kon-soft); }
+.tr-go {
+  padding: 14px; border: none; border-radius: 14px; cursor: pointer;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep));
+  color: #0A0D14; font: inherit; font-weight: 700; font-size: 15px;
+}
+.tr-go:disabled { opacity: .4; cursor: default; }
+
+.tr-card { margin-top: 14px; }
+.tr-asked { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 10px; }
+.tr-line { margin: 4px 0; }
+.tr-jp { font-size: 17px; font-weight: 600; line-height: 1.5; word-break: keep-all; }
+.tr-line.big .tr-jp { font-size: 21px; }
+/* 여행 중에는 가나를 더듬을 틈이 없다. 보고 바로 말할 수 있어야 한다. */
+.tr-hangul { font-size: 16px; font-weight: 700; color: var(--kon); margin-top: 4px; letter-spacing: -.01em; }
+.tr-line.big .tr-hangul { font-size: 19px; }
+.tr-yomi { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+.tr-say { display: flex; gap: 6px; margin-top: 8px; }
+.tr-say .ghost-btn { flex: 0 0 auto; padding: 8px 12px; font-size: 12.5px; }
+.tr-ko { font-size: 13.5px; color: var(--ink-soft); margin-top: 10px; }
+.tr-tag {
+  display: inline-block; margin-top: 8px; padding: 3px 9px; border-radius: 100px;
+  background: var(--surface-2); color: var(--ink-soft); font-size: 11px; font-weight: 700;
+}
+.tr-note { font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; margin: 8px 0 0; }
+
+.tr-sec { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.tr-sec h4 { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin: 0 0 8px; }
+.tr-sub { margin-bottom: 12px; }
+.tr-sub:last-child { margin-bottom: 0; }
+.tr-when { font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.55; }
+/* 요즘 말을 어디까지 써도 되는지. 색으로 먼저 읽힌다 —
+   빨강은 또래끼리만, 파랑은 아무에게나. */
+.tr-safe {
+  display: inline-block; margin-bottom: 4px; padding: 2px 8px; border-radius: 100px;
+  font-size: 11px; font-weight: 700;
+}
+.tr-safe.s-친구 { background: var(--shu-soft); color: var(--shu); }
+.tr-safe.s-점원 { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
+.tr-safe.s-안전 { background: var(--kon-soft); color: var(--kon); }
+
+.tr-area {
+  display: inline-block; margin-bottom: 4px; padding: 2px 8px; border-radius: 100px;
+  background: var(--shu-soft); color: var(--shu); font-size: 11px; font-weight: 700;
+}
+
+.tr-word { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.tr-wordmain {
+  flex: 1; min-width: 0; background: none; border: none; color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer; padding: 4px 0;
+}
+.tr-wjp { font-size: 16px; font-weight: 600; margin-right: 8px; }
+.tr-wyomi { font-size: 12.5px; color: var(--kon); margin-right: 8px; }
+.tr-wko { font-size: 12.5px; color: var(--ink-soft); }
+.tr-keep {
+  flex: 0 0 auto; width: 36px; height: 36px; border-radius: 10px; cursor: pointer;
+  background: var(--kon-soft); border: none; color: var(--kon);
+  display: flex; align-items: center; justify-content: center;
+}
+.tr-keep svg { width: 18px; height: 18px; }
+
+.tr-item { display: flex; align-items: stretch; gap: 8px; padding: 10px 12px; }
+.tr-item.on { border-color: var(--kon); }
+.tr-open { flex: 1; min-width: 0; background: none; border: none; text-align: left; cursor: pointer; padding: 2px 0; }
+.tr-ik { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.tr-ij { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 요즘 일본어 알아보기 — 번역이 본업이라 접어 둔다. */
+.tr-trend { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+.tr-trend > summary {
+  cursor: pointer; list-style: none; font-size: 13px; font-weight: 700; color: var(--kon);
+  padding: 11px 2px;
+}
+.tr-trend > summary::-webkit-details-marker { display: none; }
+.tr-trend > summary::after { content: ' ▾'; font-weight: 400; }
+.tr-trend[open] > summary::after { content: ' ▴'; }
+.tr-trendrow { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.tr-trendkeep { margin-top: 10px; padding: 8px 12px; font-size: 12.5px; }
+
+/* 예문이 핵심이다 — 뜻만 알면 못 쓰고, 문장이 있어야 그날 따라 한다. */
+.tr-ex {
+  display: flex; align-items: flex-start; gap: 9px; margin-top: 10px;
+  background: var(--surface-2); border-radius: 12px; padding: 11px 12px;
+}
+.tr-exsay {
+  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); color: var(--kon);
+  display: flex; align-items: center; justify-content: center;
+}
+.tr-exsay svg { width: 15px; height: 15px; }
+.tr-ex span { min-width: 0; }
+.tr-ex b { display: block; font-size: 14.5px; font-weight: 600; line-height: 1.5; }
+.tr-ex i { display: block; font-size: 12.5px; font-style: normal; color: var(--kon); margin-top: 3px; }
+.tr-ex em { display: block; font-size: 12px; font-style: normal; color: var(--ink-soft); margin-top: 3px; }
+
+/* 영상 빼기 — 되돌릴 수 없으니 "삭제"를 치게 한다. */
+.vd-delwhat { font-size: 14px; font-weight: 600; margin: 2px 0 10px; word-break: break-all; }
+.vd-delword {
+  width: 100%; margin: 12px 0 6px; padding: 12px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+  font: inherit; text-align: center; letter-spacing: .1em;
+}
+.vd-delword:focus { outline: none; border-color: var(--shu); }
+.vd-delacts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.vd-delgo {
+  padding: 13px; border: none; border-radius: 12px; cursor: pointer;
+  background: var(--shu); color: #0A0D14; font: inherit; font-weight: 700;
+}
+.vd-delgo:disabled { opacity: .35; cursor: default; }
+
+/* 자막 구하는 법 — 처음 한 번만 필요한 안내라 접어 둔다. */
+.vd-how { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.vd-how > summary {
+  cursor: pointer; list-style: none; font-size: 13px; font-weight: 600; color: var(--kon);
+  padding: 11px 2px; /* 줄만 있으면 누를 자리가 없다 */
+}
+.vd-how > summary::-webkit-details-marker { display: none; }
+.vd-how > summary::after { content: ' ▾'; font-weight: 400; }
+.vd-how[open] > summary::after { content: ' ▴'; }
+.vd-steps {
+  margin: 10px 0 0; padding-left: 20px; font-size: 13px; line-height: 1.9; color: var(--ink-soft);
+}
+/* 읽고 직접 복사하는 용도. 자막 입력칸(.vd-script)과 생김새는 같되 클래스는
+   따로 둔다 — 같이 쓰면 "자막 칸"을 가리키는 곳마다 둘 다 걸린다. */
+.vd-prompt {
+  width: 100%; margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px; color: var(--ink-soft); font: inherit; font-size: 13px;
+  line-height: 1.6; resize: vertical;
+}
+.vd-run {
+  width: 100%; margin-top: 10px; padding: 13px; border: none; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #0A0D14; font: inherit; font-weight: 700;
+}
+.vd-run:disabled { opacity: .45; cursor: default; }
+
+.vd-word { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.vd-wordmain { flex: 1; min-width: 0; background: none; border: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.vd-jp { font-size: 17px; font-weight: 600; margin-right: 8px; }
+.vd-yomi { font-size: 12px; color: var(--ink-soft); }
+.vd-ko { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
+.vd-point { display: block; font-size: 12px; color: var(--kon); margin-top: 3px; }
+.vd-keep {
+  flex: 0 0 auto; font-size: 12px; font-weight: 700; padding: 7px 12px; border-radius: 10px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
+}
+.vd-have {
+  flex: 0 0 auto; font-size: 11px; font-weight: 600; line-height: 1.3; text-align: center;
+  color: var(--ink-soft); padding: 4px 8px;
+}
+
+.vd-wordacts { display: flex; gap: 8px; margin-top: 14px; }
+.vd-keepall, .vd-study {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 13px; font-weight: 700; padding: 11px 10px; border-radius: 12px; cursor: pointer;
+}
+.vd-keepall { background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); }
+.vd-study { background: var(--kon); border: none; color: #fff; }
+
+.manage-src { font-size: 11px; color: var(--ink-soft); margin-top: 3px; }
+
+/* ── 영상 단계 학습 ── 회독·시험과 같은 머리를 쓴다. 한 앱이어야 한다. */
+.vl-head { margin-bottom: 14px; }
+.vl-kind {
+  flex: 0 1 auto; min-width: 0; font-size: 11.5px; font-weight: 700; text-align: right;
+  color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vl-vid {
+  font-size: 11.5px; color: var(--ink-soft); margin-bottom: 10px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vl-shadow { margin-top: 4px; }
+.vl-nav { display: flex; align-items: stretch; gap: 8px; margin-top: 16px; }
+.vl-prev { flex: 0 0 auto; padding: 0 22px; }
+.vl-next { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.vl-next svg { width: 16px; height: 16px; }
+
+/* 자막으로 영상과 함께 학습 */
+.sl-player { margin-bottom: 14px; }
+.sl-line { padding: 4px 2px 2px; }
+.sl-jp { font-size: 20px; font-weight: 600; line-height: 1.65; margin: 0; word-break: keep-all; overflow-wrap: anywhere; }
+.sl-ko { font-size: 14px; color: var(--ink-soft); line-height: 1.6; margin: 8px 0 0; }
+.sl-point { font-size: 12.5px; color: var(--kon); line-height: 1.5; margin: 6px 0 0; }
+.sl-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.sl-acts > button, .sl-acts .micbtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12.5px; font-weight: 600; padding: 9px 13px; border-radius: 11px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
+}
+.sl-acts > button:disabled { opacity: .45; cursor: default; }
+.sl-acts svg { width: 15px; height: 15px; }
+.sl-auto {
+  display: flex; align-items: center; gap: 7px; margin-top: 14px;
+  font-size: 12.5px; color: var(--ink-soft); cursor: pointer;
+}
+
+.vd-scriptacts { display: flex; flex-direction: column; gap: 8px; }
+.vd-count { font-size: 12px; color: var(--ink-soft); margin: 8px 0 10px; line-height: 1.5; }
+.vd-count.over { color: var(--kon); }
+.vd-entry + .vd-entry { margin-top: 12px; }
+.vd-entry .vd-h { margin-bottom: 4px; }
+.vd-entrybar { height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 12px 0 14px; }
+.vd-entrybar i { display: block; height: 100%; border-radius: 3px; background: var(--kon); transition: width .25s ease; }
+.vd-entryacts { display: flex; flex-direction: column; gap: 8px; }
+
+.vd-line {
+  display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 8px;
+  background: none; border: none; color: var(--ink); font: inherit; font-size: 15px;
+  line-height: 1.6; text-align: left; cursor: pointer;
+}
+.vd-line svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--kon); }
+.vd-quote, .vd-ex, .vd-real, .vd-break, .vd-lit, .vd-shadow, .vd-take {
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+.vd-realhead { font-size: 16px; font-weight: 700; color: var(--kon); }
+.vd-parts { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.vd-part { font-size: 13px; color: var(--ink-soft); }
+.vd-part b { color: var(--ink); margin-right: 6px; }
+.vd-warn { font-size: 13px; color: var(--shu); margin-top: 8px; line-height: 1.6; }
+.vd-litko { font-size: 14px; color: var(--ink-soft); }
+.vd-litjp { font-size: 15px; margin-top: 4px; }
+.vd-shadowbtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.vd-shadowbtns button {
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
+  border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.vd-shadowbtns button svg { width: 15px; height: 15px; }
+.vd-take { font-size: 14px; line-height: 1.6; }
+.vd-q { font-size: 16px; font-weight: 600; }
+.vd-redo {
+  width: 100%; margin: 14px 0 24px; padding: 12px; border-radius: 12px; cursor: pointer;
+  background: none; border: 1px solid var(--line); color: var(--ink-soft); font: inherit;
+}
+
+/* 화면 안에서 한 단계만 뒤로 가는 버튼. 상단의 '홈' 버튼과 섞이지 않게 따로 둔다. */
+.inner-back {
+  display: flex; align-items: center; gap: 2px; background: none; border: none;
+  color: var(--kon); font: inherit; font-size: 14px; font-weight: 600; padding: 6px; cursor: pointer;
+  /* 손가락으로 짚는 것은 44px는 돼야 한다. 글자 높이만 두면 30px밖에 안 된다. */
+  min-height: 44px;
+}
+.inner-back svg { width: 18px; height: 18px; }
+
