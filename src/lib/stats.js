@@ -53,6 +53,24 @@ export function addToDay(stats, day, list) {
   };
 }
 
+/* ── 판정이 아닌 활동 ──
+ *
+ * 듣기와 시험은 회독 진도를 바로 올리지 않는다. 그 판단은 그대로 둔다 —
+ * 들으면서 흘려보낸 것과 떠올려서 맞힌 것은 다른 일이다.
+ *
+ * 그런데 아무 데도 안 남으니 한 시간 듣고도 기록이 그대로였다. 노력한 내역은
+ * 보여야 한다. 기억 단계와 섞지 않고 활동 칸에만 적는다.
+ *
+ * 칸 이름을 늘려도 동기화가 견딘다 — mergeStats가 양쪽에 있는 칸을 다 훑는다. */
+export function noteActivity(stats, day, patch = {}) {
+  const add = Object.entries(patch).filter(([, v]) => Number(v) > 0);
+  if (!add.length) return stats;
+  const cur = stats?.[day] || EMPTY_DAY;
+  const next = { ...cur };
+  for (const [k, v] of add) next[k] = (Number(next[k]) || 0) + Number(v);
+  return { ...stats, [day]: next };
+}
+
 /* 그 날 칸에서 뺀다.
  *
  * 0 아래로는 안 내려간다. 이 집계는 60일만 남기고 기기 두 대에서 합쳐지기도

@@ -53,23 +53,26 @@ const SCRIPT = `[00:05] やっぱり外で食べるラーメンって
       if (u.includes('youtube.com/oembed')) return Promise.resolve(new Response(JSON.stringify({ title: '라멘집 일본어', author_name: '테스트 채널' }), { status: 200 }));
       return orig(url, opt);
     };
-    // 영상에 보낸 명령을 가로챈다
+    /* 영상에 보낸 명령을 가로챈다.
+     *
+     * ★ iframe 하나하나가 아니라 프로토타입에 건다 ★
+     *
+     * 예전에는 만들어진 iframe을 찾아 하나씩 걸고, 새로 생기는 것은
+     * MutationObserver로 따라가며 걸었다. 그런데 학습 화면에 들어가는 순간의
+     * 첫 명령(그 줄로 되감기 + 재생)이 안 잡혔다 — 리액트가 누름 처리 안에서
+     * 효과를 먼저 돌려 버려서, 명령이 나갈 때는 아직 진짜 iframe이었다.
+     *
+     * 그래서 CI에서는 통과하고 여기서는 깨졌다. 인터넷이 되는 곳에서는 영상이
+     * 실제로 떠서 onLoad가 같은 명령을 한 번 더 보내 준 것뿐이다. 앱은 처음부터
+     * 제대로 보내고 있었고, 못 잡은 건 검사 쪽이었다.
+     *
+     * 프로토타입에 한 번 걸면 나중에 생기는 iframe까지 전부 걸리니 순서를 다툴
+     * 일이 없고, 유튜브가 떠 주는지에도 매달리지 않는다. */
     window._cmds = [];
-    const realPost = window.postMessage;
-    const patch = () => {
-      document.querySelectorAll('iframe').forEach((f) => {
-        if (f._patched) return;
-        f._patched = true;
-        try {
-          Object.defineProperty(f, 'contentWindow', {
-            get: () => ({ postMessage: (m) => window._cmds.push(m) }),
-          });
-        } catch { /* 무시 */ }
-      });
-    };
-    patch();
-    new MutationObserver(patch).observe(document.body, { childList: true, subtree: true });
-    window._realPost = realPost;
+    Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+      configurable: true,
+      get() { return { postMessage: (m) => window._cmds.push(m) }; },
+    });
   });
 
   await openVideos(page);

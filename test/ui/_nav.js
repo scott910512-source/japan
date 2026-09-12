@@ -79,6 +79,47 @@ export async function startStudy(page, want = null) {
   return true;
 }
 
+/* 더보기의 한 묶음을 연다.
+ *
+ * ★ 더보기가 긴 한 화면에서 여섯 줄 목록으로 바뀌었다 ★
+ *
+ * 예전엔 탭만 누르면 계정·목적·음성·데이터가 다 거기 있었다. 이제는 묶음을
+ * 하나 골라 들어가야 한다. 검사 여덟 곳이 탭만 누르고 내용을 찾고 있었으니,
+ * 어디를 눌러 들어가는지는 여기서만 정한다 — 화면이 또 바뀌어도 여기만 고친다.
+ *
+ * group: study · voice · account · backup · tools · about
+ * 이미 그 묶음에 들어와 있으면 아무것도 안 한다. */
+export async function openMore(page, group = 'study') {
+  await goTab(page, '더보기');
+  const label = {
+    study: '학습 설정',
+    voice: '음성',
+    account: '계정과 동기화',
+    backup: '기록 백업',
+    tools: '학습 도구',
+    about: '앱 정보',
+  }[group] || group;
+  const row = page.locator('.moregroup', { hasText: label });
+  if (await row.count()) {
+    await row.first().click();
+    await page.waitForTimeout(500);
+    return true;
+  }
+  /* 목록이 안 보이면 이미 어느 묶음에 들어와 있는 것이다. 뒤로 나가서 다시 고른다 */
+  const back = page.locator('.moreback');
+  if (await back.count()) {
+    await back.click();
+    await page.waitForTimeout(400);
+    const again = page.locator('.moregroup', { hasText: label });
+    if (await again.count()) {
+      await again.first().click();
+      await page.waitForTimeout(500);
+      return true;
+    }
+  }
+  return false;
+}
+
 /* 카드 한 장을 판정한다.
  *
  * ★ 이제 답을 보고 나서 판정한다 ★

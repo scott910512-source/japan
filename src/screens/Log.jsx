@@ -84,6 +84,10 @@ export default function Log({
       days: days.filter(([, v]) => (v.studied || 0) > 0).length,
       studied: days.reduce((s, [, v]) => s + (v.studied || 0), 0),
       promoted,
+      /* 판정이 아닌 활동. 회독 진도는 안 올리지만 한 일은 한 일이다 —
+         안 보여 주면 한 시간 듣고도 기록이 그대로인 것처럼 보인다. */
+      listened: days.reduce((s, [, v]) => s + (v.listened || 0), 0),
+      quizzed: days.reduce((s, [, v]) => s + (v.quizzed || 0), 0),
     };
   }, [stats, today, review]);
 
@@ -174,9 +178,18 @@ export default function Log({
           듣기·시험·짝 맞추기를 회독 진도에 바로 반영하지 않는 판단은 그대로 둔다.
           다만 왜 안 오르는지는 말해 줘야 한다 — 안 그러면 한 시간 듣고도
           아무것도 안 변한 것처럼 보인다. */}
+      {/* 듣기·시험은 회독 진도를 안 올린다. 그래도 한 일은 보여 준다 —
+          안 보여 주면 한 시간 듣고도 아무것도 안 한 것처럼 보인다. */}
+      {(recent.listened > 0 || recent.quizzed > 0) && (
+        <div className="logweek" style={{ marginTop: 8 }}>
+          <div className="lw-cell"><b>{recent.listened}</b><span>들은 문장</span></div>
+          <div className="lw-cell"><b>{recent.quizzed}</b><span>시험 문항</span></div>
+          <div className="lw-cell"><b>{recent.promoted}</b><span>기억 단계 오름</span></div>
+        </div>
+      )}
       <div className="set-note" style={{ marginTop: 6 }}>
-        판정 횟수는 카드를 몇 번 만났는지예요. 듣기 · 시험 · 짝 맞추기는
-        회독 기록에 판정으로 남을 때만 여기 세고, 기억 단계는 복습일에만 올라요.
+        판정 횟수는 카드를 몇 번 만났는지예요. 듣기와 시험은 따로 세고
+        기억 단계는 올리지 않아요 — 기억 단계는 복습일의 판정으로만 올라요.
       </div>
 
       <div className="section-label">

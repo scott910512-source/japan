@@ -52,14 +52,28 @@ export function mergeStats(local = {}, remote = {}) {
   const out = { ...remote };
   for (const [day, l] of Object.entries(local)) {
     const r = remote[day] || {};
-    // 같은 날 두 기기에서 공부했으면 합쳐야 맞지만, 합치면 재동기화마다 불어난다.
-    // 통계는 정확도보다 안정성이 중요하므로 큰 쪽을 남긴다.
-    out[day] = {
-      studied: Math.max(l.studied || 0, r.studied || 0),
-      known: Math.max(l.known || 0, r.known || 0),
-      vague: Math.max(l.vague || 0, r.vague || 0),
-      unknown: Math.max(l.unknown || 0, r.unknown || 0),
-    };
+    /* 같은 날 두 기기에서 공부했으면 합쳐야 맞지만, 합치면 재동기화마다 불어난다.
+     * 통계는 정확도보다 안정성이 중요하므로 큰 쪽을 남긴다.
+     *
+     * ★ 칸 이름을 여기 적어 두지 않는다 ★
+     *
+     * 예전엔 studied·known·vague·unknown 넷을 손으로 적어 두었다. 그러면 새
+     * 칸을 만들 때 이 줄을 같이 고쳐야 하는데, 잊으면 그 칸이 동기화할 때마다
+     * 조용히 사라진다 — 기기 두 대를 쓰는 사람에게만, 한참 뒤에 드러난다.
+     * 백업에서 이미 겪은 일이라(「표에 없으면 백업에도 없다») 여기서는 양쪽에
+     * 있는 칸을 다 훑는다. */
+    const day2 = {};
+    for (const k of new Set([...Object.keys(l || {}), ...Object.keys(r || {})])) {
+      const a = l?.[k];
+      const b = r?.[k];
+      // 숫자가 아닌 칸이 생기면 큰 쪽 대신 있는 쪽을 남긴다
+      if (typeof a === 'number' || typeof b === 'number') {
+        day2[k] = Math.max(Number(a) || 0, Number(b) || 0);
+      } else {
+        day2[k] = a ?? b;
+      }
+    }
+    out[day] = day2;
   }
   return out;
 }
