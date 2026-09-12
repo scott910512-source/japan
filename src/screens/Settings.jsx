@@ -285,14 +285,32 @@ export default function Settings({
 
   /* 서비스워커가 옛 화면을 붙잡고 있으면 고친 게 안 보인다.
    * 홈 화면에 추가한 iOS 앱은 사실상 안 닫혀서 갱신이 늦다.
-   * 캐시만 비우고 다시 받는다 — 학습 기록은 localStorage에 있어서 그대로 남는다. */
+   * 캐시만 비우고 다시 받는다 — 학습 기록은 localStorage에 있어서 그대로 남는다.
+   *
+   * ★ 우리 것만 지운다 ★
+   *
+   * 여태 getRegistrations()와 caches.keys()로 가져온 것을 전부 해제·삭제했다.
+   * 같은 출처(scott910512-source.github.io)에 다른 앱도 올라가니, 이 버튼이
+   * 남의 앱 캐시와 서비스워커까지 지울 수 있는 구조였다. 다른 앱에 실제로
+   * 서비스워커가 있다는 뜻은 아니지만, 「최신 버전 받기」가 옆 앱을 망가뜨릴
+   * 수 있게 두어야 할 이유는 없다.
+   *
+   * 서비스워커는 scope가 이 앱 밑인 것만, 캐시는 이름표(cacheId)가 붙은 것만
+   * 골라 지운다. */
   const forceUpdate = async () => {
     onToast('최신 버전을 받는 중이에요');
     try {
+      const here = new URL(__BASE_PATH__, window.location.origin).href;
       const regs = await navigator.serviceWorker?.getRegistrations?.() ?? [];
-      await Promise.all(regs.map((r) => r.unregister()));
+      await Promise.all(regs
+        .filter((r) => (r.scope || '').startsWith(here))
+        .map((r) => r.unregister()));
       const keys = await caches?.keys?.() ?? [];
-      await Promise.all(keys.map((k) => caches.delete(k)));
+      await Promise.all(keys
+        /* workbox가 만든 이름에는 cacheId가 들어간다. 옛 배포에서 만든 캐시는
+           이름표가 없을 수 있어서 경로로도 한 번 걸러 준다. */
+        .filter((k) => k.includes(__CACHE_ID__) || k.includes(__BASE_PATH__))
+        .map((k) => caches.delete(k)));
     } catch { /* 지우지 못해도 새로고침은 해 본다 */ }
     window.location.reload(true);
   };

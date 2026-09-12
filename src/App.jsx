@@ -160,6 +160,10 @@ export default function App() {
   useEffect(() => {
     setStorageErrorHandler(showToast);
     setTTSErrorHandler(showToast);
+    /* 새 버전이 준비됐는데 학습 중이라 미뤄 둔 경우(main.jsx). 조용히 미루면
+       왜 안 바뀌는지 알 수 없으니 한 번 알린다 — 판을 끝내면 적용된다. */
+    const onWaiting = () => showToast('새 버전이 준비됐어요 · 학습을 마치면 적용돼요');
+    window.addEventListener('jp:update-waiting', onWaiting);
     /* 연속일은 여기서 올리지 않는다 — 앱을 켠 것과 공부한 것은 다르다.
        올리는 자리는 오늘 첫 판정(applyReview)이다. */
     setStreak(loadStreak());
@@ -174,7 +178,10 @@ export default function App() {
       if (audioUnlocked()) window.removeEventListener('pointerdown', unlock);
     };
     window.addEventListener('pointerdown', unlock);
-    return () => window.removeEventListener('pointerdown', unlock);
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('jp:update-waiting', onWaiting);
+    };
   }, [showToast]);
 
   /* 온보딩을 열지 말지 정한다.
