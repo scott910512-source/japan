@@ -30,6 +30,17 @@ export function setStorageErrorHandler(fn) {
   onWriteError = fn;
 }
 
+/* ★ 성공도 알려야 한다 ★
+ *
+ * 저장 실패를 잠깐 뜨는 토스트로만 알렸다. 두 걸음 걷고 나면 사라지는데,
+ * 그 사이 기록은 계속 저장되지 않는다 — 공간이 찬 기기에서는 그날 공부한
+ * 것이 전부 날아간다. 그래서 실패를 화면에 남겨 두기로 했는데, 남기려면
+ * 언제 내려야 하는지도 알아야 한다. 성공 신호가 그 답이다. */
+let onWriteOk = null;
+export function setStorageOkHandler(fn) {
+  onWriteOk = fn;
+}
+
 function read(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -42,6 +53,9 @@ function read(key, fallback) {
 function write(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    /* 자주 불리는 자리다 — 받는 쪽이 「지금 표시가 켜져 있을 때만」 끄도록
+       해서 이 신호가 화면을 다시 그리게 하지 않는다. */
+    onWriteOk?.();
     return true;
   } catch (err) {
     const full = err?.name === 'QuotaExceededError' || err?.code === 22;

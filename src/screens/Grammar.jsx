@@ -88,7 +88,7 @@ export default function Grammar({ words, onProgress }) {
         ))}
       </div>
 
-      <BottomSheet open={!!module} onClose={close}>
+      <BottomSheet open={!!module} onClose={close} label="문법 설명">
         {module && question && (
           <>
             <h3>{module.title}</h3>
