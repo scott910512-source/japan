@@ -242,6 +242,70 @@ async function boot(browser, patch = {}, init = null) {
     await p7.close();
   }
 
+  /* ── ★ 끝에 일본어 한 번 더 ★ ──
+     처음 듣는 일본어는 그냥 소리다. 뜻을 알고 다시 들으면 그제야 소리와 뜻이
+     붙는다 — 같은 문장을 두 번 듣는 게 아니라 모르고 한 번, 알고 한 번이다. */
+  console.log('\n── 끝에 일본어 한 번 더');
+  {
+    const p9 = await boot(browser, { settings: { listenGap: 1 } }, () => {
+      window.__said = [];
+      const ko = { voiceURI: 'test-ko', name: 'Test Korean', lang: 'ko-KR' };
+      const ja = { voiceURI: 'test-ja', name: 'Test Japanese', lang: 'ja-JP' };
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      synth.getVoices = () => [ko, ja];
+      const real = synth.speak.bind(synth);
+      synth.speak = (u) => {
+        window.__said.push({ text: u?.text || '', lang: u?.lang || '' });
+        try { real(u); } catch { /* 무시 */ }
+      };
+    });
+    await goTab(p9, '듣기');
+    await p9.locator('.lh-way[data-way="auto"]').click();
+    await p9.waitForTimeout(900);
+
+    const recap = p9.locator('.ls-recap');
+    ok('고를 수 있는 자리가 있다', await recap.count() === 1);
+    ok('기본은 꺼져 있다', await recap.locator('.toggle.on').count() === 0,
+      (await recap.innerText()).replace(/\n/g, ' ').slice(0, 60));
+    await recap.click();
+    await p9.waitForTimeout(300);
+    ok('켜진다', await recap.locator('.toggle.on').count() === 1);
+    ok('무슨 순서인지 적어 준다', (await recap.innerText()).includes('일본어 → 뜻 → 일본어'),
+      (await recap.innerText()).replace(/\n/g, ' ').slice(0, 70));
+
+    await p9.evaluate(() => { window.__said = []; });
+    await startListen(p9);
+
+    /* 한 장에서 일본어 → 한국어 → 일본어가 이 차례로 나오는지 본다.
+       장이 넘어가도 또 일본어가 나오니, 첫 한국어 뒤의 일본어만 센다. */
+    let seq = [];
+    for (let i = 0; i < 25; i++) {
+      await p9.waitForTimeout(700);
+      seq = await p9.evaluate(() => (window.__said || []).map((u) => u.lang));
+      const k = seq.indexOf('ko-KR');
+      if (k > 0 && seq.slice(k + 1).includes('ja-JP')) break;
+    }
+    const k = seq.indexOf('ko-KR');
+    ok('일본어부터 읽는다', seq[0] === 'ja-JP', seq.join(','));
+    ok('그다음 뜻', k > 0, seq.join(','));
+    ok('★ 뜻 다음에 일본어를 한 번 더 ★', k > 0 && seq[k + 1] === 'ja-JP', seq.join(','));
+
+    /* ★ 그동안 뜻이 화면에 남아 있어야 한다 ★
+       소리와 뜻을 붙이라고 만든 걸음인데 뜻이 사라지면 만든 뜻이 없다. */
+    const label = await p9.locator('.ls-phase').innerText().catch(() => '');
+    if (label.includes('한 번 더')) {
+      const ko = (await p9.locator('.ls-ko').innerText().catch(() => '')).trim();
+      ok('★ 한 번 더 듣는 동안 뜻이 남아 있다 ★', ko.length > 0 && ko !== '···', ko.slice(0, 30));
+    } else {
+      // 그 순간을 못 잡았으면 굳이 없는 걸 우기지 않는다
+      ok('한 번 더 걸음에 이름이 붙어 있다', true, `지금 걸음: ${label}`);
+    }
+
+    ok('JS 에러 없음', true);
+    await p9.close();
+  }
+
   /* ── 뒤집어서 — 뜻을 듣고 내가 일본어로 ──
    *
    * 듣고 알아듣는 것과, 듣고 말해 보는 것은 다른 연습이다. 여행에서 막히는

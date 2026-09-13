@@ -80,6 +80,10 @@ export default function Listen({
   /* 뜻도 소리로 낼지. 화면을 못 보는 동안 쓰라고 만든 자리인데 뜻이 눈으로만
      나오면 절반이 안 들린다. 기본은 켬 — 끄고 싶은 사람은 여기서 끈다. */
   const [sayKo, setSayKo] = useState(settings.listenSayKo !== false);
+  /* 뜻까지 듣고 나서 일본어를 한 번 더 들려줄지. 처음 듣는 일본어는 그냥
+     소리인데, 뜻을 알고 다시 들으면 소리와 뜻이 붙는다. 기본은 끔 — 한 장에
+     드는 시간이 늘어나니 원하는 사람만 켠다. */
+  const [recap, setRecap] = useState(settings.listenRecap === true);
   /* 한국어 음성이 목록에 잡혔는가. 「안 잡혔으니 못 읽는다」로는 쓰지 않는다 —
      목록이 비었는데 소리는 나는 기기가 있어서, 그걸로 껐다가 「한국어가 안
      나온다」는 말을 들었다. 안내 문구를 고르는 데만 쓴다. */
@@ -148,8 +152,8 @@ export default function Listen({
 
   /* 한 장의 걸음표. 방향에 따라 순서가 통째로 뒤집힌다. */
   const steps = useMemo(
-    () => stepsOf(direction, { shadow: mode === 'shadow' }),
-    [direction, mode],
+    () => stepsOf(direction, { shadow: mode === 'shadow', recap }),
+    [direction, mode, recap],
   );
   const phase = steps[Math.min(step, steps.length - 1)] || 'jp';
   const last = step >= steps.length - 1;
@@ -209,6 +213,12 @@ export default function Listen({
         speakJapanese(say, rate);
         go(heard + wait);
       }, heard + 400);
+    } else if (phase === 'jp2') {
+      /* ★ 뜻까지 듣고 나서 한 번 더 ★
+         처음 듣는 일본어는 그냥 소리다. 뜻을 알고 다시 들으면 소리와 뜻이
+         붙는다. 마지막 걸음이라 이게 끝나면 다음 장으로 넘어간다. */
+      speakJapanese(say, rate);
+      go(spoken + wait);
     } else if (phase === 'say') {
       if (direction === 'ko-jp') {
         // 입으로 말해 볼 시간. 여기서는 아무 소리도 안 낸다 — 내가 말할 차례다
@@ -258,7 +268,10 @@ export default function Listen({
        뜻 → 일본어 : 뜻은 늘 보이고, 일본어는 내가 말한 뒤에 나온다 */
     const back = direction === 'ko-jp';
     const showJp = !back || phase === 'jp';
-    const showKo = back || phase === 'ko';
+    /* 뜻은 한 번 나오면 그 장이 끝날 때까지 남는다. 마지막에 일본어를 한 번 더
+       들려주는 동안 뜻이 사라지면, 소리와 뜻을 붙이라고 만든 걸음에서 정작
+       뜻이 화면에 없다. */
+    const showKo = back || phase === 'ko' || phase === 'jp2';
     return (
       <div className={`listen play${back ? ' back' : ''}`}>
         <div className="sub-header inline">
@@ -281,6 +294,7 @@ export default function Listen({
             {phase === 'jp' && (back ? '이게 답이에요 — 두 번 들려줘요' : '듣는 중')}
             {phase === 'say' && (back ? '일본어로 말해 보세요' : '따라 말해 보세요')}
             {phase === 'ko' && (back ? '무슨 말일까요' : '뜻')}
+            {phase === 'jp2' && '뜻을 알고 한 번 더'}
           </div>
         </div>
 
@@ -430,6 +444,29 @@ export default function Listen({
           </span>
           <span className={`toggle${answerAloud ? ' on' : ''}`} aria-hidden="true" />
         </button>
+
+        {/* ★ 뜻을 알고 한 번 더 ★
+            처음 듣는 일본어는 그냥 소리다. 뜻을 알고 다시 들으면 그제야 소리와
+            뜻이 붙는다 — 같은 문장을 두 번 듣는 게 아니라 모르고 한 번, 알고
+            한 번 듣는 것이다. 한 장에 드는 시간이 늘어나니 고르게 둔다.
+            뒤집은 판은 원래 일본어로 끝나서 여기서는 안 보여 준다. */}
+        {direction !== 'ko-jp' && (
+          <button
+            className="toggle-row setrow ls-recap"
+            onClick={() => { setRecap(!recap); onSettingsChange?.({ listenRecap: !recap }); }}
+            aria-pressed={recap}
+          >
+            <span>
+              <span className="set-title">끝에 일본어 한 번 더</span>
+              <span className="set-sub">
+                {recap
+                  ? '일본어 → 뜻 → 일본어 순서로 들려주고 넘어가요'
+                  : '뜻까지 듣고 나서 일본어를 한 번 더 들려줘요'}
+              </span>
+            </span>
+            <span className={`toggle${recap ? ' on' : ''}`} aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       <div className="section-label">개수</div>

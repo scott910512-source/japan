@@ -85,5 +85,32 @@ ok('답 소리를 꺼도 답 걸음은 남는다',
 ok('뒤집은 판에서는 따라 말하기가 순서를 안 바꾼다',
   stepsOf('ko-jp', { shadow: true }).join() === stepsOf('ko-jp').join());
 
+console.log('\n[ ★ 끝에 일본어 한 번 더 ★ ]');
+{
+  /* 처음 듣는 일본어는 그냥 소리다. 뜻을 알고 다시 들으면 그제야 소리와 뜻이
+     붙는다 — 같은 문장을 두 번 듣는 게 아니라 모르고 한 번, 알고 한 번이다. */
+  ok('★ 일본어 → 뜻 → 일본어 ★', stepsOf('jp-ko', { recap: true }).join() === 'jp,ko,jp2',
+    stepsOf('jp-ko', { recap: true }).join());
+  ok('따라 말하기와 같이 써도 순서가 맞다',
+    stepsOf('jp-ko', { shadow: true, recap: true }).join() === 'jp,say,ko,jp2',
+    stepsOf('jp-ko', { shadow: true, recap: true }).join());
+
+  /* ★ 마지막 걸음 이름이 jp이면 안 된다 ★
+     화면은 걸음 이름으로 「뜻을 보여 줄 때인가」를 정한다. 이름이 같으면
+     방금 나온 뜻이 마지막에 도로 사라진다 — 소리와 뜻을 붙이라고 만든
+     걸음에서 정작 뜻이 화면에 없게 된다. */
+  ok('★ 마지막 걸음은 첫 걸음과 다른 이름 ★',
+    stepsOf('jp-ko', { recap: true }).at(-1) !== 'jp');
+
+  // 끄면 예전 그대로다 — 이미 쓰던 사람의 듣기가 길어지면 안 된다
+  ok('안 켜면 그대로', stepsOf('jp-ko', { recap: false }).join() === 'jp,ko');
+  ok('기본은 꺼져 있다', stepsOf('jp-ko').join() === 'jp,ko');
+
+  /* 뒤집은 판은 원래 일본어로 끝난다 — 한 번 더 붙일 자리가 없다 */
+  ok('뒤집은 판은 안 건드린다',
+    stepsOf('ko-jp', { recap: true }).join() === stepsOf('ko-jp').join(),
+    stepsOf('ko-jp', { recap: true }).join());
+}
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);
