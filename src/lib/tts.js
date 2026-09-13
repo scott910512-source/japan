@@ -34,6 +34,8 @@ export function configureTTS(patch) {
   if (config.gttsKey !== prevKey) {
     cloudDisabled = false;
     cloudCache.clear();
+    // 키를 바꿨으면 한국어가 조용한 이유도 달라진다 — 다시 말해 줄 수 있게 놓는다
+    koToldSilent = false;
   }
 }
 
@@ -49,6 +51,13 @@ export function cloudTTSReady() {
 
 let cachedVoice = null;
 let cachedKoVoice = null;   // 뜻을 읽어 줄 한국어 음성
+
+/* 기기 음성으로 한국어를 내 봤다가 실패한 적이 있는가.
+   한 번 실패한 기기는 다음 장부터 바로 클라우드로 간다 — 매 장마다 한 번씩
+   조용히 실패하고 나서야 넘어가면 뜻이 들리다 말다 한다.
+   쓰는 데(speakKorean)보다 위에 둔다 — 아래에 두면 읽는 순서에 걸린다. */
+let koLocalBroken = false;
+let koToldSilent = false;   // 조용한 이유는 한 번만 알린다
 
 function pickJapaneseVoice() {
   const voices = window.speechSynthesis?.getVoices() || [];
@@ -66,6 +75,10 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = () => {
     cachedVoice = null;
     cachedKoVoice = null;
+    /* 음성이 새로 깔렸을 수 있다 — 「이 기기는 한국어가 안 된다」는 판단을 놓는다.
+       목록이 늦게 채워지는 기기에서 첫 장만 실패하고 영구히 클라우드로 가면,
+       공짜로 낼 수 있는 소리를 계속 돈 내고 받는다. */
+    koLocalBroken = false;
   };
 }
 
@@ -89,14 +102,27 @@ function speakLocal(text, rate) {
  * 보여 주고 있었다. 걸으면서 들으면 일본어가 나오고 그다음은 침묵이다 —
  * 절반이 안 들리는 셈이다.
  *
- * 클라우드를 안 쓰고 기기 음성으로만 낸다. 이유가 둘이다.
+ * 기기 음성을 먼저 쓴다. 이유가 둘이다.
  *   · 뜻은 발음 품질이 중요하지 않다. 알아들으면 된다
  *   · 클라우드 몫은 일본어에 쓰는 유료 자원이다. 뜻을 읽느라 그걸 깎으면
  *     정작 배우려는 쪽을 못 듣게 된다
  *
- * 한국어 음성이 없는 기기면 그냥 소리가 안 난다. 뜻은 화면에도 떠 있으니
- * 못 들어도 학습이 막히지는 않는다 — 없는 걸 억지로 일본어 음성으로 읽으면
- * 알아들을 수 없는 소리가 난다. */
+ * ★ 그런데 안 나면 그냥 조용했다 ★
+ *
+ * 「자동 듣기에서 한국어를 안 읽어준다」는 말이 나왔고, 재현해 보니 앱은 ko-KR로
+ * 제대로 넘기고 있었다. 넘긴 뒤가 문제였다.
+ *
+ *   · 일본어는 클라우드 폴백이 있다. 키를 넣어 두면 기기에 일본어 음성이
+ *     없어도 mp3를 받아서 튼다 — 그래서 일본어는 늘 들린다.
+ *   · 한국어는 기기 음성밖에 없었다. requestCloud가 languageCode를 ja-JP로
+ *     박아 두어서 클라우드를 쓸 수가 없었다.
+ *   · 게다가 실패를 아무도 안 들었다. utter.onerror가 없어서 엔진이
+ *     synthesis-failed를 돌려줘도 앱은 모르고, 사용자에게도 안 알렸다.
+ *
+ * 그래서 「일본어는 나오는데 한국어만 안 나오고, 왜 안 나오는지도 모른다」가 됐다.
+ * 기기 음성을 먼저 쓰는 것은 그대로 두고, 실패하면 클라우드로 넘긴다. 클라우드도
+ * 못 쓰면 그때는 조용한 이유를 말해 준다 — 조용한 것보다 나쁜 건 이유 없이
+ * 조용한 것이다. */
 /* 읽어 줄 수 있는 상태인가.
  *
  * ★ 목록이 비었다고 못 읽는 게 아니다 ★
@@ -128,9 +154,30 @@ function pickKoreanVoice() {
   return cachedKoVoice;
 }
 
+/* 한국어를 클라우드로. 기기에서 안 될 때만 온다. */
+function speakKoreanCloud(text, rate, token) {
+  speakCloud(text, rate, token, 'ko').catch((err) => {
+    if (token !== speakToken) return;   // 이미 다음 소리가 시작됐다
+    if (err.status === 400 || err.status === 401 || err.status === 403) cloudDisabled = true;
+    if (!koToldSilent) {
+      koToldSilent = true;
+      onCloudError?.(`한국어 뜻을 소리로 내지 못했어요 (${err.message}). 듣기 설정에서 「한국어 뜻도 소리로」를 꺼 두실 수 있어요.`);
+    }
+  });
+}
+
 export function speakKorean(text, rate = 1) {
-  if (!text || !speechReady()) return;
+  if (!text) return;
   stopSpeaking();
+  const token = speakToken;
+
+  /* 이 기기의 기기 음성이 이미 한 번 실패했다면 곧장 클라우드로 */
+  if (koLocalBroken && cloudTTSReady()) { speakKoreanCloud(text, rate, token); return; }
+  if (!speechReady()) {
+    if (cloudTTSReady()) speakKoreanCloud(text, rate, token);
+    return;
+  }
+
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'ko-KR';
   utter.rate = rate;
@@ -138,6 +185,22 @@ export function speakKorean(text, rate = 1) {
      일본어가 이미 그렇게 하고 있다 — 목록이 이상한 브라우저에서도 소리는 난다. */
   const voice = pickKoreanVoice();
   try { if (voice) utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
+
+  /* ★ 실패를 듣는다 ★
+     여기가 비어 있어서 「안 읽어준다」가 조용히 지나갔다. 우리가 끊어서 난
+     중단은 실패가 아니다 — 다음 장으로 넘어갈 때마다 cancel을 부른다. */
+  utter.onerror = (e) => {
+    const why = e?.error;
+    if (why === 'interrupted' || why === 'canceled') return;
+    koLocalBroken = true;
+    if (token !== speakToken) return;   // 지난 차례면 다시 내지 않는다
+    if (cloudTTSReady()) { speakKoreanCloud(text, rate, token); return; }
+    if (!koToldSilent) {
+      koToldSilent = true;
+      onCloudError?.('이 기기에 한국어 음성이 없어서 뜻을 소리로 못 읽어요. 설정에서 클라우드 음성을 연결하면 뜻도 읽어 줘요.');
+    }
+  };
+
   window.speechSynthesis.speak(utter);
 }
 
@@ -190,7 +253,20 @@ export function ttsStatus() {
   return { mode: voices.length ? 'device-nojp' : 'unknown', jaVoices: 0, unlocked: localUnlocked };
 }
 
-async function requestCloud(text, rate, withRate) {
+/* 어느 말로 부를지.
+ *
+ * languageCode가 ja-JP로 박혀 있어서 클라우드는 일본어 전용이었다 — 한국어는
+ * 기기 음성이 안 되면 낼 방법이 아예 없었다.
+ *
+ * 한국어에는 목소리 이름을 안 박는다. 이름을 적으면 그 목소리가 계정·지역에서
+ * 안 되는 날 400이 나는데, 뜻은 누가 읽어도 알아들으면 되는 것이라 구글이
+ * 고르게 두는 편이 안 끊긴다. */
+function cloudVoiceFor(lang) {
+  if (lang === 'ko') return { languageCode: 'ko-KR' };
+  return { languageCode: 'ja-JP', name: config.voice || DEFAULT_VOICE };
+}
+
+async function requestCloud(text, rate, withRate, lang = 'ja') {
   const audioConfig = { audioEncoding: 'MP3' };
   if (withRate && rate !== 1) audioConfig.speakingRate = rate;
 
@@ -199,7 +275,7 @@ async function requestCloud(text, rate, withRate) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       input: { text },
-      voice: { languageCode: 'ja-JP', name: config.voice || DEFAULT_VOICE },
+      voice: cloudVoiceFor(lang),
       audioConfig,
     }),
   });
@@ -217,16 +293,18 @@ async function requestCloud(text, rate, withRate) {
   return (await res.json()).audioContent;
 }
 
-async function speakCloud(text, rate, token) {
-  const cacheKey = `${text}|${rate}|${config.voice}`;
+/* lang은 캐시 열쇠에도 들어가야 한다. 안 넣으면 같은 글자를 두 말로 부를 때
+   먼저 받은 소리가 다른 말 자리에서 다시 난다 — 한국어 자리에서 일본어가 난다. */
+async function speakCloud(text, rate, token, lang = 'ja') {
+  const cacheKey = `${lang}|${text}|${rate}|${lang === 'ko' ? 'ko' : config.voice}`;
   let b64 = cloudCache.get(cacheKey);
 
   if (!b64) {
     try {
-      b64 = await requestCloud(text, rate, true);
+      b64 = await requestCloud(text, rate, true, lang);
     } catch (err) {
       // 일부 보이스는 speakingRate를 받지 않는다 → 속도 옵션 없이 1회만 재시도
-      if (err.status === 400 && rate !== 1) b64 = await requestCloud(text, rate, false);
+      if (err.status === 400 && rate !== 1) b64 = await requestCloud(text, rate, false, lang);
       else throw err;
     }
     if (!b64) throw new Error('빈 응답');
