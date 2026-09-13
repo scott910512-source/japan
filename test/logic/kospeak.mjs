@@ -62,9 +62,19 @@ globalThis.localStorage = {
   removeItem(k) { delete this._d[k]; },
 };
 
+/* 구글이 무엇을 돌려줄지 정해 둔다. reject에 담긴 상태로 거절한다. */
+let cloudReject = null;   // { status, when: (call) => bool }
 globalThis.fetch = (url, opt) => {
   const body = JSON.parse(opt.body);
-  calls.push({ lang: body.voice.languageCode, name: body.voice.name ?? null, text: body.input.text });
+  const call = { lang: body.voice.languageCode, name: body.voice.name ?? null, text: body.input.text };
+  calls.push(call);
+  if (cloudReject && cloudReject.when(call)) {
+    return Promise.resolve({
+      ok: false,
+      status: cloudReject.status,
+      json: () => Promise.resolve({ error: { message: '가짜 거절' } }),
+    });
+  }
   return Promise.resolve({
     ok: true,
     json: () => Promise.resolve({ audioContent: 'AAAA' }),
@@ -79,7 +89,7 @@ const tts = await import('../../src/lib/tts.js');
 const settle = () => new Promise((r) => { setTimeout(r, 200); });
 const settleSilent = () => new Promise((r) => { setTimeout(r, 1200); });
 
-const reset = () => { spoken.length = 0; calls.length = 0; nextError = null; };
+const reset = () => { spoken.length = 0; calls.length = 0; nextError = null; cloudReject = null; };
 const KO = { voiceURI: 'ko', name: 'Korean', lang: 'ko-KR' };
 
 console.log('\n[ 기기에 한국어 음성이 있으면 공짜로 낸다 ]');
@@ -240,6 +250,44 @@ console.log('\n[ 일본어는 하던 대로다 ]');
   const ja = calls.filter((c) => c.lang === 'ja-JP');
   ok('일본어는 ja-JP로 부른다', ja.length === 1, JSON.stringify(calls));
   ok('고른 목소리를 그대로 쓴다', ja[0].name === 'ja-JP-Neural2-B', `${ja[0].name}`);
+}
+
+console.log('\n[ ★ 이름 없이 거절당하면 표준 목소리를 박아 다시 묻는다 ★ ]');
+{
+  /* 한국어는 목소리 이름 없이 보낸다 — 계정·지역을 안 타려고. 그런데 그걸
+     거절하는 계정이 있을 수 있고, 사용자 키는 받지 않으니 여기서 시험해 볼
+     수가 없다. 확인 못 하는 위험은 코드로 없앤다. */
+  voices = [];
+  synth.onvoiceschanged?.();
+  tts.configureTTS({ gttsKey: 'KEY-A', useCloud: true, voice: 'ja-JP-Neural2-B' });
+  reset();
+  cloudReject = { status: 400, when: (c) => c.lang === 'ko-KR' && c.name === null };
+  nextError = 'synthesis-failed';
+  tts.speakKorean('뜻', 1);
+  await settle();
+  const koTry = calls.filter((c) => c.lang === 'ko-KR');
+  ok('이름 없이 먼저 묻는다', koTry[0]?.name === null, JSON.stringify(koTry[0]));
+  ok('★ 거절당하면 표준 목소리로 다시 묻는다 ★', koTry[1]?.name === 'ko-KR-Standard-A',
+    JSON.stringify(koTry[1]));
+}
+
+console.log('\n[ 키 문제는 되물어도 소용없다 ]');
+{
+  /* 401·403은 「이 조합이 안 된다」가 아니라 「키가 안 된다」다. 되물으면
+     같은 답을 한 번 더 받고 사용자만 기다린다. */
+  const said = [];
+  tts.setTTSErrorHandler((m) => said.push(m));
+  tts.configureTTS({ gttsKey: 'KEY-B', useCloud: true });
+  voices = [];
+  synth.onvoiceschanged?.();
+  reset();
+  cloudReject = { status: 403, when: (c) => c.lang === 'ko-KR' };
+  nextError = 'synthesis-failed';
+  tts.speakKorean('뜻', 1);
+  await settle();
+  ok('★ 한 번만 묻는다 ★', calls.filter((c) => c.lang === 'ko-KR').length === 1,
+    `${calls.filter((c) => c.lang === 'ko-KR').length}회`);
+  ok('왜 안 됐는지 알린다', said.length === 1, JSON.stringify(said));
 }
 
 console.log('\n[ ★ 캐시가 두 말을 섞지 않는다 ★ ]');
