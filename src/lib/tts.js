@@ -242,6 +242,66 @@ export function speakKorean(text, rate = 1) {
   }, KO_AFTER_CANCEL_MS);
 }
 
+/* ── 한국어가 왜 조용한지 눌러서 확인하기 ──
+ *
+ * 이건 기기에서만 드러나는 문제다. 같은 코드가 크롬에서는 멀쩡하고 아이폰에서만
+ * 조용한데, 고치는 쪽에서는 그 기기를 만질 수가 없다. 두 번을 짐작으로 고쳤고
+ * 두 번 다 빗나갔다 — 그러면 다음 짐작을 하는 게 아니라, 무엇이 일어나는지
+ * 보이게 만들어야 한다.
+ *
+ * 실제로 쓰는 길을 그대로 한 단계씩 밟으면서 무슨 일이 났는지 적어 준다.
+ * 사용자가 한 번 누르고 그 줄을 읽어 주면 어디서 끊기는지 바로 안다. */
+function tryDeviceKorean(text, rate) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (why) => { if (!done) { done = true; resolve(why); } };
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'ko-KR';
+    utter.rate = rate;
+    const voice = pickKoreanVoice();
+    try { if (voice) utter.voice = voice; } catch { /* 기본 음성 */ }
+    utter.onstart = () => finish('소리가 났어요');
+    utter.onend = () => finish('소리가 났어요');
+    utter.onerror = (e) => finish(`기기가 거절했어요 (${e?.error || '이유 없음'})`);
+    try { window.speechSynthesis.cancel(); } catch { /* 무시 */ }
+    setTimeout(() => {
+      window.speechSynthesis.speak(utter);
+      // 말을 시작했다는 기별이 없으면 조용한 것이다 — 사파리가 이렇게 된다
+      setTimeout(() => finish('아무 반응이 없었어요 (조용함)'), 1500);
+    }, KO_AFTER_CANCEL_MS);
+  });
+}
+
+export async function koreanSoundReport(rate = 1) {
+  const SAMPLE = '뜻을 이렇게 읽어 드려요';
+  const lines = [];
+  const voices = (typeof window !== 'undefined' && window.speechSynthesis?.getVoices()) || [];
+  const ko = voices.filter((v) => v.lang?.startsWith('ko'));
+  lines.push(`기기 음성 ${voices.length}개 · 그중 한국어 ${ko.length}개${ko.length ? ` (${ko[0].name})` : ''}`);
+  lines.push(`클라우드 음성: ${cloudTTSReady() ? '연결됨' : '없음'}`);
+
+  if (!speechReady()) {
+    lines.push('이 브라우저는 기기 음성을 아예 못 써요');
+  } else {
+    const how = await tryDeviceKorean(SAMPLE, rate);
+    lines.push(`기기 음성으로 읽기 → ${how}`);
+    if (how === '소리가 났어요') return lines;
+  }
+
+  if (!cloudTTSReady()) {
+    lines.push('클라우드 음성을 연결하면 이 기기에서도 뜻을 읽어 줄 수 있어요');
+    return lines;
+  }
+  try {
+    stopSpeaking();
+    await speakCloud(SAMPLE, rate, speakToken, 'ko');
+    lines.push('클라우드로 읽기 → 소리가 났어요 (자동 듣기도 이 길로 나가요)');
+  } catch (err) {
+    lines.push(`클라우드로 읽기 → 실패 (${err.message})`);
+  }
+  return lines;
+}
+
 /* ── Google Cloud TTS ── */
 
 // iOS는 사용자 제스처 없이 만든 audio 엘리먼트로는 재생을 막는다.
