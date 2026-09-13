@@ -359,12 +359,17 @@ export function ttsStatus() {
  * 한국어에는 목소리 이름을 안 박는다. 이름을 적으면 그 목소리가 계정·지역에서
  * 안 되는 날 400이 나는데, 뜻은 누가 읽어도 알아들으면 되는 것이라 구글이
  * 고르게 두는 편이 안 끊긴다. */
-function cloudVoiceFor(lang) {
-  if (lang === 'ko') return { languageCode: 'ko-KR' };
+function cloudVoiceFor(lang, override) {
+  if (lang === 'ko') return override ? { languageCode: 'ko-KR', name: override } : { languageCode: 'ko-KR' };
   return { languageCode: 'ja-JP', name: config.voice || DEFAULT_VOICE };
 }
 
-async function requestCloud(text, rate, withRate, lang = 'ja') {
+/* 이름 없이 거절당할 때 박아 볼 한국어 목소리.
+   표준 등급이라 계정·지역을 가장 안 탄다 — 뜻은 알아들으면 되는 것이라
+   품질보다 「끊기지 않는 것」이 중요하다. */
+const KO_FALLBACK_VOICE = 'ko-KR-Standard-A';
+
+async function requestCloud(text, rate, withRate, lang = 'ja', override = null) {
   const audioConfig = { audioEncoding: 'MP3' };
   if (withRate && rate !== 1) audioConfig.speakingRate = rate;
 
@@ -373,7 +378,7 @@ async function requestCloud(text, rate, withRate, lang = 'ja') {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       input: { text },
-      voice: cloudVoiceFor(lang),
+      voice: cloudVoiceFor(lang, override),
       audioConfig,
     }),
   });
@@ -398,13 +403,34 @@ async function speakCloud(text, rate, token, lang = 'ja') {
   let b64 = cloudCache.get(cacheKey);
 
   if (!b64) {
-    try {
-      b64 = await requestCloud(text, rate, true, lang);
-    } catch (err) {
-      // 일부 보이스는 speakingRate를 받지 않는다 → 속도 옵션 없이 1회만 재시도
-      if (err.status === 400 && rate !== 1) b64 = await requestCloud(text, rate, false, lang);
-      else throw err;
+    /* ★ 400이면 조건을 하나씩 빼고 다시 묻는다 ★
+     *
+     * 400은 「이 조합은 못 받는다」는 뜻이지 키가 틀렸다는 뜻이 아니다.
+     *   · 일부 목소리는 speakingRate를 안 받는다 → 속도를 뺀다
+     *   · 한국어는 목소리 이름 없이 보낸다(계정·지역을 안 타려고). 그걸 거절하는
+     *     계정이 있을 수 있는데, 여기서는 그 키로 시험해 볼 수가 없다 —
+     *     확인 못 하는 위험은 코드로 없앤다. 표준 목소리를 박아 한 번 더 묻는다.
+     *
+     * 401·403은 키 문제라 되물어도 소용없다 — 바로 올린다. */
+    const tries = [{ withRate: true, voice: null }];
+    if (rate !== 1) tries.push({ withRate: false, voice: null });
+    if (lang === 'ko') {
+      tries.push({ withRate: true, voice: KO_FALLBACK_VOICE });
+      if (rate !== 1) tries.push({ withRate: false, voice: KO_FALLBACK_VOICE });
     }
+
+    let last = null;
+    for (const t of tries) {
+      try {
+        b64 = await requestCloud(text, rate, t.withRate, lang, t.voice);
+        last = null;
+        break;
+      } catch (err) {
+        last = err;
+        if (err.status !== 400) break;   // 키 문제는 되물어도 같다
+      }
+    }
+    if (last) throw last;
     if (!b64) throw new Error('빈 응답');
     // 서버까지 간 요청만 센다 — 캐시로 다시 튼 소리는 청구되지 않는다
     addChars([...text].length);
