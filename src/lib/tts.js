@@ -59,6 +59,13 @@ let cachedKoVoice = null;   // 뜻을 읽어 줄 한국어 음성
 let koLocalBroken = false;
 let koToldSilent = false;   // 조용한 이유는 한 번만 알린다
 
+/* cancel() 뒤에 speak()을 얼마나 떼어 놓을지, 그리고 아무 기별이 없을 때
+   얼마나 기다렸다 조용한 것으로 볼지.
+   듣기의 뜻 차례는 대략 3.5초다(읽는 시간 + 간격). 0.12 + 0.8초면 클라우드로
+   넘어가 받아서 트는 것까지 그 안에 든다 — 더 늘리면 다음 장이 잘라 버린다. */
+const KO_AFTER_CANCEL_MS = 120;
+const KO_SILENT_MS = 800;
+
 function pickJapaneseVoice() {
   const voices = window.speechSynthesis?.getVoices() || [];
   // 고른 음성이 있으면 그것을, 없거나 기기에서 사라졌으면 아무 일본어 음성이나
@@ -186,22 +193,53 @@ export function speakKorean(text, rate = 1) {
   const voice = pickKoreanVoice();
   try { if (voice) utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
 
-  /* ★ 실패를 듣는다 ★
-     여기가 비어 있어서 「안 읽어준다」가 조용히 지나갔다. 우리가 끊어서 난
-     중단은 실패가 아니다 — 다음 장으로 넘어갈 때마다 cancel을 부른다. */
-  utter.onerror = (e) => {
-    const why = e?.error;
-    if (why === 'interrupted' || why === 'canceled') return;
+  /* ★ 안 났다는 걸 알아내는 두 가지 길 ★
+   *
+   * 처음에는 onerror만 달았다. 그런데 아이폰에서는 여전히 조용했다 — 사파리는
+   * 못 읽을 때 오류를 주는 게 아니라 그냥 아무 일도 안 한다. 오류도 start도
+   * 안 오니 폴백이 걸릴 자리가 없었다.
+   *
+   * 그래서 둘을 같이 본다.
+   *   onerror  — 엔진이 실패라고 말해 주는 기기
+   *   시간초과 — 아무 말도 없이 조용한 기기 (아이폰)
+   *
+   * 어느 쪽이든 한 번만 내려간다. */
+  let heard = false;
+  const giveUp = () => {
+    if (heard) return;
+    heard = true;
     koLocalBroken = true;
     if (token !== speakToken) return;   // 지난 차례면 다시 내지 않는다
     if (cloudTTSReady()) { speakKoreanCloud(text, rate, token); return; }
     if (!koToldSilent) {
       koToldSilent = true;
-      onCloudError?.('이 기기에 한국어 음성이 없어서 뜻을 소리로 못 읽어요. 설정에서 클라우드 음성을 연결하면 뜻도 읽어 줘요.');
+      /* 「음성이 없어서」라고 단정하지 않는다 — 아이폰에는 한국어 음성이 있는데도
+         기기가 안 읽어 주는 경우가 있다. 아는 것만 말한다: 소리가 안 났다는 것. */
+      onCloudError?.('이 기기가 뜻을 소리로 읽어 주지 못했어요. 더보기 → 음성에서 클라우드 음성을 연결하면 뜻도 읽어 줘요.');
     }
   };
+  utter.onstart = () => { heard = true; };
+  utter.onend = () => { heard = true; };
+  utter.onerror = (e) => {
+    const why = e?.error;
+    /* 우리가 끊어서 난 중단은 실패가 아니다 — 다음 장으로 넘어갈 때마다
+       cancel을 부른다. 이걸 실패로 세면 멀쩡한 기기가 「안 된다」고 찍힌다. */
+    if (why === 'interrupted' || why === 'canceled') { heard = true; return; }
+    giveUp();
+  };
 
-  window.speechSynthesis.speak(utter);
+  /* ★ cancel() 바로 뒤의 speak()는 사파리가 그냥 버린다 ★
+   *
+   * 위에서 stopSpeaking()이 cancel을 부른다. 같은 틱에서 speak을 부르면
+   * 아이폰에서는 발화가 통째로 사라진다 — 일본어는 클라우드 오디오로 나가서
+   * 이 자리를 안 지나니, 한국어만 조용했던 이유가 이것이다.
+   * 한 틱 떼어서 넘긴다. */
+  setTimeout(() => {
+    if (token !== speakToken) return;   // 그새 다음 장으로 넘어갔다
+    window.speechSynthesis.speak(utter);
+    // 말을 시작했다는 기별이 없으면 조용한 것으로 본다
+    setTimeout(giveUp, KO_SILENT_MS);
+  }, KO_AFTER_CANCEL_MS);
 }
 
 /* ── Google Cloud TTS ── */

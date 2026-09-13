@@ -42,14 +42,15 @@ globalThis.Audio = class {
   pause() {}
 };
 
+/* nextError를 'SILENT'로 두면 아이폰 흉내다 — 오류도 start도 안 준다. */
 const synth = {
   getVoices: () => voices,
   cancel: () => {},
   speak: (u) => {
     spoken.push({ lang: u.lang, text: u.text, voice: u.voice?.lang || null });
-    /* 진짜 엔진은 나중에 onerror를 부른다. 여기서는 바로 부른다 — 시점이 아니라
-       「실패를 듣는가」를 보려는 것이다. */
-    if (nextError && u.onerror) u.onerror({ error: nextError });
+    if (nextError === 'SILENT') return;          // 아무 기별이 없다
+    if (nextError) { u.onerror?.({ error: nextError }); return; }
+    u.onstart?.();                               // 멀쩡한 기기는 말을 시작한다
   },
   onvoiceschanged: null,
 };
@@ -71,7 +72,12 @@ globalThis.fetch = (url, opt) => {
 };
 
 const tts = await import('../../src/lib/tts.js');
-const settle = () => new Promise((r) => { setTimeout(r, 0); });
+
+/* speak은 cancel과 같은 틱에 부르면 사파리가 버려서, 한 틱 떼어 놓았다.
+   그래서 기다리는 시간이 필요하다 — 넘겼는지 보려면 200ms,
+   조용한 기기의 시간초과까지 보려면 1.2초. */
+const settle = () => new Promise((r) => { setTimeout(r, 200); });
+const settleSilent = () => new Promise((r) => { setTimeout(r, 1200); });
 
 const reset = () => { spoken.length = 0; calls.length = 0; nextError = null; };
 const KO = { voiceURI: 'ko', name: 'Korean', lang: 'ko-KR' };
@@ -110,9 +116,52 @@ console.log('\n[ ★ 기기가 실패하면 클라우드로 넘어간다 ★ ]')
   ok('보낸 글자가 그대로다', ko[0]?.text === '목소리');
 }
 
+console.log('\n[ ★ 아이폰처럼 아무 말 없이 조용한 기기 ★ ]');
+{
+  /* 사파리는 못 읽을 때 오류를 주는 게 아니라 그냥 아무 일도 안 한다. 오류도
+     start도 안 오니, onerror만 달아 두면 폴백이 걸릴 자리가 없다 — 실제로
+     아이폰에서 이것 때문에 고치고도 여전히 조용했다. 시간으로도 본다. */
+  voices = [KO];                    // 아이폰에는 한국어 음성이 「있다」
+  synth.onvoiceschanged?.();
+  tts.configureTTS({ gttsKey: 'KEY', useCloud: true });
+  reset();
+  nextError = 'SILENT';
+  tts.speakKorean('역은 어디예요?', 1);
+  await settle();
+  ok('기기로 넘기긴 한다', spoken.length === 1, `${spoken.length}회`);
+  ok('아직 클라우드로 안 간다', calls.length === 0, `${calls.length}회`);
+
+  await settleSilent();
+  ok('★ 조용하면 시간으로 알아챈다 ★',
+    calls.filter((c) => c.lang === 'ko-KR').length === 1, JSON.stringify(calls));
+  ok('보낸 글자가 그대로다', calls.find((c) => c.lang === 'ko-KR')?.text === '역은 어디예요?');
+}
+
+console.log('\n[ 말을 시작하면 시간초과가 안 걸린다 ]');
+{
+  /* 멀쩡한 기기에서 시간초과가 걸리면 공짜로 낼 소리를 돈 내고 또 받는다.
+     start가 오면 거기서 끝이어야 한다. */
+  voices = [KO];
+  synth.onvoiceschanged?.();
+  reset();
+  nextError = null;                 // start가 온다
+  tts.speakKorean('잘 되는 기기', 1);
+  await settleSilent();
+  ok('★ 클라우드를 안 부른다 ★', calls.length === 0, JSON.stringify(calls));
+  ok('기기로만 냈다', spoken.length === 1);
+}
+
 console.log('\n[ ★ 한 번 실패한 기기는 다음부터 바로 클라우드 ★ ]');
 {
   /* 매 장마다 한 번씩 조용히 실패하고 나서야 넘어가면 뜻이 들리다 말다 한다. */
+  voices = [];
+  synth.onvoiceschanged?.();            // 앞 묶음이 놓아 둔 판단을 지운다
+  reset();
+  nextError = 'synthesis-failed';
+  tts.speakKorean('첫 장', 1);          // 여기서 한 번 실패시킨다
+  await settle();
+  ok('한 번은 실패한다', calls.some((c) => c.lang === 'ko-KR'), JSON.stringify(calls));
+
   reset();
   nextError = null;                     // 이제 기기가 실패할 일도 없다 — 가지도 않아야 한다
   tts.speakKorean('두 번째', 1);
