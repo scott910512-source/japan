@@ -67,9 +67,18 @@ export function scopeCounts(pool, review, today = todayKey()) {
  * 답을 소리로 낼지 말지는 여기서 안 정한다. 걸음은 그대로 두고 소리만 끈다 —
  * 안 읽어 준다고 걸음까지 빼면 답이 화면에도 안 뜬다. 소리를 끄고 싶은 건
  * 「듣기 전에 떠올리고 싶다」는 뜻이지, 「맞았는지 확인도 안 하겠다」가 아니다. */
-export function stepsOf(direction, { shadow = false } = {}) {
+export function stepsOf(direction, { shadow = false, recap = false } = {}) {
   // 뜻을 듣고 → 말해 보고 → 답을 본다
   if (direction === 'ko-jp') return ['ko', 'say', 'jp'];
   // 일본어를 듣고 → (따라 말하기면 한 번 더) → 뜻
-  return shadow ? ['jp', 'say', 'ko'] : ['jp', 'ko'];
+  const base = shadow ? ['jp', 'say', 'ko'] : ['jp', 'ko'];
+
+  /* ★ 뜻까지 듣고 나서 일본어를 한 번 더 ★
+   *
+   * 처음 듣는 일본어는 그냥 소리다. 뜻을 알고 다시 들으면 그제야 소리와 뜻이
+   * 붙는다 — 같은 문장을 두 번 듣는 게 아니라, 모르고 한 번 알고 한 번 듣는 것이다.
+   *
+   * 마지막 걸음을 'jp'가 아니라 'jp2'로 둔다. 이름이 같으면 화면이 「아직
+   * 뜻을 보여 줄 때가 아니다」로 읽어서, 방금 나온 뜻이 다시 사라진다. */
+  return recap ? [...base, 'jp2'] : base;
 }

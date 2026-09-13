@@ -245,7 +245,7 @@ const SYNCED_SETTINGS = [
   'dailyGoal', 'goals', 'direction', 'tripPlace',
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
-  'listenDir', 'listenScope', 'listenSayKo', 'listenSayAnswer', 'listenGap',
+  'listenDir', 'listenScope', 'listenSayKo', 'listenSayAnswer', 'listenGap', 'listenRecap',
   'sentenceScope', 'purpose', 'tripDate', 'quickJudge',
 ];
 

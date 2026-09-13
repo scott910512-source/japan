@@ -305,6 +305,7 @@ export const DEFAULT_SETTINGS = {
   listenScope: 'today',   // 'today' | 'seen' | 'weak' | 'all' — 무엇을 들을지
   listenSayAnswer: true,  // 뒤집은 판에서 정답(일본어)도 소리로 낼지
   listenGap: 2,       // 문장 사이 뜸 (초)
+  listenRecap: false, // 뜻까지 듣고 나서 일본어를 한 번 더 (한 장이 길어져 기본은 끔)
   speakOnJudge: false, // 답을 고를 때 그 단어를 한 번 더 읽어주기
   // 영상 설명을 만들 곳. 키는 모두 이 기기에만 저장하고 서버로 보내지 않는다.
   aiProvider: 'gemini', // gemini | claude
