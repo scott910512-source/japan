@@ -83,14 +83,29 @@ const readReview = (page) => page.evaluate(
   /* 정답이 아닌 보기를 고른다. 어느 게 정답인지는 화면이 알려 주지 않으니
      문제마다 첫 보기를 한 번씩 눌러 보고, 틀린 게 나오면 거기서 멈춘다.
      한 문제에서 여러 보기를 연달아 누르면 안 된다 — 맞히면 0.9초 뒤에
-     저절로 넘어가는데, 그 사이에 다음 보기를 누르면 엉킨다. */
+     저절로 넘어가는데, 그 사이에 다음 보기를 누르면 엉킨다.
+
+     ★ 한 바퀴로 끝내지 않는다 ★
+     한 묶음은 서너 문제고 보기는 셋이다. 첫 보기가 네 번 다 정답일 확률이
+     1/81쯤 되는데, 그러면 틀린 걸 한 번도 못 보고 「설명이 뜬다」가 깨진다 —
+     이 화면의 본론이 우연히 안 돌아가는 셈이다. 실제로 CI에서 그렇게 깨졌다.
+     보기 차례는 판마다 섞이니, 다 맞혔으면 나갔다 다시 들어와 한 바퀴 더 돈다. */
   let wrongPicked = false;
-  for (let q = 0; q < 4 && !wrongPicked; q++) {
-    if (await page.locator('.qopt').count() === 0) break;
-    await page.locator('.qopt').first().click();
-    await page.waitForTimeout(600);
-    if (await page.locator('.av-why').count()) { wrongPicked = true; break; }
-    await page.waitForTimeout(900);   // 맞혔다 — 다음 문제로 넘어가기를 기다린다
+  for (let round = 0; round < 6 && !wrongPicked; round += 1) {
+    if (round > 0) {
+      // 나갔다 다시 들어온다 — 보기 차례가 다시 섞인다
+      await page.locator('.sub-back, .bl-quit').first().click().catch(() => {});
+      await page.waitForTimeout(500);
+      await page.locator('.av-set').first().click().catch(() => {});
+      await page.waitForTimeout(700);
+    }
+    for (let q = 0; q < 5 && !wrongPicked; q += 1) {
+      if (await page.locator('.qopt').count() === 0) break;
+      await page.locator('.qopt').first().click();
+      await page.waitForTimeout(600);
+      if (await page.locator('.av-why').count()) { wrongPicked = true; break; }
+      await page.waitForTimeout(900);   // 맞혔다 — 다음 문제로 넘어가기를 기다린다
+    }
   }
   ok('틀리면 설명이 뜬다', wrongPicked);
 

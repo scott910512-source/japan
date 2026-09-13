@@ -389,3 +389,9 @@
 .voicerow.active { border-color: var(--kon); background: var(--kon-soft); color: var(--kon); }
 .voicerow svg { width: 16px; height: 16px; flex: 0 0 auto; }
 
+
+/* 한국어 뜻 소리 확인 결과 — 어디서 끊기는지 한 줄씩.
+   기기에서만 드러나는 문제라, 사용자가 읽어서 전해 줄 수 있어야 한다. */
+.korep { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card-2, transparent); }
+.korep-line { font-size: 12px; line-height: 1.7; color: var(--ink-soft); }
+.korep-line:first-child { color: var(--ink); font-weight: 650; }

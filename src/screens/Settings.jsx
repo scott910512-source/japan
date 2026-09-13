@@ -6,7 +6,9 @@ import {
   exportBackup, importBackup, backupSummary, backupContents, BACKUP_EXCLUDED,
   clearAll, DEFAULT_SETTINGS,
 } from '../lib/storage.js';
-import { testCloudTTS, ttsStatus, speakJapanese, unlockAudio } from '../lib/tts.js';
+import {
+  testCloudTTS, ttsStatus, speakJapanese, unlockAudio, koreanSoundReport,
+} from '../lib/tts.js';
 import { GOAL_CHOICES, todayKey } from '../lib/review.js';
 import {
   normalizeGoals, DAY_PRESETS, spreadGoal, goalTotal, presetOf,
@@ -301,6 +303,23 @@ export default function Settings({
     unlockAudio();
     speakJapanese('こんにちは。日本語の勉強を始めましょう。', settings.speechRate);
     setStatus(ttsStatus());
+  };
+
+  /* ★ 한국어 뜻이 왜 조용한지 눌러서 본다 ★
+     이건 기기에서만 드러나는 문제다. 크롬에서는 멀쩡한데 아이폰에서만 조용해서,
+     짐작으로 두 번 고치고 두 번 빗나갔다. 무엇이 일어나는지 보이게 둔다. */
+  const [koReport, setKoReport] = useState(null);
+  const [koTesting, setKoTesting] = useState(false);
+  const tryKorean = async () => {
+    unlockAudio();
+    setKoTesting(true);
+    setKoReport(null);
+    try {
+      setKoReport(await koreanSoundReport(settings.speechRate || 1));
+    } catch (err) {
+      setKoReport([`확인하다 막혔어요 — ${err.message}`]);
+    }
+    setKoTesting(false);
   };
 
   const menus = settings.menus || DEFAULT_SETTINGS.menus;
@@ -701,10 +720,19 @@ export default function Settings({
 
         <div className="btnrow" style={{ marginTop: 10 }}>
           <button className="ghost-btn" onClick={tryVoice}><IconSpeaker /> 지금 소리 내보기</button>
+          <button className="ghost-btn ko-check" onClick={tryKorean} disabled={koTesting}>
+            <IconSpeaker /> {koTesting ? '확인 중…' : '한국어 뜻 확인'}
+          </button>
         </div>
         <div className="set-note">
           소리가 안 나면 폰의 무음 스위치와 볼륨을 먼저 확인해 주세요.
         </div>
+        {/* 자동 듣기에서 뜻이 조용할 때, 어디서 끊기는지 눌러서 볼 수 있게 둔다 */}
+        {koReport && (
+          <div className="korep">
+            {koReport.map((line) => <div key={line} className="korep-line">{line}</div>)}
+          </div>
+        )}
 
         {status.mode === 'cloud' && (
           <div className="usagebox">
