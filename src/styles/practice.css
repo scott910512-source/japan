@@ -434,3 +434,24 @@
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 
+
+/* ── 스위스 독일어 맛보기 ──
+   유치원 수준 = 한 번에 하나, 글자는 크게. 카드 하나가 낱말 하나다. */
+.sw-intro { line-height: 1.6; }
+.sw-card { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer; padding: 14px 14px; }
+.sw-pic { flex: 0 0 auto; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 30px; line-height: 1; }
+.sw-swatch { display: inline-block; width: 34px; height: 34px; border-radius: 10px; border: 1.5px solid var(--line); }
+.sw-swatch.big { width: 56px; height: 56px; border-radius: 16px; }
+.sw-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.sw-word { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+.sw-han { font-size: 14px; color: var(--kon); font-weight: 600; }
+.sw-ko { font-size: 13.5px; color: var(--ink); margin-top: 2px; }
+.sw-hd { font-size: 11.5px; color: var(--ink-soft); }
+.sw-note { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; line-height: 1.5; }
+.sw-spk { width: 18px; height: 18px; color: var(--ink-soft); flex: 0 0 auto; }
+.sw-ask { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 16px; text-align: center; }
+.sw-ask-pic { font-size: 56px; line-height: 1; }
+.sw-ask-ko { font-size: 26px; font-weight: 800; }
+.sw-score { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 16px; }
+.sw-score b { font-size: 34px; font-weight: 800; }
+.sw-score span { font-size: 13px; color: var(--ink-soft); text-align: center; }

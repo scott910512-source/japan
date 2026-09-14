@@ -78,6 +78,7 @@ const SUB_TITLES = {
   listen: '듣기 · 따라 말하기',
   review: '복습',
   videos: '영상으로 배우기',
+  swiss: '스위스 독일어 맛보기',
 };
 
 export default function App() {
@@ -756,6 +757,7 @@ export default function App() {
             onReplayOnboarding={() => setOnboardingOpen(true)}
             onOpenWordManager={() => setSub('manage')}
             onOpenTranslate={() => setSub('translate')}
+            onOpenSwiss={() => setSub('swiss')}
             onToast={showToast}
             onReload={() => window.location.reload()}
             session={authSession}

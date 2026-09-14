@@ -199,7 +199,7 @@ const STATUS_TEXT = {
 };
 
 export default function Settings({
-  settings, onChange, onReplayOnboarding, onOpenWordManager, onOpenTranslate, onToast, onReload,
+  settings, onChange, onReplayOnboarding, onOpenWordManager, onOpenTranslate, onOpenSwiss, onToast, onReload,
   session, syncState, storeError, onSync, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
 }) {
   const goals = normalizeGoals(settings.goals ?? settings.dailyGoal);
@@ -886,6 +886,12 @@ export default function Settings({
         <button className="listrow" onClick={onOpenWordManager}>
           <IconList /> 내 단어장 관리
           <span className="lr-sub">직접 담은 단어를 고치고 지워요</span>
+        </button>
+        {/* 완전 곁가지 — 일본어 회독과 무관하고 기록에 안 붙는다.
+            도구 묶음 맨 아래에 두어 본업을 가리지 않게 한다. */}
+        <button className="listrow tool-swiss" onClick={onOpenSwiss}>
+          <IconSpeaker /> 스위스 독일어 맛보기
+          <span className="lr-sub">유치원 수준 — 인사 · 숫자 · 색깔 · 동물. 눌러서 듣기만</span>
         </button>
       </div>
 
