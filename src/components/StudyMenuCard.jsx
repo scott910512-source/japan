@@ -1,6 +1,6 @@
 import {
   IconBook, IconGrid, IconChat, IconSparkle, IconRepeat, IconList,
-  IconPerson, IconPencil, IconFlame, IconChevron,
+  IconPerson, IconPencil, IconFlame, IconChevron, IconMap,
 } from './Icons.jsx';
 
 const ICONS = {
@@ -13,6 +13,7 @@ const ICONS = {
   pencil: IconPencil,
   person: IconPerson,
   flame: IconFlame,
+  map: IconMap,
 };
 
 /* 학습 메뉴 한 칸.

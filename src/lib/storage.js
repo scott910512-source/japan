@@ -21,6 +21,7 @@ const KEYS = {
   trends: 'jp_manabu_trends_v1',                // 요즘 일본어 — 받아 둔 목록과 받은 날
   asks: 'jp_manabu_asks_v1',                    // 공부하다 물어본 것 — 비행기 모드에서도 다시 본다
   plan: 'jp_manabu_plan_v1',                    // 오늘의 계획 — 배정과 완료를 날짜별로 적어 둔다
+  swiss: 'jp_manabu_swiss_v1',                  // 스위스 독일어 코스 진도 — 일본어 회독과 따로 간다
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -141,6 +142,15 @@ export function loadPlan() {
 export function savePlan(plan) {
   if (plan) write(KEYS.plan, plan);
   else { try { localStorage.removeItem(KEYS.plan); } catch { /* 무시 */ } }
+}
+
+/* 스위스 독일어 코스 진도. 회독 기록과 아예 다른 자리 — 서로 손댈 일이 없다.
+   모양은 lib/swissCourse.js의 normalizeProgress가 맞춘다. */
+export function loadSwiss() {
+  return read(KEYS.swiss, null);
+}
+export function saveSwiss(progress) {
+  write(KEYS.swiss, progress);
 }
 
 export function loadCustomWords() {
@@ -287,6 +297,7 @@ export const DEFAULT_SETTINGS = {
     grammar: true,    // 문법 — 기초문법 · 일상문법 · 문형 연습
     sentences: true,  // 상황회화 — 이동 · 식당 · 일상
     basics: true,     // 완전기초 — 히라가나 · 숫자 · 인사
+    swiss: true,      // 스위스 독일어 — 곁가지 코스. 끄면 학습 탭에서 사라진다
     // 연습하기
     quiz: true,       // 단어 시험
     conjugate: true,  // 동사 활용 — 기초 시제
@@ -480,6 +491,7 @@ const BACKUP_ITEMS = [
   { key: 'trends', label: '요즘 일본어', fallback: null },
   { key: 'asks', label: '물어본 것', fallback: [] },
   { key: 'plan', label: '오늘의 계획', fallback: null },
+  { key: 'swiss', label: '스위스 독일어 진도', fallback: null },
 ];
 
 /* ★ 비밀값은 백업 파일에 넣지 않는다 ★

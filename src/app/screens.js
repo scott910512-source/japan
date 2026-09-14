@@ -22,4 +22,4 @@ export const Repeat = lazy(() => import('../screens/Repeat.jsx'));
 export const Adverb = lazy(() => import('../screens/Adverb.jsx'));
 export const WordManager = lazy(() => import('../screens/WordManager.jsx'));
 // 곁가지 — 일본어 회독과 무관하다. 기록에 안 붙는다.
-export const Swiss = lazy(() => import('../screens/Swiss.jsx'));
+export const SwissCourse = lazy(() => import('../screens/SwissCourse.jsx'));

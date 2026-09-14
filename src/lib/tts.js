@@ -103,35 +103,79 @@ function speakLocal(text, rate) {
   window.speechSynthesis.speak(utter);
 }
 
-/* ── 다른 말 (스위스 독일어 맛보기 같은 곁가지) ──
+/* ── 다른 말 (스위스 독일어 코스) ──
  *
- * 기기 음성만 쓴다. 클라우드 몫은 일본어에 쓰는 유료 자원이라 곁가지에는
- * 안 쓴다 — 유치원 수준 낱말 몇 개에 요금이 붙으면 안 된다.
- *
- * 한국어에서 배운 것 둘을 그대로 지킨다.
+ * 한국어 뜻 읽기에서 배운 것을 그대로 쓴다. 기기 음성을 먼저 쓰고, 안 나면
+ * 클라우드로 넘긴다. 순서와 이유가 같다.
  *   · cancel() 바로 뒤 같은 틱의 speak()은 사파리가 버린다 → 한 틱 뗀다
- *   · 딱 맞는 음성이 없어도 lang만 맞춰 기기에 맡긴다 → 없다고 돌아서지 않는다
+ *   · 사파리는 못 읽을 때 오류를 안 준다 → 시작 기별이 없으면 시간으로 알아챈다
+ *   · 한 번 조용했던 말은 다음부터 바로 클라우드로 → 들리다 말다 하지 않는다
+ *   · 음성이 새로 깔리면(onvoiceschanged) 그 판단을 놓는다
  *
- * 음성은 정확한 것부터 찾는다: de-CH → de-* → 없으면 lang만. 스위스 독일어
- * 음성은 거의 없어서 대개 독일 음성이 대신 읽는다 — 그래도 「그뤼에치」는
- * 알아들을 만하게 나온다. */
+ * 음성은 정확한 것부터 찾는다: de-CH → de-* → 없으면 lang만 맞춰 기기에 맡긴다.
+ * 스위스 독일어 음성은 거의 없어서 대개 독일 음성이 대신 읽는다. 클라우드도
+ * de-CH가 없어 de-DE로 부른다 — 「그뤼에치」는 그래도 알아들을 만하게 나온다.
+ *
+ * 클라우드 몫은 일본어에 쓰는 유료 자원이다. 그래서 기기가 되는 사람은 한 푼도
+ * 더 안 쓰고, 기기가 조용한 사람만 넘어간다. */
+const langBroken = {};   // { 'de-CH': true } — 이 기기에서 조용했던 말
+
+function pickVoiceFor(lang) {
+  const base = cloudKeyOf(lang);
+  const voices = (typeof window !== 'undefined' && window.speechSynthesis?.getVoices()) || [];
+  return voices.find((v) => v.lang === lang)
+    || voices.find((v) => v.lang?.startsWith(`${base}-`) || v.lang === base)
+    || null;
+}
+
 export function speakIn(text, lang, rate = 0.9) {
-  if (!text || !speechReady()) return;
+  if (!text) return;
   stopSpeaking();
   const token = speakToken;
+  const key = cloudKeyOf(lang);
+  const cloud = () => speakCloud(text, rate, token, key).catch((err) => {
+    if (token !== speakToken) return;
+    if (err.status === 400 || err.status === 401 || err.status === 403) cloudDisabled = true;
+  });
+
+  if (langBroken[lang] && cloudTTSReady()) { cloud(); return; }
+  if (!speechReady()) { if (cloudTTSReady()) cloud(); return; }
+
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = lang;
   utter.rate = rate;
-  const base = String(lang).split('-')[0];
-  const voices = window.speechSynthesis.getVoices() || [];
-  const voice = voices.find((v) => v.lang === lang)
-    || voices.find((v) => v.lang?.startsWith(`${base}-`) || v.lang === base)
-    || null;
+  const voice = pickVoiceFor(lang);
   try { if (voice) utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
+
+  let heard = false;
+  const giveUp = () => {
+    if (heard) return;
+    heard = true;
+    langBroken[lang] = true;
+    if (token !== speakToken) return;
+    if (cloudTTSReady()) cloud();
+  };
+  utter.onstart = () => { heard = true; };
+  utter.onend = () => { heard = true; };
+  utter.onerror = (e) => {
+    const why = e?.error;
+    if (why === 'interrupted' || why === 'canceled') { heard = true; return; }
+    giveUp();
+  };
   setTimeout(() => {
     if (token !== speakToken) return;
     window.speechSynthesis.speak(utter);
+    setTimeout(giveUp, KO_SILENT_MS);
   }, KO_AFTER_CANCEL_MS);
+}
+
+/* 음성 목록이 바뀌면 「이 말은 안 된다」는 판단을 놓는다 — 위 한국어와 같은 이유 */
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  const prevHandler = window.speechSynthesis.onvoiceschanged;
+  window.speechSynthesis.onvoiceschanged = (...args) => {
+    for (const k of Object.keys(langBroken)) delete langBroken[k];
+    if (typeof prevHandler === 'function') prevHandler(...args);
+  };
 }
 
 /* ── 한국어 (뜻 읽어 주기) ──
@@ -390,15 +434,24 @@ export function ttsStatus() {
  * 한국어에는 목소리 이름을 안 박는다. 이름을 적으면 그 목소리가 계정·지역에서
  * 안 되는 날 400이 나는데, 뜻은 누가 읽어도 알아들으면 되는 것이라 구글이
  * 고르게 두는 편이 안 끊긴다. */
+/* 클라우드에 어느 말로 부를지. 일본어만 목소리 이름을 박는다(사용자가 고른다).
+   다른 말은 이름 없이 보내고, 거절당하면 아래 표의 표준 목소리로 한 번 더 —
+   표준 등급이라 계정·지역을 가장 안 탄다. 뜻이나 곁가지는 알아들으면 되는
+   것이라 품질보다 「끊기지 않는 것」이 중요하다.
+   스위스 독일어(de-CH) 목소리는 구글에 없다 — 독일 목소리(de-DE)가 대신 읽는다. */
+const CLOUD_LANG = { ko: 'ko-KR', de: 'de-DE' };
+const CLOUD_FALLBACK_VOICE = { ko: 'ko-KR-Standard-A', de: 'de-DE-Standard-A' };
+
 function cloudVoiceFor(lang, override) {
-  if (lang === 'ko') return override ? { languageCode: 'ko-KR', name: override } : { languageCode: 'ko-KR' };
-  return { languageCode: 'ja-JP', name: config.voice || DEFAULT_VOICE };
+  if (lang === 'ja') return { languageCode: 'ja-JP', name: config.voice || DEFAULT_VOICE };
+  const languageCode = CLOUD_LANG[lang] || 'ko-KR';
+  return override ? { languageCode, name: override } : { languageCode };
 }
 
-/* 이름 없이 거절당할 때 박아 볼 한국어 목소리.
-   표준 등급이라 계정·지역을 가장 안 탄다 — 뜻은 알아들으면 되는 것이라
-   품질보다 「끊기지 않는 것」이 중요하다. */
-const KO_FALLBACK_VOICE = 'ko-KR-Standard-A';
+/* 기기 lang(de-CH, ko-KR …)을 클라우드 표의 열쇠(de, ko)로 */
+function cloudKeyOf(lang) {
+  return String(lang).split('-')[0];
+}
 
 async function requestCloud(text, rate, withRate, lang = 'ja', override = null) {
   const audioConfig = { audioEncoding: 'MP3' };
@@ -430,7 +483,7 @@ async function requestCloud(text, rate, withRate, lang = 'ja', override = null) 
 /* lang은 캐시 열쇠에도 들어가야 한다. 안 넣으면 같은 글자를 두 말로 부를 때
    먼저 받은 소리가 다른 말 자리에서 다시 난다 — 한국어 자리에서 일본어가 난다. */
 async function speakCloud(text, rate, token, lang = 'ja') {
-  const cacheKey = `${lang}|${text}|${rate}|${lang === 'ko' ? 'ko' : config.voice}`;
+  const cacheKey = `${lang}|${text}|${rate}|${lang === 'ja' ? config.voice : lang}`;
   let b64 = cloudCache.get(cacheKey);
 
   if (!b64) {
@@ -445,9 +498,10 @@ async function speakCloud(text, rate, token, lang = 'ja') {
      * 401·403은 키 문제라 되물어도 소용없다 — 바로 올린다. */
     const tries = [{ withRate: true, voice: null }];
     if (rate !== 1) tries.push({ withRate: false, voice: null });
-    if (lang === 'ko') {
-      tries.push({ withRate: true, voice: KO_FALLBACK_VOICE });
-      if (rate !== 1) tries.push({ withRate: false, voice: KO_FALLBACK_VOICE });
+    const spare = CLOUD_FALLBACK_VOICE[lang];
+    if (spare) {
+      tries.push({ withRate: true, voice: spare });
+      if (rate !== 1) tries.push({ withRate: false, voice: spare });
     }
 
     let last = null;
