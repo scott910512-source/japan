@@ -1,4 +1,4 @@
-import { WordDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ReviewTab, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, Swiss } from './screens.js';
+import { WordDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ReviewTab, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse } from './screens.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
 export default function FeatureScreen({
@@ -46,7 +46,7 @@ export default function FeatureScreen({
             )}
             {sub === 'basics' && <Basics settings={settings} onToast={showToast} />}
             {/* 곁가지 — 회독·기록·계획 어디에도 안 붙는다. 그래서 넘기는 것도 설정뿐이다 */}
-            {sub === 'swiss' && <Swiss settings={settings} />}
+            {sub === 'swiss' && <SwissCourse settings={settings} onToast={showToast} />}
             {sub === 'grammar' && (
               <GrammarHub
                 words={words}

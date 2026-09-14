@@ -455,3 +455,81 @@
 .sw-score { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 16px; }
 .sw-score b { font-size: 34px; font-weight: 800; }
 .sw-score span { font-size: 13px; color: var(--ink-soft); text-align: center; }
+
+/* ── 스위스 독일어 코스 ──
+   허브(swh) · 레슨(swl) · 자동재생(swp). 낱말 카드(sw-card)는 위 블록을 그대로 쓴다. */
+.swh-sum { padding: 14px; }
+.swh-cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.swh-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px; background: var(--surface-2); }
+.swh-cell b { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.swh-cell b i { font-style: normal; font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+.swh-cell span { font-size: 11px; color: var(--ink-soft); }
+.swh-next { flex: 1; }
+.swh-unit { padding: 12px 12px 10px; }
+.swh-uhead { display: flex; align-items: center; gap: 10px; }
+.swh-uemoji { font-size: 26px; line-height: 1; }
+.swh-ubody { display: flex; flex-direction: column; gap: 1px; }
+.swh-ubody b { font-size: 15px; font-weight: 800; }
+.swh-ubody span { font-size: 11.5px; color: var(--ink-soft); }
+.swh-lessons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.swh-lesson { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 700; min-height: 44px; }
+.swh-lesson.open { border-color: var(--kon); }
+.swh-lesson.done { border-color: var(--kon); background: var(--kon-soft); }
+.swh-lesson.locked { opacity: .5; cursor: default; }
+.swh-lmark { font-size: 13px; letter-spacing: -0.06em; color: var(--kon); }
+.swh-peek { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; background: none; border: none; color: var(--ink-soft); font-size: 12px; font-weight: 600; cursor: pointer; padding: 6px 2px; min-height: 36px; }
+.swh-peek .chev { width: 14px; height: 14px; transform: rotate(90deg); transition: transform .15s; }
+.swh-peek .chev.up { transform: rotate(-90deg); }
+
+.swl-head { align-items: center; gap: 10px; }
+.swl-bar { flex: 1; height: 10px; border-radius: 100px; background: var(--surface-2); overflow: hidden; }
+.swl-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--kon), var(--kon-deep)); border-radius: 100px; transition: width .25s; }
+.swl-count { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.swl-ask { font-size: 13px; font-weight: 700; color: var(--ink-soft); margin: 14px 0 8px; }
+.swl-prompt { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 16px; text-align: center; }
+.swl-ptext { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
+.swl-phan { font-size: 14px; color: var(--kon); font-weight: 600; }
+.swl-spk, .swl-bigspk { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--kon); cursor: pointer; }
+.swl-spk { width: 44px; height: 44px; }
+.swl-spk svg { width: 20px; height: 20px; }
+.swl-bigspk { width: 84px; height: 84px; }
+.swl-bigspk svg { width: 38px; height: 38px; }
+.swl-slow { margin-top: 6px; }
+.qopt.picked { border-color: var(--kon); }
+.swl-built { min-height: 56px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; border-bottom: 1.5px dashed var(--line); margin-top: 12px; }
+.swl-hint { font-size: 12px; color: var(--ink-soft); }
+.swl-bank { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0; }
+.swl-tok { padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-size: 16px; font-weight: 700; cursor: pointer; min-height: 44px; }
+.swl-tok.on { border-color: var(--kon); background: var(--kon-soft); }
+.swl-tok.used { opacity: .25; }
+.swl-feedback { margin-top: 14px; padding: 14px; border-radius: 14px; border: 1.5px solid var(--line); }
+.swl-feedback.ok { border-color: var(--kon); background: var(--kon-soft); }
+.swl-feedback.no { border-color: var(--shu); background: var(--shu-soft); }
+.swl-fhead { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 15px; }
+.swl-fhead svg { width: 18px; height: 18px; }
+.swl-fbody { margin-top: 6px; font-size: 14px; line-height: 1.6; }
+.swl-fbody b { font-size: 17px; }
+.swl-fbody span { color: var(--kon); font-weight: 600; }
+.swl-fbody em { font-style: normal; color: var(--ink-soft); font-size: 12px; }
+.swl-match { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.swl-mcol { display: flex; flex-direction: column; gap: 8px; }
+.swl-mbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 56px; }
+.swl-mbtn b { font-size: 15px; font-weight: 800; }
+.swl-mbtn span { font-size: 11px; color: var(--kon); }
+.swl-mbtn.sel { border-color: var(--kon); background: var(--kon-soft); }
+.swl-mbtn.ok { opacity: .35; }
+.swl-mbtn.shake { border-color: var(--shu); background: var(--shu-soft); }
+.swl-stars { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 16px; text-align: center; }
+.swl-starrow { font-size: 40px; letter-spacing: 4px; color: var(--line); }
+.swl-starrow .on { color: #f5b301; }
+.swl-stars span { font-size: 13px; color: var(--ink-soft); }
+
+.swp-top { padding: 14px; }
+.swp-go { width: 100%; }
+.swp-stage { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 16px 24px; text-align: center; min-height: 46vh; justify-content: center; }
+.swp-pic { font-size: 56px; line-height: 1; }
+.swp-sw { font-size: 32px; font-weight: 800; letter-spacing: -0.01em; }
+.swp-han { font-size: 16px; color: var(--kon); font-weight: 600; }
+.swp-ko { font-size: 18px; margin-top: 6px; }
+.swp-ko.hide { color: var(--ink-soft); }
+.swp-phase { font-size: 12px; color: var(--ink-soft); margin-top: 8px; }
