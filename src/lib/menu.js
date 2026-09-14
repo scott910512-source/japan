@@ -34,8 +34,9 @@ export const MENUS = [
   { id: 'grammar', group: 'learn', label: '문법', sub: '기초문법 · 일상문법', icon: 'grid', big: true },
   { id: 'sentences', group: 'learn', label: '상황회화', sub: '이동 · 식당 · 일상', icon: 'chat', big: true },
   { id: 'basics', group: 'learn', label: '완전기초', sub: '히라가나 · 숫자 · 인사', icon: 'sparkle' },
-  /* 곁가지 — 일본어가 아니다. 배우기 묶음 맨 끝에 작게. 회독 기록에 안 붙는다 */
-  { id: 'swiss', group: 'learn', label: '스위스 독일어', sub: '단원별 코스', icon: 'map' },
+  /* 곁가지 — 일본어가 아니다. 배우기 묶음 맨 끝에 작게. 회독 기록에 안 붙는다.
+     id는 처음 만들 때 이름(swiss)을 그대로 둔다 — 설정·진도 열쇠가 이 이름이다 */
+  { id: 'swiss', group: 'learn', label: '독일어', sub: '여행 회화 · 스위스 팁', icon: 'map' },
 
   // ── 연습하기 ──
   { id: 'quiz', group: 'practice', label: '단어 시험', sub: '객관식 · 주관식', icon: 'list' },

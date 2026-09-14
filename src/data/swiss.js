@@ -1,261 +1,288 @@
-/* 스위스 독일어 코스 — 단원 → 레슨 → 낱말·문장.
+/* 독일어 여행 회화 코스 — 단원 → 레슨 → 낱말·문장.
  *
- * 일본어 회독과는 다른 길이다. 회독 기록·통계·오늘 계획에 안 붙고, 진도는
- * 따로 적는다(storage의 swiss). 듀오링고처럼 단원 안의 레슨을 차례로 열어
- * 가고, 레슨 하나는 열 문제쯤 — 듣고 고르기 · 뜻 고르기 · 문장 조립 · 짝 맞추기.
+ * ★ 기본은 표준 독일어(Hochdeutsch)다 ★
  *
- * 스위스 독일어(Schwiizerdütsch)는 정해진 철자가 없다. 지역마다 사람마다
- * 다르게 적는다. 취리히 근처에서 흔히 쓰는 꼴로 적고 표준 독일어(hd)를 옆에
- * 둔다 — 글로 배우거나 검색할 때는 표준 독일어가 잡힌다.
+ * 처음엔 스위스 독일어로 만들었는데, 그건 독일·오스트리아에서는 안 통하고
+ * 글로 배우거나 검색할 수도 없다. 처음 배우는 사람이 여행에서 바로 쓰려면
+ * 표준 독일어여야 한다. 스위스에서 실제로 다르게 말하는 것만 팁(ch)으로 붙인다 —
+ * 억양만 다른 것은 팁을 안 만든다. 팁은 전체의 열에 하나쯤이다.
  *
- *   sw    스위스 독일어 (소리 내는 쪽)
- *   hd    표준 독일어 (참고)
- *   ko    뜻
- *   han   한글로 적은 소리 — 정확한 발음이 아니라 입을 여는 첫 실마리
+ * 항목 하나:
+ *   ko    뜻 (맨 위에 온다 — 한국 사람이 보는 앱이다)
+ *   de    표준 독일어 (소리 내는 쪽. 듣기가 가장 중요한 학습법이다)
+ *   han   한글 도움말 — 짧은 낱말에만. 한글로 적으면 발음이 심하게 어긋나는
+ *         것과 긴 문장에는 안 적는다. 듣기로 배우라고.
+ *   ch    스위스 팁 { text, note? } — 실제로 다른 말일 때만
  *   kind  word | sentence — 문장은 조립 문제에 쓴다
  *
- * 「ch」는 목 깊은 데서 긁는 소리라 한글로는 ㅎ/ㅋ 사이 어디쯤이다. */
+ * 스위스 팁의 소리는 de-CH 목소리가 있으면 그걸 쓰지만, 그건 스위스식 표준
+ * 독일어 발음이지 방언 원어민 발음이 아니다. 화면에 그렇게 적지 않는다.
+ *
+ * 단원 순서는 여행에서 부딪히는 순서다 — 교과서 순서가 아니다. */
 
-const W = (id, sw, hd, ko, han, extra = {}) => ({ id, kind: 'word', sw, hd, ko, han, ...extra });
-const S = (id, sw, hd, ko, han, extra = {}) => ({ id, kind: 'sentence', sw, hd, ko, han, ...extra });
+const W = (id, ko, de, han, extra = {}) => ({ id, kind: 'word', ko, de, ...(han ? { han } : {}), ...extra });
+const S = (id, ko, de, han, extra = {}) => ({ id, kind: 'sentence', ko, de, ...(han ? { han } : {}), ...extra });
+const CH = (text, note) => ({ ch: note ? { text, note } : { text } });
 
 export const SWISS_UNITS = [
   {
-    id: 'u1', title: '인사', emoji: '👋', sub: '만나고 헤어질 때',
+    id: 'u1', title: '인사와 기본 표현', emoji: '👋', sub: '만나고 · 고맙고 · 미안하고',
     lessons: [
       {
-        id: 'u1l1', title: '안녕하세요',
+        id: 'u1l1', title: '인사',
         items: [
-          W('gruezi', 'Grüezi', 'Guten Tag', '안녕하세요', '그뤼에치', { note: '낮에 아무한테나 — 스위스 인사의 대표' }),
-          W('hoi', 'Hoi', 'Hallo', '안녕 (친구에게)', '호이'),
-          W('gmorge', 'Guete Morge', 'Guten Morgen', '좋은 아침', '구에테 모르게'),
-          W('gabig', 'Guete Abig', 'Guten Abend', '좋은 저녁', '구에테 아비그'),
-          W('gnacht', 'Guet Nacht', 'Gute Nacht', '잘 자요', '구엣 나흐트'),
-          W('ade', 'Ade', 'Auf Wiedersehen', '안녕히 가세요', '아데'),
-          W('tschau', 'Tschau', 'Tschüss', '잘 가 (친구에게)', '차우'),
+          W('hallo', '안녕 (누구에게나)', 'Hallo', '할로', CH('Hoi', '친구끼리 — 스위스에서 흔히 들려요')),
+          W('gutentag', '안녕하세요 (낮)', 'Guten Tag', '구텐 탁', CH('Grüezi', '스위스 인사의 대표 — 가게·거리 어디서나')),
+          W('gutenmorgen', '좋은 아침', 'Guten Morgen', '구텐 모르겐'),
+          W('gutenabend', '좋은 저녁', 'Guten Abend', '구텐 아벤트'),
+          W('gutenacht', '잘 자요', 'Gute Nacht', '구테 나흐트'),
+          W('tschuess', '잘 가 · 안녕 (헤어질 때, 편하게)', 'Tschüss', '취스', CH('Ade', '스위스에서는 이렇게도 많이 해요')),
+          W('aufwiedersehen', '안녕히 가세요 (정중하게)', 'Auf Wiedersehen', '아우프 비더제엔'),
+          W('bisspaeter', '이따 봐요', 'Bis später', '비스 슈페터'),
         ],
       },
       {
-        id: 'u1l2', title: '고마워요 · 미안해요',
+        id: 'u1l2', title: '고마워요 · 미안해요 · 네/아니요',
         items: [
-          W('merci', 'Merci', 'Danke', '고마워요', '메르시', { note: '프랑스어에서 왔지만 스위스에서는 다 이렇게 말해요' }),
-          W('mercivil', 'Merci vilmal', 'Vielen Dank', '정말 고마워요', '메르시 필말'),
-          W('bitte', 'Bitte', 'Bitte', '부탁해요 · 천만에요', '비테'),
-          W('gaern', 'Gärn gscheh', 'Gern geschehen', '천만에요', '게른 크셰'),
-          W('exgusi', 'Exgüsi', 'Entschuldigung', '미안해요 · 실례해요', '엑스귀지'),
-          W('ja', 'Ja', 'Ja', '네', '야'),
-          W('nei', 'Nei', 'Nein', '아니요', '나이'),
+          W('danke', '고마워요', 'Danke', '당케', CH('Merci', '프랑스어지만 스위스 독일어권에서 다들 이렇게 말해요')),
+          W('dankeschoen', '정말 고마워요', 'Vielen Dank', '필렌 당크', CH('Merci vilmal')),
+          W('bitte', '부탁해요 · 천만에요', 'Bitte', '비테'),
+          W('bitteschoen', '천만에요 · 여기 있어요', 'Bitte schön', '비테 쇤'),
+          W('entschuldigung', '실례해요 · 미안해요', 'Entschuldigung', null, CH('Exgüsi', '가볍게 「실례해요」')),
+          S('tutmirleid', '죄송해요.', 'Es tut mir leid.', null),
+          W('ja', '네', 'Ja', '야'),
+          W('nein', '아니요', 'Nein', '나인'),
+          W('keinproblem', '괜찮아요 · 문제없어요', 'Kein Problem', '카인 프로블렘'),
         ],
       },
     ],
   },
   {
-    id: 'u2', title: '나는요', emoji: '🙋', sub: '이름 · 어디서 왔는지 · 기분',
+    id: 'u2', title: '숫자와 시간', emoji: '🔢', sub: '값을 듣고 · 시간을 묻고',
     lessons: [
       {
-        id: 'u2l1', title: '이름이 뭐예요?',
+        id: 'u2l1', title: '1부터 10까지',
         items: [
-          S('heisse', 'Ich heisse Mina.', 'Ich heiße Mina.', '제 이름은 미나예요.', '이히 하이세 미나'),
-          S('wieheiss', 'Wie heissisch du?', 'Wie heißt du?', '이름이 뭐예요?', '비 하이시슈 두'),
-          S('uskorea', 'Ich chume us Korea.', 'Ich komme aus Korea.', '저는 한국에서 왔어요.', '이히 후메 우스 코레아'),
-          S('wiegahts', "Wie gaht's?", "Wie geht's?", '잘 지내요?', '비 가츠'),
-          S('guetmerci', 'Guet, merci.', 'Gut, danke.', '좋아요, 고마워요.', '구엣 메르시'),
-          W('ich', 'ich', 'ich', '나', '이히'),
-          W('du', 'du', 'du', '너', '두'),
+          W('n1', '1 하나', 'eins', '아인스'),
+          W('n2', '2 둘', 'zwei', '츠바이'),
+          W('n3', '3 셋', 'drei', '드라이'),
+          W('n4', '4 넷', 'vier', '피어'),
+          W('n5', '5 다섯', 'fünf', '퓐프'),
+          W('n6', '6 여섯', 'sechs', '젝스'),
+          W('n7', '7 일곱', 'sieben', '지벤'),
+          W('n8', '8 여덟', 'acht', '아흐트'),
+          W('n9', '9 아홉', 'neun', '노인'),
+          W('n10', '10 열', 'zehn', '첸'),
         ],
       },
       {
-        id: 'u2l2', title: '배고파요 · 모르겠어요',
+        id: 'u2l2', title: '11부터 천까지',
         items: [
-          S('hunger', 'Ich ha Hunger.', 'Ich habe Hunger.', '배고파요.', '이히 하 훙거'),
-          S('durscht', 'Ich ha Durscht.', 'Ich habe Durst.', '목말라요.', '이히 하 두르슈트'),
-          S('mued', 'Ich bi müed.', 'Ich bin müde.', '피곤해요.', '이히 비 뮈에트'),
-          S('verstah', 'Ich verstah nöd.', 'Ich verstehe nicht.', '이해 못 했어요.', '이히 페르슈타 뇌트'),
-          S('weiss', 'Ich weiss nöd.', 'Ich weiß nicht.', '모르겠어요.', '이히 바이스 뇌트'),
-          S('langsam', 'Langsam, bitte.', 'Langsam, bitte.', '천천히 말해 주세요.', '랑잠 비테'),
-          S('allesklar', 'Alles klar.', 'Alles klar.', '알겠어요.', '알레스 클라르'),
+          W('n11', '11', 'elf', '엘프'),
+          W('n12', '12', 'zwölf', null),
+          W('n15', '15', 'fünfzehn', '퓐프첸'),
+          W('n20', '20', 'zwanzig', '츠반치히'),
+          W('n30', '30', 'dreißig', '드라이시히'),
+          W('n50', '50', 'fünfzig', '퓐프치히'),
+          W('n100', '100 백', 'hundert', '훈데르트'),
+          W('n1000', '1000 천', 'tausend', '타우젠트'),
+        ],
+      },
+      {
+        id: 'u2l3', title: '시간 · 오늘 · 내일',
+        items: [
+          S('wiespaet', '지금 몇 시예요?', 'Wie spät ist es?', null),
+          S('umdrei', '세 시에요.', 'Um drei Uhr.', null),
+          W('wann', '언제요?', 'Wann?', '반'),
+          W('jetzt', '지금', 'jetzt', '옛츠트'),
+          W('heute', '오늘', 'heute', '호이테'),
+          W('morgen', '내일', 'morgen', '모르겐'),
+          W('gestern', '어제', 'gestern', '게스턴'),
+          W('minute', '분', 'Minute', '미누테'),
+          W('stunde', '시간 (한 시간)', 'Stunde', '슈툰데'),
         ],
       },
     ],
   },
   {
-    id: 'u3', title: '숫자', emoji: '🔢', sub: '하나부터 천까지',
+    id: 'u3', title: '식당과 카페', emoji: '🍽️', sub: '자리 · 주문 · 계산',
     lessons: [
       {
-        id: 'u3l1', title: '1부터 10까지',
+        id: 'u3l1', title: '식당에서',
         items: [
-          W('n1', 'eis', 'eins', '1 하나', '아이스'),
-          W('n2', 'zwei', 'zwei', '2 둘', '츠바이'),
-          W('n3', 'drü', 'drei', '3 셋', '드뤼'),
-          W('n4', 'vier', 'vier', '4 넷', '피어'),
-          W('n5', 'föif', 'fünf', '5 다섯', '푀이프'),
-          W('n6', 'sächs', 'sechs', '6 여섯', '잭스'),
-          W('n7', 'sibe', 'sieben', '7 일곱', '지베'),
-          W('n8', 'acht', 'acht', '8 여덟', '아흐트'),
-          W('n9', 'nün', 'neun', '9 아홉', '뉜'),
-          W('n10', 'zäh', 'zehn', '10 열', '채'),
+          S('tischfuerzwei', '두 명 자리 부탁해요.', 'Einen Tisch für zwei, bitte.', null),
+          S('speisekarte', '메뉴판 주세요.', 'Die Speisekarte, bitte.', null),
+          S('haettegern', '물 한 잔 주세요.', 'Ich hätte gern ein Wasser.', null),
+          S('empfehlen', '뭐가 맛있어요?', 'Was empfehlen Sie?', null),
+          S('lecker', '맛있었어요.', 'Das war lecker.', null),
+          S('rechnung', '계산서 주세요.', 'Die Rechnung, bitte.', null),
+          S('zusammen', '(점원이) 같이 계산하세요, 따로 하세요?', 'Zusammen oder getrennt?', null),
+          W('wasser', '물', 'Wasser', '바서'),
+          W('brot', '빵', 'Brot', '브로트'),
+          W('eis', '아이스크림', 'Eis', '아이스', CH('Glacé', '스위스 메뉴판에는 이렇게 적혀 있어요')),
         ],
       },
       {
-        id: 'u3l2', title: '11부터 천까지',
+        id: 'u3l2', title: '카페에서',
         items: [
-          W('n11', 'elf', 'elf', '11', '엘프'),
-          W('n12', 'zwölf', 'zwölf', '12', '츠뵐프'),
-          W('n13', 'drizäh', 'dreizehn', '13', '드리채'),
-          W('n15', 'füfzäh', 'fünfzehn', '15', '퓌프채'),
-          W('n20', 'zwänzg', 'zwanzig', '20', '츠밴츠그'),
-          W('n30', 'driissg', 'dreißig', '30', '드리스그'),
-          W('n100', 'hundert', 'hundert', '100 백', '훈데르트'),
-          W('n1000', 'tuusig', 'tausend', '1000 천', '투지그'),
+          S('einenkaffee', '커피 한 잔 주세요.', 'Einen Kaffee, bitte.', null, CH('E Kafi, bitte', '스위스 카페에서는 「Café crème」라는 메뉴가 흔해요')),
+          W('mitmilch', '우유 넣어서', 'mit Milch', '밋 밀히'),
+          W('ohnezucker', '설탕 빼고', 'ohne Zucker', '오네 추커'),
+          W('zummitnehmen', '포장이요', 'zum Mitnehmen', '춤 밋네멘'),
+          S('kuchen', '케이크 한 조각 주세요.', 'Ein Stück Kuchen, bitte.', null),
+          S('wlan', '와이파이 있어요?', 'Haben Sie WLAN?', null),
+          W('tee', '차', 'Tee', '테'),
+          W('bier', '맥주', 'Bier', '비어', CH('Stange', '스위스에서 생맥주 한 잔을 이렇게 시켜요')),
         ],
       },
     ],
   },
   {
-    id: 'u4', title: '색깔', emoji: '🎨', sub: '이건 빨강이에요',
+    id: 'u4', title: '호텔', emoji: '🏨', sub: '체크인 · 방 · 아침',
     lessons: [
       {
-        id: 'u4l1', title: '색 이름',
+        id: 'u4l1', title: '체크인',
         items: [
-          W('rot', 'rot', 'rot', '빨강', '롯', { swatch: '#e5484d' }),
-          W('blau', 'blau', 'blau', '파랑', '블라우', { swatch: '#3b82f6' }),
-          W('gael', 'gäl', 'gelb', '노랑', '갤', { swatch: '#facc15' }),
-          W('grueen', 'grüen', 'grün', '초록', '그뤼엔', { swatch: '#22c55e' }),
-          W('schwarz', 'schwarz', 'schwarz', '검정', '슈바르츠', { swatch: '#111111' }),
-          W('wiss', 'wiss', 'weiß', '하양', '비스', { swatch: '#f5f5f5' }),
-          W('brun', 'brun', 'braun', '갈색', '브룬', { swatch: '#8b5a2b' }),
-          S('daschrot', 'Das isch rot.', 'Das ist rot.', '이건 빨강이에요.', '다스 이슈 롯'),
+          S('reservierung', '예약했어요.', 'Ich habe eine Reservierung.', null),
+          S('aufdennamen', '「김」 이름으로요.', 'Auf den Namen Kim.', null),
+          S('zweinaechte', '이틀 밤 묵을 방이요.', 'Ein Zimmer für zwei Nächte.', null),
+          S('fruehstueck', '아침 식사는 언제예요?', 'Wann gibt es Frühstück?', null),
+          S('schluessel', '열쇠 주세요.', 'Den Schlüssel, bitte.', null),
+          S('taxi', '택시 불러 주실 수 있어요?', 'Können Sie mir ein Taxi rufen?', null),
+          W('aufzug', '엘리베이터', 'Aufzug', '아우프축', CH('Lift')),
+          W('zimmer', '방', 'Zimmer', '침머'),
         ],
       },
     ],
   },
   {
-    id: 'u5', title: '동물', emoji: '🐾', sub: '소에는 종이 달려 있어요',
+    id: 'u5', title: '공항과 기차', emoji: '🚆', sub: '표 · 승강장 · 갈아타기',
     lessons: [
       {
-        id: 'u5l1', title: '동물 친구들',
+        id: 'u5l1', title: '공항에서',
         items: [
-          W('hund', 'Hund', 'Hund', '개', '훈트', { emoji: '🐶' }),
-          W('chatz', 'Chatz', 'Katze', '고양이', '하츠', { emoji: '🐱' }),
-          W('chue', 'Chue', 'Kuh', '소', '후에', { emoji: '🐮', note: '스위스 하면 소 — 목에 종을 달고 다녀요' }),
-          W('vogel', 'Vogel', 'Vogel', '새', '포겔', { emoji: '🐦' }),
-          W('fisch', 'Fisch', 'Fisch', '물고기', '피슈', { emoji: '🐟' }),
-          W('ross', 'Ross', 'Pferd', '말', '로스', { emoji: '🐴' }),
-          W('hase', 'Hase', 'Hase', '토끼', '하제', { emoji: '🐰' }),
-          W('baer', 'Bär', 'Bär', '곰', '베어', { emoji: '🐻', note: '베른(Bern)이라는 도시 이름이 곰에서 왔어요' }),
-          W('schaf', 'Schaf', 'Schaf', '양', '샤프', { emoji: '🐑' }),
-          W('muus', 'Muus', 'Maus', '쥐', '무스', { emoji: '🐭' }),
+          S('checkin', '체크인 어디서 해요?', 'Wo ist der Check-in?', null),
+          S('meinpass', '여기 제 여권이요.', 'Hier ist mein Pass.', null),
+          W('handgepaeck', '기내 수하물', 'Handgepäck', null),
+          S('boarding', '탑승은 언제예요?', 'Wann ist das Boarding?', null),
+          S('gepaeckausgabe', '수하물 찾는 곳이 어디예요?', 'Wo ist die Gepäckausgabe?', null),
+          S('verzollen', '신고할 게 없어요.', 'Ich habe nichts zu verzollen.', null),
+          W('flug', '비행기 편', 'Flug', '플룩'),
+          W('ausgang', '출구', 'Ausgang', '아우스강'),
+        ],
+      },
+      {
+        id: 'u5l2', title: '기차와 대중교통',
+        items: [
+          S('fahrkarte', '취리히 가는 표 한 장이요.', 'Eine Fahrkarte nach Zürich, bitte.', null, CH('Es Billett nach Zürich, bitte', '스위스에서 표는 「Billett」이에요')),
+          S('hinundzurueck', '(점원이) 편도예요, 왕복이에요?', 'Einfach oder hin und zurück?', null),
+          S('gleis', '몇 번 승강장이에요?', 'Von welchem Gleis?', null),
+          S('zugnachbern', '이게 베른 가는 기차예요?', 'Ist das der Zug nach Bern?', null),
+          S('umsteigen', '어디서 갈아타요?', 'Wo muss ich umsteigen?', null),
+          W('bahnhof', '기차역', 'Bahnhof', '반호프'),
+          W('bus', '버스', 'Bus', '부스'),
+          W('strassenbahn', '트램 (노면전차)', 'Straßenbahn', null, CH('Tram', '스위스·남부 독일에서는 이렇게 불러요')),
+          W('fahrrad', '자전거', 'Fahrrad', '파라트', CH('Velo', '표지판·대여소에 이렇게 적혀 있어요')),
         ],
       },
     ],
   },
   {
-    id: 'u6', title: '먹을 것', emoji: '🍫', sub: '물 주세요 · 계산이요',
+    id: 'u6', title: '길 찾기', emoji: '🧭', sub: '어디예요? · 화장실 · 표지판',
     lessons: [
       {
-        id: 'u6l1', title: '먹고 마시기',
+        id: 'u6l1', title: '어디예요?',
         items: [
-          W('brot', 'Brot', 'Brot', '빵', '브롯', { emoji: '🍞' }),
-          W('chaes', 'Chäs', 'Käse', '치즈', '해스', { emoji: '🧀' }),
-          W('milch', 'Milch', 'Milch', '우유', '밀히', { emoji: '🥛' }),
-          W('wasser', 'Wasser', 'Wasser', '물', '바서', { emoji: '💧' }),
-          W('oepfel', 'Öpfel', 'Apfel', '사과', '외프펠', { emoji: '🍎' }),
-          W('schoggi', 'Schoggi', 'Schokolade', '초콜릿', '쇼기', { emoji: '🍫', note: '스위스에서 제일 중요한 단어일지도' }),
-          W('roesti', 'Rösti', 'Rösti', '뢰스티 (감자전)', '뢰슈티', { emoji: '🥔' }),
-          W('kafi', 'Kafi', 'Kaffee', '커피', '카피', { emoji: '☕' }),
-          W('tee', 'Tee', 'Tee', '차', '테', { emoji: '🍵' }),
+          S('woist', '실례합니다, 기차역이 어디예요?', 'Entschuldigung, wo ist der Bahnhof?', null),
+          S('wiekommeich', '중앙역에 어떻게 가요?', 'Wie komme ich zum Hauptbahnhof?', null),
+          S('istesweit', '멀어요?', 'Ist es weit?', null),
+          S('aufderkarte', '지도에서 보여 주실 수 있어요?', 'Können Sie mir das auf der Karte zeigen?', null),
+          W('geradeaus', '직진', 'geradeaus', null),
+          W('links', '왼쪽', 'links', '링크스'),
+          W('rechts', '오른쪽', 'rechts', null),
+          W('hier', '여기', 'hier', '히어'),
+          W('dort', '저기', 'dort', '도르트'),
         ],
       },
       {
-        id: 'u6l2', title: '식당에서',
+        id: 'u6l2', title: '화장실과 표지판',
         items: [
-          S('hettgaern', 'Ich hett gärn es Wasser.', 'Ich hätte gern ein Wasser.', '물 하나 주세요.', '이히 헷 게른 에스 바서'),
-          S('ekafi', 'E Kafi, bitte.', 'Einen Kaffee, bitte.', '커피 하나 부탁해요.', '에 카피 비테'),
-          S('fein', 'Es isch fein!', 'Es ist lecker!', '맛있어요!', '에스 이슈 파인'),
-          S('zahle', 'Zahle, bitte.', 'Zahlen, bitte.', '계산이요.', '찰레 비테'),
-          S('keihunger', 'Ich ha kei Hunger.', 'Ich habe keinen Hunger.', '배 안 고파요.', '이히 하 카이 훙거'),
-          W('fein_w', 'fein', 'lecker', '맛있는', '파인'),
+          S('toilette', '화장실이 어디예요?', 'Wo ist die Toilette?', null),
+          S('mussbezahlen', '돈 내야 해요?', 'Muss ich bezahlen?', null),
+          W('damen', '여자 (화장실 표시)', 'Damen', '다멘'),
+          W('herren', '남자 (화장실 표시)', 'Herren', '헤렌'),
+          W('eingang', '입구', 'Eingang', '아인강'),
+          W('geoeffnet', '영업 중 · 열림', 'geöffnet', null),
+          W('geschlossen', '닫힘 · 휴무', 'geschlossen', null),
+          W('drucken', '미시오', 'Drücken', null),
+          W('ziehen', '당기시오', 'Ziehen', '치엔'),
         ],
       },
     ],
   },
   {
-    id: 'u7', title: '가족과 집', emoji: '🏠', sub: '엄마 · 아빠 · 친구',
+    id: 'u7', title: '쇼핑과 결제', emoji: '🛍️', sub: '얼마예요? · 카드 돼요?',
     lessons: [
       {
-        id: 'u7l1', title: '우리 가족',
+        id: 'u7l1', title: '얼마예요?',
         items: [
-          W('mami', 'Mami', 'Mama', '엄마', '마미', { emoji: '👩' }),
-          W('papi', 'Papi', 'Papa', '아빠', '파피', { emoji: '👨' }),
-          W('brueder', 'Brüeder', 'Bruder', '남자 형제', '브뤼에더', { emoji: '👦' }),
-          W('schwoeschter', 'Schwöschter', 'Schwester', '여자 형제', '슈뵈슈터', { emoji: '👧' }),
-          W('grosi', 'Grosi', 'Oma', '할머니', '그로지', { emoji: '👵' }),
-          W('grosspapi', 'Grosspapi', 'Opa', '할아버지', '그로스파피', { emoji: '👴' }),
-          W('chind', 'Chind', 'Kind', '아이', '힌트', { emoji: '🧒' }),
-          W('fruend', 'Fründ', 'Freund', '친구', '프륀트', { emoji: '🤝' }),
-          W('huus', 'Huus', 'Haus', '집', '후스', { emoji: '🏠' }),
-          S('dasischmami', 'Das isch mis Mami.', 'Das ist meine Mama.', '이분은 우리 엄마예요.', '다스 이슈 미스 마미'),
+          S('wieviel', '이거 얼마예요?', 'Wie viel kostet das?', null),
+          S('zuteuer', '너무 비싸요.', 'Das ist zu teuer.', null),
+          S('ichnehme', '이걸로 할게요.', 'Ich nehme das.', null),
+          S('schauenur', '그냥 구경만 해요.', 'Ich schaue nur.', null),
+          S('mitkarte', '카드로 계산할 수 있어요?', 'Kann ich mit Karte zahlen?', null),
+          W('bar', '현금으로', 'bar', '바르'),
+          S('quittung', '영수증 주세요.', 'Die Quittung, bitte.', null),
+          W('kasse', '계산대', 'Kasse', '카세'),
+          W('euro', '유로', 'Euro', '오이로', CH('Franken (CHF)', '스위스 돈은 유로가 아니라 프랑이에요')),
         ],
       },
     ],
   },
   {
-    id: 'u8', title: '날씨와 하루', emoji: '☀️', sub: '오늘 · 내일 · 비가 와요',
+    id: 'u8', title: '도움과 응급', emoji: '🆘', sub: '이해 못 했어요 · 의사가 필요해요',
     lessons: [
       {
-        id: 'u8l1', title: '날씨',
+        id: 'u8l1', title: '도움 요청',
         items: [
-          W('sunne', 'Sunne', 'Sonne', '해', '주네', { emoji: '☀️' }),
-          W('raege', 'Räge', 'Regen', '비', '래게', { emoji: '🌧️' }),
-          W('schnee', 'Schnee', 'Schnee', '눈', '슈네', { emoji: '❄️' }),
-          W('wind', 'Wind', 'Wind', '바람', '빈트', { emoji: '🌬️' }),
-          W('chalt', 'chalt', 'kalt', '춥다', '할트', { emoji: '🥶' }),
-          W('warm', 'warm', 'warm', '따뜻하다', '바름', { emoji: '🌡️' }),
-          S('esraegnet', 'Es rägnet.', 'Es regnet.', '비가 와요.', '에스 래그넷'),
-          S('eschalt', 'Es isch chalt.', 'Es ist kalt.', '추워요.', '에스 이슈 할트'),
+          S('helfen', '도와주실 수 있어요?', 'Können Sie mir helfen?', null),
+          S('verstehenicht', '이해 못 했어요.', 'Ich verstehe nicht.', null),
+          S('englisch', '영어 하세요?', 'Sprechen Sie Englisch?', null),
+          S('langsam', '천천히 말해 주세요.', 'Langsam, bitte.', null),
+          S('nocheinmal', '한 번 더 말해 주세요.', 'Noch einmal, bitte.', null),
+          S('wasbedeutet', '이게 무슨 뜻이에요?', 'Was bedeutet das?', null),
+          S('passverloren', '여권을 잃어버렸어요.', 'Ich habe meinen Pass verloren.', null),
         ],
       },
       {
-        id: 'u8l2', title: '오늘 · 내일',
+        id: 'u8l2', title: '응급상황',
         items: [
-          W('huet', 'hüt', 'heute', '오늘', '휘트'),
-          W('morn', 'morn', 'morgen', '내일', '모른'),
-          W('geschter', 'geschter', 'gestern', '어제', '게슈터'),
-          W('mond', 'Mond', 'Mond', '달', '몬트', { emoji: '🌙' }),
-          W('ziit', 'Ziit', 'Zeit', '시간', '치트', { emoji: '⏰' }),
-          S('huetschoen', 'Hüt isch es schön.', 'Heute ist es schön.', '오늘은 날씨가 좋아요.', '휘트 이슈 에스 쇤'),
-          S('bismorn', 'Bis morn!', 'Bis morgen!', '내일 봐요!', '비스 모른'),
+          W('hilfe', '도와주세요!', 'Hilfe!', '힐페'),
+          S('braucheinenarzt', '의사가 필요해요.', 'Ich brauche einen Arzt.', null),
+          S('rufensie', '구급차를 불러 주세요.', 'Rufen Sie einen Krankenwagen.', null),
+          W('krankenhaus', '병원', 'Krankenhaus', null, CH('Spital', '스위스 표지판은 이렇게 적혀 있어요')),
+          W('apotheke', '약국', 'Apotheke', '아포테케'),
+          W('polizei', '경찰', 'Polizei', '폴리차이'),
+          S('tutweh', '여기가 아파요.', 'Es tut hier weh.', null),
+          W('notruf', '긴급 전화 112', 'Notruf 112', null, { note: '유럽 어디서나 112 — 스위스도 통해요' }),
         ],
       },
     ],
   },
   {
-    id: 'u9', title: '길에서', emoji: '🚆', sub: '역이 어디예요? · 얼마예요?',
+    id: 'u9', title: '간단한 일상대화', emoji: '💬', sub: '이름 · 어디서 왔는지 · 날씨',
     lessons: [
       {
-        id: 'u9l1', title: '타고 가기',
+        id: 'u9l1', title: '처음 만났을 때',
         items: [
-          W('bahnhof', 'Bahnhof', 'Bahnhof', '기차역', '반호프', { emoji: '🚉' }),
-          W('zug', 'Zug', 'Zug', '기차', '추그', { emoji: '🚆' }),
-          W('bus', 'Bus', 'Bus', '버스', '부스', { emoji: '🚌' }),
-          W('tram', 'Tram', 'Straßenbahn', '트램', '트람', { emoji: '🚋' }),
-          W('stadt', 'Stadt', 'Stadt', '도시', '슈타트', { emoji: '🏙️' }),
-          W('baerg', 'Bärg', 'Berg', '산', '베르그', { emoji: '⛰️' }),
-          W('see', 'See', 'See', '호수', '제', { emoji: '🏞️' }),
-          W('links', 'links', 'links', '왼쪽', '링크스', { emoji: '⬅️' }),
-          W('raechts', 'rächts', 'rechts', '오른쪽', '래히츠', { emoji: '➡️' }),
-          W('graduus', 'graduus', 'geradeaus', '직진', '그라두스', { emoji: '⬆️' }),
-        ],
-      },
-      {
-        id: 'u9l2', title: '물어보기',
-        items: [
-          S('wobahnhof', 'Wo isch de Bahnhof?', 'Wo ist der Bahnhof?', '기차역이 어디예요?', '보 이슈 데 반호프'),
-          S('wowc', 'Wo isch s WC?', 'Wo ist die Toilette?', '화장실이 어디예요?', '보 이슈 스 베체'),
-          S('wieviel', 'Wie viel choschtet das?', 'Wie viel kostet das?', '이거 얼마예요?', '비 필 코슈텟 다스'),
-          S('haelfe', 'Chönd Sie mir hälfe?', 'Können Sie mir helfen?', '도와주실 수 있어요?', '횐트 지 미어 핼페'),
-          S('bruuche', 'Ich bruuche Hilf.', 'Ich brauche Hilfe.', '도움이 필요해요.', '이히 브루헤 힐프'),
-          S('reddesie', 'Rede Sie Änglisch?', 'Sprechen Sie Englisch?', '영어 하세요?', '레데 지 앵글리슈'),
+          S('wiegehts', '잘 지내요?', "Wie geht's?", null),
+          S('gutdanke', '잘 지내요, 고마워요.', 'Gut, danke.', null),
+          S('ichheisse', '제 이름은 미나예요.', 'Ich heiße Mina.', null),
+          S('auskorea', '한국에서 왔어요.', 'Ich komme aus Korea.', null),
+          S('freutmich', '만나서 반가워요.', 'Freut mich.', null),
+          S('bisschendeutsch', '독일어 조금 해요.', 'Ich spreche ein bisschen Deutsch.', null),
+          S('schoeneswetter', '오늘 날씨 좋네요.', 'Schönes Wetter heute.', null),
+          S('bismorgen', '내일 봐요!', 'Bis morgen!', null),
         ],
       },
     ],
@@ -263,10 +290,9 @@ export const SWISS_UNITS = [
 ];
 
 /* 문장을 조립 문제에 쓰려면 낱말로 쪼개야 한다. 띄어쓰기로 자르고 문장부호는
-   마지막 낱말에 붙여 둔다 — 듀오링고도 그렇게 한다. 「Wie gaht's?」처럼
-   따옴표가 든 것도 그대로 한 덩이다. */
+   마지막 낱말에 붙여 둔다 — 듀오링고도 그렇게 한다. */
 export function tokensOf(item) {
-  return String(item.sw).split(/\s+/).filter(Boolean);
+  return String(item.de).split(/\s+/).filter(Boolean);
 }
 
 export const SWISS_LESSONS = SWISS_UNITS.flatMap((u) => u.lessons.map((l) => ({ ...l, unitId: u.id })));

@@ -103,79 +103,159 @@ function speakLocal(text, rate) {
   window.speechSynthesis.speak(utter);
 }
 
-/* ── 다른 말 (스위스 독일어 코스) ──
+/* ── 독일어 (여행 회화 코스) ──
  *
  * 한국어 뜻 읽기에서 배운 것을 그대로 쓴다. 기기 음성을 먼저 쓰고, 안 나면
- * 클라우드로 넘긴다. 순서와 이유가 같다.
+ * 클라우드로 넘긴다.
  *   · cancel() 바로 뒤 같은 틱의 speak()은 사파리가 버린다 → 한 틱 뗀다
  *   · 사파리는 못 읽을 때 오류를 안 준다 → 시작 기별이 없으면 시간으로 알아챈다
  *   · 한 번 조용했던 말은 다음부터 바로 클라우드로 → 들리다 말다 하지 않는다
- *   · 음성이 새로 깔리면(onvoiceschanged) 그 판단을 놓는다
+ *   · 음성이 새로 깔리면(voiceschanged) 그 판단을 놓는다
  *
- * 음성은 정확한 것부터 찾는다: de-CH → de-* → 없으면 lang만 맞춰 기기에 맡긴다.
- * 스위스 독일어 음성은 거의 없어서 대개 독일 음성이 대신 읽는다. 클라우드도
- * de-CH가 없어 de-DE로 부른다 — 「그뤼에치」는 그래도 알아들을 만하게 나온다.
+ * ★ 목소리는 첫 번째 것을 집지 않는다 ★
+ * getVoices()의 첫 항목은 대개 영어다. 독일어 locale을 차례로 찾는다.
+ *   표준 독일어(de-DE로 부름): de-DE → de-AT → de-CH → de-* → lang만 맞춰 기기에
+ *   스위스 팁(de-CH로 부름):   de-CH → de-DE → de-AT → de-* → lang만
+ * de-CH 목소리는 스위스식 표준 독일어 발음이지 방언 원어민이 아니다 — 화면에
+ * 그렇게 적지 않는다. 클라우드에는 de-CH가 없어 de-DE로 부른다.
  *
- * 클라우드 몫은 일본어에 쓰는 유료 자원이다. 그래서 기기가 되는 사람은 한 푼도
- * 더 안 쓰고, 기기가 조용한 사람만 넘어간다. */
-const langBroken = {};   // { 'de-CH': true } — 이 기기에서 조용했던 말
+ * ★ 목록이 아직 안 왔으면 잠깐 기다린다 ★
+ * 크롬은 처음 getVoices()가 []를 주고 voiceschanged 뒤에 채운다. 그때 바로
+ * 부르면 목소리 없이 나가 엉뚱한 소리가 난다. 반 초까지 기다린다.
+ *
+ * 부르는 쪽은 Promise를 받는다 — 끝났는지, 다른 소리에 밀려 끊겼는지. 그래야
+ * 🔊 버튼이 「지금 읽는 중」을 켰다 끌 수 있다. */
+const langBroken = {};   // { 'de-DE': true } — 이 기기에서 조용했던 말
+let voiceCache = [];
+let voicesReadyAt = 0;
 
-function pickVoiceFor(lang) {
-  const base = cloudKeyOf(lang);
-  const voices = (typeof window !== 'undefined' && window.speechSynthesis?.getVoices()) || [];
-  return voices.find((v) => v.lang === lang)
-    || voices.find((v) => v.lang?.startsWith(`${base}-`) || v.lang === base)
-    || null;
+function refreshVoices() {
+  voiceCache = (typeof window !== 'undefined' && window.speechSynthesis?.getVoices()) || [];
+  if (voiceCache.length) voicesReadyAt = Date.now();
+  return voiceCache;
 }
 
-export function speakIn(text, lang, rate = 0.9) {
-  if (!text) return;
+/* 'de_DE'·'de-de'처럼 적는 브라우저가 있다 */
+const normLang = (l) => String(l || '').replace('_', '-').toLowerCase();
+
+export function germanVoiceOrder(lang) {
+  const l = normLang(lang);
+  if (l === 'de-ch') return ['de-ch', 'de-de', 'de-at'];
+  if (l === 'de-at') return ['de-at', 'de-de', 'de-ch'];
+  return ['de-de', 'de-at', 'de-ch'];
+}
+
+/* 목록에서 lang에 맞는 목소리를 우선순위로 고른다. 검사에서 목록을 넣어 볼 수
+   있게 두 번째 인자로 받는다. 없으면 null — 그러면 lang만 맞춰 기기에 맡긴다. */
+export function pickVoice(lang, voices = refreshVoices()) {
+  const base = normLang(lang).split('-')[0];
+  const order = base === 'de' ? germanVoiceOrder(lang) : [normLang(lang)];
+  for (const want of order) {
+    const v = voices.find((x) => normLang(x.lang) === want);
+    if (v) return v;
+  }
+  return voices.find((x) => normLang(x.lang).startsWith(`${base}-`) || normLang(x.lang) === base) || null;
+}
+
+function waitForVoices(ms = 500) {
+  if (refreshVoices().length) return Promise.resolve(voiceCache);
+  return new Promise((resolve) => {
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+    if (!synth) { resolve([]); return; }
+    let done = false;
+    const finish = () => { if (done) return; done = true; synth.removeEventListener?.('voiceschanged', finish); resolve(refreshVoices()); };
+    synth.addEventListener?.('voiceschanged', finish);
+    setTimeout(finish, ms);
+  });
+}
+
+/* 지금 무엇을 읽고 있는지 알리는 자리. 🔊 버튼이 여기 붙는다. */
+let speakListeners = [];
+let pendingResolvers = [];
+export function onSpeaking(fn) {
+  speakListeners.push(fn);
+  return () => { speakListeners = speakListeners.filter((f) => f !== fn); };
+}
+function notifySpeaking(state) {
+  for (const fn of speakListeners) { try { fn(state); } catch { /* 무시 */ } }
+}
+/* stopSpeaking이 부른다 — 기다리던 약속을 「끊김」으로 끝낸다 */
+function settlePending(reason) {
+  const list = pendingResolvers; pendingResolvers = [];
+  for (const r of list) r(reason);
+}
+
+export function speakIn(text, lang, rate = 0.9, opts = {}) {
+  if (!text) return Promise.resolve('empty');
   stopSpeaking();
   const token = speakToken;
+  const id = opts.id || `${lang}:${text}`;
   const key = cloudKeyOf(lang);
-  const cloud = () => speakCloud(text, rate, token, key).catch((err) => {
-    if (token !== speakToken) return;
-    if (err.status === 400 || err.status === 401 || err.status === 403) cloudDisabled = true;
+  const cloudLang = key === 'de' ? 'de' : key;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (how) => {
+      if (settled) return;
+      settled = true;
+      pendingResolvers = pendingResolvers.filter((r) => r !== finish);
+      notifySpeaking({ id, active: false, how });
+      resolve(how);
+    };
+    pendingResolvers.push(finish);
+    notifySpeaking({ id, active: true });
+
+    const cloud = () => speakCloud(text, rate, token, cloudLang)
+      .then(() => finish('cloud'))
+      .catch((err) => {
+        if (err?.status === 400 || err?.status === 401 || err?.status === 403) cloudDisabled = true;
+        finish('failed');
+      });
+
+    if (langBroken[lang] && cloudTTSReady()) { cloud(); return; }
+    if (!speechReady()) { if (cloudTTSReady()) cloud(); else finish('failed'); return; }
+
+    waitForVoices().then((voices) => {
+      if (token !== speakToken) { finish('interrupted'); return; }
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      utter.rate = rate;
+      const voice = pickVoice(lang, voices);
+      try { if (voice) utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
+
+      let heard = false;
+      const giveUp = () => {
+        if (heard) return;
+        heard = true;
+        langBroken[lang] = true;
+        if (token !== speakToken) { finish('interrupted'); return; }
+        if (cloudTTSReady()) cloud(); else finish('failed');
+      };
+      utter.onstart = () => { heard = true; };
+      utter.onend = () => { heard = true; finish('device'); };
+      utter.onerror = (e) => {
+        const why = e?.error;
+        if (why === 'interrupted' || why === 'canceled') { heard = true; finish('interrupted'); return; }
+        giveUp();
+      };
+      setTimeout(() => {
+        if (token !== speakToken) { finish('interrupted'); return; }
+        window.speechSynthesis.speak(utter);
+        setTimeout(giveUp, KO_SILENT_MS);
+      }, KO_AFTER_CANCEL_MS);
+    });
   });
-
-  if (langBroken[lang] && cloudTTSReady()) { cloud(); return; }
-  if (!speechReady()) { if (cloudTTSReady()) cloud(); return; }
-
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = lang;
-  utter.rate = rate;
-  const voice = pickVoiceFor(lang);
-  try { if (voice) utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
-
-  let heard = false;
-  const giveUp = () => {
-    if (heard) return;
-    heard = true;
-    langBroken[lang] = true;
-    if (token !== speakToken) return;
-    if (cloudTTSReady()) cloud();
-  };
-  utter.onstart = () => { heard = true; };
-  utter.onend = () => { heard = true; };
-  utter.onerror = (e) => {
-    const why = e?.error;
-    if (why === 'interrupted' || why === 'canceled') { heard = true; return; }
-    giveUp();
-  };
-  setTimeout(() => {
-    if (token !== speakToken) return;
-    window.speechSynthesis.speak(utter);
-    setTimeout(giveUp, KO_SILENT_MS);
-  }, KO_AFTER_CANCEL_MS);
 }
 
-/* 음성 목록이 바뀌면 「이 말은 안 된다」는 판단을 놓는다 — 위 한국어와 같은 이유 */
+/* 음성 목록이 바뀌면 캐시를 새로 하고 「이 말은 안 된다」는 판단을 놓는다 */
 if (typeof window !== 'undefined' && window.speechSynthesis) {
   const prevHandler = window.speechSynthesis.onvoiceschanged;
   window.speechSynthesis.onvoiceschanged = (...args) => {
+    refreshVoices();
     for (const k of Object.keys(langBroken)) delete langBroken[k];
     if (typeof prevHandler === 'function') prevHandler(...args);
   };
+  refreshVoices();
 }
 
 /* ── 한국어 (뜻 읽어 주기) ──
@@ -583,6 +663,7 @@ export function speakSlow(text) {
 
 export function stopSpeaking() {
   speakToken += 1;   // 진행 중인 요청이 뒤늦게 울리지 못하게 한다
+  settlePending('interrupted');   // 🔊 버튼이 「읽는 중」을 내리게
   try { window.speechSynthesis?.cancel(); } catch { /* 무시 */ }
   if (audioEl) {
     audioEl.pause();

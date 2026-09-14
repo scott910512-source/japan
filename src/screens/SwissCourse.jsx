@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { IconSpeaker, IconHeadphone, IconPlay, IconChevron } from '../components/Icons.jsx';
-import { speakIn } from '../lib/tts.js';
+import { IconHeadphone, IconPlay, IconChevron } from '../components/Icons.jsx';
+import SpeakButton from '../components/SpeakButton.jsx';
 import { loadSwiss, saveSwiss } from '../lib/storage.js';
 import { SWISS_UNITS, itemsOfUnit, lessonById } from '../data/swiss.js';
 import {
@@ -9,18 +9,50 @@ import {
 import SwissLesson from './SwissLesson.jsx';
 import SwissListen from './SwissListen.jsx';
 
-/* 스위스 독일어 코스 — 듀오링고처럼 단원 안의 레슨을 차례로.
+/* 독일어 여행 회화 코스 — 듀오링고처럼 단원 안의 레슨을 차례로.
  *
- * 일본어 회독과는 다른 길이다. 회독 기록·통계·오늘 계획에 안 붙고 진도는
- * 따로 적는다(storage의 swiss). 이 화면은 셋으로 갈린다.
- *   허브   단원과 레슨, 진도, 자동재생 입구
+ * 기본은 표준 독일어다. 스위스에서 실제로 다르게 말하는 것만 🇨🇭 팁으로 붙는다.
+ * 일본어 회독과는 다른 길이라 회독 기록·통계·오늘 계획에 안 붙고 진도는
+ * 따로 적는다(storage의 swiss — 이름은 처음 만들 때 것을 그대로 둔다. 바꾸면
+ * 이미 쌓인 진도를 못 찾는다).
+ *
+ * 화면은 셋이다.
+ *   허브   단원과 레슨, 진도, 자동재생 입구, 낱말 미리 보기
  *   레슨   문제 열 개쯤 — SwissLesson
- *   자동재생  배운 것을 소리로 흘려 듣기 — SwissListen
- *
- * 레슨은 앞 것을 끝내야 열린다. 별 개수는 안 본다 — 겨우 통과해도 다음으로
- * 갈 수 있어야 막히지 않는다. 낱말은 언제든 미리 볼 수 있다(펼치기). */
+ *   자동재생  배운 것을 소리로 흘려 듣기 — SwissListen */
 
-export const SWISS_LANG = 'de-CH';
+export const DE = 'de-DE';
+export const CH = 'de-CH';
+
+/* 낱말 카드 하나 — 뜻 → 독일어 → 🔊 순서. 한글 도움말은 있을 때만 작게.
+   스위스 팁은 실제로 다른 말일 때만 아래에 붙고 자기 🔊를 갖는다. */
+export function WordCard({ it, rate }) {
+  return (
+    <div className="card sw-card" data-item={it.id}>
+      <div className="sw-ko">{it.ko}</div>
+      <div className="sw-derow">
+        <span className="sw-pic" aria-hidden="true">
+          {it.swatch ? <i className="sw-swatch" style={{ background: it.swatch }} /> : (it.emoji || '')}
+        </span>
+        <b className="sw-word" lang="de">{it.de}</b>
+        <SpeakButton text={it.de} lang={DE} rate={rate} id={`de:${it.id}`} className="sw-spk-main" />
+      </div>
+      {it.han && <div className="sw-han">{it.han}</div>}
+      {it.note && <div className="sw-note">{it.note}</div>}
+      {it.ch && (
+        <div className="sw-tip" data-tip={it.id}>
+          <span className="sw-tipflag" aria-hidden="true">🇨🇭</span>
+          <span className="sw-tipbody">
+            <span className="sw-tiplabel">스위스에서는:</span>
+            <b lang="de-CH">{it.ch.text}</b>
+            {it.ch.note && <span className="sw-tipnote">{it.ch.note}</span>}
+          </span>
+          <SpeakButton text={it.ch.text} lang={CH} rate={rate} id={`ch:${it.id}`} className="sw-spk-tip" label="스위스 표현 듣기" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SwissCourse({ settings, onToast }) {
   const [progress, setProgress] = useState(() => normalizeProgress(loadSwiss()));
@@ -43,14 +75,7 @@ export default function SwissCourse({ settings, onToast }) {
   };
 
   if (view === 'lesson' && lessonId) {
-    return (
-      <SwissLesson
-        lessonId={lessonId}
-        rate={rate}
-        onDone={finish}
-        onQuit={() => setView('hub')}
-      />
-    );
+    return <SwissLesson lessonId={lessonId} rate={rate} onDone={finish} onQuit={() => setView('hub')} />;
   }
   if (view === 'listen') {
     return <SwissListen progress={progress} rate={rate} onQuit={() => setView('hub')} onToast={onToast} />;
@@ -59,8 +84,8 @@ export default function SwissCourse({ settings, onToast }) {
   return (
     <>
       <div className="navtitle">
-        <small>곁가지 코스</small>
-        스위스 독일어
+        <small>여행 회화 코스</small>
+        독일어
       </div>
 
       <div className="card swh-sum">
@@ -84,7 +109,8 @@ export default function SwissCourse({ settings, onToast }) {
           </button>
         </div>
         <div className="set-note" style={{ marginTop: 8 }}>
-          일본어 회독 기록과는 따로 셉니다. 이 진도는 이 기기와 백업에만 남아요.
+          표준 독일어예요 — 독일·오스트리아·스위스 어디서나 통해요. 스위스에서 실제로
+          다르게 말하는 것만 🇨🇭 팁으로 붙였어요. 일본어 회독 기록과는 따로 셉니다.
         </div>
       </div>
 
@@ -125,30 +151,11 @@ export default function SwissCourse({ settings, onToast }) {
                 })}
               </div>
               <button className="swh-peek" onClick={() => setOpenUnit(opened ? null : u.id)} aria-expanded={opened}>
-                <IconChevron className={`chev${opened ? ' up' : ''}`} /> {opened ? '낱말 접기' : '낱말 미리 보기'}
+                <IconChevron className={`chev${opened ? ' up' : ''}`} /> {opened ? '표현 접기' : '표현 미리 보기'}
               </button>
               {opened && (
                 <div className="stack sw-cards" style={{ marginTop: 10 }}>
-                  {itemsOfUnit(u.id).map((it) => (
-                    <button
-                      key={it.id}
-                      className="card sw-card"
-                      onClick={() => speakIn(it.sw, SWISS_LANG, rate)}
-                      aria-label={`${it.sw} — ${it.ko} 읽어 주기`}
-                    >
-                      <span className="sw-pic" aria-hidden="true">
-                        {it.swatch ? <i className="sw-swatch" style={{ background: it.swatch }} /> : (it.emoji || '🔊')}
-                      </span>
-                      <span className="sw-body">
-                        <b className="sw-word">{it.sw}</b>
-                        <span className="sw-han">{it.han}</span>
-                        <span className="sw-ko">{it.ko}</span>
-                        {it.hd !== it.sw && <span className="sw-hd">표준 독일어 {it.hd}</span>}
-                        {it.note && <span className="sw-note">{it.note}</span>}
-                      </span>
-                      <IconSpeaker className="sw-spk" />
-                    </button>
-                  ))}
+                  {itemsOfUnit(u.id).map((it) => <WordCard key={it.id} it={it} rate={rate} />)}
                 </div>
               )}
             </div>
@@ -157,8 +164,9 @@ export default function SwissCourse({ settings, onToast }) {
       </div>
 
       <p className="set-note" style={{ marginTop: 14 }}>
-        스위스 독일어는 정해진 철자가 없어요. 취리히 쪽에서 흔히 쓰는 꼴로 적고
-        표준 독일어를 옆에 뒀습니다. 한글 소리는 입을 여는 첫 실마리일 뿐이에요.
+        한글 도움말은 짧은 낱말에만 붙였어요 — 한글로 적으면 발음이 어긋나는 것은
+        안 적었습니다. 듣기 🔊가 제일 좋은 방법이에요. 🇨🇭 팁의 소리는 스위스식
+        표준 독일어 발음이라 사투리 원어민 발음과는 달라요.
       </p>
     </>
   );
