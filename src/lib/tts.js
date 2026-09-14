@@ -103,6 +103,37 @@ function speakLocal(text, rate) {
   window.speechSynthesis.speak(utter);
 }
 
+/* ── 다른 말 (스위스 독일어 맛보기 같은 곁가지) ──
+ *
+ * 기기 음성만 쓴다. 클라우드 몫은 일본어에 쓰는 유료 자원이라 곁가지에는
+ * 안 쓴다 — 유치원 수준 낱말 몇 개에 요금이 붙으면 안 된다.
+ *
+ * 한국어에서 배운 것 둘을 그대로 지킨다.
+ *   · cancel() 바로 뒤 같은 틱의 speak()은 사파리가 버린다 → 한 틱 뗀다
+ *   · 딱 맞는 음성이 없어도 lang만 맞춰 기기에 맡긴다 → 없다고 돌아서지 않는다
+ *
+ * 음성은 정확한 것부터 찾는다: de-CH → de-* → 없으면 lang만. 스위스 독일어
+ * 음성은 거의 없어서 대개 독일 음성이 대신 읽는다 — 그래도 「그뤼에치」는
+ * 알아들을 만하게 나온다. */
+export function speakIn(text, lang, rate = 0.9) {
+  if (!text || !speechReady()) return;
+  stopSpeaking();
+  const token = speakToken;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = lang;
+  utter.rate = rate;
+  const base = String(lang).split('-')[0];
+  const voices = window.speechSynthesis.getVoices() || [];
+  const voice = voices.find((v) => v.lang === lang)
+    || voices.find((v) => v.lang?.startsWith(`${base}-`) || v.lang === base)
+    || null;
+  try { if (voice) utter.voice = voice; } catch { /* 기본 음성으로 읽는다 */ }
+  setTimeout(() => {
+    if (token !== speakToken) return;
+    window.speechSynthesis.speak(utter);
+  }, KO_AFTER_CANCEL_MS);
+}
+
 /* ── 한국어 (뜻 읽어 주기) ──
  *
  * 듣기 화면은 화면을 못 보는 동안 쓰라고 만든 자리인데, 뜻은 눈으로만
