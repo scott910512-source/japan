@@ -890,8 +890,8 @@ export default function Settings({
         {/* 완전 곁가지 — 일본어 회독과 무관하고 기록에 안 붙는다.
             도구 묶음 맨 아래에 두어 본업을 가리지 않게 한다. */}
         <button className="listrow tool-swiss" onClick={onOpenSwiss}>
-          <IconMap /> 스위스 독일어 코스
-          <span className="lr-sub">단원별 레슨 · 퀴즈 · 자동재생 — 학습 탭에도 있어요</span>
+          <IconMap /> 독일어 여행 회화
+          <span className="lr-sub">표준 독일어 레슨 · 퀴즈 · 자동재생 · 🇨🇭 스위스 팁 — 학습 탭에도 있어요</span>
         </button>
       </div>
 

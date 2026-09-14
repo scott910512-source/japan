@@ -533,3 +533,33 @@
 .swp-ko { font-size: 18px; margin-top: 6px; }
 .swp-ko.hide { color: var(--ink-soft); }
 .swp-phase { font-size: 12px; color: var(--ink-soft); margin-top: 8px; }
+
+/* ── 🔊 버튼과 스위스 팁 (독일어 코스) ──
+   손가락 자리 44px. 읽는 중이면 색이 바뀐다 — 열 개 중 어느 것이 나는지 보여야 한다. */
+.spk { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 0 10px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--kon); cursor: pointer; flex: 0 0 auto; }
+.spk svg { width: 20px; height: 20px; }
+.spk.playing { background: linear-gradient(135deg, var(--kon), var(--kon-deep)); border-color: transparent; color: #fff; box-shadow: var(--glow-btn); animation: spk-pulse 1s ease-in-out infinite; }
+@keyframes spk-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.spk.swl-bigspk { width: 84px; height: 84px; padding: 0; }
+.spk.swl-bigspk svg { width: 38px; height: 38px; }
+
+/* 카드: 뜻 → 독일어 → 🔊 */
+.sw-card { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.sw-ko { font-size: 15px; font-weight: 700; color: var(--ink); }
+.sw-derow { display: flex; align-items: center; gap: 10px; }
+.sw-derow .sw-pic { width: auto; height: auto; min-width: 0; font-size: 22px; }
+.sw-derow .sw-pic:empty { display: none; }
+.sw-derow .sw-word { flex: 1; min-width: 0; font-size: 22px; }
+.sw-han { font-size: 12.5px; color: var(--ink-soft); font-weight: 500; }
+.sw-tip { display: flex; align-items: center; gap: 10px; margin-top: 4px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px dashed var(--line); }
+.sw-tipflag { font-size: 20px; line-height: 1; flex: 0 0 auto; }
+.sw-tipbody { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.sw-tiplabel { font-size: 11px; color: var(--ink-soft); font-weight: 600; }
+.sw-tipbody b { font-size: 16px; font-weight: 800; }
+.sw-tipnote { font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
+.swl-prow { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.swl-fko { font-size: 14px; color: var(--ink-soft); }
+.swl-fde { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.swl-fde b { font-size: 18px; }
+.swl-fde span { color: var(--ink-soft); font-size: 12px; }
+.swl-feedback .sw-tip { margin-top: 8px; }

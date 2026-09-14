@@ -4,15 +4,17 @@ import { speakIn, speakKorean, stopSpeaking } from '../lib/tts.js';
 import { SWISS_UNITS } from '../data/swiss.js';
 import { listenPool } from '../lib/swissCourse.js';
 
-/* 스위스 독일어 자동재생 — 배운 것을 소리로 흘려 듣기.
+/* 독일어 자동재생 — 배운 것을 소리로 흘려 듣기.
  *
- * 일본어 듣기 화면과 같은 뼈대다. 한 장을 스위스 독일어 → 뜻 → 스위스 독일어
- * 순서로 들려주고 다음 장으로 넘어간다. 마지막 한 번은 끌 수 있다.
+ * 일본어 듣기 화면과 같은 뼈대다. 한 장을 독일어 → 뜻 → 독일어 순서로
+ * 들려주고 다음 장으로 넘어간다. 마지막 한 번은 끌 수 있다.
+ * 스위스 팁은 여기서 안 읽는다 — 흘려 들을 때 두 말이 섞이면 어느 게 표준인지
+ * 못 가른다. 팁은 카드와 레슨에서 눌러서 듣는다.
  *
  * 기본은 「배운 것」이다. 모르는 말을 흘려보내는 건 듣기가 아니라 소음이다 —
  * 아직 끝낸 레슨이 없으면 그렇게 말해 주고, 원하면 전부를 들을 수 있다. */
 
-const LANG = 'de-CH';
+const DE = 'de-DE';
 const COUNTS = [10, 20, 30];
 const GAPS = [1, 2, 3];
 
@@ -22,7 +24,7 @@ export default function SwissListen({ progress, rate, onQuit, onToast }) {
   const [gap, setGap] = useState(2);
   const [recap, setRecap] = useState(true);
   const [run, setRun] = useState(null);   // { cards, at }
-  const [phase, setPhase] = useState('sw');   // sw | ko | sw2
+  const [phase, setPhase] = useState('de');   // de | ko | de2
   const timer = useRef(null);
   const alive = useRef(true);
 
@@ -33,7 +35,7 @@ export default function SwissListen({ progress, rate, onQuit, onToast }) {
   const start = () => {
     if (!pool.length) { onToast?.('아직 들을 게 없어요 — 먼저 레슨을 하나 끝내거나 「전부」를 골라 주세요'); return; }
     const cards = [...pool].sort(() => Math.random() - 0.5).slice(0, count);
-    setPhase('sw');
+    setPhase('de');
     setRun({ cards, at: 0 });
   };
   const stop = () => { clearTimeout(timer.current); stopSpeaking(); setRun(null); };
@@ -43,13 +45,13 @@ export default function SwissListen({ progress, rate, onQuit, onToast }) {
   useEffect(() => {
     if (!card) return undefined;
     clearTimeout(timer.current);
-    const spoken = Math.min(5000, 900 + card.sw.length * 110);
+    const spoken = Math.min(5000, 900 + card.de.length * 110);
     const wait = gap * 1000;
     const go = (after, nextPhase) => {
       timer.current = setTimeout(() => {
         if (!alive.current) return;
         if (nextPhase) { setPhase(nextPhase); return; }
-        setPhase('sw');
+        setPhase('de');
         setRun((r) => {
           if (!r) return r;
           if (r.at + 1 >= r.cards.length) { onToast?.('다 들었어요'); return null; }
@@ -57,15 +59,15 @@ export default function SwissListen({ progress, rate, onQuit, onToast }) {
         });
       }, after);
     };
-    if (phase === 'sw') {
-      speakIn(card.sw, LANG, rate);
+    if (phase === 'de') {
+      speakIn(card.de, DE, rate, { id: `lp:${card.id}` });
       go(spoken + Math.max(600, wait / 2), 'ko');
     } else if (phase === 'ko') {
       speakKorean(card.ko, 1);
       const koWait = Math.min(4000, 600 + card.ko.length * 120);
-      go(koWait + Math.max(600, wait / 2), recap ? 'sw2' : null);
+      go(koWait + Math.max(600, wait / 2), recap ? 'de2' : null);
     } else {
-      speakIn(card.sw, LANG, rate);
+      speakIn(card.de, DE, rate, { id: `lp2:${card.id}` });
       go(spoken + wait, null);
     }
     return () => clearTimeout(timer.current);
@@ -74,7 +76,7 @@ export default function SwissListen({ progress, rate, onQuit, onToast }) {
   const skip = (n) => {
     clearTimeout(timer.current);
     stopSpeaking();
-    setPhase('sw');
+    setPhase('de');
     setRun((r) => (r ? { ...r, at: Math.min(r.cards.length - 1, Math.max(0, r.at + n)) } : r));
   };
 
@@ -89,18 +91,18 @@ export default function SwissListen({ progress, rate, onQuit, onToast }) {
           <div className="swp-pic" aria-hidden="true">
             {card.swatch ? <i className="sw-swatch big" style={{ background: card.swatch }} /> : (card.emoji || '🔊')}
           </div>
-          <div className="swp-sw">{card.sw}</div>
-          <div className="swp-han">{card.han}</div>
-          <div className={`swp-ko${phase === 'sw' ? ' hide' : ''}`}>{phase === 'sw' ? '···' : card.ko}</div>
+          <div className={`swp-ko${phase === 'de' ? ' hide' : ''}`}>{phase === 'de' ? '···' : card.ko}</div>
+          <div className="swp-sw" lang="de">{card.de}</div>
+          {card.han && <div className="swp-han">{card.han}</div>}
           <div className="swp-phase">
-            {phase === 'sw' && '듣는 중'}
+            {phase === 'de' && '듣는 중'}
             {phase === 'ko' && '뜻'}
-            {phase === 'sw2' && '뜻을 알고 한 번 더'}
+            {phase === 'de2' && '뜻을 알고 한 번 더'}
           </div>
         </div>
         <div className="ls-controls">
           <button className="ghost-btn" onClick={() => skip(-1)} disabled={run.at === 0}>이전</button>
-          <button className="ghost-btn" onClick={() => speakIn(card.sw, LANG, rate)} aria-label="다시 듣기">
+          <button className="ghost-btn" onClick={() => speakIn(card.de, DE, rate, { id: `again:${card.id}` })} aria-label="다시 듣기">
             <IconSpeaker /> 다시
           </button>
           <button className="ghost-btn" onClick={() => skip(1)}>다음</button>
@@ -123,7 +125,7 @@ export default function SwissListen({ progress, rate, onQuit, onToast }) {
         </button>
         <div className="set-note" style={{ marginTop: 8 }}>
           {pool.length
-            ? '스위스 독일어 → 뜻 → 스위스 독일어 순서로 들려주고 넘어가요.'
+            ? '독일어 → 뜻 → 독일어 순서로 들려주고 넘어가요.'
             : '아직 끝낸 레슨이 없어요. 먼저 레슨을 하나 끝내거나 아래에서 「전부」를 고르세요.'}
         </div>
       </div>
@@ -158,7 +160,7 @@ export default function SwissListen({ progress, rate, onQuit, onToast }) {
         <button className="toggle-row setrow swp-recap" onClick={() => setRecap(!recap)} aria-pressed={recap} style={{ marginTop: 8 }}>
           <span>
             <span className="set-title">끝에 한 번 더</span>
-            <span className="set-sub">뜻을 듣고 나서 스위스 독일어를 한 번 더 들려줘요</span>
+            <span className="set-sub">뜻을 듣고 나서 독일어를 한 번 더 들려줘요</span>
           </span>
           <span className={`toggle${recap ? ' on' : ''}`} aria-hidden="true" />
         </button>

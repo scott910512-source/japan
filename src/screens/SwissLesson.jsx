@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { IconArrowLeft, IconSpeaker, IconRewind, IconCheck } from '../components/Icons.jsx';
+import { IconArrowLeft, IconRewind, IconCheck } from '../components/Icons.jsx';
+import SpeakButton from '../components/SpeakButton.jsx';
 import { speakIn } from '../lib/tts.js';
 import { buildExercises, starsFor } from '../lib/swissCourse.js';
-import { tokensOf } from '../data/swiss.js';
 
 /* 레슨 하나 — 문제 열 개쯤을 차례로.
  *
@@ -12,13 +12,16 @@ import { tokensOf } from '../data/swiss.js';
  *   끝나면 별과 XP
  *
  * 문제 유형은 lib/swissCourse.js가 만든다. 여기는 그리고 판정만 한다.
- *   choose-ko  스위스 독일어를 듣고 보고 → 뜻을 고른다 (들어오면 읽어 준다)
- *   choose-sw  뜻을 보고 → 스위스 독일어를 고른다 (맞히면 읽어 준다)
+ *   choose-ko  독일어를 듣고 보고 → 뜻을 고른다 (들어오면 읽어 준다)
+ *   choose-sw  뜻을 보고 → 독일어를 고른다 (맞히면 읽어 준다)
  *   listen     소리만 듣고 → 무엇이었는지 고른다 (글자는 안 보여 준다)
  *   build      뜻을 보고 → 낱말 조각으로 문장을 만든다
- *   match      짝 맞추기 넷 — 왼쪽 스위스 독일어, 오른쪽 뜻 */
+ *   match      짝 맞추기 넷 — 왼쪽 독일어, 오른쪽 뜻
+ *
+ * 소리는 늘 독일어(de)만 넘긴다. 뜻·도움말이 같이 읽히면 안 된다. */
 
-const LANG = 'de-CH';
+const DE = 'de-DE';
+const CH = 'de-CH';
 
 export default function SwissLesson({ lessonId, rate, onDone, onQuit }) {
   const [queue, setQueue] = useState(() => buildExercises(lessonId));
@@ -37,7 +40,7 @@ export default function SwissLesson({ lessonId, rate, onDone, onQuit }) {
   /* 들어오면 읽어 준다 — 듣는 문제는 그게 문제 자체다 */
   useEffect(() => {
     if (!ex) return;
-    if (ex.type === 'choose-ko' || ex.type === 'listen') speakIn(ex.item.sw, LANG, rate);
+    if (ex.type === 'choose-ko' || ex.type === 'listen') speakIn(ex.item.de, DE, rate, { id: `q:${at}` });
   }, [at]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (done && !finished) setFinished(true); }, [done, finished]);
@@ -59,8 +62,6 @@ export default function SwissLesson({ lessonId, rate, onDone, onQuit }) {
   }
   if (!ex) return null;
 
-  const speak = (slow = false) => speakIn(ex.item?.sw || '', LANG, slow ? 0.6 : rate);
-
   /* 맞았나. 유형마다 보는 것이 다르다 */
   const judge = () => {
     if (ex.type === 'build') {
@@ -75,13 +76,13 @@ export default function SwissLesson({ lessonId, rate, onDone, onQuit }) {
     const good = judge();
     setChecked(good ? 'ok' : 'no');
     if (good) {
-      if (ex.type !== 'choose-ko' && ex.type !== 'listen') speak();   // 이미 들은 건 또 안 읽는다
+      if (ex.type !== 'choose-ko' && ex.type !== 'listen') speakIn(ex.item.de, DE, rate, { id: `fb:${at}` });
     } else {
       setMistakes((n) => n + 1);
       if (ex.item) wrongIds.current.add(ex.item.id);
       // 틀린 문제는 뒤에 다시 붙는다 — 한 번 더 만나야 남는다
       setQueue((q) => [...q, ex]);
-      speak();
+      speakIn(ex.item.de, DE, rate, { id: `fb:${at}` });
     }
   };
 
@@ -112,27 +113,31 @@ export default function SwissLesson({ lessonId, rate, onDone, onQuit }) {
         <>
           <div className="swl-ask">
             {ex.type === 'choose-ko' && '무슨 뜻일까요?'}
-            {ex.type === 'choose-sw' && '스위스 독일어로 뭐라고 할까요?'}
+            {ex.type === 'choose-sw' && '독일어로 뭐라고 할까요?'}
             {ex.type === 'listen' && '무슨 말을 들었나요?'}
             {ex.type === 'build' && '낱말을 눌러 문장을 만들어요'}
           </div>
 
           <div className="card swl-prompt" data-item={ex.item.id} data-type={ex.type}>
             {ex.type === 'listen' ? (
-              <button className="swl-bigspk" onClick={() => speak()} aria-label="다시 듣기">
-                <IconSpeaker />
-              </button>
+              <SpeakButton text={ex.item.de} lang={DE} rate={rate} id={`q:${at}`} className="swl-bigspk" label="다시 듣기" />
             ) : (
               <>
+                <b className="swl-ptext" lang={ex.type === 'choose-ko' ? 'de' : undefined}>
+                  {ex.type === 'choose-ko' ? ex.item.de : ex.item.ko}
+                </b>
                 {ex.type === 'choose-ko' && (
-                  <button className="swl-spk" onClick={() => speak()} aria-label="다시 듣기"><IconSpeaker /></button>
+                  <div className="swl-prow">
+                    {ex.item.han && <span className="swl-phan">{ex.item.han}</span>}
+                    <SpeakButton text={ex.item.de} lang={DE} rate={rate} id={`q:${at}`} label="다시 듣기" />
+                  </div>
                 )}
-                <b className="swl-ptext">{ex.type === 'choose-ko' ? ex.item.sw : ex.item.ko}</b>
-                {ex.type === 'choose-ko' && <span className="swl-phan">{ex.item.han}</span>}
               </>
             )}
             {(ex.type === 'listen' || ex.type === 'choose-ko') && (
-              <button className="ghost-btn swl-slow" onClick={() => speak(true)}><IconRewind /> 천천히</button>
+              <button className="ghost-btn swl-slow" onClick={() => speakIn(ex.item.de, DE, 0.6, { id: `slow:${at}` })}>
+                <IconRewind /> 천천히
+              </button>
             )}
           </div>
 
@@ -176,8 +181,8 @@ export default function SwissLesson({ lessonId, rate, onDone, onQuit }) {
                   >
                     <span className="qo-num">{i + 1}</span>
                     <span className="qo-body">
-                      <b>{ex.type === 'choose-ko' ? opt.ko : opt.sw}</b>
-                      {ex.type !== 'choose-ko' && <span>{opt.han}</span>}
+                      <b lang={ex.type === 'choose-ko' ? undefined : 'de'}>{ex.type === 'choose-ko' ? opt.ko : opt.de}</b>
+                      {ex.type !== 'choose-ko' && opt.han && <span>{opt.han}</span>}
                     </span>
                   </button>
                 );
@@ -195,11 +200,25 @@ export default function SwissLesson({ lessonId, rate, onDone, onQuit }) {
                 {checked === 'ok' ? <><IconCheck /> 맞았어요</> : '아쉬워요'}
               </div>
               <div className="swl-fbody">
-                <b>{ex.item.sw}</b> <span>{ex.item.han}</span> — {ex.item.ko}
-                {ex.item.hd !== ex.item.sw && <em> · 표준 독일어 {ex.item.hd}</em>}
+                <div className="swl-fko">{ex.item.ko}</div>
+                <div className="swl-fde">
+                  <b lang="de">{ex.item.de}</b>
+                  {ex.item.han && <span>{ex.item.han}</span>}
+                  <SpeakButton text={ex.item.de} lang={DE} rate={rate} id={`fb:${at}`} />
+                </div>
+                {ex.item.ch && (
+                  <div className="sw-tip">
+                    <span className="sw-tipflag" aria-hidden="true">🇨🇭</span>
+                    <span className="sw-tipbody">
+                      <span className="sw-tiplabel">스위스에서는:</span>
+                      <b lang="de-CH">{ex.item.ch.text}</b>
+                      {ex.item.ch.note && <span className="sw-tipnote">{ex.item.ch.note}</span>}
+                    </span>
+                    <SpeakButton text={ex.item.ch.text} lang={CH} rate={rate} id={`fbch:${at}`} label="스위스 표현 듣기" />
+                  </div>
+                )}
               </div>
               <div className="btnrow" style={{ marginTop: 10 }}>
-                <button className="ghost-btn" onClick={() => speak()}><IconSpeaker /> 듣기</button>
                 <button className="submit-btn swl-next" onClick={next}>계속</button>
               </div>
             </div>
@@ -210,8 +229,8 @@ export default function SwissLesson({ lessonId, rate, onDone, onQuit }) {
   );
 }
 
-/* 짝 맞추기 넷. 왼쪽을 누르고 오른쪽을 누른다. 틀리면 빨갛게 깜빡이고
-   틀린 것으로 센다. 넷 다 맞으면 잠깐 있다 넘어간다. */
+/* 짝 맞추기 넷. 왼쪽(독일어)을 누르면 읽어 주고, 오른쪽(뜻)을 누른다.
+   틀리면 빨갛게 깜빡이고 틀린 것으로 센다. 넷 다 맞으면 잠깐 있다 넘어간다. */
 function SwissMatch({ pairs, rate, onWrong, onDone }) {
   const [left] = useState(() => pairs);
   const [right] = useState(() => [...pairs].sort(() => Math.random() - 0.5));
@@ -233,7 +252,7 @@ function SwissMatch({ pairs, rate, onWrong, onDone }) {
     if (okIds.includes(id)) return;
     setSel(id);
     const it = pairs.find((p) => p.id === id);
-    if (it) speakIn(it.sw, 'de-CH', rate);
+    if (it) speakIn(it.de, DE, rate, { id: `m:${id}` });
   };
   const tapRight = (id) => {
     if (!sel || okIds.includes(id)) return;
@@ -257,7 +276,7 @@ function SwissMatch({ pairs, rate, onWrong, onDone }) {
               disabled={okIds.includes(p.id)}
               onClick={() => tapLeft(p.id)}
             >
-              <b>{p.sw}</b><span>{p.han}</span>
+              <b lang="de">{p.de}</b>{p.han && <span>{p.han}</span>}
             </button>
           ))}
         </div>
@@ -296,5 +315,3 @@ function SwissFinish({ stars, mistakes, total, onAgain, onDone }) {
     </div>
   );
 }
-
-export { tokensOf };
