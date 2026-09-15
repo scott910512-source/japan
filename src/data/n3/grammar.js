@@ -11,6 +11,7 @@ import { GRAMMAR_CH1 } from './grammar-ch1.js';
 import { GRAMMAR_CH2A } from './grammar-ch2a.js';
 import { GRAMMAR_CH2B } from './grammar-ch2b.js';
 import { GRAMMAR_CH2C } from './grammar-ch2c.js';
+import { GRAMMAR_CH2D } from './grammar-ch2d.js';
 
 export { BLANK } from './grammar-ch0.js';
 
@@ -40,7 +41,7 @@ export const GRAMMAR_CHAPTERS = [
   { id: 'ch2', title: 'N3 필수 문법', sub: '열여섯 가지 뜻으로 묶어 비슷한 표현끼리 비교', emoji: '📘' },
 ];
 
-export const GRAMMAR_LESSONS = [...GRAMMAR_CH0, ...GRAMMAR_CH1, ...GRAMMAR_CH2A, ...GRAMMAR_CH2B, ...GRAMMAR_CH2C];
+export const GRAMMAR_LESSONS = [...GRAMMAR_CH0, ...GRAMMAR_CH1, ...GRAMMAR_CH2A, ...GRAMMAR_CH2B, ...GRAMMAR_CH2C, ...GRAMMAR_CH2D];
 
 const byId = new Map(GRAMMAR_LESSONS.map((l) => [l.id, l]));
 export const grammarById = (id) => byId.get(id) || null;
