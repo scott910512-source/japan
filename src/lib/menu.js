@@ -30,6 +30,10 @@ export const MENU_GROUPS = [
    사람이 어디부터 누를지 안다. */
 export const MENUS = [
   // ── 배우기 ──
+  /* 코스 하나로 N3까지. 맨 위에 크게 — 「뭘 공부하지」를 안 고르게 하려고 만든
+     자리라 이 묶음의 첫 칸이어야 한다. 진도는 회독 기록(단어·문법·한자 id)에
+     그대로 붙고, 코스만의 것은 progress.n3에 적힌다. */
+  { id: 'n3', group: 'learn', label: '한 권으로 끝내는 N3', sub: 'N4 복습부터 모의고사까지 — 오늘의 N3만 누르면 돼요', icon: 'chart', big: true },
   { id: 'words', group: 'learn', label: '단어', sub: '회독으로 반복해서 외우기', icon: 'book', big: true },
   { id: 'grammar', group: 'learn', label: '문법', sub: '기초문법 · 일상문법', icon: 'grid', big: true },
   { id: 'sentences', group: 'learn', label: '상황회화', sub: '이동 · 식당 · 일상', icon: 'chat', big: true },

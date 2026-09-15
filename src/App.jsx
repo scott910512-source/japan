@@ -79,6 +79,7 @@ const SUB_TITLES = {
   review: '복습',
   videos: '영상으로 배우기',
   swiss: '독일어 여행 회화',
+  n3: '한 권으로 끝내는 N3',
 };
 
 export default function App() {
@@ -676,6 +677,9 @@ export default function App() {
             onStartWords={() => guardDeck(() => startToday(['fresh']), LANE_DECK(['fresh']))}
             onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
             onOpenGrammar={() => openMenu('grammar')}
+            /* N3 코스로 가는 줄. 메뉴를 끈 사람에게는 안 보인다 */
+            onOpenN3={settings.menus?.n3 ? () => openMenu('n3') : null}
+            n3Day={progress.n3?.days?.[today] || null}
             onResume={resumeSession}
             onOpenReview={() => setSub('review')}
             onLearnMore={learnMore}

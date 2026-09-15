@@ -177,7 +177,8 @@ const saidDe = (page) => page.evaluate(() => (window.__said || []).filter((u) =>
       if (!item) { ok('문제의 낱말을 자료에서 찾는다', false); break; }
       if (type === 'choose-ko') {
         ok(`듣고 뜻 고르기 — 화면에 ${item.de}`, (await page.locator('.swl-ptext').innerText()).trim() === item.de);
-        await page.locator('.swl-opts .qopt', { hasText: item.ko }).first().click();
+        /* 글자로 고르면 「물」이 「물 한 잔 주세요.」에도 맞는다 — id로 고른다 */
+        await page.locator(`.swl-opts .qopt[data-id="${item.id}"]`).click();
       } else if (type === 'choose-sw') {
         await page.locator(`.swl-opts .qopt[data-id="${item.id}"]`).click();
       } else if (type === 'listen') {

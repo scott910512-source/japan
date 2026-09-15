@@ -23,3 +23,5 @@ export const Adverb = lazy(() => import('../screens/Adverb.jsx'));
 export const WordManager = lazy(() => import('../screens/WordManager.jsx'));
 // 곁가지 — 일본어 회독과 무관하다. 기록에 안 붙는다.
 export const SwissCourse = lazy(() => import('../screens/SwissCourse.jsx'));
+/* 한 권으로 끝내는 N3 — 자료가 크다(문법 87꼭지·한자 300자·독해·청해). 열 때만 받는다. */
+export const N3Course = lazy(() => import('../screens/N3Course.jsx'));

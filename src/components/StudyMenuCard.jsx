@@ -1,9 +1,10 @@
 import {
   IconBook, IconGrid, IconChat, IconSparkle, IconRepeat, IconList,
-  IconPerson, IconPencil, IconFlame, IconChevron, IconMap,
+  IconPerson, IconPencil, IconFlame, IconChevron, IconMap, IconChart,
 } from './Icons.jsx';
 
 const ICONS = {
+  chart: IconChart,
   sparkle: IconSparkle,
   book: IconBook,
   grid: IconGrid,
