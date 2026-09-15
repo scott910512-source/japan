@@ -310,7 +310,8 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   await page.locator('.n3-weakgo').click();
   await page.locator('.n3-reviewrun[data-kind="weak"]').waitFor();
   ok('약점만 공부하기 — 그 꼭지 문제로 판이 짜인다', await page.locator('.n3-quiz').count() === 1);
-  await solve(page);
+  const weakSeen = await solve(page);
+  ok('★ 약점 판은 풀다가 다시 섞이지 않는다 ★', new Set(weakSeen).size === weakSeen.length && weakSeen.length >= 2, weakSeen.join(','));
   await page.locator('.n3-done').click();
   await page.waitForTimeout(300);
 

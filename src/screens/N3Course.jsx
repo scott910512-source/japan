@@ -71,6 +71,14 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
   const due = useMemo(() => dueInCourse(review, today), [review, today]);
   const weak = useMemo(() => weakPatterns(n3, 8), [n3]);
 
+  /* 복습·약점 판은 들어올 때 한 번만 짠다. 답을 적을 때마다 n3가 바뀌어 다시
+     그려지는데, 그때 다시 섞으면 풀던 문제가 자리를 옮겨 버린다. */
+  const session = useMemo(() => {
+    if (view.kind === 'weak') return weakSession(n3, 12);
+    if (view.kind === 'review') return { questions: reviewQuestions(view.ids || due.slice(0, 20)), patterns: [] };
+    return null;
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ── 답 하나 ── */
   const onAnswer = useCallback((q, ok) => {
     setN3((p) => recordAnswer(p, { qid: q.id, ok, cat: q.cat || 'grammar', ref: q.ref || null, today: todayKey() }));
@@ -205,8 +213,6 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
 
   if (view.kind === 'review' || view.kind === 'weak') {
     const isWeak = view.kind === 'weak';
-    const ids = view.ids || due.slice(0, 20);
-    const session = isWeak ? weakSession(n3, 12) : { questions: reviewQuestions(ids), patterns: [] };
     return (
       <div className="n3-lesson n3-reviewrun" data-kind={view.kind}>
         <div className="sub-header inline">
