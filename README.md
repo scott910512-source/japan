@@ -35,7 +35,7 @@ npm run test:ui
 | `src/components/ScreenSlot.jsx` | 첫 방문 로딩, 방문한 탭 유지, 오류 안내 |
 | `src/screens/`, `src/components/` | 기능 화면과 공통 UI |
 | `src/lib/`, `src/data/` | 학습 규칙·저장·병합·외부 서비스와 콘텐츠 |
-| `src/lib/n3.js`, `src/data/n3/`, `src/screens/n3/` | N3 코스 — 규칙(오늘의 N3·준비도·오답노트), 콘텐츠(문법 87·한자 300·독해 31·청해 18·실전), 화면 |
+| `src/lib/n3.js`, `src/data/n3/`, `src/screens/n3/` | N3 코스 — 규칙(오늘의 N3·준비도·오답노트), 콘텐츠(문법 123·한자 500·독해 31·청해 18·실전), 화면 |
 | `src/styles/` | 테마 토큰, 공통·기능별 스타일 |
 | `test/logic/`, `test/ui/` | 로직과 빌드 결과의 브라우저 검사 |
 
