@@ -34,6 +34,7 @@ CHROMIUM=/path/to/chrome npm test
 | `clip.mjs` `script-test.mjs` | 자막 파싱·자르기 |
 | `reason.mjs` | Gemini가 실패했을 때 이유를 제대로 옮기는가 |
 | `audit-data.mjs` | 단어 2,330개 — 뜻·품사·읽기 충돌, 빈 칸, 읽기에 한자 섞임 |
+| `n3.mjs` | N3 코스 — 자료(문법·한자·어휘·독해·청해·실전) 빠진 칸 없음, 오늘의 N3 순서, 숙련도 NEW→MASTER, 오답 노트, 진단 건너뛰기, 기기 합치기 |
 
 **`ui/`** — 빌드한 앱을 크롬으로 조작한다.
 
@@ -52,6 +53,7 @@ CHROMIUM=/path/to/chrome npm test
 | `translate-ui.js` | 번역기 — 한글 발음, 사투리, 단어 담기, 받아 둔 것 다시 보기 |
 | `gemini.js` `keyguard.js` | Gemini 호출 모양·실패 안내, 키 잘못 넣는 것 막기 |
 | `jlpt-ui.js` | JLPT 레벨·세트 숫자 |
+| `n3-ui.js` `n3-exam-ui.js` | N3 코스 — 오늘의 N3 네 단계, 회독 기록(SRS) 등록, 새로고침 유지, 진단 SKIP, 오답노트·약점, 청해 순차 재생, 모의고사 |
 
 ## 검사를 새로 쓸 때
 

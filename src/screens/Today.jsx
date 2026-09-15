@@ -1,5 +1,5 @@
 import {
-  IconFlame, IconChevron, IconRepeat, IconPlay, IconBook, IconGrid,
+  IconFlame, IconChevron, IconRepeat, IconPlay, IconBook, IconGrid, IconChart,
 } from '../components/Icons.jsx';
 import ProgressSummary from '../components/ProgressSummary.jsx';
 import TodayTaskCard from '../components/TodayTaskCard.jsx';
@@ -31,9 +31,15 @@ const HELLO = [
 
 export default function Today({
   plan, planNow, review, settings, streak, session, resumeLabel,
-  grammarLeft, grammarNext,
+  grammarLeft, grammarNext, onOpenN3, n3Day,
   onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore,
 }) {
+  /* N3 코스의 오늘 몫 — 계획이 있으면 몇 단계 남았는지, 없으면 시작하라고만 */
+  const n3Steps = n3Day?.steps || [];
+  const n3Left = n3Steps.filter((s) => !s.done).length;
+  const n3Note = !n3Steps.length
+    ? '어휘 → 한자 → 문법 → 독해/청해 → 복습 · 약 25분'
+    : (n3Left === 0 ? `오늘 ${n3Steps.length}단계를 다 했어요` : `${n3Steps.length}단계 중 ${n3Left}단계 남음`);
   const today = todayKey();
 
   /* ★ 숫자는 한 곳에서만 나온다 ★
@@ -179,6 +185,20 @@ export default function Today({
        * 계획에 넣는 대신 선택이라고 적는다. 문법은 꼭지 단위라 하루 몫으로
        * 쪼개 세기 어렵고, 안 해도 회독은 굴러간다. */}
       <div className="section-label">곁들여서 · 선택</div>
+      {/* N3 코스 — 매일 「오늘의 N3」 하나만 누르면 되게 만든 자리라, 홈에서도
+          한 번에 닿아야 한다. 코스 안의 오늘 몫은 코스가 짠다(lib/n3.js). */}
+      {onOpenN3 && (
+        <TodayTaskCard
+          icon={<IconChart />}
+          title="오늘의 N3"
+          note={n3Note}
+          minutes={n3Steps.length ? 0 : 25}
+          count={n3Steps.length ? n3Left : 5}
+          unit="단계"
+          done={n3Steps.length > 0 && n3Left === 0}
+          onClick={onOpenN3}
+        />
+      )}
       <TodayTaskCard
         icon={<IconGrid />}
         title="오늘의 문법"

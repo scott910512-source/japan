@@ -10,6 +10,9 @@
  * 가른다 — 같은 날 같은 카드를 두 기기에서 다르게 판정하는 일이 실제로 있고,
  * 날짜만 보면 먼저 올린 쪽이 이겨서 나중에 한 공부가 묻혔다.
  * seenAt이 없는 건 이 기능 이전에 쌓인 기록이라 있는 쪽을 나중으로 본다. */
+/* N3 코스 — 규칙은 lib/n3.js. 레슨 완료는 OR, 정답률·시험은 큰 쪽, 오답 노트는 나중 쪽. */
+import { mergeN3 } from './n3progress.js';
+
 function laterOf(l, r) {
   const dl = l.lastSeen || '';
   const dr = r.lastSeen || '';
@@ -167,6 +170,8 @@ export function mergeProgress(local = {}, remote = {}) {
     // 활용 성적은 두 기기에서 푼 게 다 남아야 한다 — local이 통째로 덮으면 사라진다
     conj: mergeConj(local.conj, remote.conj),
     rpg: mergeRpg(local.rpg, remote.rpg),
+    /* 둘 다 없으면 null로 둔다 — 한 번도 안 연 사람에게 빈 코스 기록을 만들지 않는다 */
+    n3: (local.n3 || remote.n3) ? mergeN3(local.n3, remote.n3) : null,
   };
 }
 

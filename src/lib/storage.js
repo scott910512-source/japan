@@ -170,6 +170,11 @@ const DEFAULT_PROGRESS = {
      표현의 숙련도는 여기 안 넣는다. 그건 회독 저장소에 들어간다 —
      두 벌로 갈라 놓으면 반드시 어긋난다. */
   rpg: { exp: 0, stages: {} },
+  /* 「한 권으로 끝내는 N3」 코스 — 레슨 완료·오늘의 N3 계획·문제별 정답률·오답
+     노트·시험 결과. 숙련도는 여기 없다 — 회독 저장소(review)에 단어·문법·한자
+     id로 그대로 적힌다. 모양은 lib/n3.js의 normalizeN3가 맞춘다.
+     progress 안에 두어서 백업·동기화에 저절로 실린다 — 새 열쇠를 만들지 않는다. */
+  n3: null,
 };
 export function loadProgress() {
   const saved = read(KEYS.progress, {});
@@ -181,6 +186,7 @@ export function loadProgress() {
     conj: { forms: saved?.conj?.forms || {}, words: saved?.conj?.words || {} },
     dailyGrammar: saved?.dailyGrammar || {},
     rpg: { exp: saved?.rpg?.exp || 0, stages: saved?.rpg?.stages || {} },
+    n3: saved?.n3 && typeof saved.n3 === 'object' ? saved.n3 : null,
   };
 }
 export function saveProgress(progress) {
@@ -293,6 +299,7 @@ export const DEFAULT_SETTINGS = {
      묶음은 lib/menu.js가 정한다 — 배우기 · 연습하기 · 반복하기. */
   menus: {
     // 배우기
+    n3: true,         // 한 권으로 끝내는 N3 — N4 복습부터 모의고사까지 한 코스
     words: true,      // 단어 — 회독으로 반복해서 외우기
     grammar: true,    // 문법 — 기초문법 · 일상문법 · 문형 연습
     sentences: true,  // 상황회화 — 이동 · 식당 · 일상

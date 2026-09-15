@@ -661,6 +661,68 @@ export function speakSlow(text) {
   speakJapanese(text ?? lastText, 0.7);
 }
 
+/* 일본어를 읽고 끝날 때까지 기다린다 — 청해 스크립트를 줄 단위로 이어 읽으려면
+ * 「끝났다」를 알아야 한다. speakJapanese와 같은 길(클라우드 → 기기)로 가되
+ * Promise를 돌려주고, 🔊 버튼이 「읽는 중」을 켤 수 있게 onSpeaking으로 알린다.
+ *   'cloud' | 'device' 끝까지 읽음 · 'interrupted' 다른 소리에 밀림 · 'failed' 못 읽음
+ * 기기 음성은 끝 기별이 안 오는 기기가 있어 글자 수로 상한을 둔다. */
+export function speakJapaneseAsync(text, rate = 0.9, opts = {}) {
+  if (!text) return Promise.resolve('empty');
+  lastText = text;
+  stopSpeaking();
+  const token = speakToken;
+  const id = opts.id || `ja:${text}`;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (how) => {
+      if (settled) return;
+      settled = true;
+      pendingResolvers = pendingResolvers.filter((r) => r !== finish);
+      notifySpeaking({ id, active: false, how });
+      resolve(how);
+    };
+    pendingResolvers.push(finish);
+    notifySpeaking({ id, active: true });
+
+    const device = () => {
+      if (token !== speakToken) { finish('interrupted'); return; }
+      if (!speechReady()) { finish('failed'); return; }
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'ja-JP';
+      utter.rate = rate;
+      const voice = pickJapaneseVoice();
+      try { if (voice) utter.voice = voice; } catch { /* 기본 음성 */ }
+      let heard = false;
+      utter.onstart = () => { heard = true; };
+      utter.onend = () => { heard = true; finish('device'); };
+      utter.onerror = (e) => {
+        if (e?.error === 'interrupted' || e?.error === 'canceled') { finish('interrupted'); return; }
+        finish('failed');
+      };
+      setTimeout(() => {
+        if (token !== speakToken) { finish('interrupted'); return; }
+        try { window.speechSynthesis.speak(utter); } catch { finish('failed'); return; }
+        // 시작 기별이 없으면 조용한 것. 시작했는데 끝 기별이 안 오는 기기는 글자 수로 닫는다.
+        setTimeout(() => { if (!heard) finish('failed'); }, 1500);
+        setTimeout(() => finish(token === speakToken ? 'device' : 'interrupted'), 2500 + [...text].length * 260 / rate);
+      }, KO_AFTER_CANCEL_MS);
+    };
+
+    if (!cloudTTSReady()) { device(); return; }
+    speakCloud(text, rate, token, 'ja')
+      .then(() => finish(token === speakToken ? 'cloud' : 'interrupted'))
+      .catch((err) => {
+        if (token !== speakToken) { finish('interrupted'); return; }
+        if (err?.status === 400 || err?.status === 401 || err?.status === 403) {
+          cloudDisabled = true;
+          onCloudError?.(`클라우드 음성을 쓸 수 없어 기기 음성으로 재생해요 (${err.message})`);
+        }
+        device();
+      });
+  });
+}
+
 export function stopSpeaking() {
   speakToken += 1;   // 진행 중인 요청이 뒤늦게 울리지 못하게 한다
   settlePending('interrupted');   // 🔊 버튼이 「읽는 중」을 내리게
