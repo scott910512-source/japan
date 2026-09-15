@@ -69,9 +69,14 @@ console.log('\n[ ★ 문법 — 설명·예문·비교·회화·문제가 다 �
 
 console.log('\n[ ★ 한자 — 한국 한자와 잇고, 연상은 유래와 가른다 ★ ]');
 {
-  ok('서른 과 · 삼백 자', KANJI_LESSONS.length === 30 && KANJI_ITEMS.length === 300, `${KANJI_LESSONS.length}과 ${KANJI_ITEMS.length}자`);
+  ok('쉰 과 · 오백 자', KANJI_LESSONS.length === 50 && KANJI_ITEMS.length === 500, `${KANJI_LESSONS.length}과 ${KANJI_ITEMS.length}자`);
   ok('과마다 열 자', KANJI_LESSONS.every((l) => l.kanji.length === 10));
-  ok('한 자가 두 번 안 나온다', new Set(KANJI_ITEMS.map((k) => k.k)).size === 300);
+  ok('한 자가 두 번 안 나온다', new Set(KANJI_ITEMS.map((k) => k.k)).size === 500);
+  /* 흔히 쓰는 N3 한자 목록(367자)을 다 덮는다 — 球·構·猫·幾 넷만 빼고(앱 단어에 거의 안 나온다) */
+  const STD_N3 = '政議民連対部合市内相定回選米実関決全表戦経最現調化当約首法性要制治務成期取都和機平加受続進数記初指権支産点報済活原共得解交資予向際勝面告反判認参利組信在件側任引求所次昨論官増係感情投示変打直両式確果容必演歳争談能位置流格疑過局放常状球職与供役構割費付由説難優夫収断石違消神番規術備宅害配警育席訪乗残想声念助労例然限追商葉伝働形景落好退頭負渡失差末守若種美命福望非観察段横深申様財港識呼達良候程満敗値突光路科積他処太客否師登易速存飛殺号単座破除完降責捕危給苦迎園具辞因馬愛富彼未舞亡冷適婦寄込顔類余王返妻背熱宿薬険頼覚船途許抜便留罪努精散静婚喜浮絶幸押倒等老曲払庭徒勤遅居雑招困欠更刻賛抱犯恐息遠戻願絵越欲痛笑互束似列探逃遊迷夢君閉緒折草暮酒悲晴掛到寝暗盗吸陽御歯忘雪吹娘誤洗慣礼窓昔貧怒泳祖杯疲皆鳴腹煙眠怖耳頂箱晩寒髪忙才靴恥偶偉';
+  const haveK = new Set(KANJI_ITEMS.map((k) => k.k));
+  const missK = [...STD_N3].filter((c) => !haveK.has(c) && !'球構猫幾'.includes(c));
+  ok('★ 표준 N3 한자 목록을 다 덮는다 ★', missK.length === 0, missK.join('') || '전부');
   const thin = KANJI_ITEMS.filter((k) => !k.on || !k.kh || !HANGUL.test(k.kh) || !k.rad || !k.parts || !k.mean || !(k.words?.length >= 2));
   ok('★ 자마다 음독·한국 한자음(훈음)·부수·구성·뜻·단어 2+ ★', thin.length === 0, thin.map((k) => k.k).join('') || '전부');
   const badW = KANJI_ITEMS.filter((k) => k.words.some((w) => w.length !== 3 || KANJI.test(w[1]) || !HANGUL.test(w[2]) || !w[0].includes(k.k)));
