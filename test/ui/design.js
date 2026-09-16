@@ -175,9 +175,11 @@ const check = async (page, theme, name) => {
   /* 개편으로 새로 생긴 화면들. 검사가 안 보던 자리라 여기가 제일 위험하다. */
   await goTab(page, '학습');
   await page.waitForTimeout(700); await check(page, theme, '01b-학습허브');
-  await goTab(page, '기록');
-  await page.waitForTimeout(700); await check(page, theme, '01c-기록');
-  await goTab(page, '듣기');
+  await goTab(page, '복습');
+  await page.waitForTimeout(700); await check(page, theme, '01c-복습탭');
+  await goTab(page, '내 학습');
+  await page.waitForTimeout(700); await check(page, theme, '01f-내학습');
+  await openMenu(page, '듣기');
   await page.locator('.lh-way[data-way="auto"]').click();
   await page.waitForTimeout(800); await check(page, theme, '01d-듣기');
   await page.locator('.ls-go').click();
@@ -197,7 +199,7 @@ const check = async (page, theme, name) => {
   await page.waitForTimeout(700);
   await page.locator('.vd-how > summary').click();
   await page.waitForTimeout(300); await check(page, theme, '04-영상-방법보기');
-  await goTab(page, '더보기');
+  await openSettings(page);
   await page.waitForTimeout(700); await check(page, theme, '05-설정');
   await startStudy(page);
   await page.waitForTimeout(1200); await check(page, theme, '07-회독-앞면');

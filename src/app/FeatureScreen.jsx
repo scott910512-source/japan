@@ -1,4 +1,4 @@
-import { WordDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ReviewTab, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, N3Course } from './screens.js';
+import { WordDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, N3Course } from './screens.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
 export default function FeatureScreen({
@@ -30,7 +30,9 @@ export default function FeatureScreen({
   startWeakDeck,
   sentenceDue,
   applyVerdicts,
-  customWords
+  customWords,
+  openListen,
+  n3View,
 }) {
   return (<>
             {sub === 'worddeck' && (
@@ -59,8 +61,11 @@ export default function FeatureScreen({
                 streak={streak}
                 onStartSet={startJlptSet}
                 onToast={showToast}
+                initialView={n3View}
               />
             )}
+            {/* 듣기 고르기 — 자동 듣기 · 따라 말하기 · 영상. 학습 탭 「듣기」에서 연다 */}
+            {sub === 'listenhub' && <ListenHub onOpen={openListen} />}
             {sub === 'grammar' && (
               <GrammarHub
                 words={words}
@@ -120,20 +125,6 @@ export default function FeatureScreen({
                 onClose={() => setSub(null)}
                 onToast={showToast}
                 onActivity={noteActivity}
-              />
-            )}
-            {/* 복습은 탭에서 내려왔지만 화면은 그대로다.
-                오늘 화면의 「복습이 더 남았어요」와 기록 탭에서 여기로 온다. */}
-            {sub === 'review' && (
-              <ReviewTab
-                words={words}
-                review={review}
-                streak={streak}
-                stats={stats}
-                onStartDeck={startDueDeck}
-                onOpenWeak={startWeakDeck}
-                onOpenSentences={() => setSub('sentences')}
-                sentenceDue={sentenceDue}
               />
             )}
             {sub === 'conjugate' && (

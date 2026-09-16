@@ -78,8 +78,8 @@ const OLD = {
   ok('낡은 기록으로도 앱이 켜짐', await page.locator('.tabbar').count() === 1);
 
   // 탭을 한 바퀴
-  for (const tab of ['오늘', '학습', '듣기', '기록', '더보기']) {
-    await page.locator('.tabbar .tab', { hasText: tab }).click();
+  for (const tab of ['홈', '학습', '복습', '내 학습']) {
+    await page.locator('.tabbar .tab', { hasText: tab }).first().click();
     await page.waitForTimeout(800);
     const body = (await page.textContent('.screen.active')).trim();
     ok(`${tab} 탭이 뜸`, body.length > 30, `${body.length}자`);
@@ -87,7 +87,7 @@ const OLD = {
   }
 
   // 홈 메뉴를 하나씩
-  await goTab(page, '오늘');
+  await goTab(page, '홈');
   await page.waitForTimeout(700);
   await goTab(page, '학습');
   const tiles = await page.locator('.menutile').count();
@@ -103,7 +103,7 @@ const OLD = {
     const back = page.locator('.subscreen .sub-back, .subscreen .sh-close').first();
     if (await back.count()) { await back.click(); await page.waitForTimeout(600); }
     if (await page.locator('.menutile').count() === 0) {
-      await goTab(page, '오늘');
+      await goTab(page, '홈');
       await page.waitForTimeout(600);
     }
   }

@@ -46,8 +46,12 @@ function monthGrid(year, month) {
   return cells;
 }
 
+/* 준비도 갈래 이름 — 코스와 같은 말을 쓴다 */
+const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', reading: '독해', listening: '청해' };
+
 export default function Log({
-  words, review, stats, streak, planNow, grammarLeft, onOpenReview,
+  words, review, stats, streak, planNow, grammarLeft,
+  n3Summary, weakWords, onOpenN3, onOpenReview, onOpenSettings,
 }) {
   /* 자정을 넘기면 이 값이 바뀌고 화면이 다시 그려진다. 예전엔 마운트 때
      한 번 잡아 둬서, 8/31에 켜 놓고 9/1이 되면 달력이 8월에 머물렀다 —
@@ -132,8 +136,8 @@ export default function Log({
   return (
     <>
       <div className="navtitle">
-        <small>얼마나 했는지</small>
-        기록
+        <small>얼마나 했고 얼마나 남았나</small>
+        내 학습
       </div>
 
       {/* 「하루도 안 빠지고」라고 적어 두었지만 이 숫자는 하루 쉬어도 이어진다.
@@ -144,6 +148,30 @@ export default function Log({
           <b>{streak.count}일째</b>
           <span>{STREAK_RULE}</span>
         </div>
+      )}
+
+      {/* ★ JLPT N3 — 이 앱의 목표 ★
+          진도(레슨을 끝낸 수)와 준비도(실제로 맞힌 결과)는 다른 숫자다. 열어
+          봤다고 오르지 않는다. 숫자는 코스가 열릴 때 적어 둔 요약에서 온다. */}
+      {onOpenN3 && (
+        <button className="card me-n3" onClick={onOpenN3} data-ready={n3Summary ? n3Summary.ready : ''}>
+          <div className="mn-head">
+            <b>JLPT N3</b>
+            <span>{n3Summary ? `준비도 ${n3Summary.ready}%` : '아직 시작 전'}</span>
+          </div>
+          <div className="td-bar"><i style={{ width: `${n3Summary ? n3Summary.ready : 0}%` }} /></div>
+          {n3Summary && (
+            <div className="mn-areas">
+              {Object.entries(AREA_LABEL).map(([k, label]) => (
+                <span key={k} className="mn-area"><small>{label}</small><b>{n3Summary.areas?.[k] ?? 0}%</b></span>
+              ))}
+            </div>
+          )}
+          <div className="mn-foot">
+            {n3Summary ? `레슨 ${n3Summary.done} / ${n3Summary.total} 완료` : '한 권으로 끝내는 N3 — 열어서 시작해요'}
+            <IconChevron className="chev" />
+          </div>
+        </button>
       )}
 
       {/* ★ 세 가지를 갈라 둔다 ★
@@ -280,10 +308,23 @@ export default function Log({
         </div>
       </div>
 
-      <button className="rowcard" onClick={onOpenReview}>
+      {/* 어디가 약한가 — 사용자가 궁금한 세 가지 중 하나. 자세한 건 복습 탭 */}
+      <div className="section-label">취약 영역</div>
+      <button className="rowcard me-weak" onClick={onOpenReview}>
         <span className="rc-body">
-          <b>복습으로 가기</b>
-          <span>오늘 볼 것과 약점을 한 곳에서</span>
+          <b>{weakWords > 0 ? `취약 단어 ${weakWords}개` : '아직 취약 단어가 없어요'}</b>
+          <span>{n3Summary
+            ? `N3 준비도가 낮은 곳: ${Object.entries(AREA_LABEL).sort((a, b) => (n3Summary.areas?.[a[0]] ?? 0) - (n3Summary.areas?.[b[0]] ?? 0)).slice(0, 2).map(([, l]) => l).join(' · ')} — 복습 탭에서 틀린 문제와 함께`
+            : '틀린 문제와 약점은 복습 탭에서'}</span>
+        </span>
+        <IconChevron className="chev" />
+      </button>
+
+      <div className="section-label">설정</div>
+      <button className="rowcard me-settings" onClick={onOpenSettings}>
+        <span className="rc-body">
+          <b>설정</b>
+          <span>학습 설정 · 음성 · 계정과 동기화 · 기록 백업 · 학습 도구 · 앱 정보</span>
         </span>
         <IconChevron className="chev" />
       </button>

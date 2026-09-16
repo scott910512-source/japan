@@ -45,7 +45,7 @@ const ok = (label, condition) => {
     await screen.evaluate((el) => { el.scrollTop = 200; });
     const scroll = await screen.evaluate((el) => el.scrollTop);
     ok('학습 허브에 실제 스크롤이 생긴다', scroll > 0);
-    await goTab(page, '오늘');
+    await goTab(page, '홈');
     ok('방문한 화면은 숨기고 보존한다', await page.locator('.menugroup').count() > 0 && !(await page.locator('.menugroup').first().isVisible()));
     await goTab(page, '학습');
     ok('다시 열어도 스크롤 위치를 잃지 않는다', await page.locator('.screen.active').evaluate((el) => el.scrollTop) === scroll);

@@ -12,7 +12,7 @@
  *   · 범위와 개수가 실제로 먹고 순서가 흩어지는가 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab } from './_nav.js';
+import { goTab, openMenu } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -79,7 +79,7 @@ async function boot(browser, patch = {}, init = null) {
   page.on('pageerror', (e) => errors.push(e.message));
 
   console.log('\n── 듣기 · 따라 말하기');
-  await goTab(page, '듣기');
+  await openMenu(page, '듣기');
   await page.locator('.lh-way[data-way="auto"]').click();
   await page.waitForTimeout(800);
   const listen = await page.textContent('.sub-body');
@@ -189,7 +189,7 @@ async function boot(browser, patch = {}, init = null) {
 
     const err7 = [];
     p7.on('pageerror', (e) => err7.push(e.message));
-    await goTab(p7, '듣기');
+    await openMenu(p7, '듣기');
     await p7.locator('.lh-way[data-way="auto"]').click();
     await p7.waitForTimeout(900);
 
@@ -260,7 +260,7 @@ async function boot(browser, patch = {}, init = null) {
         try { real(u); } catch { /* 무시 */ }
       };
     });
-    await goTab(p9, '듣기');
+    await openMenu(p9, '듣기');
     await p9.locator('.lh-way[data-way="auto"]').click();
     await p9.waitForTimeout(900);
 
@@ -327,7 +327,7 @@ async function boot(browser, patch = {}, init = null) {
     });
     const err8 = [];
     p8.on('pageerror', (e) => err8.push(e.message));
-    await goTab(p8, '듣기');
+    await openMenu(p8, '듣기');
     await p8.locator('.lh-way[data-way="auto"]').click();
     await p8.waitForTimeout(900);
 
@@ -426,7 +426,7 @@ async function boot(browser, patch = {}, init = null) {
       const real = s.speak.bind(s);
       s.speak = (u) => { window.__said.push({ lang: u?.lang || '' }); try { real(u); } catch { /* 무시 */ } };
     });
-    await goTab(pv, '듣기');
+    await openMenu(pv, '듣기');
     const way = pv.locator('.lh-way[data-way="auto"]');
     if (await way.count()) { await way.click(); await pv.waitForTimeout(800); }
 
@@ -460,7 +460,7 @@ async function boot(browser, patch = {}, init = null) {
   console.log('\n── 전체에서 골라 흩는다');
   {
     const p9 = await boot(browser, { settings: { listenGap: 1, listenScope: 'all', listenCount: 50 } });
-    await goTab(p9, '듣기');
+    await openMenu(p9, '듣기');
     await p9.locator('.lh-way[data-way="auto"]').click();
     await p9.waitForTimeout(900);
 

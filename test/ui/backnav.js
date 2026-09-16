@@ -93,7 +93,7 @@ function seeded() {
     after?.queue?.length === before?.queue?.length,
     `${before?.queue?.length} → ${after?.queue?.length}`);
 
-  await goTab(page, '오늘');
+  await goTab(page, '홈');
   await page.waitForTimeout(600);
   const cta = await page.textContent('.bigcta').catch(() => '');
   ok('이어하기로 돌아갈 수 있다', cta.includes('이어하기'), cta.replace(/\s+/g, ' '));

@@ -173,7 +173,7 @@ const savedToday = (page) => page.evaluate(() => {
   /* ── 키보드로 한 바퀴 ──
      판정이 1·2·3이라 손이 거기 있다. 뒤집으려고 매번 Enter까지 건너가면
      그 거리가 카드마다 쌓인다 — 그래서 4에도 걸어 뒀다. */
-  await goTab(page, '오늘', 700);
+  await goTab(page, '홈', 700);
   await startStudy(page);
   await page.waitForTimeout(700);
 

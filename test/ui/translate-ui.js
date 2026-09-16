@@ -92,9 +92,9 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   await boot(page, { tripPlace: '오사카' });
   await stub(page, good);
 
-  // ── 더보기에서 들어간다 ──
-  await goTab(page, '더보기');
-  ok('더보기에 번역기가 있음',
+  // ── 설정 → 학습 도구에서 들어간다 ──
+  await openMore(page, 'tools');
+  ok('설정의 학습 도구에 번역기가 있음',
     await page.locator('.listrow', { hasText: '번역기' }).count() === 1);
   /* 학습 탭에는 없어야 한다 — 옮긴 게 아니라 늘어난 것이면 정리가 아니다 */
   await goTab(page, '학습');

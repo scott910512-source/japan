@@ -42,21 +42,20 @@ const boot = async (page) => {
   page.on('pageerror', (e) => errors.push(e.message));
   await boot(page);
 
-  // ── 회독 중에도 탭바 ──
+  // ── 학습 중에는 집중 — 탭바가 없다 ──
+  ok('탭은 넷', await page.locator('.tabbar .tab').count() === 4);
   await startStudy(page);
   await page.waitForTimeout(900);
   ok('회독으로 들어감', await page.locator('.studycard').count() === 1);
-  ok('탭바가 남아 있음', await page.locator('.tabbar').isVisible());
-  ok('탭 다섯 개 그대로', await page.locator('.tabbar .tab').count() === 5);
-  ok('시작한 자리(오늘)가 켜져 있음', await page.locator('.tabbar .tab.active').textContent() === '오늘');
+  ok('★ 학습 중에는 탭바가 없다 — 다른 메뉴가 시선을 안 빼앗는다 ★', await page.locator('.tabbar').count() === 0);
+  ok('나가는 길(닫기)은 있다', await page.locator('.sh-close').count() === 1);
 
   /* 판정 버튼은 뒤집은 뒤에 나온다 — 재려면 먼저 뒤집는다 */
   await page.locator('.studycard').click();
   await page.waitForTimeout(300);
   const box = await page.locator('.judgerow').boundingBox();
-  const bar = await page.locator('.tabbar').boundingBox();
-  ok('판정 버튼이 탭바에 안 가림', box.y + box.height <= bar.y + 1, `${Math.round(box.y + box.height)} vs ${Math.round(bar.y)}`);
   ok('판정 버튼이 화면 안에 있음', box.y + box.height <= 844, String(Math.round(box.y + box.height)));
+  ok('판정 버튼이 엄지 자리(아래쪽 절반)에 있음', box.y >= 844 / 2, String(Math.round(box.y)));
 
   // 회독 중에 학습 탭을 또 눌러도 세션이 안 깨진다
   const before = await page.textContent('.studyhead');
@@ -67,7 +66,7 @@ const boot = async (page) => {
   // 다른 탭으로 나갈 수 있다
   await openVideos(page);
   await page.waitForTimeout(900);
-  ok('탭바로 회독을 빠져나옴', await page.locator('.studycard').count() === 0);
+  ok('닫고 다른 곳으로 갈 수 있음', await page.locator('.studycard').count() === 0);
   ok('영상 화면이 열림', await page.locator('.vd-item').count() >= 1);
 
   // ── 영상 삭제 ──

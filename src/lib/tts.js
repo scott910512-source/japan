@@ -370,7 +370,7 @@ export function speakKorean(text, rate = 1) {
       koToldSilent = true;
       /* 「음성이 없어서」라고 단정하지 않는다 — 아이폰에는 한국어 음성이 있는데도
          기기가 안 읽어 주는 경우가 있다. 아는 것만 말한다: 소리가 안 났다는 것. */
-      onCloudError?.('이 기기가 뜻을 소리로 읽어 주지 못했어요. 더보기 → 음성에서 클라우드 음성을 연결하면 뜻도 읽어 줘요.');
+      onCloudError?.('이 기기가 뜻을 소리로 읽어 주지 못했어요. 내 학습 → 설정 → 음성에서 클라우드 음성을 연결하면 뜻도 읽어 줘요.');
     }
   };
   utter.onstart = () => { heard = true; };

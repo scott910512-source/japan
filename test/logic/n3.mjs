@@ -30,7 +30,7 @@ const rnd = (() => { let s = 7; return () => { s = (s * 16807) % 2147483647; ret
 console.log('\n[ 메뉴 ]');
 {
   const m = MENUS.find((x) => x.id === 'n3');
-  ok('★ 학습 탭 배우기 묶음의 첫 칸이 「한 권으로 끝내는 N3」 ★', m && m.group === 'learn' && m.big && MENUS[0].id === 'n3', m?.label);
+  ok('★ 학습 탭 JLPT N3 묶음의 첫 칸이 「한 권으로 끝내는 N3」 ★', m && m.group === 'course' && m.big && MENUS[0].id === 'n3', m?.label);
   ok('기본 설정에서 켜져 있다', DEFAULT_SETTINGS.menus.n3 === true && MENU_IDS.includes('n3'));
 }
 

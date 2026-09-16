@@ -48,36 +48,39 @@ async function boot(browser, settings = {}) {
   const page = await boot(browser);
   page.on('pageerror', (e) => errors.push(e.message));
 
-  console.log('\n[ 세 묶음으로 갈렸다 ]');
+  console.log('\n[ 네 묶음으로 갈렸다 — JLPT N3 · 콘텐츠 · 연습 · 그 밖에 ]');
   await goTab(page, '학습');
   const labels = await page.locator('.menugroup .mg-label').allTextContents();
-  ok('묶음이 셋', await page.locator('.menugroup').count() === 3,
+  ok('묶음이 넷', await page.locator('.menugroup').count() === 4,
     labels.map((t) => t.split('\n')[0]).join(' / '));
-  /* 이 순서가 곧 한 카드가 지나가는 길이다 — 모른다 → 안다 → 샌다 */
-  ok('배우기가 먼저', labels[0].includes('배우기'));
-  ok('그다음 연습하기', labels[1].includes('연습하기'));
-  ok('마지막이 반복하기', labels[2].includes('반복하기'));
-  /* 이름만 적으면 「학습」과 「퀴즈」의 경계가 사람마다 다르게 읽힌다 */
+  /* 목표(코스)가 먼저, 그다음 무엇을(콘텐츠), 어떻게 굴릴지(연습), 곁가지 */
+  ok('JLPT N3가 먼저', labels[0].includes('JLPT N3'));
+  ok('그다음 콘텐츠', labels[1].includes('콘텐츠'));
+  ok('그다음 연습', labels[2].includes('연습'));
+  ok('마지막이 그 밖에', labels[3].includes('그 밖에'));
   ok('왜 여기 있는지 한 줄로 적힌다',
-    await page.locator('.menugroup .mg-sub').count() === 3,
+    await page.locator('.menugroup .mg-sub').count() === 4,
     (await page.locator('.mg-sub').allTextContents()).join(' / '));
 
   const inGroup = async (n) => (await page.locator('.menugroup').nth(n)
     .locator('.mt-title').allTextContents());
-  const learn = await inGroup(0);
-  const practice = await inGroup(1);
-  const repeat = await inGroup(2);
-  ok('배우는 것은 배우기에', learn.includes('단어') && learn.includes('문법'), learn.join(','));
-  ok('굴려 보는 것은 연습하기에',
+  const course = await inGroup(0);
+  const content = await inGroup(1);
+  const practice = await inGroup(2);
+  const etc = await inGroup(3);
+  ok('코스는 하나, 크게', course.join() === '한 권으로 끝내는 N3' && await page.locator('.menugroup').first().locator('.mbig').count() === 1, course.join(','));
+  ok('★ 콘텐츠는 단어 · 문법 · 한자 · 문장 · 듣기 · 영상 ★', content.join() === '단어,문법,한자,문장,듣기,영상', content.join(','));
+  ok('굴려 보는 것은 연습에',
     practice.includes('단어 시험') && practice.includes('부사 연습'), practice.join(','));
   ok('단어와 단어 시험이 서로 다른 묶음에',
-    learn.includes('단어') && !learn.includes('단어 시험'));
-  /* 회독은 이 앱의 뼈대다. 다른 연습에 묻히면 안 된다 */
-  ok('회독과 약점은 반복하기에',
-    repeat.includes('회독 학습') && repeat.includes('약점 복습'), repeat.join(','));
+    content.includes('단어') && !content.includes('단어 시험'));
+  ok('그 밖에는 완전기초 · 독일어', etc.join() === '완전기초,독일어', etc.join(','));
+  /* 행동은 학습 탭에 없다 — 회독 학습·약점 복습은 복습 탭이 한다 */
+  ok('회독 학습·약점 복습은 학습 탭에 없다',
+    ![...course, ...content, ...practice, ...etc].some((t) => t === '회독 학습' || t === '약점 복습'));
   /* 공부가 아닌 것은 학습 탭에 없다 */
   ok('번역기는 학습 탭에 없다',
-    ![...learn, ...practice, ...repeat].includes('번역기'));
+    ![...course, ...content, ...practice, ...etc].includes('번역기'));
 
   console.log('\n[ JLPT는 단어암기 안으로 ]');
   /* 따로 둔 메뉴였는데 그건 다른 공부가 아니라 같은 단어를 다른 방식으로
@@ -191,7 +194,7 @@ async function boot(browser, settings = {}) {
   await page.waitForTimeout(600);
   await openMore(page, 'study');   // 학습 메뉴 묶음
   await page.waitForTimeout(700);
-  ok('설정에도 묶음이 있다', await page.locator('.setgroup').count() === 3,
+  ok('설정에도 같은 네 묶음이 있다', await page.locator('.setgroup').count() === 4,
     (await page.locator('.sg-label').allTextContents()).join(' / '));
   /* 켜는 칸이 있는데 학습 탭에 없으면 켜도 아무 데도 안 뜨는 유령 칸이 된다 */
   ok('없어진 JLPT 칸은 설정에도 없다',

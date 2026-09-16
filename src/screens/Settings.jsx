@@ -449,8 +449,8 @@ export default function Settings({
       {!group && (
         <>
           <div className="navtitle">
-            <small>JS일본어</small>
-            더보기
+            <small>내 학습</small>
+            설정
           </div>
           <div className="card">
             {MORE_GROUPS.map((x) => (
@@ -477,10 +477,10 @@ export default function Settings({
       {group && (
         <>
           <button className="ghost-btn moreback" onClick={() => setGroup(null)}>
-            ← 더보기
+            ← 설정
           </button>
           <div className="navtitle" style={{ marginTop: 10 }}>
-            <small>더보기</small>
+            <small>설정</small>
             {open?.label}
           </div>
         </>

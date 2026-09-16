@@ -5,7 +5,7 @@ import { useToday } from '../lib/useToday.js';
 import {
   normalizeN3, ensureDayPlan, buildDayPlan, markStep, markLesson, recordAnswer, recordTest, recordExam,
   applyDiagnosis, progressOf, readinessOf, todayAmount, weekAmount, dueInCourse, weakPatterns, weakSession,
-  reviewQuestions, verdictFor, trackOf, lessonTitle, lessonOf, TEST_TITLES,
+  reviewQuestions, verdictFor, trackOf, lessonTitle, lessonOf, TEST_TITLES, TRACKS,
 } from '../lib/n3.js';
 import { vocabWordById } from '../data/n3/vocab.js';
 import { kanjiByChar } from '../data/n3/kanji.js';
@@ -52,11 +52,14 @@ function cardRef(ref) {
   return null;
 }
 
-export default function N3Course({ review, progress, setProgress, applyVerdicts, settings, streak, onStartSet, onToast }) {
+export default function N3Course({ review, progress, setProgress, applyVerdicts, settings, streak, onStartSet, onToast, initialView = null }) {
   const today = useToday();
   const n3 = useMemo(() => normalizeN3(progress?.n3), [progress?.n3]);
   const setN3 = useCallback((fn) => setProgress((p) => ({ ...p, n3: fn(normalizeN3(p?.n3)) })), [setProgress]);
-  const [view, setView] = useState(readView);
+  /* 회독 화면에서 돌아온 자리가 있으면 그게 먼저. 없으면 밖에서 시킨 자리
+     (학습 탭 「한자」 → 한자 과정, 복습 탭 「틀린 문제」 → 오답노트), 그것도
+     없으면 메인. */
+  const [view, setView] = useState(() => { const v = readView(); return v.kind !== 'hub' ? v : (initialView || v); });
   const rate = settings?.speechRate || 0.9;
 
   /* 오늘 계획은 열자마자 한 번 짜 둔다 — 홈의 「오늘의 N3」 줄이 단계 수를 적어야 한다 */
@@ -70,6 +73,20 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
   const ready = useMemo(() => readinessOf(n3, review), [n3, review]);
   const due = useMemo(() => dueInCourse(review, today), [review, today]);
   const weak = useMemo(() => weakPatterns(n3, 8), [n3]);
+
+  /* ★ 홈이 읽는 요약을 여기서 적는다 ★
+     홈·학습·내 학습은 코스 자료를 안 불러온다(메인 번들을 가볍게). 그래서
+     「JLPT N3 68% · 42/120」는 코스가 열릴 때마다 실제 진도·준비도로 적어 둔
+     요약(progress.n3.summary)에서 그린다. 숫자가 같으면 안 적는다 — 매번
+     적으면 저장·동기화가 헛돈다. */
+  useEffect(() => {
+    const areas = { vocab: ready.vocab, kanji: ready.kanji, grammar: ready.grammar, reading: ready.reading, listening: ready.listening };
+    const cur = n3.summary;
+    const same = cur && cur.done === prog.done && cur.total === prog.total && cur.ready === ready.total
+      && TRACKS.every((t) => cur.areas?.[t] === areas[t]);
+    if (same) return;
+    setN3((p) => ({ ...p, summary: { done: prog.done, total: prog.total, pct: prog.pct, ready: ready.total, areas, at: Date.now() } }));
+  }, [prog, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* 복습·약점 판은 들어올 때 한 번만 짠다. 답을 적을 때마다 n3가 바뀌어 다시
      그려지는데, 그때 다시 섞으면 풀던 문제가 자리를 옮겨 버린다. */
