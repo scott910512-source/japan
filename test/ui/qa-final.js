@@ -65,8 +65,9 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
     ok(`메뉴 열림 · ${label}`, shown > 100, `${shown}자`);
     const back = p.locator('.subscreen .sub-back, .subscreen .sh-close').first();
     if (await back.count()) { await back.click(); await p.waitForTimeout(600); }
+    /* 영상은 밀어 넣는 화면이 아니라 탭 자리에 산다 — 학습 탭으로 돌아온다 */
     if (await p.locator('.menutile').count() === 0) {
-      await goTab(p, '홈'); await p.waitForTimeout(600);
+      await goTab(p, '학습'); await p.waitForTimeout(600);
     }
   }
 
