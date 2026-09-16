@@ -1,7 +1,7 @@
 /* 디자인·UX 점검 — 실제로 그려 보고 넘치는 곳, 안 눌리는 곳, 안 보이는 글자를 찾는다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, openVideos, startStudy, openReview } from './_nav.js';
+import { goTab, openVideos, startStudy, openReview, openMenu, openSettings } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸

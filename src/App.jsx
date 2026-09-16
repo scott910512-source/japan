@@ -671,6 +671,8 @@ export default function App() {
                 setSub('repeat');
               } : null}
               onClose={() => setDeck(null)}
+              /* 판을 끝내고 「홈으로」 — 어디서 시작했든 홈에서 오른 진도를 본다 */
+              onHome={() => { setDeck(null); selectTab('home'); }}
             />
             </DeferredScreen>
           </section>
