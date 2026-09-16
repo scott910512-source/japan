@@ -103,7 +103,7 @@ const OLD = {
     const back = page.locator('.subscreen .sub-back, .subscreen .sh-close').first();
     if (await back.count()) { await back.click(); await page.waitForTimeout(600); }
     /* 영상은 밀어 넣는 화면이 아니라 탭 자리에 산다 — 학습 탭으로 돌아온다 */
-    if (await page.locator('.menutile').count() === 0) {
+    if (!(await page.locator('.menutile').first().isVisible().catch(() => false))) {
       await goTab(page, '학습');
       await page.waitForTimeout(600);
     }

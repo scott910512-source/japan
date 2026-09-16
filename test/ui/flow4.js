@@ -120,7 +120,8 @@ async function judgeAll(page, max = 60, label = '알아요') {
   const judged = await judgeAll(page);
   ok('끝까지 판정했다', judged === rvLeft, `${judged} / ${rvLeft}`);
   ok('끝나면 결과 화면', await page.locator('.finish').count() === 1);
-  await page.locator('.finish .submit-btn').click({ timeout: 5000 }).catch(() => {});
+  /* 복습을 끝내면 「다음: 새 단어」가 먼저 나온다 — 여기서는 홈으로를 누른다 */
+  await page.locator('.finish button', { hasText: '홈으로' }).click({ timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(800);
   ok('홈으로 돌아온다', await page.locator('.tdhead').count() === 1 && await page.locator('.tabbar').count() === 1);
   const homeRow = page.locator('.tdlist .tdtask', { hasText: '복습' });
