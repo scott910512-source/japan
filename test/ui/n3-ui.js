@@ -131,7 +131,7 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   const { page, errors } = await boot(browser);
 
   console.log('── 들어가기 · 메인');
-  await page.locator('.tabbar .tab', { hasText: '학습' }).click();
+  await page.locator('.tabbar .tab[data-tab="study"]').click();
   await page.waitForTimeout(500);
   const first = page.locator('.menugroup').first().locator('.menutile').first();
   ok('★ 학습 탭 배우기 첫 칸이 「한 권으로 끝내는 N3」 ★', (await first.innerText()).includes('한 권으로 끝내는 N3'));
@@ -256,7 +256,7 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
 
   console.log('\n── 홈의 「오늘의 N3」 줄');
   await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click(); await page.waitForTimeout(400);
-  await page.locator('.tabbar .tab', { hasText: '오늘' }).click(); await page.waitForTimeout(500);
+  await page.locator('.tabbar .tab[data-tab="home"]').click(); await page.waitForTimeout(500);
   const row = page.locator('.tdtask', { hasText: '오늘의 N3' });
   ok('홈에 오늘의 N3 줄이 있고 다 했다고 적힌다', await row.count() === 1 && (await row.innerText()).includes('다 했어요'));
 

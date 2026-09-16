@@ -296,24 +296,28 @@ export const DEFAULT_SETTINGS = {
   tripDay: null,      // (옛 설정) 'd3' | 'd7' | 'd14' | 'none' — 읽기만 한다
 
   /* 학습 탭에 노출할 메뉴 (설정에서 개별 on/off).
-     묶음은 lib/menu.js가 정한다 — 배우기 · 연습하기 · 반복하기. */
+     묶음은 lib/menu.js가 정한다 — JLPT N3 · 콘텐츠 · 연습 · 그 밖에.
+     옛 열쇠(repeat·weak)는 저장된 설정에 남아 있어도 그냥 무시된다 —
+     회독 학습·약점 복습은 이제 복습 탭에 늘 있다. */
   menus: {
-    // 배우기
+    // JLPT N3
     n3: true,         // 한 권으로 끝내는 N3 — N4 복습부터 모의고사까지 한 코스
+    // 콘텐츠
     words: true,      // 단어 — 회독으로 반복해서 외우기
     grammar: true,    // 문법 — 기초문법 · 일상문법 · 문형 연습
-    sentences: true,  // 상황회화 — 이동 · 식당 · 일상
-    basics: true,     // 완전기초 — 히라가나 · 숫자 · 인사
-    swiss: true,      // 독일어 여행 회화 — 곁가지 코스(열쇠 이름은 처음 것 그대로). 끄면 학습 탭에서 사라진다
-    // 연습하기
+    kanji: true,      // 한자 — N3 코스의 한자 과정
+    sentences: true,  // 문장 — 상황별 회화
+    listen: true,     // 듣기 — 자동 듣기 · 따라 말하기
+    videos: true,     // 영상 — 유튜브 · 자막
+    // 연습
     quiz: true,       // 단어 시험
     conjugate: true,  // 동사 활용 — 기초 시제
     adverb: true,     // 부사 연습 — 빈칸 채우기
     match: true,      // 짝 맞추기 — 게임으로
     rpg: true,        // 실전 연습 — 상황을 통째로
-    // 반복하기
-    repeat: true,     // 회독 학습 — 배운 걸 등급별로 다시
-    weak: true,       // 약점 복습 — 세 번 넘게 틀린 것만
+    // 그 밖에
+    basics: true,     // 완전기초 — 히라가나 · 숫자 · 인사
+    swiss: true,      // 독일어 여행 회화 — 곁가지 코스(열쇠 이름은 처음 것 그대로)
   },
 
   // 학습 기능

@@ -6,7 +6,7 @@
 export const N3_VERSION = 1;
 
 export function emptyN3() {
-  return { v: N3_VERSION, lessons: {}, skip: {}, days: {}, q: {}, wrong: {}, tests: {}, exams: [] };
+  return { v: N3_VERSION, lessons: {}, skip: {}, days: {}, q: {}, wrong: {}, tests: {}, exams: [], summary: null };
 }
 
 export function normalizeN3(raw) {
@@ -21,6 +21,10 @@ export function normalizeN3(raw) {
     wrong: obj(s.wrong),       // { 문제id: { c, at, cat, ref, ok } } — 오답 노트
     tests: obj(s.tests),       // { 테스트id: { best, last, tries, right, total, at } }
     exams: Array.isArray(s.exams) ? s.exams.slice(-20) : [],
+    /* 홈·학습·내 학습이 읽는 요약 — { done, total, pct, ready, areas, at }.
+       코스 화면이 열릴 때마다 실제 진도·준비도로 다시 적는다. 코스 자료를
+       메인 번들에 안 싣고도 홈에 「JLPT N3 68%」를 그리기 위한 캐시다. */
+    summary: s.summary && typeof s.summary === 'object' && !Array.isArray(s.summary) ? s.summary : null,
   };
 }
 
@@ -67,5 +71,9 @@ export function mergeN3(a, b) {
     const k = String(e.at || '');
     if (seen.has(k)) continue; seen.add(k); exams.push(e);
   }
-  return { v: N3_VERSION, lessons, skip, days, q, wrong, tests, exams: exams.slice(-20) };
+  /* 요약은 나중에 적은 쪽 — 같은 시각이면 진도가 큰 쪽 */
+  const sx = x.summary; const sy = y.summary;
+  let summary = sx || sy || null;
+  if (sx && sy) summary = (sx.at || 0) !== (sy.at || 0) ? ((sx.at || 0) > (sy.at || 0) ? sx : sy) : ((sx.done || 0) >= (sy.done || 0) ? sx : sy);
+  return { v: N3_VERSION, lessons, skip, days, q, wrong, tests, exams: exams.slice(-20), summary };
 }

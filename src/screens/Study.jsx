@@ -81,6 +81,10 @@ export default function Study({
   deck, review, settings, session, bookmarks, memos, onSaveMemo,
   asks, onAsks, onAddWord,
   onReviewChange, onSessionChange, onSettingsChange, onBookmark, onClose, onNext, onToast,
+  /* 「홈으로」 — 닫기(onClose)는 오던 자리로 돌아가지만, 판을 끝내고 누르는
+     홈으로는 글자 그대로 홈이어야 한다. 복습 탭에서 시작했어도 끝나면 홈에서
+     오늘 진도가 오른 것을 본다. 없으면 닫기로 대신한다. */
+  onHome = null,
 }) {
   const cards = deck.cards;
   const byId = useMemo(() => new Map(cards.map((w) => [w.id, w])), [cards]);
@@ -351,6 +355,7 @@ export default function Study({
         deck={deck}
         settings={settings}
         onClose={onClose}
+        onHome={onHome}
         onNext={onNext}
         onUndo={history.current.length ? undo : null}
       />
@@ -395,7 +400,7 @@ export default function Study({
             <span>{deck.label} · {session?.done || 0}번 봤어요</span>
             <span>남은 건 내일 복습 큐에서 다시 만나요</span>
           </p>
-          <button className="submit-btn" onClick={() => { onSessionChange(null); onClose(); }}>홈으로</button>
+          <button className="submit-btn" onClick={() => { onSessionChange(null); (onHome || onClose)(); }}>홈으로</button>
         </div>
       </div>
     );
@@ -663,7 +668,7 @@ function StudyHeader({ session, deck, onClose, onUndo, hasKeyboard }) {
   );
 }
 
-function FinishCard({ finished, deck, settings, onClose, onNext, onUndo }) {
+function FinishCard({ finished, deck, settings, onClose, onHome, onNext, onUndo }) {
   const t = finished.tally || {};
   const known = (t.known || 0) + (t.master || 0);
   return (
@@ -698,10 +703,10 @@ function FinishCard({ finished, deck, settings, onClose, onNext, onUndo }) {
             <button className="submit-btn" onClick={onNext}>
               다음: {deck.next.label}
             </button>
-            <button className="ghost-btn" onClick={onClose}>홈으로</button>
+            <button className="ghost-btn" onClick={onHome || onClose}>홈으로</button>
           </>
         ) : (
-          <button className="submit-btn" onClick={onClose}>홈으로</button>
+          <button className="submit-btn" onClick={onHome || onClose}>홈으로</button>
         )}
         {onUndo && (
           <button className="ghost-btn" onClick={onUndo}>↩ 마지막 판정 되돌리기</button>

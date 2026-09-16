@@ -91,7 +91,7 @@ const judge = async (page, label) => {
   const after2 = await head(page);
   ok('두 장 하면 진도가 오름', after2.includes('2 /'), after2);
 
-  await goTab(page, '오늘');
+  await goTab(page, '홈');
   await page.waitForTimeout(800);
   /* .judgerow는 앞면에서도 0이라 이제 「나갔나」를 못 가린다 — 카드로 본다 */
   ok('탭으로 회독을 나감', await page.locator('.studycard').count() === 0);
@@ -137,11 +137,10 @@ const judge = async (page, label) => {
      .sub-body 안에 산다. 화면 자체는 그대로다. */
   await openReview(page);
   await page.waitForTimeout(800);
-  const rv = await page.textContent('.sub-body');
-  /* 「졸업」과 「완료」가 같은 상태를 다르게 부르고 있었다 — 「익숙함」으로 모았다 */
-  ok('복습 화면에 기억 수준이 있음', rv.includes('익숙함') && rv.includes('학습 중'),
-    rv.replace(/\s+/g, ' ').slice(0, 80));
-  ok('취약 단어 입구가 있음', rv.includes('취약'));
+  const rv = await page.textContent('.screen.active');
+  /* 복습 탭 — 오늘 복습이 맨 위, 틀린 문제·취약이 그 아래 */
+  ok('복습 탭에 오늘 복습이 맨 위', rv.includes('오늘 복습'), rv.replace(/\s+/g, ' ').slice(0, 80));
+  ok('취약 단어 입구가 있음', rv.includes('취약 단어'));
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();

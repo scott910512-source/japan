@@ -45,14 +45,16 @@ const ok = (label, condition) => {
     await screen.evaluate((el) => { el.scrollTop = 200; });
     const scroll = await screen.evaluate((el) => el.scrollTop);
     ok('학습 허브에 실제 스크롤이 생긴다', scroll > 0);
-    await goTab(page, '오늘');
+    await goTab(page, '홈');
     ok('방문한 화면은 숨기고 보존한다', await page.locator('.menugroup').count() > 0 && !(await page.locator('.menugroup').first().isVisible()));
     await goTab(page, '학습');
     ok('다시 열어도 스크롤 위치를 잃지 않는다', await page.locator('.screen.active').evaluate((el) => el.scrollTop) === scroll);
+    ok('주요 메뉴의 접근성 이름이 있다', await page.getByRole('navigation', { name: '주요 메뉴' }).isVisible());
     await startStudy(page);
     await page.locator('.studycard').waitFor();
     ok('회독 청크도 오프라인에서 열린다', await page.locator('.studycard').isVisible());
-    ok('주요 메뉴의 접근성 이름이 있다', await page.getByRole('navigation', { name: '주요 메뉴' }).isVisible());
+    /* 학습 중에는 탭바를 두지 않는다 — 집중하는 자리 */
+    ok('학습 중에는 주요 메뉴가 없다', await page.getByRole('navigation', { name: '주요 메뉴' }).count() === 0);
     ok('JS 오류 없음', errors.length === 0);
   } finally { await browser.close(); }
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

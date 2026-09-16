@@ -344,3 +344,80 @@
   background: var(--surface-2); font-size: 12.5px; font-weight: 700;
   color: var(--ink-soft); display: inline-block;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   정보구조 개편 2 — 홈 · 학습 · 복습 · 내 학습 (탭 넷)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 홈: N3 한 줄 ──
+   N3가 이 앱의 목표라 머리 밑에 한 줄. 카드가 아니라 줄이다 — 눌러야 할
+   큰 버튼보다 눈에 먼저 들어오면 안 된다. */
+.hm-goal {
+  display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 4px;
+  padding: 10px 12px; min-height: 44px; border-radius: 14px; border: none;
+  background: var(--surface-2); color: var(--ink); cursor: pointer; text-align: left; font: inherit;
+}
+.hg-lab { flex: 0 0 auto; font-size: 12.5px; font-weight: 800; color: var(--kon); }
+.hg-bar { flex: 1; min-width: 0; height: 8px; border-radius: 100px; background: var(--surface); overflow: hidden; }
+.hg-bar i { display: block; height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--kon), var(--kon-deep)); transition: width .25s ease; }
+.hg-pct { flex: 0 0 auto; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* 이어서 공부하기 — 「계속하기 →」 */
+.tt-go { flex: 0 0 auto; font-size: 12.5px; font-weight: 700; color: var(--kon); }
+
+/* ── 홈: 오늘 목록 — 항목마다 큰 카드를 만들지 않는다. 한 상자 안의 줄 ── */
+.tdlist {
+  display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 16px; background: var(--surface); border: 1px solid var(--line);
+}
+.tdlist .tdtask.slim { border: none; border-radius: 0; padding: 11px 14px; min-height: 54px; background: transparent; }
+.tdlist .tdtask.slim + .tdtask.slim { border-top: 1px solid var(--line); }
+.tdtask.slim .tt-icon { width: 30px; height: 30px; border-radius: 9px; }
+.tdtask.slim .tt-icon svg { width: 15px; height: 15px; }
+.tdtask.slim .tt-body b { font-size: 14.5px; }
+.tdtask.slim .tt-body span { font-size: 12px; }
+.tdtask.slim .tt-count b { font-size: 16px; }
+.tdtask.slim .tt-done { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 100px; background: var(--kon-soft); color: var(--kon); }
+.tdtask.slim .tt-done svg { width: 14px; height: 14px; }
+.tdtask.slim.done { opacity: .7; }
+
+/* ── 복습 탭 ── */
+.rv-top { display: flex; flex-direction: column; gap: 8px; }
+.rv-head { display: flex; align-items: baseline; justify-content: space-between; }
+.rv-lab { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.rv-num { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.rv-num small { font-size: 14px; font-weight: 700; margin-left: 2px; color: var(--ink-soft); }
+.rv-num.rv-ok { font-size: 20px; color: var(--kon); }
+.rv-sub { font-size: 12.5px; color: var(--ink-soft); }
+.rv-start { margin: 6px 0 0; }
+.rv-more { margin-top: 4px; min-height: 44px; }
+.rv-list { padding: 4px 6px; }
+.rv-row { gap: 12px; min-height: 58px; }
+.rv-row:disabled { opacity: .55; cursor: default; }
+.rv-ic {
+  width: 32px; height: 32px; flex: 0 0 auto; border-radius: 10px; display: grid; place-items: center;
+  background: var(--surface-2); color: var(--kon);
+}
+.rv-ic svg { width: 16px; height: 16px; }
+.rv-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.rv-body b { font-size: 14.5px; font-weight: 700; }
+.rv-body span { font-size: 12px; color: var(--ink-soft); }
+.rv-cnt { flex: 0 0 auto; font-size: 15px; font-weight: 800; color: var(--kon); font-variant-numeric: tabular-nums; }
+
+/* ── 내 학습: JLPT N3 ── */
+.me-n3 { display: block; width: 100%; text-align: left; cursor: pointer; color: var(--ink); font: inherit; margin-bottom: 4px; }
+.mn-head { display: flex; align-items: baseline; justify-content: space-between; }
+.mn-head b { font-size: 16px; font-weight: 800; }
+.mn-head span { font-size: 13px; font-weight: 700; color: var(--kon); }
+.me-n3 .td-bar { margin: 8px 0 10px; }
+.mn-areas { display: flex; gap: 6px; flex-wrap: wrap; }
+.mn-area {
+  display: flex; flex-direction: column; align-items: center; flex: 1 1 0; min-width: 46px;
+  padding: 6px 4px; border-radius: 10px; background: var(--surface-2);
+}
+.mn-area small { font-size: 10.5px; color: var(--ink-soft); font-weight: 700; }
+.mn-area b { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.mn-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12.5px; color: var(--ink-soft); }
+
+/* 학습 탭 한자 칸 — 아이콘 대신 글자 */
+.mt-glyph { font-size: 17px; font-weight: 800; line-height: 1; }

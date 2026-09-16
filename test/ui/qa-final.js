@@ -40,8 +40,8 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   ok('끊긴 채로 시작이 3초 안', Date.now() - t1 < 3000, `${Date.now() - t1}ms`);
 
   // 모든 탭을 돌며 깨지는 곳이 없는지
-  for (const tab of ['오늘', '학습', '듣기', '기록', '더보기']) {
-    await p.locator('.tabbar .tab', { hasText: tab }).click();
+  for (const tab of ['홈', '학습', '복습', '내 학습']) {
+    await p.locator('.tabbar .tab', { hasText: tab }).first().click();
     await p.waitForTimeout(700);
     const txt = (await p.textContent('.screen.active').catch(() => '')) || '';
     ok(`${tab} 탭이 내용을 그림`, txt.trim().length > 20, `${txt.trim().length}자`);
@@ -50,7 +50,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   }
 
   // 홈의 메뉴를 모두 열어 본다
-  await goTab(p, '오늘');
+  await goTab(p, '홈');
   await p.waitForTimeout(600);
   await goTab(p, '학습');
   const menus = await p.locator('.menutile').count();
@@ -65,13 +65,14 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
     ok(`메뉴 열림 · ${label}`, shown > 100, `${shown}자`);
     const back = p.locator('.subscreen .sub-back, .subscreen .sh-close').first();
     if (await back.count()) { await back.click(); await p.waitForTimeout(600); }
-    if (await p.locator('.menutile').count() === 0) {
-      await goTab(p, '오늘'); await p.waitForTimeout(600);
+    /* 영상은 밀어 넣는 화면이 아니라 탭 자리에 산다 — 학습 탭으로 돌아온다 */
+    if (!(await p.locator('.menutile').first().isVisible().catch(() => false))) {
+      await goTab(p, '학습'); await p.waitForTimeout(600);
     }
   }
 
   // 접근성: 아이콘만 있는 버튼에 이름이 있는지
-  await goTab(p, '오늘');
+  await goTab(p, '홈');
   await p.waitForTimeout(500);
   const nameless = await p.evaluate(() => {
     const out = [];

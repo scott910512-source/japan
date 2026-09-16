@@ -1,7 +1,7 @@
 import { useAppData, usePersistAppData } from './app/useAppData.js';
 import { useLayerNavigation } from './app/useLayerNavigation.js';
 import FeatureScreen from './app/FeatureScreen.jsx';
-import { StudyHub, Log, Study, Settings, Videos, NewPassword } from './app/screens.js';
+import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
 import { filterByLevel } from './lib/wordFilters.js';
 import { useAccountSync } from './app/useAccountSync.js';
@@ -14,7 +14,6 @@ import {
 import BottomSheet from './components/BottomSheet.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import Today from './screens/Today.jsx';
-import ListenHub from './screens/ListenHub.jsx';
 import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { ALL_WORDS } from './data/allWords.js';
@@ -65,28 +64,35 @@ function LANE_LABEL(lanes) {
 const SUB_TITLES = {
   basics: '완전기초',
   grammar: '문법',
-  sentences: '상황별 문장암기',
+  sentences: '문장 · 상황별 회화',
   translate: '번역기',
   manage: '내 단어장',
-  worddeck: '단어암기',
+  worddeck: '단어',
   quiz: '단어 시험',
   conjugate: '동사 활용',
   match: '짝 맞추기',
   rpg: '실전 연습',
-  repeat: '회독 학습',
+  repeat: '전체 복습 · 회독 학습',
   adverb: '부사 연습',
+  listenhub: '듣기',
   listen: '듣기 · 따라 말하기',
-  review: '복습',
   videos: '영상으로 배우기',
   swiss: '독일어 여행 회화',
   n3: '한 권으로 끝내는 N3',
+  settings: '설정',
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('today');
-  const [videosSeen, setVideosSeen] = useState(false); // 영상 탭에 한 번이라도 들어갔는지
+  /* 탭은 넷 — 홈 · 학습 · 복습 · 내 학습. 영상(videos)은 탭이 아니라 학습 탭
+     안의 화면인데, 유튜브 플레이어를 품고 있어서 밀어 넣는 화면(sub)이 아니라
+     탭 자리(ScreenSlot)에 산다 — 그래서 activeTab 값으로 남아 있다. */
+  const [activeTab, setActiveTab] = useState('home');
+  const [videosSeen, setVideosSeen] = useState(false); // 영상 화면에 한 번이라도 들어갔는지
   const [sub, setSub] = useState(null);
-  // 듣기 탭에서 어떤 방식으로 들어왔는지 — 자동 듣기냐 따라 말하기냐
+  /* N3 코스를 어느 자리에서 열지 — 학습 탭 「한자」는 한자 과정, 복습 탭
+     「틀린 문제」는 오답노트. 코스가 열릴 때 한 번 읽는다. */
+  const [n3View, setN3View] = useState(null);
+  // 듣기에 어떤 방식으로 들어왔는지 — 자동 듣기냐 따라 말하기냐
   const [listenMode, setListenMode] = useState('listen');
   const [deck, setDeck] = useState(null); // 학습 중인 덱 (있으면 회독 화면이 전체를 덮는다)
 
@@ -375,6 +381,31 @@ export default function App() {
      숫자로 보여 주지 않으려면 셈하는 자리가 하나여야 한다. */
   const planNow = useMemo(() => planStatus(plan), [plan]);
 
+  /* ★ 복습 탭 배지 · 홈 · 복습 탭이 같은 수를 본다 ★
+     오늘 계획의 복습·약점 갈래에서 남은 것 + 계획에 다 못 담은 것. 예전엔
+     배지는 회독 저장소의 「복습일이 된 것」을 따로 세서 홈의 「복습 12개」와
+     달랐다. */
+  const reviewLeft = useMemo(() => {
+    const l = planNow.lanes || {};
+    const left = Math.max(0, ((l.review?.assigned || 0) + (l.weak?.assigned || 0)) - ((l.review?.done || 0) + (l.weak?.done || 0)));
+    return left + (planNow.over?.review || 0) + (planNow.over?.weak || 0);
+  }, [planNow]);
+
+  /* 취약 단어 수 — 복습 탭과 내 학습이 같은 함수(weakCards)를 본다 */
+  const weakWords = useMemo(() => weakCards(wordIds, review).length, [wordIds, review]);
+
+  /* N3 오답노트 수 — 코스 자료를 안 불러오고 progress.n3.wrong만 센다.
+     취약 문법은 같은 꼭지를 두 번 넘게 틀린 것. */
+  const n3Wrong = useMemo(() => {
+    const w = progress.n3?.wrong || {};
+    let all = 0; const refs = {};
+    for (const e of Object.values(w)) {
+      all += 1;
+      if ((e.cat === 'grammar' || e.cat === 'particle') && e.ref) refs[e.ref] = (refs[e.ref] || 0) + (e.c || 1);
+    }
+    return { all, grammar: Object.values(refs).filter((c) => c >= 2).length };
+  }, [progress.n3?.wrong]);
+
   /* 「10개 더 배우기」 — 계획을 다 하고도 더 하고 싶을 때만 명시적으로 늘린다.
      저절로 다음 20개가 따라 나오면 끝냈다는 느낌을 영영 못 받는다. */
   const learnMore = useCallback((count) => {
@@ -536,19 +567,22 @@ export default function App() {
   }, [byId]);
 
   /* 학습 메뉴를 연다.
-     「복습」은 이제 탭이 아니라 밀어 넣는 화면이다 — 탭을 빼면서 길이 하나
-     줄었을 뿐, 화면 자체는 그대로 있다. */
-  const openMenu = useCallback((id) => {
+     한자는 N3 코스의 한자 과정을, 듣기는 듣기 고르기(자동·따라·영상)를 연다.
+     같은 자료·화면을 두 벌 두지 않는다 — 길만 여기서 정한다. */
+  const openMenu = useCallback((id, opts = {}) => {
     if (id === 'words') { setSub('worddeck'); return; }
     if (id === 'weak') { startWeakDeck(); return; }
-    if (id === 'videos') { setVideosSeen(true); setActiveTab('videos'); return; }
+    if (id === 'videos') { setVideosSeen(true); setSub(null); setActiveTab('videos'); return; }
+    if (id === 'listen') { setSub('listenhub'); return; }
+    if (id === 'kanji') { setN3View({ kind: 'curriculum', chapter: 'ch4' }); setSub('n3'); return; }
+    if (id === 'n3') { setN3View(opts.view || null); setSub('n3'); return; }
     setSub(id);
   }, [startWeakDeck]);
 
-  /* 듣기 탭에서 무엇을 여는가. 자동 듣기와 따라 말하기는 같은 화면이고
+  /* 듣기에서 무엇을 여는가. 자동 듣기와 따라 말하기는 같은 화면이고
      방식만 다르다 — 화면을 두 벌로 만들면 고친 게 한쪽에만 남는다. */
   const openListen = useCallback((id) => {
-    if (id === 'videos') { setVideosSeen(true); setActiveTab('videos'); return; }
+    if (id === 'videos') { setVideosSeen(true); setSub(null); setActiveTab('videos'); return; }
     setListenMode(id === 'shadow' ? 'shadow' : 'listen');
     setSub('listen');
   }, []);
@@ -637,18 +671,16 @@ export default function App() {
                 setSub('repeat');
               } : null}
               onClose={() => setDeck(null)}
+              /* 판을 끝내고 「홈으로」 — 어디서 시작했든 홈에서 오른 진도를 본다 */
+              onHome={() => { setDeck(null); selectTab('home'); }}
             />
             </DeferredScreen>
           </section>
         </div>
-        {/* 회독 중에도 탭바를 남긴다. 없애 놨더니 다른 데로 가려면 위쪽 뒤로가기를
-            찾아야 했는데, 그건 이 앱에서 여기 한 곳만 다른 규칙이었다.
-            진도는 session에 남으니 나갔다 와도 이어진다. */}
-        <TabBar
-          active="today"
-          onChange={(id) => { setDeck(null); selectTab(id); }}
-          reviewCount={due.length + sentenceDue}
-        />
+        {/* ★ 학습 중에는 탭바를 두지 않는다 ★
+            문제와 카드에 집중하는 자리라, 다른 메뉴가 시선을 빼앗지 않게 한다.
+            나가는 길은 화면 위 닫기와 브라우저 뒤로가기(useLayerNavigation)다.
+            진도는 session에 남으니 나갔다 와도 홈의 「이어하기」로 그 자리다. */}
         <Toast message={toast} />
       </div>
     );
@@ -659,29 +691,27 @@ export default function App() {
       <Onboarding open={onboardingOpen} onFinish={finishOnboarding} />
 
       <div className="screens">
-        <ScreenSlot active={activeTab === 'today' && !sub}>
+        <ScreenSlot active={activeTab === 'home' && !sub}>
 
           <Today
             plan={plan}
             planNow={planNow}
-            review={review}
             settings={settings}
             streak={streak}
             session={session}
             resumeLabel={session?.label}
             grammarLeft={grammarLeft}
             grammarNext={grammarNext}
-            /* ★ 주요 버튼 하나 ★ 갈래를 안 주면 배정된 것을 순서대로 다 돈다.
-               고를 것 셋을 나란히 놓으니 초보자가 무엇부터인지 고민했다. */
+            /* ★ 주요 버튼 하나 ★ 갈래를 안 주면 배정된 것을 순서대로 다 돈다. */
             onStartAll={() => guardDeck(() => startToday(null), LANE_DECK(null))}
             onStartWords={() => guardDeck(() => startToday(['fresh']), LANE_DECK(['fresh']))}
             onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
             onOpenGrammar={() => openMenu('grammar')}
             /* N3 코스로 가는 줄. 메뉴를 끈 사람에게는 안 보인다 */
             onOpenN3={settings.menus?.n3 ? () => openMenu('n3') : null}
-            n3Day={progress.n3?.days?.[today] || null}
+            n3={progress.n3 || null}
             onResume={resumeSession}
-            onOpenReview={() => setSub('review')}
+            onOpenReview={() => selectTab('review')}
             onLearnMore={learnMore}
           />
         </ScreenSlot>
@@ -692,11 +722,31 @@ export default function App() {
             words={words}
             review={review}
             settings={settings}
+            n3Summary={progress.n3?.summary || null}
             onOpen={openMenu}
           />
         </ScreenSlot>
 
-        <ScreenSlot active={activeTab === 'log' && !sub}>
+        {/* 복습 — 길이 하나다. 오늘 복습·틀린 문제·약점·전체 복습이 여기서 열린다 */}
+        <ScreenSlot active={activeTab === 'review' && !sub}>
+
+          <ReviewHub
+            planNow={planNow}
+            sentenceDue={sentenceDue}
+            weakWords={weakWords}
+            wrongCount={n3Wrong.all}
+            weakGrammar={n3Wrong.grammar}
+            onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
+            onStartBacklog={startDueDeck}
+            onOpenSentences={() => setSub('sentences')}
+            onOpenWrong={() => openMenu('n3', { view: { kind: 'wrong' } })}
+            onOpenWeakWords={startWeakDeck}
+            onOpenWeakGrammar={() => openMenu('n3', { view: { kind: 'weak', from: 'hub' } })}
+            onOpenRepeat={() => setSub('repeat')}
+          />
+        </ScreenSlot>
+
+        <ScreenSlot active={activeTab === 'me' && !sub}>
 
           <Log
             words={words}
@@ -704,19 +754,24 @@ export default function App() {
             stats={stats}
             streak={streak}
             /* 오늘 배정·완료는 계획 하나에서 나온다 — 기록 화면이 따로 세면
-               오늘 화면과 숫자가 어긋난다 */
+               홈과 숫자가 어긋난다 */
             planNow={planNow}
             grammarLeft={grammarLeft}
-            onOpenReview={() => setSub('review')}
+            n3Summary={progress.n3?.summary || null}
+            weakWords={weakWords}
+            onOpenN3={settings.menus?.n3 ? () => openMenu('n3') : null}
+            onOpenReview={() => selectTab('review')}
+            onOpenSettings={() => setSub('settings')}
           />
         </ScreenSlot>
 
-        {/* 영상은 제 탭에서 산다. 홈 카드로 두면 단어 외우기 메뉴들 사이에 섞여
-            버리는데, 보고 듣고 따라 말하는 일은 결이 다르다.
+        {/* 영상은 학습 탭 안의 화면이지만 탭 자리(ScreenSlot)에 산다 — 유튜브
+            플레이어를 품고 있어서, 밀어 넣는 화면처럼 열고 닫을 때마다 다시
+            만들면 보던 자리를 잃는다.
 
-            탭은 숨겨져 있어도 화면에 붙어 있어서, 그대로 두면 앱을 켜자마자
-            열지도 않은 탭이 유튜브에서 제목과 섬네일을 받아 온다. 한 번 들어간
-            뒤부터 붙이고, 그 뒤로는 계속 붙여 둔다 — 보던 자리를 잃지 않게. */}
+            숨겨져 있어도 화면에 붙어 있어서, 그대로 두면 앱을 켜자마자 열지도
+            않은 화면이 유튜브에서 제목과 섬네일을 받아 온다. 한 번 들어간
+            뒤부터 붙이고, 그 뒤로는 계속 붙여 둔다. */}
         <ScreenSlot active={activeTab === 'videos' && !sub}>
 
           {videosSeen && (
@@ -739,57 +794,47 @@ export default function App() {
             progress={videoProgress}
             setProgress={setVideoProgress}
             onRemoveVideo={removeVideo}
-            onBack={() => setActiveTab('listen')}
+            onBack={() => { setActiveTab('study'); setSub('listenhub'); }}
           />
           )}
-        </ScreenSlot>
-
-        {/* 듣기가 최상위 탭이 됐다. 앉아서 손으로 하는 공부와 걸으면서 손 없이
-            하는 공부는 쓰는 시간대가 아예 달라서, 지하철에서 꺼내려면 한 번에
-            닿아야 한다. 대신 「복습」 탭을 뺐다 — 오늘 화면 첫 버튼이자 학습 탭
-            「반복하기」 첫 칸이라 탭까지 두면 같은 곳으로 가는 길이 셋이 된다. */}
-        <ScreenSlot active={activeTab === 'listen' && !sub}>
-
-          <ListenHub onOpen={openListen} />
-        </ScreenSlot>
-
-        <ScreenSlot active={activeTab === 'more' && !sub}>
-
-          <Settings
-            settings={settings}
-            onChange={patchSettings}
-            onReplayOnboarding={() => setOnboardingOpen(true)}
-            onOpenWordManager={() => setSub('manage')}
-            onOpenTranslate={() => setSub('translate')}
-            onOpenSwiss={() => setSub('swiss')}
-            onToast={showToast}
-            onReload={() => window.location.reload()}
-            session={authSession}
-            syncState={syncState}
-            /* 저장이 막혔으면 그 표시는 해결될 때까지 남는다 — 잠깐 뜨는
-               토스트만으로는 그날 공부한 게 안 저장되는 걸 모른다. */
-            storeError={storeError}
-            onSync={() => runSync(false)}
-            onSignedOut={() => {
-              setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null); setOfflinePass(false);
-              syncedFor.current = null; showToast('로그아웃했어요');
-            }}
-            onVaultKey={rememberVaultKey}
-            remoteKeyEnvelope={remoteKeyEnvelope}
-            vaultReady={Boolean(vaultKey)}
-          />
         </ScreenSlot>
       </div>
 
       {sub && (
         <div className="subscreen open">
           <div className="sub-header">
-            {/* 메뉴는 이제 학습 탭에서 열린다. 「홈」이라고 적어 두면 안 맞는다. */}
             <button className="sub-back" onClick={() => setSub(null)}><IconArrowLeft /> 뒤로</button>
             <div className="sub-title">{SUB_TITLES[sub]}</div>
           </div>
           <div className="sub-body">
             <DeferredScreen key={sub}>
+              {/* 설정은 내 학습 탭에서 밀어 넣는 화면이다 — 여섯 묶음(학습 설정 ·
+                  음성 · 계정 · 백업 · 도구 · 앱 정보)은 그 안에 그대로 있다. */}
+              {sub === 'settings' ? (
+                <Settings
+                  settings={settings}
+                  onChange={patchSettings}
+                  onReplayOnboarding={() => setOnboardingOpen(true)}
+                  onOpenWordManager={() => setSub('manage')}
+                  onOpenTranslate={() => setSub('translate')}
+                  onOpenSwiss={() => setSub('swiss')}
+                  onToast={showToast}
+                  onReload={() => window.location.reload()}
+                  session={authSession}
+                  syncState={syncState}
+                  /* 저장이 막혔으면 그 표시는 해결될 때까지 남는다 — 잠깐 뜨는
+                     토스트만으로는 그날 공부한 게 안 저장되는 걸 모른다. */
+                  storeError={storeError}
+                  onSync={() => runSync(false)}
+                  onSignedOut={() => {
+                    setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null); setOfflinePass(false);
+                    syncedFor.current = null; showToast('로그아웃했어요');
+                  }}
+                  onVaultKey={rememberVaultKey}
+                  remoteKeyEnvelope={remoteKeyEnvelope}
+                  vaultReady={Boolean(vaultKey)}
+                />
+              ) : (
               <FeatureScreen
                 sub={sub}
                 words={words}
@@ -820,7 +865,10 @@ export default function App() {
                 sentenceDue={sentenceDue}
                 applyVerdicts={applyVerdicts}
                 customWords={customWords}
+                openListen={openListen}
+                n3View={n3View}
               />
+              )}
             </DeferredScreen>
           </div>
         </div>
@@ -852,9 +900,9 @@ export default function App() {
       </BottomSheet>
 
       <TabBar
-        active={activeTab === 'videos' ? 'listen' : activeTab}
+        active={activeTab === 'videos' ? 'study' : activeTab}
         onChange={selectTab}
-        reviewCount={due.length + sentenceDue}
+        reviewCount={reviewLeft}
       />
       <Toast message={toast} />
     </div>

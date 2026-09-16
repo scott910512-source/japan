@@ -1,46 +1,39 @@
 import { useMemo } from 'react';
 import StudyMenuCard from '../components/StudyMenuCard.jsx';
-import { summarize, weakCards } from '../lib/review.js';
-import { roundSummary } from '../lib/rounds.js';
+import { summarize } from '../lib/review.js';
 import { groupedMenus } from '../lib/menu.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
-/* 학습 탭 — 직접 골라서 하는 공부.
+/* 학습 탭 — 「무엇을」 공부할지 고르는 자리.
  *
- * 오늘 화면이 「앱이 정해 주는 공부」라면 여기는 「내가 고르는 공부」다.
- * 오늘의 학습이 생겼다고 이 길을 없애지 않는다 — "오늘은 식당 회화만 3회독
- * 하고 싶다"는 사람이 있고, 그건 앱이 대신 정해 줄 수 있는 게 아니다.
+ * 홈이 「앱이 정해 주는 공부」라면 여기는 「내가 고르는 공부」다. 오늘의 학습이
+ * 생겼다고 이 길을 없애지 않는다 — "오늘은 식당 회화만 3회독 하고 싶다"는
+ * 사람이 있고, 그건 앱이 대신 정해 줄 수 있는 게 아니다.
  *
- * 칸은 세 묶음으로 갈라 둔다. 기준은 「지금 이 카드가 나에게 어떤 상태인가」다.
- *   배우기 — 아직 모른다
- *   연습하기 — 알기는 아는데 손에 안 붙는다
- *   반복하기 — 넣어 뒀는데 샌다
- * 이 순서가 곧 한 카드가 지나가는 길이다. 어디에 무엇이 들어가는지는
- * lib/menu.js가 정한다.
+ * 맨 위에 JLPT N3 코스 하나만 크게. 그 아래는 콘텐츠(단어·문법·한자·문장·듣기·
+ * 영상) → 연습 → 그 밖에. 어디에 무엇이 들어가는지는 lib/menu.js가 정한다.
  *
- * 진행률 숫자는 여기 두지 않는다. 기록 탭으로 옮겼다 — 고르는 화면에 통계가
- * 같이 있으면 고르러 왔다가 통계를 읽고 나간다. */
+ * 여기에는 행동(새로 배우기·복습하기)이 없다. 그건 홈과 복습 탭이 한다.
+ * 진행률 숫자도 안 둔다 — 고르는 화면에 통계가 같이 있으면 고르러 왔다가
+ * 통계를 읽고 나간다. 코스 카드의 한 줄만 예외다(어디까지 왔는지가 곧 다음
+ * 레슨이 무엇인지라서). */
 
-export default function StudyHub({ words, review, settings, onOpen }) {
+export default function StudyHub({ words, review, settings, n3Summary, onOpen }) {
   const pool = useMemo(
     () => filterByLevel(words, settings.levels),
     [words, settings.levels],
   );
   const ids = useMemo(() => pool.map((w) => w.id), [pool]);
   const stat = useMemo(() => summarize(ids, review), [ids, review]);
-  const weak = useMemo(() => weakCards(ids, review).length, [ids, review]);
-  const rounds = useMemo(() => roundSummary(ids, review), [ids, review]);
   const groups = useMemo(() => groupedMenus(settings.menus), [settings.menus]);
 
-  /* 큰 칸에는 「지금 내 상태」를 적는다. 「회독으로 반복해서 외우기」는
-     설명이지 정보가 아니다 — 두 번째부터는 아무도 안 읽는다. */
   const noteOf = (id) => {
-    if (id === 'words') return `${stat.seen} / ${pool.length}개 봤어요`;
-    if (id === 'repeat') {
-      const doing = rounds.round1 + rounds.round2 + rounds.round3;
-      return doing > 0 ? `보고 있는 것 ${doing}개 · 완료 ${rounds.done + rounds.long}개` : '아직 배운 게 없어요';
+    if (id === 'n3') {
+      return n3Summary
+        ? `${n3Summary.done} / ${n3Summary.total} 레슨 · 준비도 ${n3Summary.ready}%`
+        : 'N4 복습부터 모의고사까지 — 오늘의 N3만 누르면 돼요';
     }
-    if (id === 'weak') return weak > 0 ? `다시 익힐 표현 ${weak}개` : '아직 복습할 약점이 없어요';
+    if (id === 'words') return `${stat.seen} / ${pool.length}개 봤어요`;
     return null;
   };
 
@@ -55,7 +48,7 @@ export default function StudyHub({ words, review, settings, onOpen }) {
         const big = g.items.filter((m) => m.big);
         const small = g.items.filter((m) => !m.big);
         return (
-          <div key={g.id} className="menugroup">
+          <div key={g.id} className="menugroup" data-group={g.id}>
             <div className="section-label mg-label">
               {g.label}
               <span className="mg-sub">{g.sub}</span>
@@ -79,12 +72,8 @@ export default function StudyHub({ words, review, settings, onOpen }) {
       })}
 
       {groups.length === 0 && (
-        <div className="empty-state">더보기 → 학습 설정에서 학습 메뉴를 켜 주세요</div>
+        <div className="empty-state">내 학습 → 설정 → 학습 설정에서 학습 메뉴를 켜 주세요</div>
       )}
-
-      <p className="set-note">
-        얼마나 했는지는 기록 탭에서 볼 수 있어요.
-      </p>
     </>
   );
 }

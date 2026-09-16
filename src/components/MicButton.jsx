@@ -80,7 +80,7 @@ export default function MicButton({
       <div className="micwrap micoff">
         <p className="set-note">
           이 브라우저는 음성 인식을 지원하지 않아요. 카드를 소리로 들으며 따라 읽고,
-          뜻은 화면에서 확인해 주세요 — 듣기 탭의 「따라 말하기」도 같은 연습이에요.
+          뜻은 화면에서 확인해 주세요 — 학습 → 듣기의 「따라 말하기」도 같은 연습이에요.
         </p>
       </div>
     );

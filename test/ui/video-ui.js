@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab } from './_nav.js';
+import { goTab, openMenu } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -82,7 +82,7 @@ const FAKE = {
   /* 듣기 → 영상으로 배우기.
      탭이었다가 학습 탭 카드로 갔다가, 이제 듣기 탭으로 왔다. 보고 듣는 일은
      앉아서 손으로 하는 공부와 결이 달라서 거기가 제자리다. */
-  await goTab(page, '듣기');
+  await openMenu(page, '듣기');
   const entry = page.locator('.lh-way[data-way="videos"]');
   ok('듣기 탭에 영상이 있음', await entry.count() === 1);
   await entry.click();
@@ -199,7 +199,7 @@ const FAKE = {
   await page.waitForTimeout(700);
   /* 회독을 닫으면 학습 탭으로 빠진다. 목록까지는 걸어서 들어간다 —
      화면이 어디에 있든 같은 길이라 흔들리지 않는다. */
-  await goTab(page, '듣기');
+  await openMenu(page, '듣기');
   await page.locator('.lh-way[data-way="videos"]').click();
   await page.waitForTimeout(900);
   /* 영상 화면은 상세로 열릴 수 있다. 목록이 안 보일 때만 한 단계 나온다 —
@@ -231,7 +231,7 @@ const FAKE = {
   console.log('\n[ 넷플릭스 자막 ]');
   await page.locator('.sh-close').first().click();
   await page.waitForTimeout(700);
-  await goTab(page, '듣기');
+  await openMenu(page, '듣기');
   await page.locator('.lh-way[data-way="videos"]').click();
   await page.waitForTimeout(900);
   if (await page.locator('.vd-item').count() === 0) {

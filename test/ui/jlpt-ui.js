@@ -1,6 +1,12 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab } from './_nav.js';
+import { ALL_WORDS } from '../../src/data/allWords.js';
+
+/* N3 단어 수는 자료가 늘면 같이 는다 — 숫자를 못 박지 않고 자료에서 센다 */
+const N3_TOTAL = ALL_WORDS.filter((w) => w.level === 'N3').length;
+const N3_SETS = Math.ceil(N3_TOTAL / 100);
+const N3_LAST = N3_TOTAL - (N3_SETS - 1) * 100;
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -49,7 +55,8 @@ const ok = (label, cond, extra) => {
   await goTab(page, '학습');
   ok('JLPT 단어가 따로 있지 않다',
     await page.locator('.menutile', { hasText: 'JLPT 단어' }).count() === 0);
-  const card = page.locator('.mbig').filter({ hasText: '단어' }).first();
+  /* 단어는 이제 콘텐츠 묶음의 작은 칸이다 — 이름이 딱 맞는 칸 */
+  const card = page.locator('.menutile').filter({ has: page.locator('.mt-title', { hasText: /^단어$/ }) }).first();
   ok('단어로 들어간다', await card.count() > 0);
   await card.first().click();
   await page.waitForTimeout(600);
@@ -65,7 +72,7 @@ const ok = (label, cond, extra) => {
   })));
   ok('레벨 5개 표시', levels.length === 5, levels.map((l) => l.badge).join(','));
   ok('N5 준비됨', levels[0].sub.includes('534개') && levels[0].sub.includes('6세트'), levels[0].sub);
-  ok('N3 준비됨', levels[2].sub.includes('1206개') && levels[2].sub.includes('13세트'), levels[2].sub);
+  ok('N3 준비됨', levels[2].sub.includes(`${N3_TOTAL}개`) && levels[2].sub.includes(`${N3_SETS}세트`), levels[2].sub);
   ok('N2 준비 중 + 비활성', levels[3].disabled && levels[3].sub.includes('준비 중'));
   ok('N1 준비 중 + 비활성', levels[4].disabled);
   ok('연도별 미제공 사유 안내', (await page.textContent('body')).includes('연도별 기출로 나누지 않은 이유'));
@@ -78,9 +85,9 @@ const ok = (label, cond, extra) => {
     range: e.querySelector('.jl-sub')?.textContent,
     pct: e.querySelector('.jl-pct')?.textContent,
   })));
-  ok('N3 세트 13개', sets.length === 13, `${sets.length}개`);
+  ok(`N3 세트 ${N3_SETS}개`, sets.length === N3_SETS, `${sets.length}개`);
   ok('1세트 100개', sets[0].title.includes('1세트 · 100개'), sets[0].title);
-  ok('마지막 세트 6개', sets[12].title.includes('13세트 · 6개'), sets[12].title);
+  ok(`마지막 세트 ${N3_LAST}개`, sets[N3_SETS - 1].title.includes(`${N3_SETS}세트 · ${N3_LAST}개`), sets[N3_SETS - 1].title);
   ok('세트별 단어 범위 표시', /…/.test(sets[0].range), sets[0].range);
   ok('진도 0/100 표시', sets[0].pct === '0/100', sets[0].pct);
 

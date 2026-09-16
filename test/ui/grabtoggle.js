@@ -90,7 +90,7 @@ const toast = async (page) => {
   const sw = p1.locator('.toggle-row', { hasText: '영상에서 자막 직접 받아오기' });
   ok('설정에 스위치가 있음', await sw.count() === 1);
   ok('꺼져 있음', await sw.locator('.toggle.on').count() === 0);
-  const note = await p1.textContent('.screen.active');
+  const note = await p1.textContent('.sub-body');
   ok('요금이 든다고 알려 줌', note.includes('토큰'), note.match(/[^.]*토큰[^.]*/)?.[0]?.trim().slice(0, 60));
   ok('몇 분까지 듣는지 적음', note.includes('15분까지'));
 

@@ -14,7 +14,10 @@ export const Situations = lazy(() => import('../screens/Situations.jsx'));
 export const Translate = lazy(() => import('../screens/Translate.jsx'));
 export const Quiz = lazy(() => import('../screens/Quiz.jsx'));
 export const Listen = lazy(() => import('../screens/Listen.jsx'));
-export const ReviewTab = lazy(() => import('../screens/ReviewTab.jsx'));
+/* 복습 탭 — 오늘 복습·틀린 문제·약점·전체 복습이 한 곳에 */
+export const ReviewHub = lazy(() => import('../screens/ReviewHub.jsx'));
+/* 듣기 고르기 — 학습 탭 「듣기」 칸이 연다 */
+export const ListenHub = lazy(() => import('../screens/ListenHub.jsx'));
 export const Conjugate = lazy(() => import('../screens/Conjugate.jsx'));
 export const Match = lazy(() => import('../screens/Match.jsx'));
 export const Rpg = lazy(() => import('../screens/Rpg.jsx'));

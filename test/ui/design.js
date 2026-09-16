@@ -1,7 +1,7 @@
 /* 디자인·UX 점검 — 실제로 그려 보고 넘치는 곳, 안 눌리는 곳, 안 보이는 글자를 찾는다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, openVideos, startStudy, openReview } from './_nav.js';
+import { goTab, openVideos, startStudy, openReview, openMenu, openSettings } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* 이 환경에는 크롬이 여기 있다. 없으면(예: CI) playwright가 받아 둔 걸
@@ -175,9 +175,11 @@ const check = async (page, theme, name) => {
   /* 개편으로 새로 생긴 화면들. 검사가 안 보던 자리라 여기가 제일 위험하다. */
   await goTab(page, '학습');
   await page.waitForTimeout(700); await check(page, theme, '01b-학습허브');
-  await goTab(page, '기록');
-  await page.waitForTimeout(700); await check(page, theme, '01c-기록');
-  await goTab(page, '듣기');
+  await goTab(page, '복습');
+  await page.waitForTimeout(700); await check(page, theme, '01c-복습탭');
+  await goTab(page, '내 학습');
+  await page.waitForTimeout(700); await check(page, theme, '01f-내학습');
+  await openMenu(page, '듣기');
   await page.locator('.lh-way[data-way="auto"]').click();
   await page.waitForTimeout(800); await check(page, theme, '01d-듣기');
   await page.locator('.ls-go').click();
@@ -197,7 +199,7 @@ const check = async (page, theme, name) => {
   await page.waitForTimeout(700);
   await page.locator('.vd-how > summary').click();
   await page.waitForTimeout(300); await check(page, theme, '04-영상-방법보기');
-  await goTab(page, '더보기');
+  await openSettings(page);
   await page.waitForTimeout(700); await check(page, theme, '05-설정');
   await startStudy(page);
   await page.waitForTimeout(1200); await check(page, theme, '07-회독-앞면');

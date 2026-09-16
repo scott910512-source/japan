@@ -75,7 +75,7 @@ const FAKE = {
   // 설정 화면
   await openMore(page, 'tools');   // 영상 AI 연결
   await page.waitForTimeout(700);
-  const body = await page.textContent('.screen.active');
+  const body = await page.textContent('.sub-body');
   ok('설명을 만들 곳을 고를 수 있음', body.includes('설명을 만들 곳'));
   ok('Gemini가 기본으로 골라져 있음', await page.locator('.ai-pick.active', { hasText: 'Gemini' }).count() === 1);
   ok('음성 키를 빌려 쓴다고 안내', body.includes('음성 키를 그대로 쓰고 있어요'));

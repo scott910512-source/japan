@@ -126,7 +126,7 @@ export async function ask(question, card, settings = {}) {
   }
 
   const { provider, apiKey, model } = resolveProvider(settings);
-  if (!apiKey) throw new Error('더보기 → 설정에서 AI 키를 넣어 주세요');
+  if (!apiKey) throw new Error('내 학습 → 설정에서 AI 키를 넣어 주세요');
 
   const args = { apiKey, model, system: SYSTEM, user: userText(q, card) };
   const text = provider === PROVIDERS.CLAUDE

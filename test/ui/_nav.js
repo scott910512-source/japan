@@ -4,43 +4,45 @@
  * 길을 각자 적어 두었더니 스무 군데를 고쳐야 했다. 다음에 또 바꿀 테니
  * 한 곳에 모아 둔다 — 그러면 다음엔 여기만 고치면 된다.
  *
- * 예전 → 지금
- *   홈 탭            → 오늘 탭
- *   학습 탭(바로 회독) → 오늘 탭에서 시작 (한 장 보고 들어간다)
- *   영상 탭           → 학습 탭 위쪽 카드
- *   설정 탭           → 더보기 탭
- *   홈의 메뉴 바둑판   → 학습 탭의 메뉴 바둑판 */
+ * 예전 → 지금 (탭 다섯 → 넷)
+ *   오늘 탭            → 홈 탭
+ *   학습 탭            → 학습 탭 (JLPT N3 · 콘텐츠 · 연습 · 그 밖에)
+ *   듣기 탭            → 학습 탭 「듣기」 칸 (자동 · 따라 · 영상)
+ *   기록 탭            → 내 학습 탭
+ *   더보기 탭          → 내 학습 탭 → 「설정」 줄
+ *   밀어 넣는 복습 화면 → 복습 탭 */
 
 /* 탭으로 간다.
  *
- * 밀어 넣는 화면(메뉴·복습·번역기…)이 열려 있으면 먼저 닫는다. 그 화면은
+ * 밀어 넣는 화면(메뉴·설정·번역기…)이 열려 있으면 먼저 닫는다. 그 화면은
  * 탭 바를 덮는 통짜 화면이라, 열어 둔 채로 탭을 누르면 30초를 기다리다
- * 검사가 통째로 멈춘다. 사람도 뒤로를 누르고 탭을 누른다 — 같은 순서다. */
+ * 검사가 통째로 멈춘다. 사람도 뒤로를 누르고 탭을 누른다 — 같은 순서다.
+ *
+ * 학습(회독) 중에는 탭바가 없다 — 집중하는 자리라서. 그때는 화면의 닫기를
+ * 먼저 누른다. */
 export async function goTab(page, label, wait = 700) {
-  const back = page.locator('.subscreen.open .sub-back');
+  const close = page.locator('.study .sh-close, .study .si-back');
+  if (await close.count()) { await close.first().click(); await page.waitForTimeout(500); }
+  const back = page.locator('.subscreen.open .sub-header:not(.inline) .sub-back');
   if (await back.count()) { await back.first().click(); await page.waitForTimeout(500); }
-  await page.locator('.tabbar .tab', { hasText: label }).first().click();
+  /* 「학습」은 「내 학습」에도 들어 있다 — 이름이 아니라 id로 누른다 */
+  const id = { '홈': 'home', '학습': 'study', '복습': 'review', '내 학습': 'me' }[label];
+  const tab = id ? page.locator(`.tabbar .tab[data-tab="${id}"]`) : page.locator('.tabbar .tab', { hasText: label }).first();
+  await tab.click();
   await page.waitForTimeout(wait);
 }
 
 /* 학습 시작.
  *
- * 오늘 화면의 모양이 두 번 바뀌었다. 처음엔 「오늘의 학습 시작」 버튼 하나,
- * 다음엔 「복습하기 · 새 단어 · 오늘의 문법」 셋, 이제는 주요 버튼 하나에
- * 배정 내역이 아래 붙는 꼴이다. 그때마다 검사 열 곳이 한꺼번에 30초씩
- * 멈췄다 — 그래서 어디를 누를지는 여기서만 정한다.
+ * 홈의 주요 버튼 하나가 「지금 할 것」이다. 하던 게 있으면 이어하기가 되고,
+ * 없으면 오늘 학습 시작이 된다 — 갈래를 안 물었으면 이걸 누르면 된다.
  *
- * 갈래를 안 주면 주요 버튼을 누른다. 그게 지금 상황에 맞는 행동(이어하기든
- * 오늘 학습 시작이든)이라 사람이 누르는 것과 같다.
- *
- * 갈래를 주면 그 줄을 찾아 누른다. 검사마다 심어 두는 기록이 달라서(어떤 건
- * 전부 복습일, 어떤 건 전부 신규) 갈래를 못 박으면 그쪽이 0인 검사가 빈손으로
- * 돌아온다. 다 했으면 아무것도 안 한 채로 false를 돌려준다. */
+ * 갈래를 주면 홈 「오늘」 목록에서 그 줄을 찾아 누른다. 검사마다 심어 두는
+ * 기록이 달라서(어떤 건 전부 복습일, 어떤 건 전부 신규) 갈래를 못 박으면
+ * 그쪽이 0인 검사가 빈손으로 돌아온다. 다 했으면 아무것도 안 한 채로 false. */
 export async function startStudy(page, want = null) {
-  await goTab(page, '오늘');
+  await goTab(page, '홈');
 
-  /* 주요 버튼 하나가 「지금 할 것」이다. 하던 게 있으면 이어하기가 되고,
-     없으면 오늘 학습 시작이 된다 — 갈래를 안 물었으면 이걸 누르면 된다. */
   if (!want) {
     const cta = page.locator('.bigcta');
     if (await cta.count()) {
@@ -53,7 +55,9 @@ export async function startStudy(page, want = null) {
     }
   }
 
-  const rows = page.locator('.tdtask').filter({ hasNotText: '오늘의 문법' });
+  /* 「오늘」 목록의 줄. 이어서 공부하기의 N3·복습 줄도 같은 모양(.tdtask)이라
+     이름으로 고른다 — 문법과 N3는 카드 판이 아니다. */
+  const rows = page.locator('.tdlist .tdtask').filter({ hasNotText: '오늘의 문법' }).filter({ hasNotText: '오늘의 N3' });
   const n = await rows.count();
   if (n === 0) return false;
 
@@ -79,18 +83,24 @@ export async function startStudy(page, want = null) {
   return true;
 }
 
-/* 더보기의 한 묶음을 연다.
+/* 설정을 연다 — 내 학습 탭 → 「설정」 줄. 이미 설정 안이면 그대로. */
+export async function openSettings(page) {
+  if (await page.locator('.moregroup').count() || await page.locator('.moreback').count()) return true;
+  await goTab(page, '내 학습');
+  await page.locator('.me-settings').click();
+  await page.waitForTimeout(600);
+  return Boolean(await page.locator('.moregroup').count());
+}
+
+/* 설정의 한 묶음을 연다.
  *
- * ★ 더보기가 긴 한 화면에서 여섯 줄 목록으로 바뀌었다 ★
- *
- * 예전엔 탭만 누르면 계정·목적·음성·데이터가 다 거기 있었다. 이제는 묶음을
- * 하나 골라 들어가야 한다. 검사 여덟 곳이 탭만 누르고 내용을 찾고 있었으니,
- * 어디를 눌러 들어가는지는 여기서만 정한다 — 화면이 또 바뀌어도 여기만 고친다.
+ * ★ 더보기 탭이 없어졌다 ★ 설정은 내 학습 탭에서 밀어 넣는 화면이고, 그 안은
+ * 예전처럼 여섯 묶음 목록이다. 검사 여덟 곳이 탭만 누르고 내용을 찾고
+ * 있었으니, 어디를 눌러 들어가는지는 여기서만 정한다.
  *
  * group: study · voice · account · backup · tools · about
  * 이미 그 묶음에 들어와 있으면 아무것도 안 한다. */
 export async function openMore(page, group = 'study') {
-  await goTab(page, '더보기');
   const label = {
     study: '학습 설정',
     voice: '음성',
@@ -99,42 +109,28 @@ export async function openMore(page, group = 'study') {
     tools: '학습 도구',
     about: '앱 정보',
   }[group] || group;
+  /* 어느 묶음 안에 있으면 목록으로 나온다 */
+  if (!(await page.locator('.moregroup').count())) {
+    const back = page.locator('.moreback');
+    if (await back.count()) { await back.click(); await page.waitForTimeout(400); }
+  }
+  if (!(await page.locator('.moregroup').count())) await openSettings(page);
   const row = page.locator('.moregroup', { hasText: label });
   if (await row.count()) {
     await row.first().click();
     await page.waitForTimeout(500);
     return true;
   }
-  /* 목록이 안 보이면 이미 어느 묶음에 들어와 있는 것이다. 뒤로 나가서 다시 고른다 */
-  const back = page.locator('.moreback');
-  if (await back.count()) {
-    await back.click();
-    await page.waitForTimeout(400);
-    const again = page.locator('.moregroup', { hasText: label });
-    if (await again.count()) {
-      await again.first().click();
-      await page.waitForTimeout(500);
-      return true;
-    }
-  }
   return false;
 }
 
 /* 카드 한 장을 판정한다.
  *
- * ★ 이제 답을 보고 나서 판정한다 ★
- *
- * 여태 판정 버튼이 앞면에서도 눌렸다. 자기평가의 기준은 「답을 보기 전에
- * 떠올렸는지」인데, 앞면에서 누르면 「떠올린 것 같나」를 적게 된다.
- * 그래서 앞면에는 「답 보기」만 있고, 판정은 뒤집은 뒤에 나온다.
- *
- * 검사 여덟 곳이 판정 버튼을 바로 눌렀다. 사람이 하는 순서(뒤집고 → 고른다)를
- * 여기 한 번만 적어 둔다 — 화면이 또 바뀌어도 여기만 고치면 된다.
- * 판정이 안 나오면 false를 준다(판이 끝났거나 카드가 없다). */
+ * 앞면에는 「답 보기」만 있고, 판정은 뒤집은 뒤에 나온다. 사람이 하는 순서
+ * (뒤집고 → 고른다)를 여기 한 번만 적어 둔다. 판정이 안 나오면 false. */
 export async function judgeCard(page, label = '알아요', wait = 500) {
   const card = page.locator('.studycard');
   if (await card.count() === 0) return false;
-  // 뒤집는다. 이미 뒤집혀 있으면 카드를 눌러도 아무 일 없다.
   await card.first().click();
   await page.waitForTimeout(180);
   const btn = page.locator('.judgerow button', { hasText: label });
@@ -144,16 +140,14 @@ export async function judgeCard(page, label = '알아요', wait = 500) {
   return true;
 }
 
-/* 갈래를 못 박고 싶은 검사용.
-   「새 단어」는 문장도 같이 배정되니 「새로 배우기」로, 「복습하기」는
-   배정 내역 줄 이름이 「복습」으로 바뀌었다. */
+/* 갈래를 못 박고 싶은 검사용. 홈 「오늘」 목록의 줄 이름이다. */
 export const startWords = (page) => startStudy(page, '새로 배우기');
 export const startReview = (page) => startStudy(page, '복습');
 
+/* 학습 탭의 칸을 연다. 이름이 딱 맞는 칸을 고른다 — hasText는 부분 일치라
+   「단어」로 찾으면 「단어 시험」이 먼저 잡힌다. */
 export async function openMenu(page, label) {
   await goTab(page, '학습');
-  /* 이름이 딱 맞는 칸을 고른다. hasText는 부분 일치라 「단어」로 찾으면
-     「단어 시험」이 먼저 잡힌다 — 실제로 그렇게 엉뚱한 화면이 열렸다. */
   const exact = page.locator('.menutile').filter({
     has: page.locator('.mt-title', { hasText: new RegExp(`^${label}$`) }),
   });
@@ -163,20 +157,16 @@ export async function openMenu(page, label) {
   await page.waitForTimeout(800);
 }
 
-/* 듣기와 영상은 「듣기」 탭으로 올라갔다. 앉아서 손으로 하는 공부와 걸으면서
-   손 없이 하는 공부는 쓰는 시간대가 달라서, 지하철에서 한 번에 닿아야 한다. */
+/* 듣기 — 학습 탭 「듣기」 칸 → 자동 · 따라 말하기 · 영상 */
 export async function openListen(page, way = 'auto') {
-  await goTab(page, '듣기');
+  await openMenu(page, '듣기');
   await page.locator(`.lh-way[data-way="${way}"]`).click();
   await page.waitForTimeout(900);
 }
 
-/* 복습 화면. 탭에서 내려왔지만 화면은 그대로다 —
-   오늘 화면의 「복습이 더 남았어요」와 기록 탭에서 여기로 온다. */
+/* 복습 탭. 오늘 복습·틀린 문제·약점·전체 복습이 여기 하나에 있다. */
 export async function openReview(page) {
-  await goTab(page, '기록');
-  await page.locator('.rowcard', { hasText: '복습으로 가기' }).click();
-  await page.waitForTimeout(900);
+  await goTab(page, '복습');
 }
 
 export async function openVideos(page) {
