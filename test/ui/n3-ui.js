@@ -283,7 +283,7 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   console.log('\n── Chapter 2 레슨을 골라서 · 틀린 문제 → 오답노트 → 약점');
   await page.locator('.n3-chapter[data-chapter="ch2"] .n3-chhead').click();
   await page.locator('.n3-chapter[data-chapter="ch2"].open').waitFor();
-  ok('Chapter 2는 뜻으로 묶여 있다', await page.locator('.n3-chapter[data-chapter="ch2"] .n3-group').count() === 15);
+  ok('Chapter 2는 뜻으로 묶여 있다', await page.locator('.n3-chapter[data-chapter="ch2"] .n3-group').count() === 16);
   await page.locator('.n3-group[data-group="guess"] .n3-ghead').click();
   await page.locator('.n3-lrow[data-lesson="g:souda-yousu"]').waitFor();
   await page.locator('.n3-lrow[data-lesson="g:souda-yousu"]').click();

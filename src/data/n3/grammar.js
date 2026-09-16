@@ -10,6 +10,8 @@ import { GRAMMAR_CH0 } from './grammar-ch0.js';
 import { GRAMMAR_CH1 } from './grammar-ch1.js';
 import { GRAMMAR_CH2A } from './grammar-ch2a.js';
 import { GRAMMAR_CH2B } from './grammar-ch2b.js';
+import { GRAMMAR_CH2C } from './grammar-ch2c.js';
+import { GRAMMAR_CH2D } from './grammar-ch2d.js';
 
 export { BLANK } from './grammar-ch0.js';
 
@@ -30,15 +32,16 @@ export const GRAMMAR_GROUPS = [
   { id: 'permission', title: '허가·의뢰', sub: 'てもかまわない · てほしい · させていただく' },
   { id: 'hearsay', title: '전언·인용', sub: 'そうだ(전문) · という · によると · とか' },
   { id: 'contrast', title: '역접·양보', sub: 'のに · ても · くせに · としても · ながらも · からといって · けど' },
+  { id: 'topic', title: '대상·관계', sub: 'について · にとって · として · を中心に · を通じて · において' },
 ];
 
 export const GRAMMAR_CHAPTERS = [
   { id: 'ch0', title: 'N4 핵심 압축 복습', sub: 'N3에 꼭 필요한 조사·활용만 빠르게. 진단으로 건너뛰기', emoji: '🔁' },
   { id: 'ch1', title: 'N3 기본 문장 만들기', sub: '수식 · 명사화 · 자타동사 · 수수 · 수동 · 사역 · 경어 · 접속사', emoji: '🧱' },
-  { id: 'ch2', title: 'N3 필수 문법', sub: '열다섯 가지 뜻으로 묶어 비슷한 표현끼리 비교', emoji: '📘' },
+  { id: 'ch2', title: 'N3 필수 문법', sub: '열여섯 가지 뜻으로 묶어 비슷한 표현끼리 비교', emoji: '📘' },
 ];
 
-export const GRAMMAR_LESSONS = [...GRAMMAR_CH0, ...GRAMMAR_CH1, ...GRAMMAR_CH2A, ...GRAMMAR_CH2B];
+export const GRAMMAR_LESSONS = [...GRAMMAR_CH0, ...GRAMMAR_CH1, ...GRAMMAR_CH2A, ...GRAMMAR_CH2B, ...GRAMMAR_CH2C, ...GRAMMAR_CH2D];
 
 const byId = new Map(GRAMMAR_LESSONS.map((l) => [l.id, l]));
 export const grammarById = (id) => byId.get(id) || null;
