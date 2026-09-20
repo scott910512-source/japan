@@ -7,4 +7,4 @@
 @import "./styles/practice.css";
 @import "./styles/overview.css";
 @import "./styles/refinements.css";
-@import "./styles/n3.css";
+/* n3.css는 N3Course.jsx가 불러온다 — 코스 청크와 같이 받는다(첫 로딩 CSS에서 뺐다) */
