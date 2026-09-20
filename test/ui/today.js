@@ -150,7 +150,8 @@ async function boot(browser, patch = {}, init = null) {
     tasks.some((t) => /단어 \d+|문장 \d+/.test(t)),
     tasks.find((t) => t.includes('새로 배우기'))?.replace(/\n/g, ' '));
   const contText = await page.textContent('.hm-cont');
-  ok('★ 이어서 공부하기에 N3 코스와 오늘 복습 ★', contText.includes('한 권으로 끝내는 N3') && contText.includes('오늘 복습'), contText.replace(/\s+/g, ' ').slice(0, 80));
+  /* 「오늘 복습」 카드는 뺐다 — 바로 아래 「오늘」 목록의 복습 줄과 같은 숫자였다 */
+  ok('★ 이어서 공부하기는 N3 코스 하나 — 복습은 「오늘」 목록에만 ★', contText.includes('한 권으로 끝내는 N3') && !contText.includes('오늘 복습') && await page.locator('.hm-cont .tdtask').count() === 1, contText.replace(/\s+/g, ' ').slice(0, 80));
   ok('복습 줄에 복습·약점 개수가 적힘', /복습 \d+ · 약점 \d+/.test(tasks[0]),
     tasks[0].replace(/\n/g, ' '));
 
