@@ -1,4 +1,5 @@
 import { IconRepeat, IconChevron, IconFlame, IconX, IconGrid, IconChat, IconBook } from '../components/Icons.jsx';
+import { reviewLeftOf } from '../lib/plan.js';
 
 /* 복습 탭 — 복습으로 가는 길을 하나로.
  *
@@ -17,12 +18,8 @@ export default function ReviewHub({
   planNow, sentenceDue, weakWords, wrongCount, weakGrammar,
   onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeakWords, onOpenWeakGrammar, onOpenRepeat,
 }) {
-  const lanes = planNow?.lanes || {};
-  const assigned = (lanes.review?.assigned || 0) + (lanes.weak?.assigned || 0);
-  const done = (lanes.review?.done || 0) + (lanes.weak?.done || 0);
-  const left = Math.max(0, assigned - done);
-  const over = planNow?.over || {};
-  const backlog = (over.review || 0) + (over.weak || 0);
+  /* 홈·배지와 같은 함수 — 여기서 따로 세지 않는다 */
+  const { left, assigned, done, backlog, review: reviewLeft, weak: weakLeft } = reviewLeftOf(planNow);
 
   return (
     <>
@@ -39,7 +36,7 @@ export default function ReviewHub({
               <span className="rv-lab">오늘 복습</span>
               <b className="rv-num">{left}<small>개</small></b>
             </div>
-            <div className="rv-sub">복습일이 된 것 {(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 {(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}{done > 0 ? ` · 오늘 ${done}개 했어요` : ''}</div>
+            <div className="rv-sub">복습일이 된 것 {reviewLeft} · 약점 {weakLeft}{done > 0 ? ` · 오늘 ${done}개 했어요` : ''}</div>
             <button className="submit-btn rv-start" onClick={onStartReview}>복습 시작</button>
           </>
         )}

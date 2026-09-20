@@ -12,8 +12,7 @@
  * 화면·큐·통계가 그 하나만 본다. */
 import {
   buildPlan, ensurePlan, planStatus, markStudied, unmarkStudied,
-  addMore, remaining, mergePlan, noteFreeStudy, untouched, MORE_STEP,
-} from '../../src/lib/plan.js';
+  addMore, remaining, mergePlan, noteFreeStudy, untouched, MORE_STEP, reviewLeftOf } from '../../src/lib/plan.js';
 import { applyVerdict, emptyState, VERDICT } from '../../src/lib/review.js';
 
 let pass = 0; let fail = 0;
@@ -221,6 +220,23 @@ console.log('\n[ 실제 판정과 이어 붙여 본다 ]');
   p = markStudied(p, id);
   ok('맞히면 완료로 센다', planStatus(p).done === 1);
   ok('그래도 같은 날 졸업은 안 한다', review[id].level === 1, `${review[id].level}`);
+}
+
+console.log('\n[ ★ 오늘 복습 몇 개 — 배지·홈·복습 탭이 한 함수를 본다 ★ ]');
+{
+  /* 후보가 스물인데 몫은 열이면, 남은 열은 「밀린 복습」이다. 배지는 오늘 몫에서
+     남은 수만 세야 한다 — 밀린 것까지 더했더니 배지 99+ 옆에 복습 탭 11개가 섰다. */
+  const p = { ...buildPlan(pool(), {}, { goals: GOALS, today: T }), sizes: { review: 20, weak: 3, fresh: 0 } };
+  const st = planStatus(p);
+  const r = reviewLeftOf(st);
+  const lanes = st.lanes;
+  ok('오늘 몫에서 남은 복습·약점만 센다', r.left === (lanes.review.assigned - lanes.review.done) + (lanes.weak.assigned - lanes.weak.done));
+  ok('밀린 복습은 따로 준다', r.backlog === st.over.review + st.over.weak && r.backlog > 0, `${r.backlog}`);
+  ok('★ 배지에 밀린 것이 안 섞인다 ★', r.left < r.left + r.backlog);
+  const done = p.assigned.filter((x) => x.bucket !== 'fresh').reduce((pl, x) => markStudied(pl, x.id), p);
+  const r2 = reviewLeftOf(planStatus(done));
+  ok('복습을 다 하면 0 — 밀린 것이 있어도 배지는 0', r2.left === 0 && r2.backlog > 0);
+  ok('계획이 없으면 전부 0', reviewLeftOf(planStatus(null)).left === 0 && reviewLeftOf(null).backlog === 0);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

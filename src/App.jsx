@@ -9,7 +9,7 @@ import { useToast } from './app/useToast.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TabBar from './components/TabBar.jsx';
 import {
-  addMore, ensurePlan, markStudied, noteFreeStudy, planStatus, remaining, unmarkStudied,
+  addMore, ensurePlan, markStudied, noteFreeStudy, planStatus, remaining, reviewLeftOf, unmarkStudied,
 } from './lib/plan.js';
 import BottomSheet from './components/BottomSheet.jsx';
 import Onboarding from './components/Onboarding.jsx';
@@ -382,14 +382,10 @@ export default function App() {
   const planNow = useMemo(() => planStatus(plan), [plan]);
 
   /* ★ 복습 탭 배지 · 홈 · 복습 탭이 같은 수를 본다 ★
-     오늘 계획의 복습·약점 갈래에서 남은 것 + 계획에 다 못 담은 것. 예전엔
-     배지는 회독 저장소의 「복습일이 된 것」을 따로 세서 홈의 「복습 12개」와
-     달랐다. */
-  const reviewLeft = useMemo(() => {
-    const l = planNow.lanes || {};
-    const left = Math.max(0, ((l.review?.assigned || 0) + (l.weak?.assigned || 0)) - ((l.review?.done || 0) + (l.weak?.done || 0)));
-    return left + (planNow.over?.review || 0) + (planNow.over?.weak || 0);
-  }, [planNow]);
+     오늘 계획의 복습·약점 갈래에서 남은 것 — reviewLeftOf 한 곳에서. 밀린
+     복습(backlog)은 배지에 더하지 않는다. 더했더니 배지는 「99+」인데 복습 탭은
+     「11개」라 같은 화면에서 숫자가 달랐다. 밀린 것은 복습 탭 안에서만 말한다. */
+  const reviewLeft = useMemo(() => reviewLeftOf(planNow).left, [planNow]);
 
   /* 취약 단어 수 — 복습 탭과 내 학습이 같은 함수(weakCards)를 본다 */
   const weakWords = useMemo(() => weakCards(wordIds, review).length, [wordIds, review]);
