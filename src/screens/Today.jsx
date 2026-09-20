@@ -82,12 +82,14 @@ export default function Today({
 
       {/* N3가 이 앱의 목표다 — 머리 밑에 한 줄. 열어 봤다고 오르지 않는다.
           준비도는 실제로 맞힌 결과에서만 나온다(코스가 적어 둔 요약). */}
+      {/* 보기만 한다 — 코스로 들어가는 길은 아래 「이어서 공부하기」와 학습 탭,
+          둘이면 된다. 입구가 넷이면 어느 것이 맞는 길인지 매번 고르게 된다. */}
       {onOpenN3 && (
-        <button className="hm-goal" onClick={onOpenN3} data-ready={summary ? summary.ready : ''}>
+        <div className="hm-goal" data-ready={summary ? summary.ready : ''}>
           <span className="hg-lab">JLPT N3</span>
           <span className="hg-bar"><i style={{ width: `${summary ? summary.ready : 0}%` }} /></span>
           <b className="hg-pct">{summary ? `${summary.ready}%` : '시작 전'}</b>
-        </button>
+        </div>
       )}
 
       {/* ★ 누를 것은 하나 ★ 하던 게 있으면 이어하기, 없으면 오늘 학습 시작.
