@@ -20,7 +20,8 @@
  * 단어장이 2336개 낱말의 급수를 알고 있으니 추측할 게 아니라 세면 된다.
  * 「근거 없는 레벨은 안 붙인다」는 규칙은 그대로다. 근거가 생겼을 뿐이다.
  * 근거를 못 찾은 문장은 여전히 미분류로 남는다. */
-import { sentenceToCard, dailyPool, allSentenceCards } from '../../src/lib/cards.js';
+import { sentenceToCard, dailyPool } from '../../src/lib/cards.js';
+import { allSentenceCards } from '../../src/lib/content.js';
 import { buildLexicon, gradeSentence } from '../../src/lib/sentlevel.js';
 
 let pass = 0; let fail = 0;

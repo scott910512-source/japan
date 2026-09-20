@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { IconFlame, IconChevron } from '../components/Icons.jsx';
-import { addDays, summarize, isMastered, stateOf, MASTERY_RULE } from '../lib/review.js';
+import { addDays, isMastered, stateOf, MASTERY_RULE } from '../lib/review.js';
 import { STATS_KEEP_DAYS, STREAK_RULE } from '../lib/storage.js';
-import { roundSummary, STAGES } from '../lib/rounds.js';
+import { STAGES } from '../lib/rounds.js';
 import { useToday } from '../lib/useToday.js';
 
 /* 기록 — 이미 쌓이고 있던 걸 이제야 보여 준다.
@@ -50,7 +50,7 @@ function monthGrid(year, month) {
 const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', reading: '독해', listening: '청해' };
 
 export default function Log({
-  words, review, stats, streak, grammarLeft,
+  review, stats, streak, grammarLeft, stat, rounds,
   n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenSettings,
 }) {
   /* 자정을 넘기면 이 값이 바뀌고 화면이 다시 그려진다. 예전엔 마운트 때
@@ -95,8 +95,7 @@ export default function Log({
     };
   }, [stats, today, review]);
 
-  const wordIds = useMemo(() => words.map((w) => w.id), [words]);
-  const stat = useMemo(() => summarize(wordIds, review), [wordIds, review]);
+  /* stat·rounds는 App이 한 번 세서 내려 준다 — 학습 탭과 같은 값이다 */
 
   /* 회독 저장소에는 문장도 같이 들어 있다. 단어만 세면 실제로 한 것보다
      적게 나와서 "이만큼밖에 안 했나" 싶어진다. */
@@ -113,7 +112,6 @@ export default function Log({
 
   /* 회독 현황은 단어만 센다. 회독 저장소에는 문장도 같이 들어 있는데,
      막대에 섞으면 「단어 몇 개 외웠나」와 눈금이 안 맞는다. */
-  const rounds = useMemo(() => roundSummary(wordIds, review), [wordIds, review]);
   /* 눈금에서 「아직 안 봄」을 뺀다. 그게 2,400이라 나머지(77·57·110…)가 전부
      실선으로 보였다 — 안 본 것은 진도가 아니라 남은 양이라 숫자로만 적는다. */
   const roundMax = useMemo(

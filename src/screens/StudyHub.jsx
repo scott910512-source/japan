@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import StudyMenuCard from '../components/StudyMenuCard.jsx';
-import { summarize } from '../lib/review.js';
 import { groupedMenus } from '../lib/menu.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
@@ -18,13 +17,12 @@ import { filterByLevel } from '../lib/wordFilters.js';
  * 통계를 읽고 나간다. 코스 카드의 한 줄만 예외다(어디까지 왔는지가 곧 다음
  * 레슨이 무엇인지라서). */
 
-export default function StudyHub({ words, review, settings, n3Summary, onOpen }) {
+/* stat(단어 회독 현황)은 App이 한 번 세서 내려 준다 — 내 학습과 같은 값이다 */
+export default function StudyHub({ words, stat, settings, n3Summary, onOpen }) {
   const pool = useMemo(
     () => filterByLevel(words, settings.levels),
     [words, settings.levels],
   );
-  const ids = useMemo(() => pool.map((w) => w.id), [pool]);
-  const stat = useMemo(() => summarize(ids, review), [ids, review]);
   const groups = useMemo(() => groupedMenus(settings.menus), [settings.menus]);
 
   const noteOf = (id) => {
