@@ -168,6 +168,8 @@ async function judgeAll(page, max = 60, label = '알아요') {
   const steps = await page.locator('.n3-steprow').count();
   ok('오늘의 N3가 짜였다', steps >= 4, `${steps}단계`);
   await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click(); await page.waitForTimeout(500);
+  /* 요약은 코스가 열려 있는 동안 적힌다 — 나오자마자 홈 숫자가 바뀌어야 한다(다시 켜기 전에) */
+  ok('★ 코스에서 나오자마자 홈 N3 줄이 갱신된다 ★', /\d+%/.test(await page.locator('.hm-goal').innerText()), await page.locator('.hm-goal').innerText());
   await reboot(page);
   ok('다시 켜도 홈', (await page.locator('.tabbar .tab.active').innerText()) === '홈');
   ok('★ 홈 N3 줄에 준비도가 적힌다 (코스가 적어 둔 요약) ★', /\d+%/.test(await page.locator('.hm-goal').innerText()), await page.locator('.hm-goal').innerText());
