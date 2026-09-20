@@ -749,13 +749,12 @@ export default function App() {
             review={review}
             stats={stats}
             streak={streak}
-            /* 오늘 배정·완료는 계획 하나에서 나온다 — 기록 화면이 따로 세면
-               홈과 숫자가 어긋난다 */
-            planNow={planNow}
+            /* 오늘 배정·완료 3칸은 홈이 보여 준다 — 내 학습에서는 뺐다 */
             grammarLeft={grammarLeft}
             n3Summary={progress.n3?.summary || null}
             weakWords={weakWords}
-            onOpenN3={settings.menus?.n3 ? () => openMenu('n3') : null}
+            showN3={Boolean(settings.menus?.n3)}
+            onOpenStudy={() => selectTab('study')}
             onOpenReview={() => selectTab('review')}
             onOpenSettings={() => setSub('settings')}
           />

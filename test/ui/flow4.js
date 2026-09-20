@@ -36,6 +36,8 @@ async function boot(browser, patch = {}) {
     Object.assign(s, p.settings || {});
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
     if (p.review) localStorage.setItem('jp_manabu_review_v1', JSON.stringify(p.review));
+    /* 복습 탭 「틀린 문제」는 0이면 잠긴다 — 틀린 것 하나를 심어 둔다 */
+    if (p.n3) { const pg = JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}'); pg.n3 = p.n3; localStorage.setItem('jp_manabu_progress_v1', JSON.stringify(pg)); }
     sessionStorage.removeItem('jp_n3_view_v1');
   }, patch);
   await page.waitForTimeout(800);
@@ -84,7 +86,10 @@ async function judgeAll(page, max = 60, label = '알아요') {
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
   const errors = [];
-  const page = await boot(browser, { review: seedDue(30), settings: { goals: { fresh: 6, review: 8, weak: 4 } } });
+  const page = await boot(browser, {
+    review: seedDue(30), settings: { goals: { fresh: 6, review: 8, weak: 4 } },
+    n3: { v: 1, lessons: {}, skip: {}, days: {}, q: {}, wrong: { 'q:souda-yousu-1': { c: 1, at: 1, cat: 'grammar', ref: 'g:souda-yousu', ok: 0 } }, tests: {}, exams: [] },
+  });
   page.on('pageerror', (e) => errors.push(e.message));
 
   console.log('── 네 탭');
@@ -104,6 +109,7 @@ async function judgeAll(page, max = 60, label = '알아요') {
   const rvLeft = Number(await page.locator('.rv-top').getAttribute('data-left'));
   ok('★ 홈의 복습 수 = 복습 탭의 오늘 복습 수 = 배지 ★', homeReview > 0 && homeReview === rvLeft && badge === rvLeft, `${homeReview} / ${rvLeft} / ${badge}`);
   ok('복습 탭 맨 위가 오늘 복습', (await page.locator('.rv-top').innerText()).includes('오늘 복습'));
+  ok('0짜리 줄은 잠기고 「아직 없어요」', await page.locator('.rv-row[data-row="weak-grammar"]:disabled').count() === 1 && (await page.locator('.rv-row[data-row="weak-grammar"]').innerText()).includes('아직 없어요'));
   ok('틀린 문제 · 취약 단어 · 취약 문법 · 문장 복습 · 전체 복습', await page.locator('.rv-row').count() === 5);
 
   console.log('\n── 복습 시작 → 판정 → 끝 → 홈·내 학습에 반영');
@@ -131,7 +137,9 @@ async function judgeAll(page, max = 60, label = '알아요') {
   ok('복습 탭도 다 했다', Number(await page.locator('.rv-top').getAttribute('data-left')) === 0 && (await page.locator('.rv-top').innerText()).includes('다 했어요'));
   await goTab(page, '내 학습');
   const me = await page.locator('.screen.active').innerText();
-  ok('내 학습에 끝낸 카드가 적힌다', num(me, /(\d+)\s*끝낸 카드/) >= rvLeft, me.match(/\d+\s*끝낸 카드/)?.[0]);
+  /* 「오늘 배정·끝낸 카드」 3칸은 홈이 보여 주니 내 학습에서 뺐다 — 활동(판정 횟수)으로 본다 */
+  ok('내 학습의 판정 횟수에 오늘 판정이 든다', num(me, /(\d+)\s*판정 횟수/) >= rvLeft, me.match(/\d+\s*판정 횟수/)?.[0]);
+  ok('오늘 3칸은 내 학습에 없다 (홈이 보여 준다)', !me.includes('끝낸 카드'));
   ok('JLPT N3 진도 카드가 있다', await page.locator('.me-n3').count() === 1);
   ok('설정으로 가는 줄이 있다', await page.locator('.me-settings').count() === 1);
   const rv = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'));
