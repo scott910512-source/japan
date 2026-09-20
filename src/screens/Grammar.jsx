@@ -77,7 +77,7 @@ export default function Grammar({ words, onProgress }) {
 
   return (
     <>
-      <div className="navtitle">문법</div>
+      {/* 제목은 위 헤더(문법)가 그린다 */}
       <div className="gram-grid">
         {GRAMMAR_MODULES.map((m) => (
           <div key={m.id} className="gram-card" onClick={() => open(m.id)}>

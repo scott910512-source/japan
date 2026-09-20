@@ -448,10 +448,7 @@ export default function Settings({
     <>
       {!group && (
         <>
-          <div className="navtitle">
-            <small>내 학습</small>
-            설정
-          </div>
+          {/* 제목은 위 헤더(설정)가 그린다 — 여기서는 묶음 목록부터 */}
           <div className="card">
             {MORE_GROUPS.map((x) => (
               <button key={x.id} className="listrow moregroup" onClick={() => setGroup(x.id)}>

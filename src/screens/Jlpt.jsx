@@ -50,7 +50,8 @@ export default function Jlpt({ words, review, onStartSet, onToast }) {
   if (!level) {
     return (
       <>
-        <div className="navtitle"><small>단어암기</small>JLPT 레벨별</div>
+        {/* 위 헤더가 「단어」다 — 여기서는 어떻게 끊는지만 작게 */}
+        <div className="section-label" style={{ marginTop: 0 }}>JLPT 레벨별 세트</div>
         <p className="jl-note" style={{ marginBottom: 14 }}>
           레벨을 고르면 {SET_SIZE}개씩 세트로 나눠 드려요. 세트 하나를 골라 바로 회독할 수 있어요.
         </p>
