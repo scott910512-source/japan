@@ -167,8 +167,10 @@ async function judgeAll(page, max = 60, label = '알아요') {
   await page.locator('.n3-today').waitFor();
   const steps = await page.locator('.n3-steprow').count();
   ok('오늘의 N3가 짜였다', steps >= 4, `${steps}단계`);
-  await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click(); await page.waitForTimeout(500);
-  /* 요약은 코스가 열려 있는 동안 적힌다 — 나오자마자 홈 숫자가 바뀌어야 한다(다시 켜기 전에) */
+  /* 요약은 코스가 열려 있는 동안 적힌다 — 나오자마자 홈 숫자가 바뀌어야 한다(다시 켜기 전에).
+     코스는 학습 탭에서 열었으니 닫으면 학습 탭이다 — 홈 줄을 읽으려면 홈으로 가야 한다
+     (숨은 탭의 innerText는 빈 문자열이라 검사가 헛돈다). goTab이 열린 sub를 먼저 닫는다 */
+  await goTab(page, '홈');
   ok('★ 코스에서 나오자마자 홈 N3 줄이 갱신된다 ★', /\d+%/.test(await page.locator('.hm-goal').innerText()), await page.locator('.hm-goal').innerText());
   await reboot(page);
   ok('다시 켜도 홈', (await page.locator('.tabbar .tab.active').innerText()) === '홈');
