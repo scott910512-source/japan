@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { IconFlame, IconChevron } from '../components/Icons.jsx';
-import { addDays, summarize, isMastered, stateOf, MASTERY_RULE } from '../lib/review.js';
+import { addDays, isMastered, stateOf, MASTERY_RULE } from '../lib/review.js';
 import { STATS_KEEP_DAYS, STREAK_RULE } from '../lib/storage.js';
-import { roundSummary, STAGES } from '../lib/rounds.js';
+import { STAGES } from '../lib/rounds.js';
 import { useToday } from '../lib/useToday.js';
 
 /* 기록 — 이미 쌓이고 있던 걸 이제야 보여 준다.
@@ -50,8 +50,8 @@ function monthGrid(year, month) {
 const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', reading: '독해', listening: '청해' };
 
 export default function Log({
-  words, review, stats, streak, planNow, grammarLeft,
-  n3Summary, weakWords, onOpenN3, onOpenReview, onOpenSettings,
+  review, stats, streak, grammarLeft, stat, rounds,
+  n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenSettings,
 }) {
   /* 자정을 넘기면 이 값이 바뀌고 화면이 다시 그려진다. 예전엔 마운트 때
      한 번 잡아 둬서, 8/31에 켜 놓고 9/1이 되면 달력이 8월에 머물렀다 —
@@ -95,8 +95,7 @@ export default function Log({
     };
   }, [stats, today, review]);
 
-  const wordIds = useMemo(() => words.map((w) => w.id), [words]);
-  const stat = useMemo(() => summarize(wordIds, review), [wordIds, review]);
+  /* stat·rounds는 App이 한 번 세서 내려 준다 — 학습 탭과 같은 값이다 */
 
   /* 회독 저장소에는 문장도 같이 들어 있다. 단어만 세면 실제로 한 것보다
      적게 나와서 "이만큼밖에 안 했나" 싶어진다. */
@@ -113,9 +112,10 @@ export default function Log({
 
   /* 회독 현황은 단어만 센다. 회독 저장소에는 문장도 같이 들어 있는데,
      막대에 섞으면 「단어 몇 개 외웠나」와 눈금이 안 맞는다. */
-  const rounds = useMemo(() => roundSummary(wordIds, review), [wordIds, review]);
+  /* 눈금에서 「아직 안 봄」을 뺀다. 그게 2,400이라 나머지(77·57·110…)가 전부
+     실선으로 보였다 — 안 본 것은 진도가 아니라 남은 양이라 숫자로만 적는다. */
   const roundMax = useMemo(
-    () => Math.max(1, ...Object.values(rounds)),
+    () => Math.max(1, ...Object.entries(rounds).filter(([k]) => k !== 'fresh').map(([, v]) => v)),
     [rounds],
   );
 
@@ -153,8 +153,10 @@ export default function Log({
       {/* ★ JLPT N3 — 이 앱의 목표 ★
           진도(레슨을 끝낸 수)와 준비도(실제로 맞힌 결과)는 다른 숫자다. 열어
           봤다고 오르지 않는다. 숫자는 코스가 열릴 때 적어 둔 요약에서 온다. */}
-      {onOpenN3 && (
-        <button className="card me-n3" onClick={onOpenN3} data-ready={n3Summary ? n3Summary.ready : ''}>
+      {/* 여기는 통계다. 누르면 코스가 아니라 학습 탭으로 — 코스 입구는 홈과
+          학습 탭 둘이면 된다. */}
+      {showN3 && (
+        <button className="card me-n3" onClick={onOpenStudy} data-ready={n3Summary ? n3Summary.ready : ''}>
           <div className="mn-head">
             <b>JLPT N3</b>
             <span>{n3Summary ? `준비도 ${n3Summary.ready}%` : '아직 시작 전'}</span>
@@ -168,56 +170,45 @@ export default function Log({
             </div>
           )}
           <div className="mn-foot">
-            {n3Summary ? `레슨 ${n3Summary.done} / ${n3Summary.total} 완료` : '한 권으로 끝내는 N3 — 열어서 시작해요'}
+            {n3Summary ? `레슨 ${n3Summary.done} / ${n3Summary.total} 완료 · 학습 탭에서 이어가기` : '아직 시작 전 · 학습 탭에서 시작해요'}
             <IconChevron className="chev" />
           </div>
         </button>
       )}
 
-      {/* ★ 세 가지를 갈라 둔다 ★
+      {/* ★ 두 가지를 갈라 둔다 ★
        *
-       * 오늘 진행 · 학습 활동 · 기억 수준은 서로 다른 숫자다. 섞어 놓으면
-       * 「40개 했다」가 카드 마흔 장인지 판정 마흔 번인지 알 수 없고, 듣기를
-       * 많이 한 날이 외운 게 많은 날처럼 보인다. */}
-      {planNow?.assigned > 0 && (
-        <>
-          <div className="section-label">오늘</div>
-          <div className="logweek">
-            <div className="lw-cell"><b>{planNow.assigned}</b><span>배정</span></div>
-            <div className="lw-cell"><b>{planNow.done}</b><span>끝낸 카드</span></div>
-            <div className="lw-cell"><b>{planNow.left}</b><span>남음</span></div>
-          </div>
-          {/* 완료가 무엇의 완료인지 적어 둔다 — 문법은 이 수에 안 들어간다 */}
-          <div className="set-note" style={{ marginTop: 6 }}>
-            카드 기준이에요. 같은 카드를 여러 번 만나도 하나로 세요.
-            {grammarLeft > 0 && ' 오늘의 문법은 선택이라 이 수에 안 들어가요.'}
-          </div>
-        </>
-      )}
-
-      {/* 학습 활동 — 「몇 번 했나」. 여기 오른 수가 외운 수는 아니다. */}
-      <div className="section-label">학습 활동 · 최근 {RECENT_DAYS}일</div>
-      <div className="logweek">
-        <div className="lw-cell"><b>{recent.days}</b><span>학습한 날</span></div>
-        <div className="lw-cell"><b>{recent.studied}</b><span>판정 횟수</span></div>
-        <div className="lw-cell"><b>{recent.promoted}</b><span>기억 단계 오름</span></div>
-      </div>
-      {/* ★ 노력한 내역은 보이되, 기억 단계와 섞지 않는다 ★
-          듣기·시험·짝 맞추기를 회독 진도에 바로 반영하지 않는 판단은 그대로 둔다.
-          다만 왜 안 오르는지는 말해 줘야 한다 — 안 그러면 한 시간 듣고도
-          아무것도 안 변한 것처럼 보인다. */}
-      {/* 듣기·시험은 회독 진도를 안 올린다. 그래도 한 일은 보여 준다 —
-          안 보여 주면 한 시간 듣고도 아무것도 안 한 것처럼 보인다. */}
-      {(recent.listened > 0 || recent.quizzed > 0) && (
-        <div className="logweek" style={{ marginTop: 8 }}>
-          <div className="lw-cell"><b>{recent.listened}</b><span>들은 문장</span></div>
-          <div className="lw-cell"><b>{recent.quizzed}</b><span>시험 문항</span></div>
+       * 학습 활동 · 기억 수준은 서로 다른 숫자다. 섞어 놓으면 「40개 했다」가
+       * 카드 마흔 장인지 판정 마흔 번인지 알 수 없고, 듣기를 많이 한 날이 외운
+       * 게 많은 날처럼 보인다.
+       *
+       * 「오늘 배정·끝낸 카드·남음」 3칸은 뺐다 — 홈의 큰 버튼과 오늘 목록이 같은
+       * 숫자를 이미 보여 준다. 3칸 격자가 네 번 반복되던 것을 한 카드로 묶는다. */}
+      <div className="section-label">얼마나 했나</div>
+      <div className="card me-stats">
+        {/* 학습 활동 — 「몇 번 했나」. 여기 오른 수가 외운 수는 아니다. */}
+        <div className="ms-head">학습 활동 · 최근 {RECENT_DAYS}일</div>
+        <div className="logweek">
+          <div className="lw-cell"><b>{recent.days}</b><span>학습한 날</span></div>
+          <div className="lw-cell"><b>{recent.studied}</b><span>판정 횟수</span></div>
           <div className="lw-cell"><b>{recent.promoted}</b><span>기억 단계 오름</span></div>
         </div>
-      )}
-      <div className="set-note" style={{ marginTop: 6 }}>
-        판정 횟수는 카드를 몇 번 만났는지예요. 듣기와 시험은 따로 세고
-        기억 단계는 올리지 않아요 — 기억 단계는 복습일의 판정으로만 올라요.
+        {/* 듣기·시험은 회독 진도를 안 올린다. 그래도 한 일은 보여 준다 —
+            안 보여 주면 한 시간 듣고도 아무것도 안 한 것처럼 보인다. */}
+        {(recent.listened > 0 || recent.quizzed > 0) && (
+          <div className="ms-line">들은 문장 <b>{recent.listened}</b> · 시험 문항 <b>{recent.quizzed}</b> — 회독 진도는 안 올라요</div>
+        )}
+        {/* 한 줄에 세는 범위를 맞춘다. 셋 다 단어·문장을 같이 센다. */}
+        <div className="ms-head">전체</div>
+        <div className="logweek">
+          <div className="lw-cell"><b>{totalSeen.seen}</b><span>한 번이라도 본 것</span></div>
+          <div className="lw-cell"><b>{totalSeen.done}</b><span>외운 것</span></div>
+          <div className="lw-cell"><b>{stat.total - stat.seen}</b><span>아직 안 본 단어</span></div>
+        </div>
+        <div className="set-note" style={{ marginTop: 8 }}>
+          판정 횟수는 카드를 몇 번 만났는지예요. 기억 단계는 복습일의 판정으로만 올라요.
+          {grammarLeft > 0 && ' 오늘의 문법은 선택이라 카드 수에 안 들어가요.'}
+        </div>
       </div>
 
       <div className="section-label">
@@ -265,16 +256,6 @@ export default function Log({
         {!beyondKeep && ' 진한 칸일수록 많이 한 날이에요.'}
       </p>
 
-      {/* 한 줄에 세는 범위를 맞춘다. 「한 번이라도 본 것」은 단어와 문장을 같이
-          세는데 「외운 단어」는 단어만 세고 있었다 — 나란히 두면 문장을 외운 것이
-          어디로 갔나 싶어진다. 셋 다 단어·문장을 같이 센다. */}
-      <div className="section-label">전체</div>
-      <div className="logweek">
-        <div className="lw-cell"><b>{totalSeen.seen}</b><span>한 번이라도 본 것</span></div>
-        <div className="lw-cell"><b>{totalSeen.done}</b><span>외운 것</span></div>
-        <div className="lw-cell"><b>{stat.total - stat.seen}</b><span>아직 안 본 단어</span></div>
-      </div>
-
       {/* ★ 회독 현황 ★
           이 앱이 하는 일은 결국 한 카드를 네 번 맞힐 때까지 간격을 벌려 가며
           다시 만나게 하는 것이다. 그 뼈대가 화면 어디에도 안 보여서, 사용자
@@ -287,7 +268,7 @@ export default function Log({
           하나는 얼마나 남아 있나다. */}
       <div className="section-label">기억 수준</div>
       <div className="card roundstat">
-        {ROUND_ROWS.map(({ id, label }) => {
+        {ROUND_ROWS.filter(({ id }) => id !== 'fresh').map(({ id, label }) => {
           const n = rounds[id] || 0;
           const w = roundMax ? (n / roundMax) * 100 : 0;
           return (
@@ -298,6 +279,8 @@ export default function Log({
             </div>
           );
         })}
+        {/* 「아직 안 봄」은 눈금에서 뺐다 — 막대가 아니라 남은 양이다 */}
+        <div className="rs-fresh">{STAGE_LABEL.fresh} <b>{rounds.fresh || 0}</b></div>
         {/* 「이어서 네 번 고르면」이라고 적어 두었더니 한자리에서 네 번 누르면
             되는 것처럼 읽혔다. 실제로는 하루에 한 칸씩, 복습일에만 오른다.
             규칙은 정책(review.js)이 한 문장으로 만들어 준다. */}

@@ -152,6 +152,30 @@ export function planStatus(plan) {
   };
 }
 
+/* ★ 「오늘 복습 몇 개」는 여기 한 곳에서 ★
+ *
+ * 홈의 복습 줄 · 복습 탭의 맨 위 · 탭 배지가 전부 이 함수를 부른다. 셋이 각자
+ * 세던 때는 배지가 밀린 복습까지 더해 「99+」인데 복습 탭은 「11개」였다 —
+ * 같은 화면 안에서 숫자가 다르면 어느 쪽도 못 믿는다.
+ *
+ *   left     오늘 몫에서 남은 복습·약점 (배지·홈·복습 탭이 쓰는 수)
+ *   backlog  후보는 있는데 오늘 몫에 안 담긴 것 — 복습 탭 안에서만 말한다
+ *   review / weak  갈래별 남은 수 */
+export function reviewLeftOf(status) {
+  const l = status?.lanes || {};
+  const review = Math.max(0, (l.review?.assigned || 0) - (l.review?.done || 0));
+  const weak = Math.max(0, (l.weak?.assigned || 0) - (l.weak?.done || 0));
+  const over = status?.over || {};
+  return {
+    left: review + weak,
+    review,
+    weak,
+    assigned: (l.review?.assigned || 0) + (l.weak?.assigned || 0),
+    done: (l.review?.done || 0) + (l.weak?.done || 0),
+    backlog: (over.review || 0) + (over.weak || 0),
+  };
+}
+
 /* 아직 안 끝낸 것 — 큐를 짤 때 이걸로 짠다.
    끝낸 카드를 다시 넣으면 「남은 7개」가 줄지 않는다. */
 export function remaining(plan, lanes = null) {

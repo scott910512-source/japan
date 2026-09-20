@@ -83,11 +83,7 @@ export default function SwissCourse({ settings, onToast }) {
 
   return (
     <>
-      <div className="navtitle">
-        <small>여행 회화 코스</small>
-        독일어
-      </div>
-
+      {/* 제목은 위 헤더(독일어 여행 회화)가 그린다 */}
       <div className="card swh-sum">
         <div className="swh-cells">
           <div className="swh-cell"><b>{summary.xp}</b><span>XP</span></div>

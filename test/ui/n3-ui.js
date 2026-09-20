@@ -140,7 +140,8 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   ok('메인 제목 JLPT N3 MASTER', (await page.locator('.n3-head').innerText()).includes('JLPT N3 MASTER'));
   const sum = page.locator('.n3-sum');
   ok('전체 진도 0% · 준비도 0%에서 시작', (await sum.getAttribute('data-progress')) === '0' && (await sum.getAttribute('data-readiness')) === '0');
-  ok('어휘·한자·문법·독해·청해 막대 다섯', await page.locator('.n3-sum .n3-bar').count() === 5);
+  /* 시작 전에는 0% 막대 열 줄 대신 한 줄 안내. 막대는 진도가 생긴 뒤에 본다 */
+  ok('시작 전에는 막대 대신 한 줄 안내', await page.locator('.n3-sum .n3-notyet').count() === 1 && await page.locator('.n3-sum .n3-bar').count() === 0);
   ok('오늘 학습량 · 연속 학습일 · 이번 주', await page.locator('.n3-cell').count() === 3);
   ok('핵심 버튼: 오늘의 N3 · 전체 과정 · 복습 · 실전 테스트', (await page.locator('.n3-cta').innerText()).includes('오늘의 N3 시작') && await page.locator('.n3-tile').count() === 3);
   ok('375px에서 가로로 안 넘친다 (메인)', !(await overflow(page)));
@@ -263,6 +264,7 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   console.log('\n── 전체 과정 · 진단으로 건너뛰기');
   await openMenu(page, '한 권으로 끝내는 N3');
   await page.locator('.n3-hub').waitFor();
+  ok('★ 진도가 생기면 갈래 막대 다섯 — 진도·준비도를 한 줄에 ★', await page.locator('.n3-sum .n3-bar.dual').count() === 5 && await page.locator('.n3-sum .n3-notyet').count() === 0 && await page.locator('.n3-ready').count() === 0);
   await page.locator('.n3-tile', { hasText: '전체 과정' }).click();
   await page.locator('.n3-curriculum').waitFor();
   ok('Chapter 0~7 여덟', await page.locator('.n3-chapter').count() === 8);

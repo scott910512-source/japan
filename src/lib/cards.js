@@ -7,8 +7,10 @@
  * 덤으로 방향 설정도 따라온다. 「뜻 → 일본어」로 두면 문장도 한국어를 먼저
  * 보여 주고 일본어를 떠올리게 된다 — 회화에 제일 가까운 연습이다. */
 
-import { ALL_SITUATIONS } from '../data/allSituations.js';
-import { defaultLexicon, gradeSentence } from './sentlevel.js';
+/* ★ 여기서는 자료를 불러오지 않는다 ★
+ * App이 이 파일을 정적으로 불러온다. 여기서 상황 문장·단어장을 불러오면 그
+ * 자료가 통째로 메인 번들에 딸려 들어간다(1MB). 자료를 여는 일과 문장 카드를
+ * 만드는 일은 lib/content.js가 하고, App은 그것을 import()로 연다. */
 
 /* 문장 하나 → 카드 하나.
  * kind를 남겨 두는 이유는 화면이 글자 크기를 달리 잡아야 하기 때문이다.
@@ -49,23 +51,6 @@ export function sentenceToCard(item, place, grade = null) {
     exampleKo: item.reply?.ko || '',
     place: place || '',
   };
-}
-
-/* 자료에 있는 문장을 전부 카드로. 화면마다 다시 만들지 않게 한 번만 만든다. */
-let cached = null;
-export function allSentenceCards() {
-  if (!cached) {
-    /* 레벨은 여기서 한 번만 잰다. 600문장에 3ms라 화면마다 다시 재도
-       티는 안 나지만, 같은 문장이 화면마다 다른 레벨로 보일 여지를 아예
-       안 만드는 편이 낫다. */
-    const lex = defaultLexicon();
-    cached = ALL_SITUATIONS.flatMap((s) => s.parts.flatMap(
-      (p) => p.items.map((i) => sentenceToCard(
-        i, `${s.label} · ${p.label}`, gradeSentence(i, lex),
-      )),
-    ));
-  }
-  return cached;
 }
 
 /* 오늘 큐가 고를 수 있는 것 전부 — [{ id, kind }].

@@ -6,6 +6,9 @@ import {
 import MicButton from '../components/MicButton.jsx';
 import MemoBox from '../components/MemoBox.jsx';
 import AskSheet from '../components/AskSheet.jsx';
+/* 머리와 완주 카드는 제 파일로 — 이 파일이 700줄이라 떼어 냈다. 동작은 그대로다 */
+import StudyHeader from './study/StudyHeader.jsx';
+import FinishCard from './study/FinishCard.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
@@ -17,7 +20,6 @@ import {
   selfKnownLabel, stateOf, todayKey,
 } from '../lib/review.js';
 
-const ROUND_LABEL = (round) => (round === 1 ? '1회독 (전체)' : `${round}회독 (틀린 것만 복습)`);
 
 /* 읽어 줄 때는 한자가 아니라 가나를 보낸다.
  * 한자 한 글자만 던지면 음성 엔진이 음독을 고르기 쉽다 — 「海」를 うみ가 아니라
@@ -645,73 +647,6 @@ export default function Study({
         onClose={() => setAsking(false)}
         onToast={onToast}
       />
-    </div>
-  );
-}
-
-function StudyHeader({ session, deck, onClose, onUndo, hasKeyboard }) {
-  const pct = session.total ? Math.min(100, Math.round((session.done / session.total) * 100)) : 0;
-  return (
-    <div className="studyhead">
-      <div className="sh-row">
-        <button className="sh-close" onClick={onClose} aria-label="학습 종료"><IconArrowLeft /></button>
-        <div className="sh-title">{deck.label} {session.done} / {session.total}</div>
-        <button className="sh-undo" onClick={onUndo} disabled={!onUndo}>
-          ↩ 되돌리기{hasKeyboard && <kbd className="inline-key">←</kbd>}
-        </button>
-      </div>
-      <div className="sh-bar"><i style={{ width: `${pct}%` }} /></div>
-      <div className="sh-sub">
-        남은 {session.queue.length}개 <span className="sep">|</span> {ROUND_LABEL(session.round)}
-      </div>
-    </div>
-  );
-}
-
-function FinishCard({ finished, deck, settings, onClose, onHome, onNext, onUndo }) {
-  const t = finished.tally || {};
-  const known = (t.known || 0) + (t.master || 0);
-  return (
-    <div className="study">
-      <div className="finish">
-        <div className="fin-badge">🎉</div>
-        <h2>{finished.reason === 'clear' ? '오늘 회독 완주!' : '오늘은 여기까지'}</h2>
-
-        {/* 무엇을 했는지가 결과다. 「장」은 서로 다른 카드, 「번」은 누른 횟수 —
-            몰라요가 섞이면 둘이 달라져서, 한 낱말로 뭉뚱그리면 거짓이 된다. */}
-        <div className="fin-big">
-          <b>{finished.cleared}</b>
-          <span>/ {finished.total}장 끝냄</span>
-        </div>
-
-        <div className="fin-grid">
-          <div className="fin-cell ok"><b>{known}</b><span>알아요</span></div>
-          <div className="fin-cell mid"><b>{t.vague || 0}</b><span>애매해요</span></div>
-          <div className="fin-cell no"><b>{t.unknown || 0}</b><span>몰라요</span></div>
-        </div>
-
-        <p className="fin-lines">
-          <span>{deck.label} · {finished.done}번 봤어요 · 약 {finished.minutes}분</span>
-          {finished.carried > 0 && <span>남은 {finished.carried}장은 내일 복습 큐에서 만나요</span>}
-          {deck.intro ? <span>오늘 목표 {deck.intro.total}장</span> : null}
-        </p>
-
-        {/* 끝날 때마다 홈으로 돌려보내면 매번 「다음에 뭐 하지」를 다시 정해야 한다.
-            그날의 다음 순서를 알고 있으면 그걸 먼저 내민다. */}
-        {onNext && deck.next ? (
-          <>
-            <button className="submit-btn" onClick={onNext}>
-              다음: {deck.next.label}
-            </button>
-            <button className="ghost-btn" onClick={onHome || onClose}>홈으로</button>
-          </>
-        ) : (
-          <button className="submit-btn" onClick={onHome || onClose}>홈으로</button>
-        )}
-        {onUndo && (
-          <button className="ghost-btn" onClick={onUndo}>↩ 마지막 판정 되돌리기</button>
-        )}
-      </div>
     </div>
   );
 }

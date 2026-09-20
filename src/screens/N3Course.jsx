@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+/* 코스 전용 스타일 — 코스를 열 때만 받는다. 순서는 index.css의 맨 끝 자리 그대로다. */
+import '../styles/n3.css';
 import { IconArrowLeft } from '../components/Icons.jsx';
 import { todayKey } from '../lib/review.js';
 import { useToday } from '../lib/useToday.js';

@@ -29,11 +29,7 @@ export default function Basics({ settings, onToast }) {
 
   return (
     <>
-      <div className="navtitle">
-        <small>완전기초</small>
-        기초부터 차근차근
-      </div>
-
+      {/* 제목은 위 헤더(완전기초)가 그린다 — 본문에 또 적지 않는다 */}
       <div className="chiprow">
         {SECTIONS.map((s) => (
           <div key={s.id} className={`chip${section === s.id ? ' active' : ''}`} onClick={() => setSection(s.id)}>

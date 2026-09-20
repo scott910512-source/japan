@@ -1,4 +1,5 @@
 import { IconRepeat, IconChevron, IconFlame, IconX, IconGrid, IconChat, IconBook } from '../components/Icons.jsx';
+import { reviewLeftOf } from '../lib/plan.js';
 
 /* 복습 탭 — 복습으로 가는 길을 하나로.
  *
@@ -17,12 +18,8 @@ export default function ReviewHub({
   planNow, sentenceDue, weakWords, wrongCount, weakGrammar,
   onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeakWords, onOpenWeakGrammar, onOpenRepeat,
 }) {
-  const lanes = planNow?.lanes || {};
-  const assigned = (lanes.review?.assigned || 0) + (lanes.weak?.assigned || 0);
-  const done = (lanes.review?.done || 0) + (lanes.weak?.done || 0);
-  const left = Math.max(0, assigned - done);
-  const over = planNow?.over || {};
-  const backlog = (over.review || 0) + (over.weak || 0);
+  /* 홈·배지와 같은 함수 — 여기서 따로 세지 않는다 */
+  const { left, assigned, done, backlog, review: reviewLeft, weak: weakLeft } = reviewLeftOf(planNow);
 
   return (
     <>
@@ -39,7 +36,7 @@ export default function ReviewHub({
               <span className="rv-lab">오늘 복습</span>
               <b className="rv-num">{left}<small>개</small></b>
             </div>
-            <div className="rv-sub">복습일이 된 것 {(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 {(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}{done > 0 ? ` · 오늘 ${done}개 했어요` : ''}</div>
+            <div className="rv-sub">복습일이 된 것 {reviewLeft} · 약점 {weakLeft}{done > 0 ? ` · 오늘 ${done}개 했어요` : ''}</div>
             <button className="submit-btn rv-start" onClick={onStartReview}>복습 시작</button>
           </>
         )}
@@ -71,9 +68,10 @@ export default function ReviewHub({
 
       <div className="section-label">더 보기</div>
       <div className="card rv-list">
-        <button className="listrow rv-row" data-row="wrong" onClick={onOpenWrong}>
+        {/* 0이면 누를 것이 없다 — 취약 단어처럼 흐리게, 설명은 「아직 없어요」로 */}
+        <button className="listrow rv-row" data-row="wrong" onClick={onOpenWrong} disabled={wrongCount === 0}>
           <span className="rv-ic"><IconX /></span>
-          <span className="rv-body"><b>틀린 문제</b><span>N3 코스 오답노트 · 두 번 맞히면 빠져요</span></span>
+          <span className="rv-body"><b>틀린 문제</b><span>{wrongCount ? 'N3 코스 오답노트 · 두 번 맞히면 빠져요' : '아직 없어요 — N3 문제를 풀면 여기 모여요'}</span></span>
           <span className="rv-cnt">{wrongCount}</span>
           <IconChevron className="chev" />
         </button>
@@ -83,15 +81,15 @@ export default function ReviewHub({
           <span className="rv-cnt">{weakWords}</span>
           <IconChevron className="chev" />
         </button>
-        <button className="listrow rv-row" data-row="weak-grammar" onClick={onOpenWeakGrammar}>
+        <button className="listrow rv-row" data-row="weak-grammar" onClick={onOpenWeakGrammar} disabled={weakGrammar === 0}>
           <span className="rv-ic"><IconGrid /></span>
-          <span className="rv-body"><b>취약 문법</b><span>{weakGrammar ? '두 번 넘게 틀린 문법 꼭지' : 'N3 문제를 풀면 여기 모여요'}</span></span>
+          <span className="rv-body"><b>취약 문법</b><span>{weakGrammar ? '두 번 넘게 틀린 문법 꼭지' : '아직 없어요 — 같은 꼭지를 두 번 넘게 틀리면 여기 모여요'}</span></span>
           <span className="rv-cnt">{weakGrammar}</span>
           <IconChevron className="chev" />
         </button>
-        <button className="listrow rv-row" data-row="sentences" onClick={onOpenSentences}>
+        <button className="listrow rv-row" data-row="sentences" onClick={onOpenSentences} disabled={sentenceDue === 0}>
           <span className="rv-ic"><IconChat /></span>
-          <span className="rv-body"><b>문장 복습</b><span>{sentenceDue ? '복습일이 된 상황별 문장' : '오늘 복습할 문장이 없어요'}</span></span>
+          <span className="rv-body"><b>문장 복습</b><span>{sentenceDue ? '복습일이 된 상황별 문장' : '아직 없어요 — 문장을 배우면 복습일에 여기 떠요'}</span></span>
           <span className="rv-cnt">{sentenceDue}</span>
           <IconChevron className="chev" />
         </button>

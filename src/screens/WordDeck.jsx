@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react';
-import { IconBook, IconRepeat, IconSparkle } from '../components/Icons.jsx';
+import { IconRepeat, IconSparkle } from '../components/Icons.jsx';
 import Jlpt from './Jlpt.jsx';
-import {
-  GOAL_CHOICES, MASTERY_RULE, planDailySession, summarize, todayKey,
-} from '../lib/review.js';
+import { planDailySession, todayKey } from '../lib/review.js';
 import { normalizeGoals } from '../lib/daily.js';
 
 import { LEVELS, filterByLevel } from '../lib/wordFilters.js';
@@ -24,7 +22,6 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
   const levels = settings.levels?.length ? settings.levels : LEVELS;
 
   const pool = useMemo(() => filterByLevel(words, settings.levels), [words, settings.levels]);
-  const stat = useMemo(() => summarize(pool.map((w) => w.id), review), [pool, review]);
 
   // 오늘 세션이 어떻게 짜이는지 미리 보여준다. 시작 전에 분량을 알 수 있어야 한다.
   /* 이 덱은 새로 외우는 쪽이라 「새 단어」 몫을 그대로 쓴다.
@@ -82,7 +79,11 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
         <div className="set-note">레벨을 고르지 않아 전체 단어로 학습해요.</div>
       )}
 
-      <div className="section-label">오늘 학습</div>
+      {/* ★ 홈의 「오늘 학습 19개」와 다른 숫자다 ★
+          홈은 단어·문장을 오늘 계획(plan)으로 세고, 이 판은 고른 레벨의 단어만
+          따로 짠다. 같은 「오늘」이라 부르면 어느 쪽이 맞는지 모르게 되니, 여기는
+          「이 레벨로 짜는 판」이라 부르고 단어만이라고 적는다. */}
+      <div className="section-label">이 레벨로 짜는 판 · 단어만</div>
       <div className="card">
         <div className="planrow">
           <span className="pl-icon review"><IconRepeat /></span>
@@ -98,7 +99,8 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
             <span>{plan.freshLeft > 0 ? `아직 안 본 단어 ${plan.freshLeft}개 남음` : '새 단어를 다 봤어요'}</span>
           </span>
         </div>
-        <div className="plantotal">오늘 {plan.reviewPicked + plan.newPicked}장</div>
+        <div className="plantotal">단어 {plan.reviewPicked + plan.newPicked}장 · 고른 레벨 {pool.length}개 중</div>
+        <div className="set-note">홈의 오늘 학습(단어+문장, 계획 기준)과는 별개예요. 하루 분량은 내 학습 → 설정 → 학습 설정에서 바꿔요.</div>
       </div>
 
       <button className="bigstart" onClick={onStart} disabled={plan.total === 0}>
@@ -110,47 +112,9 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
         </span>
       </button>
 
-      {/* 예전엔 신규와 복습을 따로 정하게 해 두고, 설정에는 또 다른 "오늘 학습량"이
-          있었다. 둘이 서로 몰라서 20장으로 맞춰 놔도 65장이 나왔다. 하나로 합친다. */}
-      <div className="section-label">분량 조절</div>
-      <div className="card">
-        <div className="setrow col">
-          <div className="set-title">하루 새 단어 <span className="set-val">{goals.fresh}장</span></div>
-          <div className="grouppick">
-            {GOAL_CHOICES.map((n) => (
-              <button key={n} className={goals.fresh === n ? 'active' : ''}
-                onClick={() => onChange({ goals: { ...goals, fresh: n } })}>{n}</button>
-            ))}
-          </div>
-        </div>
-        <div className="set-note">
-          이 안에서 새 단어 4 : 복습 1로 나눠 담아요. 한쪽이 모자라면 다른 쪽으로 채웁니다.
-        </div>
-      </div>
-
-      <div className="section-label">진행률</div>
-      <div className="progress-grid">
-        <div className="progress-cell">
-          <div className="ring" style={{ '--p': stat.total ? (stat.mastered / stat.total) * 100 : 0 }} />
-          <div className="val">{stat.mastered}</div>
-          <div className="lab">익숙함</div>
-        </div>
-        <div className="progress-cell"><div className="val">{stat.learning}</div><div className="lab">학습 중</div></div>
-        <div className="progress-cell"><div className="val">{stat.fresh}</div><div className="lab">아직 안 봄</div></div>
-      </div>
-      {/* 「n회독 연속」은 세션 반복·누적 숙련·범위 재학습을 한 말로 부르던 것의
-          잔재다. 규칙은 정책에서 한 문장으로 가져온다. */}
-      <div className="set-note">
-        {MASTERY_RULE} 익숙해진 뒤에도 한 달·석 달·반년에 한 번씩 다시 나옵니다.
-      </div>
-
-      <div className="statrow card" style={{ marginTop: 12 }}>
-        <IconBook />
-        <div>
-          <div className="sr-val">{pool.length}개</div>
-          <div className="sr-lab">지금 고른 레벨의 전체 단어</div>
-        </div>
-      </div>
+      {/* 분량 조절은 설정(학습 설정 → 하루 분량)에, 진행률은 내 학습에 있다.
+          여기 또 두면 한 화면에 탭·칩·카드·버튼·칩·진행률이 다 있어 무엇을 고르는
+          자리인지 안 보였다. 이 화면은 「어떤 단어를 시작할까」만 답한다. */}
       </>
       )}
     </>
