@@ -424,7 +424,10 @@ export default function Study({
         hasKeyboard={hasKeyboard}
       />
 
-      <div className="studycard" onClick={() => !revealed && reveal()}>
+      {/* 단어인지 문장인지를 표시에 남긴다. 화면은 이미 글자 크기로 구별하는데
+          그건 사람 눈에만 보인다 — 검사가 「새로 배우는 단어」를 짚으려면
+          카드에 그 종류가 적혀 있어야 한다. */}
+      <div className="studycard" data-kind={word.kind === 'sentence' ? 'sentence' : 'word'} onClick={() => !revealed && reveal()}>
         <div className="sc-top">
           {step && <span className="sc-step">{STEP_LABEL[step]}</span>}
           {isWeak(st) && <span className="sc-weak">취약</span>}

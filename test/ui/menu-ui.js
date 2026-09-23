@@ -68,7 +68,9 @@ async function boot(browser, settings = {}) {
   const content = await inGroup(1);
   const practice = await inGroup(2);
   const etc = await inGroup(3);
-  ok('코스는 하나, 크게', course.join() === '한 권으로 끝내는 N3' && await page.locator('.menugroup').first().locator('.mbig').count() === 1, course.join(','));
+  /* 코스는 큰 칸 하나, 그 밑에 기출 단어. 큰 칸이 둘이면 어느 것이 코스인지
+     한눈에 안 들어온다 — 기출은 코스로 가는 길 옆의 지름길이다. */
+  ok('코스는 하나 크게, 그 밑에 기출 단어', course.join() === '한 권으로 끝내는 N3,기출 단어' && await page.locator('.menugroup').first().locator('.mbig').count() === 1, course.join(','));
   ok('★ 콘텐츠는 단어 · 문법 · 한자 · 문장 · 듣기 · 영상 ★', content.join() === '단어,문법,한자,문장,듣기,영상', content.join(','));
   ok('굴려 보는 것은 연습에',
     practice.includes('단어 시험') && practice.includes('부사 연습'), practice.join(','));

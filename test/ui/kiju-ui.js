@@ -115,10 +115,24 @@ const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth > 
   await freshRow.waitFor({ timeout: 8000 });
   await freshRow.click(); await page2Swap(p2);
   await p2.locator('.study.intro .bigstart').click(); await p2.waitForTimeout(900);
-  const first = (await p2.locator('.studycard').innerText()).replace(/\s+/g, ' ');
-  ok('★ 처음 배우는 단어가 기출 ★',
-    KIJU_LIST.some((e) => first.includes(e.w) || first.includes(e.ko.split(',')[0].trim())),
-    first.slice(0, 40));
+
+  /* 첫 카드를 짚지 않는다 — 판에는 문장도 섞이고 순서는 판정 결과에 따라
+     달라진다. 「새로 배우는 단어가 기출인가」가 물음이니 단어 카드만 모은다. */
+  const seen = [];
+  for (let i = 0; i < 10 && await p2.locator('.studycard').count(); i++) {
+    const card = p2.locator('.studycard');
+    if ((await card.getAttribute('data-kind')) === 'word') {
+      seen.push((await card.innerText()).replace(/\s+/g, ' '));
+    }
+    await card.click(); await p2.waitForTimeout(160);
+    const judge = p2.locator('.judgerow button', { hasText: '알아요' });
+    if (!(await judge.count())) break;
+    await judge.first().click(); await p2.waitForTimeout(400);
+  }
+  const isKiju = (t) => KIJU_LIST.some((e) => t.includes(e.w) || t.includes(e.k));
+  ok('단어 카드가 몇 장 나왔다', seen.length >= 3, `${seen.length}장`);
+  ok('★ 새로 배우는 단어가 전부 기출 ★', seen.length >= 3 && seen.every(isKiju),
+    seen.filter((t) => !isKiju(t)).join(' | ').slice(0, 80) || seen.map((t) => t.slice(0, 12)).join(' / '));
 
   ok('페이지 오류 없음', errors.length === 0, errors.join(' | ').slice(0, 200) || '없음');
 
