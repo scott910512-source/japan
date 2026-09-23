@@ -157,6 +157,19 @@ export function useStudyQueue({
     setDeck({ id: 'words', label: '오늘 학습', cards: pool, daily: true });
   }, [words, settings.levels, showToast, setDeck, setSub]);
 
+  /* 기출 판 — 고른 목록을 그대로 받는다.
+     daily를 켜서 설정한 「새 단어」 몫만큼만 연다. 205장을 한 번에 열면
+     아무도 안 끝내고, 안 끝낸 판은 회독이 아니라 밀린 숙제가 된다.
+     목록이 이미 많이 나온 순서라 앞에서부터 담긴다(buildDailySession). */
+  const startKijuDeck = useCallback((cards, label, id) => {
+    if (!cards?.length) {
+      showToast('기출 단어를 불러오지 못했어요');
+      return;
+    }
+    setSub(null);
+    setDeck({ id, label, cards, daily: true });
+  }, [showToast, setDeck, setSub]);
+
   const startDueDeck = useCallback(() => {
     if (due.length === 0) {
       showToast('오늘 복습할 단어가 없어요');
@@ -191,6 +204,6 @@ export function useStudyQueue({
 
   return {
     askSwap, setAskSwap, guardDeck, learnMore,
-    startToday, resumeSession, startWordDeck, startDueDeck, startWeakDeck, startJlptSet, startQuizWrongDeck,
+    startToday, resumeSession, startWordDeck, startKijuDeck, startDueDeck, startWeakDeck, startJlptSet, startQuizWrongDeck,
   };
 }

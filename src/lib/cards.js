@@ -56,7 +56,7 @@ export function sentenceToCard(item, place, grade = null) {
 /* 오늘 큐가 고를 수 있는 것 전부 — [{ id, kind }].
  * 큐를 짜는 쪽은 카드 알맹이가 필요 없고 id와 종류만 있으면 된다. */
 export function dailyPool(words, sentences, {
-  levels = null, seen = null, includeUnleveled = true,
+  levels = null, seen = null, includeUnleveled = true, first = null,
 } = {}) {
   /* ★ 레벨 설정은 문장에도 걸린다 ★
    *
@@ -87,8 +87,29 @@ export function dailyPool(words, sentences, {
     if (c.level == null) return includeUnleveled;
     return want.has(c.level);
   };
+  /* ★ 먼저 배울 것을 앞으로 당긴다 ★
+   *
+   * 새로 배우는 단어는 이 차례대로 뽑힌다(daily.js의 classifyDaily는 순서를
+   * 안 섞는다). 여태 그 차례는 자료가 어느 파일에 먼저 적혔는지였다 —
+   * 순서가 아니라 우연이었다는 뜻이다.
+   *
+   * first에 id를 주면 그것부터 나온다. 지금은 기출 단어가 들어온다(lib/kiju.js):
+   * 열여섯 해 동안 실제로 시험에 나온 205개다. 3,000개 중 하루 여덟 개를
+   * 배우는 사람에게 「어느 여덟 개냐」는 곧 시험까지 만나는 단어의 전부라,
+   * 근거 있는 순서가 하나라도 있으면 그걸 쓴다.
+   *
+   * 빼는 게 아니라 당기는 것이다. 기출을 다 보면 나머지가 원래 차례대로
+   * 이어진다 — 안 그러면 205개를 외운 날 새로 배울 게 없어진다.
+   *
+   * 안정 정렬이다. 같은 무리 안에서는 자료 차례가 그대로라, 어제 본 자리가
+   * 오늘 달라지지 않는다. */
+  const head = first instanceof Set ? first : null;
+  const pool = head
+    ? [...words.filter((w) => head.has(w.id)), ...words.filter((w) => !head.has(w.id))]
+    : words;
+
   return [
-    ...words.map((w) => ({ id: w.id, kind: 'word' })),
+    ...pool.map((w) => ({ id: w.id, kind: 'word' })),
     ...sentences.filter(fits).map((s) => ({ id: s.id, kind: 'sentence' })),
   ];
 }

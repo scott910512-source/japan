@@ -38,6 +38,10 @@ export const MENUS = [
      코스만의 것은 progress.n3에 적힌다. 홈의 「이어서 공부하기」에서도 바로 연다. */
   { id: 'n3', group: 'course', label: '한 권으로 끝내는 N3', sub: 'N4 복습부터 모의고사까지', icon: 'chart', big: true },
 
+  /* 기출은 코스 옆에 둔다 — 「무엇부터 외우나」의 답이라 콘텐츠 고르기가 아니라
+     N3로 가는 길에 속한다. 단어 칸에 묻어 두면 3,000개 안에서 다시 찾아야 한다. */
+  { id: 'kiju', group: 'course', label: '기출 단어', sub: '16년치 · 많이 나온 순', icon: 'list' },
+
   // ── 콘텐츠 ──
   { id: 'words', group: 'content', label: '단어', sub: '회독으로 외우기', icon: 'book' },
   { id: 'grammar', group: 'content', label: '문법', sub: '기초 · 일상 · 문형', icon: 'grid' },

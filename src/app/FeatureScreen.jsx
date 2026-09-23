@@ -1,4 +1,4 @@
-import { WordDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, N3Course } from './screens.js';
+import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, N3Course } from './screens.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
 export default function FeatureScreen({
@@ -8,6 +8,7 @@ export default function FeatureScreen({
   settings,
   patchSettings,
   startWordDeck,
+  startKijuDeck,
   startJlptSet,
   showToast,
   progress,
@@ -45,6 +46,9 @@ export default function FeatureScreen({
                 onStartSet={startJlptSet}
                 onToast={showToast}
               />
+            )}
+            {sub === 'kiju' && (
+              <KijuDeck words={words} review={review} onStart={startKijuDeck} />
             )}
             {sub === 'basics' && <Basics settings={settings} onToast={showToast} />}
             {/* 곁가지 — 회독·기록·계획 어디에도 안 붙는다. 그래서 넘기는 것도 설정뿐이다 */}

@@ -302,6 +302,7 @@ export const DEFAULT_SETTINGS = {
   menus: {
     // JLPT N3
     n3: true,         // 한 권으로 끝내는 N3 — N4 복습부터 모의고사까지 한 코스
+    kiju: true,       // 기출 단어 — 한자읽기 2010~2025에 나온 205개
     // 콘텐츠
     words: true,      // 단어 — 회독으로 반복해서 외우기
     grammar: true,    // 문법 — 기초문법 · 일상문법 · 문형 연습
