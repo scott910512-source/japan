@@ -13,6 +13,8 @@ import { N3_WORDS_H } from './words-n3h.js';
 import { N3_WORDS_I } from './words-n3i.js';
 /* 표준 N3 어휘 목록과 대조해 없던 것 — 동사·형용사·명사·부사·가타카나 338개 */
 import { N3_WORDS_J } from './words-n3j.js';
+/* 기출(한자읽기 2010~2025)에 나왔는데 단어장에 없던 68개 */
+import { KIJU_WORDS } from './words-kiju.js';
 
 /* 기본 수록 단어를 한 곳으로 모은다.
  *
@@ -62,4 +64,5 @@ export const ALL_WORDS = mergeUnique(
   N4_WORDS, N4_WORDS_B,
   N3_WORDS, N3_WORDS_B, N3_WORDS_C, N3_WORDS_D, N3_WORDS_E,
   N3_WORDS_F, N3_WORDS_G, N3_WORDS_H, N3_WORDS_I, N3_WORDS_J,
+  KIJU_WORDS,
 );

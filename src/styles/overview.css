@@ -433,3 +433,47 @@
 .me-stats .ms-line b { color: var(--ink); }
 .rs-fresh { margin-top: 4px; font-size: 12px; color: var(--ink-soft); display: flex; justify-content: space-between; }
 .rs-fresh b { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ── 기출 단어 ──
+   205줄을 훑는 화면이라 한 줄의 높이와 색만 신경 쓴다. 줄마다 카드를 씌우면
+   스크롤이 열 배로 길어져서 「많이 나온 것부터」라는 순서가 안 보인다. */
+.kj-head { padding: 14px; }
+.kj-lead { font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
+.kj-lead b { color: var(--ink); }
+.kj-bar {
+  display: flex; height: 8px; margin: 12px 0 8px; border-radius: 99px;
+  background: var(--surface-2); overflow: hidden;
+}
+.kj-bar i { display: block; height: 100%; }
+.kj-bar .kb-done { background: var(--ok, #16a34a); }
+.kj-bar .kb-seen { background: var(--accent-soft, #93c5fd); }
+.kj-nums { display: flex; gap: 10px; font-size: 12px; color: var(--ink-soft); }
+.kj-nums b { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; margin-right: 3px; }
+.kj-top { width: 100%; justify-content: center; margin-top: 10px; }
+.kj-tabs { margin: 18px 0 10px; }
+
+.kj-list { border-radius: 14px; overflow: hidden; background: var(--surface); }
+.kj-row {
+  display: grid; grid-template-columns: minmax(84px, auto) 1fr auto;
+  gap: 10px; align-items: baseline;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+}
+.kj-row:last-child { border-bottom: 0; }
+.kj-row.hot { border-left-color: var(--accent, #2563eb); }
+.kj-row[data-mark="done"] { background: color-mix(in srgb, var(--ok, #16a34a) 8%, transparent); }
+.kj-row[data-mark="weak"] { background: color-mix(in srgb, var(--warn, #f59e0b) 10%, transparent); }
+.kj-w { font-size: 16px; font-weight: 800; }
+.kj-w small { display: block; font-size: 11px; font-weight: 600; color: var(--ink-soft); }
+.kj-ko { font-size: 13px; color: var(--ink); }
+.kj-y { font-size: 10.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; text-align: right; }
+.kj-y b { display: block; font-size: 11px; color: var(--accent, #2563eb); font-weight: 800; }
+
+.kj-year { margin-bottom: 14px; }
+.kj-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.kj-chip {
+  padding: 6px 9px; border-radius: 10px; background: var(--surface-2);
+  font-size: 14px; font-weight: 700; text-align: center;
+}
+.kj-chip small { display: block; font-size: 10px; font-weight: 600; color: var(--ink-soft); }
+.kj-note { margin-top: 14px; }

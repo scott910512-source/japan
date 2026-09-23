@@ -16,6 +16,7 @@ import Today from './screens/Today.jsx';
 import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { dailyPool } from './lib/cards.js';
+import { kijuIndex } from './lib/kiju.js';
 import {
   touchStreak, loadStreak, setStorageErrorHandler, setStorageOkHandler,
   hasSignedInOnce,
@@ -36,6 +37,7 @@ const SUB_TITLES = {
   translate: '번역기',
   manage: '내 단어장',
   worddeck: '단어',
+  kiju: '기출 단어 · 한자읽기',
   quiz: '단어 시험',
   conjugate: '동사 활용',
   match: '짝 맞추기',
@@ -326,13 +328,18 @@ export default function App() {
     for (const [id, st] of Object.entries(review)) if (st?.lastSeen) out.add(id);
     return out;
   }, [review]);
+  /* 기출부터 배운다 — 열여섯 해 한자읽기에 나온 205개(lib/kiju.js).
+     자료 차례가 아니라 「실제로 나온 적 있는가」가 새 단어의 순서를 정한다.
+     레벨 필터는 그대로다. 고르지 않은 레벨의 기출까지 끌어오지는 않는다. */
+  const kijuFirst = useMemo(() => new Set(kijuIndex(words).keys()), [words]);
   const todayPool = useMemo(
     () => dailyPool(filterByLevel(words, settings.levels), sentenceCards, {
       levels: settings.levels,
       seen: seenIds,
       includeUnleveled: settings.sentenceScope !== 'level',
+      first: kijuFirst,
     }),
-    [words, settings.levels, sentenceCards, seenIds, settings.sentenceScope],
+    [words, settings.levels, sentenceCards, seenIds, settings.sentenceScope, kijuFirst],
   );
 
   /* 날짜가 바뀌면 계획을 새로 짠다. 같은 날이면 있던 것을 그대로 쓴다 —
@@ -398,7 +405,7 @@ export default function App() {
      단어·복습·취약·JLPT 세트·시험 오답. 동작은 App에 있던 그대로다. */
   const {
     askSwap, setAskSwap, guardDeck, learnMore,
-    startToday, resumeSession, startWordDeck, startDueDeck, startWeakDeck, startJlptSet, startQuizWrongDeck,
+    startToday, resumeSession, startWordDeck, startKijuDeck, startDueDeck, startWeakDeck, startJlptSet, startQuizWrongDeck,
   } = useStudyQueue({
     session, plan, planNow, setPlan, words, wordIds, byId, sentenceCards, review, settings, due, todayPool, today,
     setDeck, setSub, showToast,
@@ -685,6 +692,7 @@ export default function App() {
                 settings={settings}
                 patchSettings={patchSettings}
                 startWordDeck={startWordDeck}
+                startKijuDeck={startKijuDeck}
                 startJlptSet={startJlptSet}
                 showToast={showToast}
                 progress={progress}

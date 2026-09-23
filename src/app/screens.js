@@ -8,6 +8,8 @@ export const Settings = lazy(() => import('../screens/Settings.jsx'));
 export const Videos = lazy(() => import('../screens/Videos.jsx'));
 export const NewPassword = lazy(() => import('../screens/NewPassword.jsx'));
 export const WordDeck = lazy(() => import('../screens/WordDeck.jsx'));
+/* 기출 단어 — 열여섯 해 한자읽기에 나온 205개를 많이 나온 순서로 */
+export const KijuDeck = lazy(() => import('../screens/KijuDeck.jsx'));
 export const Basics = lazy(() => import('../screens/Basics.jsx'));
 export const GrammarHub = lazy(() => import('../screens/GrammarHub.jsx'));
 export const Situations = lazy(() => import('../screens/Situations.jsx'));
