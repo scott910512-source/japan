@@ -8,7 +8,7 @@
  *   진도 막대가 판정한 만큼 움직인다 · 375px에서 가로로 안 넘친다 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, openMenu } from './_nav.js';
+import { goTab, openListen, openMenu } from './_nav.js';
 import { KIJU_LIST } from '../../src/lib/kiju.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
@@ -133,6 +133,38 @@ const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth > 
   ok('단어 카드가 몇 장 나왔다', seen.length >= 3, `${seen.length}장`);
   ok('★ 새로 배우는 단어가 전부 기출 ★', seen.length >= 3 && seen.every(isKiju),
     seen.filter((t) => !isKiju(t)).join(' | ').slice(0, 80) || seen.map((t) => t.slice(0, 12)).join(' / '));
+
+  console.log('\n── ★ 기출만 자동 듣기 ★');
+  /* 손이 안 비는 시간에 귀로 시험 범위를 한 바퀴 돈다. 기출 화면과 같은
+     205개가 후보여야 한다 — 레벨로 잘리면 두 화면의 숫자가 어긋난다. */
+  /* p2는 아직 회독 판 안이라 탭바가 없다(집중 모드). 새 자리에서 연다. */
+  const p3 = await boot(browser);
+  await openListen(p3, 'auto');
+  await p3.locator('.ls-scope[data-scope="kiju"]').waitFor({ timeout: 8000 });
+  const kn = Number((await p3.locator('.ls-scope[data-scope="kiju"] .pk-count').innerText()).match(/\d+/)[0]);
+  ok('듣기 범위에 기출 205개', kn === 205, `${kn}개`);
+  await p3.locator('.ls-scope[data-scope="kiju"]').click();
+  await p3.waitForTimeout(300);
+  ok('고른 범위가 켜진다', (await p3.locator('.ls-scope[data-scope="kiju"]').getAttribute('class')).includes('active'));
+
+  await p3.locator('.ls-go').click(); await p3.waitForTimeout(400);
+  await p3.locator('.ls-ask .submit-btn').click(); await p3.waitForTimeout(1500);
+  const spoken = (await p3.textContent('.ls-jp')).trim();
+  ok('★ 나오는 낱말이 기출 ★', KIJU_LIST.some((e) => spoken.includes(e.w)), spoken.slice(0, 30));
+
+  /* 다시 켜도 그 범위가 남는다 — 매번 고르게 하면 귀로 듣는 자리가 아니다.
+     같은 자리를 새로고침해서 본다. 새 페이지를 열어서 보면 앞 페이지의 앱이
+     아직 살아 있어 같은 저장소에 제 상태를 덮어쓴다 — 앱이 아니라 검사가
+     만든 상황이다. */
+  await p3.reload({ waitUntil: 'domcontentloaded' });
+  await p3.waitForTimeout(1500);
+  const off3 = p3.locator('.gate-offline');
+  await off3.waitFor({ timeout: 8000 }).catch(() => {});
+  if (await off3.count()) { await off3.click(); await p3.waitForTimeout(800); }
+  await openListen(p3, 'auto');
+  await p3.locator('.ls-scope[data-scope="kiju"]').waitFor({ timeout: 8000 });
+  ok('다시 켜도 기출 범위가 기억된다',
+    (await p3.locator('.ls-scope[data-scope="kiju"]').getAttribute('class')).includes('active'));
 
   ok('페이지 오류 없음', errors.length === 0, errors.join(' | ').slice(0, 200) || '없음');
 

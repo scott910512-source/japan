@@ -6,6 +6,7 @@ import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
 import { DIRECTIONS, SCOPES, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
+import { kijuCards } from '../lib/kiju.js';
 
 /* 듣기 · 따라 말하기 — 화면을 못 보는 동안의 학습.
  *
@@ -131,11 +132,23 @@ export default function Listen({
     };
   }, [run]);
 
+  /* 기출 후보는 화면이 만들어 넘긴다 — lib/listen.js는 단어 자료를 모른 채로 둔다.
+     레벨로 거르지 않는다. 기출은 시험에 나온 것이라 「내가 고른 레벨」과 상관이
+     없고, 거르면 기출 화면의 205개와 듣기의 개수가 어긋난다.
+
+     ★ 쓰는 자리보다 위에 둔다 ★ 아래 counts의 의존성 배열은 그릴 때 읽히는데,
+     선언이 그 밑에 있으면 선언 전 접근(TDZ)이 되어 듣기 화면이 통째로 죽는다 —
+     이 파일에서 run으로 한 번 겪은 일이다. */
+  const kijuPool = useMemo(
+    () => kijuCards(words || []).map((w) => ({ id: w.id, kind: 'word' })),
+    [words],
+  );
+
   /* 회독 큐를 빌려 쓰지 않는다. 판정을 안 하는 화면이라 「복습으로 열고
      약점을 흩는다」는 순서를 지킬 이유가 없고, 그 큐에 얽히면 범위가 오늘
      몫으로 좁혀져서 늘 같은 것만 들린다. */
   const start = () => {
-    const queue = pickListen(pool, review, { scope, count, today: todayKey() });
+    const queue = pickListen(pool, review, { scope, count, today: todayKey(), kiju: kijuPool });
     const cards = cardsForQueue(queue, words, sentences);
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
     setRun({ cards, at: 0 });
@@ -259,7 +272,7 @@ export default function Listen({
   };
 
   const poolSize = useMemo(() => pool.length, [pool]);
-  const counts = useMemo(() => scopeCounts(pool, review, todayKey()), [pool, review]);
+  const counts = useMemo(() => scopeCounts(pool, review, todayKey(), kijuPool), [pool, review, kijuPool]);
 
   // ── 재생 중 ──
   if (run && card) {

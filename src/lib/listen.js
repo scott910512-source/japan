@@ -17,6 +17,11 @@ import { stateOf, isWeak, isDue, shuffled, todayKey } from './review.js';
 
 export const SCOPES = [
   { id: 'today', label: '오늘 볼 것', sub: '복습일이 됐거나 아직 안 본 것' },
+  /* 기출만 듣는 자리.
+     다른 범위는 「얼마나 외웠나」로 고르는데 이것만 「시험에 나왔나」로 고른다 —
+     손이 안 비는 시간에 귀로라도 시험 범위를 한 바퀴 돌자는 것이다.
+     외웠는지 안 외웠는지는 안 본다. 이미 아는 것도 귀로는 낯설 수 있다. */
+  { id: 'kiju', label: '기출 단어', sub: '시험에 나온 것만 — 외운 것도 같이' },
   { id: 'seen', label: '배운 것', sub: '한 번이라도 본 것 전체' },
   { id: 'weak', label: '약점만', sub: '세 번 넘게 틀린 것' },
   { id: 'all', label: '전체', sub: '아직 안 본 것까지 다' },
@@ -36,8 +41,31 @@ export function inScope(st, scope, today = todayKey()) {
   if (scope === 'all') return true;
   if (scope === 'seen') return Boolean(st.lastSeen);
   if (scope === 'weak') return isWeak(st);
+  /* 기출은 회독 상태로 고르는 범위가 아니다 — 「시험에 나왔나」는 카드의
+     내력이 아니라 목록이 답한다. 그래서 여기서는 거르지 않고, 후보 목록
+     자체를 기출로 바꿔 끼운다(poolFor). 이 함수에 기출이 들어왔다는 것은
+     이미 그 목록 안이라는 뜻이다. */
+  if (scope === 'kiju') return true;
   // 오늘 볼 것 — 복습일이 됐거나 아직 안 본 것
   return !st.lastSeen || isDue(st, today);
+}
+
+/* 어느 목록에서 고를까.
+ *
+ * ★ 기출만 다른 목록을 본다 ★
+ *
+ * 다른 범위는 오늘의 후보(pool)에서 고른다. 그 목록은 고른 레벨이 반영돼
+ * 있어서, N5만 켜 둔 사람에게는 N5 단어만 들어 있다.
+ *
+ * 기출에 그 규칙을 그대로 쓰면 205개가 18개로 잘린다. 기출 화면은 205개를
+ * 보여 주는데 듣기에서는 18개만 들리는 것이다 — 같은 목록을 두 화면이 다르게
+ * 세는 셈이라, 어느 쪽이 맞는지 알 방법이 없다.
+ *
+ * 기출은 시험에 나온 것이라 레벨로 자를 이유가 없다. 卒業은 N4지만 N3 시험에
+ * 나왔고, N5만 골랐다고 안 나오는 게 아니다. 그래서 목록을 통째로 바꿔 낀다.
+ * 안 주면 기출 범위는 빈손이다 — 「다 들린다」보다 낫다. */
+function poolFor(scope, pool, kiju) {
+  return scope === 'kiju' ? (kiju || []) : pool;
 }
 
 /* 들을 것을 고른다.
@@ -45,19 +73,21 @@ export function inScope(st, scope, today = todayKey()) {
  * 섞는 게 기본이다. 안 섞으면 자료에 적힌 차례대로만 들려서, 어제 들은 것을
  * 오늘 또 같은 순서로 듣게 된다 — 그러면 소리가 아니라 순서를 외운다. */
 export function pickListen(pool, review, {
-  scope = 'today', count = 20, shuffle = true, today = todayKey(),
+  scope = 'today', count = 20, shuffle = true, today = todayKey(), kiju = null,
 } = {}) {
-  const picked = pool.filter(({ id }) => inScope(stateOf(review, id), scope, today));
+  const src = poolFor(scope, pool, kiju);
+  const picked = src.filter(({ id }) => inScope(stateOf(review, id), scope, today));
   const ordered = shuffle ? shuffled(picked) : picked;
   return ordered.slice(0, Math.max(0, count));
 }
 
 /* 범위마다 몇 개나 되는지. 골라 보고 나서야 「들을 게 없어요」를 만나면
    왜 없는지 모른다 — 고르기 전에 숫자를 보여 준다. */
-export function scopeCounts(pool, review, today = todayKey()) {
+export function scopeCounts(pool, review, today = todayKey(), kiju = null) {
   const out = {};
   for (const s of SCOPES) {
-    out[s.id] = pool.filter(({ id }) => inScope(stateOf(review, id), s.id, today)).length;
+    out[s.id] = poolFor(s.id, pool, kiju)
+      .filter(({ id }) => inScope(stateOf(review, id), s.id, today)).length;
   }
   return out;
 }

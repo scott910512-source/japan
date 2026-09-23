@@ -44,6 +44,31 @@ ok('복습일이 안 된 카드는 오늘 볼 것에 없다',
 ok('범위 목록에 설명이 다 붙어 있다',
   SCOPES.every((s) => s.label && s.sub), `${SCOPES.length}가지`);
 
+/* ── 기출만 듣기 ──
+   다른 범위는 「얼마나 외웠나」로 고르는데 이것만 「시험에 나왔나」로 고른다.
+   목록은 화면이 넘겨 준다 — lib/listen.js는 단어 자료를 모른 채로 둔다. */
+const kiju = [{ id: 'w0' }, { id: 'w1' }, { id: 'w35' }, { id: 'w55' }, { id: 'x9' }];
+const ids = new Set(kiju.map((x) => x.id));
+const ck = scopeCounts(pool, review, TODAY, kiju);
+ok('기출은 넘겨준 만큼', ck.kiju === 5, `${ck.kiju}`);
+ok('★ 외운 것도 뺀 게 아니다 ★ — w55는 복습일이 한참 남았는데도 들어온다',
+  pickListen(pool, review, { scope: 'kiju', count: 20, today: TODAY, kiju }).some((x) => x.id === 'w55'));
+ok('기출이 아닌 것은 안 들어온다',
+  pickListen(pool, review, { scope: 'kiju', count: 60, today: TODAY, kiju }).every((x) => ids.has(x.id)));
+
+/* ★ 오늘의 후보(레벨을 반영한 pool) 밖에 있어도 들어온다 ★
+   x9는 pool에 없다. 레벨을 N5만 켜 둔 사람의 기출이 205개에서 18개로 잘리던
+   자리다 — 기출은 시험에 나온 것이라 레벨로 자를 이유가 없다. */
+ok('★ pool 밖의 기출도 들린다 ★',
+  pickListen(pool, review, { scope: 'kiju', count: 60, today: TODAY, kiju }).some((x) => x.id === 'x9'));
+ok('그래도 다른 범위에는 안 샌다',
+  pickListen(pool, review, { scope: 'all', count: 99, today: TODAY, kiju }).every((x) => x.id !== 'x9'));
+
+ok('목록을 안 주면 기출 범위는 빈손 — 「다 들린다」보다 낫다',
+  scopeCounts(pool, review, TODAY).kiju === 0 && pickListen(pool, review, { scope: 'kiju', count: 20, today: TODAY }).length === 0);
+ok('기출 범위를 더해도 다른 범위는 그대로',
+  ck.all === c.all && ck.seen === c.seen && ck.today === c.today && ck.weak === c.weak);
+
 console.log('\n[ 고르기 ]');
 const seen = pickListen(pool, review, { scope: 'seen', count: 20, today: TODAY });
 ok('개수만큼만 나온다', seen.length === 20, `${seen.length}장`);
