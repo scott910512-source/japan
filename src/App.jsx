@@ -64,6 +64,9 @@ export default function App() {
   const [n3View, setN3View] = useState(null);
   // 듣기에 어떤 방식으로 들어왔는지 — 자동 듣기냐 따라 말하기냐
   const [listenMode, setListenMode] = useState('listen');
+  /* 듣기에서 시험으로 넘어갈 때 들고 가는 세트. 비어 있으면 시험은 평소대로
+     제 설정(범위·개수)으로 문제를 짠다. */
+  const [quizSet, setQuizSet] = useState(null);
   const [deck, setDeck] = useState(null); // 학습 중인 덱 (있으면 회독 화면이 전체를 덮는다)
 
   const appData = useAppData();
@@ -415,6 +418,9 @@ export default function App() {
      한자는 N3 코스의 한자 과정을, 듣기는 듣기 고르기(자동·따라·영상)를 연다.
      같은 자료·화면을 두 벌 두지 않는다 — 길만 여기서 정한다. */
   const openMenu = useCallback((id, opts = {}) => {
+    /* 메뉴로 들어온 시험은 평소 시험이다 — 듣던 세트를 들고 가지 않는다.
+       안 비우면 듣기를 한 번 쓴 뒤로 「단어 시험」이 영영 그 스무 개만 묻는다. */
+    if (id !== 'quiz') setQuizSet(null);
     if (id === 'words') { setSub('worddeck'); return; }
     if (id === 'weak') { startWeakDeck(); return; }
     if (id === 'videos') { setVideosSeen(true); setSub(null); setActiveTab('videos'); return; }
@@ -706,6 +712,8 @@ export default function App() {
                 startQuizWrongDeck={startQuizWrongDeck}
                 noteActivity={noteActivity}
                 listenMode={listenMode}
+                quizSet={quizSet}
+                onQuizSet={(cards) => { setQuizSet(cards); setSub('quiz'); }}
                 todayPool={todayPool}
                 sentenceCards={sentenceCards}
                 setSub={setSub}

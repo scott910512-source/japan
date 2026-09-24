@@ -34,6 +34,8 @@ export default function FeatureScreen({
   customWords,
   openListen,
   n3View,
+  quizSet,
+  onQuizSet,
 }) {
   return (<>
             {sub === 'worddeck' && (
@@ -115,6 +117,8 @@ export default function FeatureScreen({
                 onToast={showToast}
                 onRetryWrong={startQuizWrongDeck}
                 onActivity={noteActivity}
+                /* 듣기에서 넘어온 세트가 있으면 그것만 묻는다 */
+                fixedWords={quizSet}
               />
             )}
             {sub === 'listen' && (
@@ -129,6 +133,9 @@ export default function FeatureScreen({
                 onClose={() => setSub(null)}
                 onToast={showToast}
                 onActivity={noteActivity}
+                /* 듣던 세트를 그대로 시험으로. 귀로 들은 것과 답할 수 있는
+                   것은 다르고, 그 차이는 물어봐야 안다. */
+                onQuiz={onQuizSet}
               />
             )}
             {sub === 'conjugate' && (

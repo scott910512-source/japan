@@ -339,3 +339,15 @@
 }
 .inner-back svg { width: 18px; height: 18px; }
 
+
+/* ── 듣기: 구간 · 바퀴 · 시험으로 ── */
+.ls-lap { display: block; font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+.ls-order { margin-bottom: 10px; }
+.ls-blockrow .set-title { display: flex; align-items: baseline; gap: 2px; flex-wrap: wrap; }
+.ls-range { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.ls-blocknav { display: flex; gap: 8px; margin-top: 10px; }
+.ls-blocknav .ghost-btn { flex: 1; justify-content: center; min-height: 44px; }
+.ls-blocknav .ghost-btn:disabled { opacity: .4; cursor: default; }
+.ls-quiz { margin: 0 16px 10px; width: calc(100% - 32px); justify-content: center; }
+.ls-quizlast { width: 100%; justify-content: center; margin-top: 14px; min-height: 44px; }
+.qz-fromlisten .set-sub { margin-top: 4px; font-size: 12.5px; color: var(--ink-soft); }

@@ -5,7 +5,7 @@ import { koreanVoiceListed, speechReady, speakJapanese, speakKorean, stopSpeakin
 import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
-import { DIRECTIONS, SCOPES, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
+import { DIRECTIONS, SCOPES, blocksIn, nextAt, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 
 /* 듣기 · 따라 말하기 — 화면을 못 보는 동안의 학습.
@@ -51,7 +51,7 @@ export const COUNTS = [10, 20, 30, 50, 100];
 
 export default function Listen({
   pool, words, sentences, review, settings, onSettingsChange, onClose, onToast,
-  onActivity, initialMode = 'listen',
+  onActivity, onQuiz, initialMode = 'listen',
 }) {
   const [mode, setMode] = useState(initialMode);
   /* 어느 쪽을 먼저 들려줄까. 「뜻 → 일본어」가 있어야 입이 열린다 —
@@ -68,7 +68,17 @@ export default function Listen({
   const [gap, setGap] = useState(settings.listenGap || 2);
 
   const [count, setCount] = useState(settings.listenCount || 20);
-  const [run, setRun] = useState(null);   // { cards, at }
+  /* 구간별로 끊어 듣기. 섞어 뽑으면 들을 때마다 딴 것이 나와서 한 덩어리를
+     귀에 붙일 수가 없다 — 매번 처음 듣는 낱말이 섞인다. */
+  const [order, setOrder] = useState(settings.listenOrder || 'block');
+  const [block, setBlock] = useState(settings.listenBlock || 0);
+  /* 정지할 때까지 한 세트를 돈다. 소리를 외우는 일은 같은 것을 여러 번
+     마주쳐야 되는 일이라, 한 바퀴 돌고 끝나면 남는 게 없다. */
+  const [loop, setLoop] = useState(settings.listenLoop !== false);
+  const [run, setRun] = useState(null);   // { cards, at, lap }
+  /* 방금 들은 세트. 다 듣고 나서 「그대로 시험」으로 넘어가는 자리다 —
+     귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다. */
+  const [lastSet, setLastSet] = useState(null);
 
   /* ★ 들은 것도 기록에 남는다 ★
    *
@@ -162,10 +172,13 @@ export default function Listen({
      약점을 흩는다」는 순서를 지킬 이유가 없고, 그 큐에 얽히면 범위가 오늘
      몫으로 좁혀져서 늘 같은 것만 들린다. */
   const start = () => {
-    const queue = pickListen(pool, review, { scope, count, today: todayKey(), kiju: kijuPool });
+    const queue = pickListen(pool, review, {
+      scope, count, today: todayKey(), kiju: kijuPool, order, block,
+    });
     const cards = cardsForQueue(queue, words, sentences);
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
-    setRun({ cards, at: 0 });
+    setRun({ cards, at: 0, lap: 0 });
+    setLastSet(cards);
     setStep(0);
   };
 
@@ -210,8 +223,11 @@ export default function Listen({
         setStep(0);
         setRun((r) => {
           if (!r) return r;
-          if (r.at + 1 >= r.cards.length) { onToast('다 들었어요'); return null; }
-          return { ...r, at: r.at + 1 };
+          const next = nextAt(r, loop);
+          if (!next) { onToast('다 들었어요 — 시험으로 확인해 볼까요'); return null; }
+          // 한 바퀴를 넘겼으면 알린다. 화면을 안 보고 있어도 어디쯤인지는 알아야 한다
+          if (next.lap > r.lap) onToast(`${next.lap}바퀴 돌았어요`);
+          return { ...r, ...next };
         });
       }, after);
     };
@@ -271,7 +287,7 @@ export default function Listen({
       go(koWait + Math.max(600, wait));
     }
     return () => clearTimeout(timer.current);
-  }, [card, phase, last, nudge, direction, gap, rate, sayKo, sayAnswer, onToast]);
+  }, [card, phase, last, nudge, direction, gap, rate, sayKo, sayAnswer, loop, onToast]);
 
   const skip = (n) => {
     clearTimeout(timer.current);
@@ -287,6 +303,15 @@ export default function Listen({
 
   const poolSize = useMemo(() => pool.length, [pool]);
   const counts = useMemo(() => scopeCounts(pool, review, todayKey(), kijuPool), [pool, review, kijuPool]);
+  /* 고른 범위에 구간이 몇 개인가. 개수를 바꾸면 구간 수도 따라 바뀐다. */
+  const blocks = useMemo(
+    () => blocksIn(pool, review, { scope, count, today: todayKey(), kiju: kijuPool }),
+    [pool, review, scope, count, kijuPool],
+  );
+  /* 개수나 범위를 바꾸면 구간 수가 줄어든다. 저장된 번호를 그대로 쓰면
+     「12 / 11구간」이 뜬다 — 고르는 쪽에서 미리 당겨 둔다(뽑는 쪽도 막지만,
+     화면에 거짓말이 뜨는 것은 그것대로 문제다). */
+  const at = Math.min(block, blocks - 1);
 
   // ── 재생 중 ──
   if (run && card) {
@@ -303,8 +328,24 @@ export default function Listen({
       <div className={`listen play${back ? ' back' : ''}`}>
         <div className="sub-header inline">
           <button className="sub-back" onClick={stop}><IconArrowLeft /> 그만</button>
-          <div className="sub-title">{run.at + 1} / {run.cards.length}</div>
+          <div className="sub-title">
+            {run.at + 1} / {run.cards.length}
+            {/* 몇 장 남았는지보다 몇 번 마주쳤는지가 귀에 붙는 정도를 말해 준다 */}
+            {run.lap > 0 && <small className="ls-lap">{run.lap + 1}바퀴째</small>}
+          </div>
         </div>
+
+        {/* ★ 한 바퀴 돌았으면 시험으로 ★
+            귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다.
+            듣는 동안에는 안 띄운다 — 한 바퀴도 안 돌고 시험을 보면 그냥 모른다. */}
+        {run.lap > 0 && onQuiz && (
+          <button
+            className="ghost-btn ls-quiz"
+            onClick={() => { stop(); onQuiz(run.cards); }}
+          >
+            이 구간으로 시험 보기
+          </button>
+        )}
 
         <div className="ls-stage" aria-live="polite">
           {showKo && <div className="ls-ko on ls-prompt">{card.mean}</div>}
@@ -507,6 +548,85 @@ export default function Listen({
           </div>
         </div>
       </div>
+
+      {/* ★ 순서 ★
+          섞어 뽑으면 들을 때마다 딴 것이 나온다. 「이 스무 개를 귀에 붙이겠다」가
+          안 되고, 한 바퀴를 돌아도 매번 처음 듣는 낱말이 섞여서 남는 게 없다.
+          구간은 몇 번째부터 몇 번째까지다 — 그 자리를 앱이 안 흔든다. */}
+      <div className="section-label">순서</div>
+      <div className="segment ls-order">
+        <button
+          className={order === 'block' ? 'active' : ''}
+          data-order="block"
+          onClick={() => { setOrder('block'); onSettingsChange?.({ listenOrder: 'block' }); }}
+        >
+          구간별
+        </button>
+        <button
+          className={order === 'shuffle' ? 'active' : ''}
+          data-order="shuffle"
+          onClick={() => { setOrder('shuffle'); onSettingsChange?.({ listenOrder: 'shuffle' }); }}
+        >
+          섞어서
+        </button>
+      </div>
+
+      <div className="card">
+        {order === 'block' ? (
+          <div className="setrow col ls-blockrow">
+            <div className="set-title">
+              <span className="set-val">{at + 1}</span> / {blocks}구간
+              <small className="ls-range"> · {at * count + 1}~{Math.min((at + 1) * count, counts[scope] || 0)}번째</small>
+            </div>
+            <div className="ls-blocknav">
+              <button
+                className="ghost-btn ls-prev"
+                disabled={at === 0}
+                onClick={() => { const b = Math.max(0, at - 1); setBlock(b); onSettingsChange?.({ listenBlock: b }); }}
+              >
+                <IconArrowLeft /> 앞 구간
+              </button>
+              <button
+                className="ghost-btn ls-next"
+                disabled={at >= blocks - 1}
+                onClick={() => { const b = Math.min(blocks - 1, at + 1); setBlock(b); onSettingsChange?.({ listenBlock: b }); }}
+              >
+                다음 구간
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="setrow col">
+            <div className="set-sub">들을 때마다 이 범위에서 새로 뽑아요.</div>
+          </div>
+        )}
+
+        {/* 정지할 때까지 한 세트를 돈다 — 소리를 외우는 일은 같은 것을
+            여러 번 마주쳐야 되는 일이다. */}
+        <button
+          className="toggle-row setrow ls-loop"
+          onClick={() => { setLoop(!loop); onSettingsChange?.({ listenLoop: !loop }); }}
+          aria-pressed={loop}
+        >
+          <span>
+            <span className="set-title">정지할 때까지 반복</span>
+            <span className="set-sub">
+              {loop
+                ? '한 바퀴를 다 돌면 그 자리에서 다시 시작해요'
+                : '한 바퀴만 돌고 멈춰요'}
+            </span>
+          </span>
+          <span className={`toggle${loop ? ' on' : ''}`} aria-hidden="true" />
+        </button>
+      </div>
+
+      {/* 방금 들은 세트로 바로 시험. 듣기는 판정을 안 하니, 귀에 붙었는지는
+          물어봐야 안다. */}
+      {lastSet?.length > 0 && onQuiz && (
+        <button className="ghost-btn ls-quizlast" onClick={() => onQuiz(lastSet)}>
+          방금 들은 {lastSet.length}개로 시험 보기
+        </button>
+      )}
 
       <p className="set-note">
         이어폰을 끼고 화면을 꺼도 이어지게 해 뒀지만, 기기와 브라우저에 따라 멈출 수 있어요.

@@ -37,7 +37,13 @@ const SCOPE_OPTS = [
 /* 시험 화면.
  * 회독과 달리 정답을 앱이 판정한다. 그래서 회독 기록(review)은 읽기만 하고 쓰지 않는다 —
  * 시험 때문에 복습 간격이 흔들리면 시험을 마음 편히 못 본다. */
-export default function Quiz({ words, review, settings, onChange, onToast, onRetryWrong, onActivity }) {
+/* fixedWords — 듣기에서 들고 온 세트.
+ *
+ * 있으면 그것만 묻는다. 범위 고르기는 안 보여 준다 — 「방금 들은 스무 개로
+ * 시험」인데 거기서 범위를 또 고르게 하면 무엇을 푸는 시험인지 흐려진다.
+ * 보기(오답 후보)도 그 세트 안에서 뽑는다. 같은 구간에서 헷갈리는 것끼리
+ * 겨루는 편이, 안 들은 낱말이 보기로 나오는 것보다 낫다. */
+export default function Quiz({ words, review, settings, onChange, onToast, onRetryWrong, onActivity, fixedWords = null }) {
   const [config, setConfig] = useState({
     count: settings.quizCount ?? 20,
     type: settings.quizType ?? QUIZ_TYPE.CHOICE,
@@ -46,10 +52,14 @@ export default function Quiz({ words, review, settings, onChange, onToast, onRet
   });
   const [run, setRun] = useState(null); // { questions, answers, index } — 없으면 설정 화면
 
-  const pool = useMemo(() => filterByLevel(words, settings.levels), [words, settings.levels]);
+  const set = fixedWords?.length ? fixedWords.filter((w) => w?.kind !== 'sentence') : null;
+  const pool = useMemo(
+    () => (set ? set : filterByLevel(words, settings.levels)),
+    [set, words, settings.levels],
+  );
   const available = useMemo(
-    () => scopeWords(pool, review, config.scope).length,
-    [pool, review, config.scope],
+    () => (set ? set.length : scopeWords(pool, review, config.scope).length),
+    [set, pool, review, config.scope],
   );
 
   const patch = (p) => {
@@ -91,17 +101,29 @@ export default function Quiz({ words, review, settings, onChange, onToast, onRet
 
   return (
     <>
-      <div className="section-label" style={{ marginTop: 0 }}>출제 범위</div>
-      <div className="chiprow">
-        {SCOPE_OPTS.map((o) => (
-          <div key={o.id} className={`chip${config.scope === o.id ? ' active' : ''}`}
-            onClick={() => patch({ scope: o.id })}>{o.label}</div>
-        ))}
-      </div>
-      <div className="set-note">
-        {SCOPE_OPTS.find((o) => o.id === config.scope)?.sub} · 지금 {available}개
-        {settings.levels?.length ? ` (${settings.levels.join(' · ')})` : ' (전체 레벨)'}
-      </div>
+      {set ? (
+        /* 듣고 온 세트 — 무엇을 푸는 시험인지만 적고 범위는 안 묻는다 */
+        <div className="card qz-fromlisten" style={{ marginTop: 0 }}>
+          <div className="set-title">방금 들은 {set.length}개로 시험</div>
+          <div className="set-sub">
+            귀로 들은 것과 답할 수 있는 것은 달라요. 여기서 확인해요.
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="section-label" style={{ marginTop: 0 }}>출제 범위</div>
+          <div className="chiprow">
+            {SCOPE_OPTS.map((o) => (
+              <div key={o.id} className={`chip${config.scope === o.id ? ' active' : ''}`}
+                onClick={() => patch({ scope: o.id })}>{o.label}</div>
+            ))}
+          </div>
+          <div className="set-note">
+            {SCOPE_OPTS.find((o) => o.id === config.scope)?.sub} · 지금 {available}개
+            {settings.levels?.length ? ` (${settings.levels.join(' · ')})` : ' (전체 레벨)'}
+          </div>
+        </>
+      )}
 
       <div className="section-label">문제 유형</div>
       <div className="pickstack">
@@ -125,25 +147,31 @@ export default function Quiz({ words, review, settings, onChange, onToast, onRet
         ))}
       </div>
 
-      <div className="section-label">문항 수</div>
-      <div className="card">
-        <div className="setrow col">
-          <div className="set-title">한 번에 <span className="set-val">{config.count}문항</span></div>
-          <div className="grouppick">
-            {COUNTS.map((n) => (
-              <button key={n} className={config.count === n ? 'active' : ''}
-                onClick={() => patch({ count: n })}>{n}</button>
-            ))}
+      {/* 들고 온 세트는 그 수가 곧 문항 수다 — 스무 개를 듣고 와서 열 개만
+          묻으면 나머지 열 개는 확인이 안 된 채로 남는다. */}
+      {!set && (
+        <div>
+          <div className="section-label">문항 수</div>
+          <div className="card">
+            <div className="setrow col">
+              <div className="set-title">한 번에 <span className="set-val">{config.count}문항</span></div>
+              <div className="grouppick">
+                {COUNTS.map((n) => (
+                  <button key={n} className={config.count === n ? 'active' : ''}
+                    onClick={() => patch({ count: n })}>{n}</button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <button className="bigstart" onClick={() => start()} disabled={available === 0}>
+      <button className="bigstart" onClick={() => start(set)} disabled={available === 0}>
         <span className="bs-t">시험 시작</span>
         <span className="bs-s">
           {available === 0
             ? '이 범위에 단어가 없어요'
-            : `${Math.min(config.count, available)}문항 · ${TYPE_OPTS.find((o) => o.id === config.type)?.label}`}
+            : `${set ? set.length : Math.min(config.count, available)}문항 · ${TYPE_OPTS.find((o) => o.id === config.type)?.label}`}
         </span>
       </button>
 
