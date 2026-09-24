@@ -35,6 +35,20 @@ export const MODES = [
 
 export const GAPS = [1, 2, 3, 5];
 
+/* 한 번에 몇 장.
+ *
+ * ★ 100까지 연다 ★
+ *
+ * 50이 위 끝이었다. 「자기 전에 스무 개」를 기준으로 잡은 숫자인데, 기출
+ * 205개처럼 한 덩어리를 정해 놓고 도는 쓰임이 생기면서 모자랐다 — 50으로
+ * 끊으면 같은 범위를 네 번 나눠 돌아야 하고, 그때마다 어디까지 들었는지는
+ * 아무도 안 적어 준다(듣기는 판정을 안 하니 진도가 없다).
+ *
+ * 100이면 기출 절반이 한 번에 돈다. 한 장에 10초 남짓이니 20분쯤이다 —
+ * 출퇴근 한 편 길이라 여기서 끊는다. 더 늘리면 「틀어 놓고 안 듣는」 길이가
+ * 되고, 그건 들은 것으로 세면 안 되는 시간이다. */
+export const COUNTS = [10, 20, 30, 50, 100];
+
 export default function Listen({
   pool, words, sentences, review, settings, onSettingsChange, onClose, onToast,
   onActivity, initialMode = 'listen',
@@ -487,7 +501,7 @@ export default function Listen({
         <div className="setrow col">
           <div className="set-title">한 번에 <span className="set-val">{count}개</span></div>
           <div className="grouppick">
-            {[10, 20, 30, 50].map((n) => (
+            {COUNTS.map((n) => (
               <button key={n} className={count === n ? 'active' : ''} onClick={() => { setCount(n); onSettingsChange?.({ listenCount: n }); }}>{n}</button>
             ))}
           </div>
