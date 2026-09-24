@@ -325,7 +325,7 @@ export const DEFAULT_SETTINGS = {
   autoTTS: true,      // 카드가 뜨면 자동으로 읽어주기
   listenSayKo: true,  // 듣기 화면에서 뜻도 소리로 (기기 한국어 음성)
   listenDir: 'jp-ko',     // 'jp-ko' 듣고 뜻 떠올리기 | 'ko-jp' 뜻 듣고 일본어로 말하기
-  listenScope: 'today',   // 'today' | 'seen' | 'weak' | 'all' — 무엇을 들을지
+  listenScope: 'today',   // 'today' | 'kiju' | 'seen' | 'weak' | 'all' — 무엇을 들을지
   listenSayAnswer: true,  // 뒤집은 판에서 정답(일본어)도 소리로 낼지
   listenGap: 2,       // 문장 사이 뜸 (초)
   listenRecap: false, // 뜻까지 듣고 나서 일본어를 한 번 더 (한 장이 길어져 기본은 끔)

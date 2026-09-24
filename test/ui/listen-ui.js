@@ -90,7 +90,15 @@ async function boot(browser, patch = {}, init = null) {
   /* ★ 무엇을 들을지 여기서 고른다 ★
      여태 오늘의 학습 큐를 빌려 써서, 배운 게 수백 개인데 늘 같은 스무 개가
      같은 차례로 들렸다. 그러면 소리가 아니라 순서를 외운다. */
-  ok('무엇을 들을지 고를 수 있다', await page.locator('.listen .ls-scope').count() === 4);
+  ok('무엇을 들을지 고를 수 있다', await page.locator('.listen .ls-scope').count() === 5);
+  /* 기출만 듣는 자리 — 손이 안 비는 시간에 귀로 시험 범위를 한 바퀴 돈다.
+     다른 범위는 「얼마나 외웠나」로 고르는데 이것만 「시험에 나왔나」로 고른다. */
+  const kijuN = Number((await page.locator('.ls-scope[data-scope="kiju"] .pk-count').innerText()).match(/\d+/)[0]);
+  ok('★ 기출 단어만 듣는 범위가 있다 ★', kijuN === 205, `${kijuN}개`);
+  /* ★ 레벨로 안 잘린다 ★ 기본 설정은 N5만 켜져 있다. 그 규칙을 기출에도 쓰면
+     205개가 18개가 되어, 기출 화면이 보여 주는 수와 듣기가 세는 수가 어긋난다. */
+  const seenN = Number((await page.locator('.ls-scope[data-scope="seen"] .pk-count').innerText()).match(/\d+/)[0]);
+  ok('기출은 고른 레벨에 안 묶인다', kijuN > seenN, `기출 ${kijuN} · 배운 것 ${seenN}`);
   ok('범위마다 몇 개인지 미리 보인다',
     /\d+개/.test(await page.locator('.ls-scope[data-scope="seen"] .pk-count').innerText()),
     (await page.locator('.listen .ls-scope .pk-count').allTextContents()).join(' / '));

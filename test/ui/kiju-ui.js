@@ -8,7 +8,7 @@
  *   진도 막대가 판정한 만큼 움직인다 · 375px에서 가로로 안 넘친다 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, openMenu } from './_nav.js';
+import { goTab, openListen, openMenu } from './_nav.js';
 import { KIJU_LIST } from '../../src/lib/kiju.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
@@ -133,6 +133,42 @@ const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth > 
   ok('단어 카드가 몇 장 나왔다', seen.length >= 3, `${seen.length}장`);
   ok('★ 새로 배우는 단어가 전부 기출 ★', seen.length >= 3 && seen.every(isKiju),
     seen.filter((t) => !isKiju(t)).join(' | ').slice(0, 80) || seen.map((t) => t.slice(0, 12)).join(' / '));
+
+  console.log('\n── ★ 기출만 자동 듣기 ★');
+  /* 손이 안 비는 시간에 귀로 시험 범위를 한 바퀴 돈다. 기출 화면과 같은
+     205개가 후보여야 한다 — 레벨로 잘리면 두 화면의 숫자가 어긋난다. */
+  /* p2는 아직 회독 판 안이라 탭바가 없다(집중 모드). 새 자리에서 연다. */
+  const p3 = await boot(browser);
+  await openListen(p3, 'auto');
+  await p3.locator('.ls-scope[data-scope="kiju"]').waitFor({ timeout: 8000 });
+  const kn = Number((await p3.locator('.ls-scope[data-scope="kiju"] .pk-count').innerText()).match(/\d+/)[0]);
+  ok('듣기 범위에 기출 205개', kn === 205, `${kn}개`);
+  await p3.locator('.ls-scope[data-scope="kiju"]').click();
+  await p3.waitForTimeout(300);
+  ok('고른 범위가 켜진다', (await p3.locator('.ls-scope[data-scope="kiju"]').getAttribute('class')).includes('active'));
+
+  await p3.locator('.ls-go').click(); await p3.waitForTimeout(400);
+  await p3.locator('.ls-ask .submit-btn').click(); await p3.waitForTimeout(1500);
+  const spoken = (await p3.textContent('.ls-jp')).trim();
+  ok('★ 나오는 낱말이 기출 ★', KIJU_LIST.some((e) => spoken.includes(e.w)), spoken.slice(0, 30));
+
+  /* 다시 켜도 그 범위가 남는다 — 매번 고르게 하면 귀로 듣는 자리가 아니다.
+     새로고침으로 보지 않는다. 오프라인으로 끊어 둔 채 다시 부르면 서비스워커가
+     자리를 잡는 동안 화면이 비는 때가 있어서, 느린 기계(CI)에서만 탭바를 못
+     찾고 멈췄다 — 앱이 아니라 검사가 만든 상황이다.
+
+     저장이 됐는지와 화면이 그 값을 다시 읽는지를 따로 본다. 둘이 곧
+     「다시 켜도 남는다」이고, 페이지를 다시 부르지 않아도 답할 수 있다. */
+  const saved = await p3.evaluate(
+    () => JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').listenScope,
+  );
+  ok('고른 범위가 저장된다', saved === 'kiju', String(saved));
+
+  await p3.locator('.listen .sub-back').click(); await p3.waitForTimeout(600);
+  await openListen(p3, 'auto');
+  await p3.locator('.ls-scope[data-scope="kiju"]').waitFor({ timeout: 8000 });
+  ok('나갔다 들어와도 기출 범위가 켜져 있다',
+    (await p3.locator('.ls-scope[data-scope="kiju"]').getAttribute('class')).includes('active'));
 
   ok('페이지 오류 없음', errors.length === 0, errors.join(' | ').slice(0, 200) || '없음');
 
