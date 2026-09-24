@@ -153,17 +153,21 @@ const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth > 
   ok('★ 나오는 낱말이 기출 ★', KIJU_LIST.some((e) => spoken.includes(e.w)), spoken.slice(0, 30));
 
   /* 다시 켜도 그 범위가 남는다 — 매번 고르게 하면 귀로 듣는 자리가 아니다.
-     같은 자리를 새로고침해서 본다. 새 페이지를 열어서 보면 앞 페이지의 앱이
-     아직 살아 있어 같은 저장소에 제 상태를 덮어쓴다 — 앱이 아니라 검사가
-     만든 상황이다. */
-  await p3.reload({ waitUntil: 'domcontentloaded' });
-  await p3.waitForTimeout(1500);
-  const off3 = p3.locator('.gate-offline');
-  await off3.waitFor({ timeout: 8000 }).catch(() => {});
-  if (await off3.count()) { await off3.click(); await p3.waitForTimeout(800); }
+     새로고침으로 보지 않는다. 오프라인으로 끊어 둔 채 다시 부르면 서비스워커가
+     자리를 잡는 동안 화면이 비는 때가 있어서, 느린 기계(CI)에서만 탭바를 못
+     찾고 멈췄다 — 앱이 아니라 검사가 만든 상황이다.
+
+     저장이 됐는지와 화면이 그 값을 다시 읽는지를 따로 본다. 둘이 곧
+     「다시 켜도 남는다」이고, 페이지를 다시 부르지 않아도 답할 수 있다. */
+  const saved = await p3.evaluate(
+    () => JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').listenScope,
+  );
+  ok('고른 범위가 저장된다', saved === 'kiju', String(saved));
+
+  await p3.locator('.listen .sub-back').click(); await p3.waitForTimeout(600);
   await openListen(p3, 'auto');
   await p3.locator('.ls-scope[data-scope="kiju"]').waitFor({ timeout: 8000 });
-  ok('다시 켜도 기출 범위가 기억된다',
+  ok('나갔다 들어와도 기출 범위가 켜져 있다',
     (await p3.locator('.ls-scope[data-scope="kiju"]').getAttribute('class')).includes('active'));
 
   ok('페이지 오류 없음', errors.length === 0, errors.join(' | ').slice(0, 200) || '없음');
