@@ -3,7 +3,9 @@
  * 이 화면이 오늘의 학습 큐를 빌려 쓰던 시절에는 두 가지가 망가져 있었다.
  * 배운 게 500개인데 늘 같은 스무 개만 들렸고, 순서까지 매번 같았다.
  * 그래서 소리가 아니라 순서를 외우게 됐다. 여기서 그걸 지킨다. */
-import { SCOPES, DIRECTIONS, inScope, pickListen, scopeCounts, stepsOf } from '../../src/lib/listen.js';
+import {
+  SCOPES, DIRECTIONS, blockCount, blocksIn, inScope, nextAt, pickBlock, pickListen, scopeCounts, stepsOf,
+} from '../../src/lib/listen.js';
 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => {
@@ -90,6 +92,69 @@ ok('돌릴 때마다 순서가 다르다', a.join() !== b.join(),
 const fixed = pickListen(pool, review, { scope: 'all', count: 5, shuffle: false, today: TODAY });
 ok('안 섞을 수도 있다', fixed.map((x) => x.id).join() === 'w0,w1,w2,w3,w4');
 ok('0개를 부르면 빈손', pickListen(pool, review, { scope: 'all', count: 0 }).length === 0);
+
+console.log('\n[ 구간별로 끊어 듣기 ]');
+{
+  /* ★ 섞어 뽑으면 한 덩어리를 못 외운다 ★
+     들을 때마다 딴 것이 나오니 「이 스무 개를 귀에 붙이겠다」가 안 된다.
+     구간은 몇 번째부터 몇 번째까지고, 그 자리를 앱이 안 흔든다. */
+  ok('60개를 20씩 끊으면 세 구간', blockCount(60, 20) === 3);
+  ok('딱 안 떨어지면 마지막 구간이 짧다', blockCount(65, 20) === 4);
+  ok('비어 있어도 한 구간은 있다 — 「0 / 0구간」은 화면에 못 적는다', blockCount(0, 20) === 1);
+
+  const list = Array.from({ length: 65 }, (_, i) => ({ id: `k${i}` }));
+  ok('1구간은 앞에서 스무 개', pickBlock(list, { count: 20, block: 0 }).map((x) => x.id).join() === 'k0,k1,k2'.split(',').concat(Array.from({ length: 17 }, (_, i) => `k${i + 3}`)).join());
+  ok('2구간은 그다음 스무 개', pickBlock(list, { count: 20, block: 1 })[0].id === 'k20');
+  ok('마지막 구간은 남은 만큼만', pickBlock(list, { count: 20, block: 3 }).length === 5);
+  ok('범위를 넘겨 부르면 마지막 구간', pickBlock(list, { count: 20, block: 99 })[0].id === 'k60');
+  ok('음수도 첫 구간으로', pickBlock(list, { count: 20, block: -3 })[0].id === 'k0');
+
+  /* ★ 같은 구간은 늘 같은 차례 ★
+     섞으면 다시 틀 때마다 순서가 달라지는데, 그러면 「세 번째에 나오는 그
+     낱말」이라는 기억의 손잡이가 없어진다. */
+  const a = pickListen(pool, review, { scope: 'all', count: 20, order: 'block', block: 1, today: TODAY });
+  const b = pickListen(pool, review, { scope: 'all', count: 20, order: 'block', block: 1, today: TODAY });
+  ok('★ 같은 구간은 부를 때마다 같은 차례 ★', a.map((x) => x.id).join() === b.map((x) => x.id).join());
+  ok('구간이 다르면 내용도 다르다',
+    a[0].id !== pickListen(pool, review, { scope: 'all', count: 20, order: 'block', block: 0, today: TODAY })[0].id);
+
+  ok('범위에 구간이 몇 개인지 센다',
+    blocksIn(pool, review, { scope: 'all', count: 20, today: TODAY }) === 3, 
+    `${blocksIn(pool, review, { scope: 'all', count: 20, today: TODAY })}구간`);
+  ok('개수를 키우면 구간이 줄어든다',
+    blocksIn(pool, review, { scope: 'all', count: 100, today: TODAY }) === 1);
+  ok('좁은 범위는 구간도 적다',
+    blocksIn(pool, review, { scope: 'weak', count: 20, today: TODAY }) === 1);
+
+  /* 구간은 범위 규칙을 그대로 따른다 — 기출 구간도 기출 목록에서만 끊는다 */
+  const kb = pickListen(pool, review, { scope: 'kiju', count: 2, order: 'block', block: 1, today: TODAY, kiju });
+  ok('기출도 구간으로 끊린다', kb.length === 2 && ids.has(kb[0].id), kb.map((x) => x.id).join());
+}
+
+console.log('\n[ 정지할 때까지 반복 ]');
+{
+  /* 한 바퀴 돌고 끝나면 열 개를 한 번씩 스친 것뿐이다 — 소리는 그렇게 안 붙는다.
+     멈추는 것은 사람이 정한다. */
+  const set = { cards: [{ id: 'a' }, { id: 'b' }, { id: 'c' }], at: 0, lap: 0 };
+  ok('가운데서는 다음 장으로', nextAt(set, true).at === 1);
+  ok('바퀴 수는 그대로', nextAt(set, true).lap === 0);
+
+  const last = { ...set, at: 2 };
+  ok('★ 마지막 장 다음은 처음으로 ★', nextAt(last, true).at === 0);
+  ok('★ 바퀴가 하나 올라간다 ★', nextAt(last, true).lap === 1);
+  ok('반복을 끄면 거기서 끝', nextAt(last, false) === null);
+  ok('반복을 꺼도 가운데서는 이어진다', nextAt(set, false).at === 1);
+
+  /* 바퀴를 여러 번 돌아도 자리는 안 흔들린다 — 같은 차례로 다시 만난다 */
+  let cur = { ...set };
+  const seen = [];
+  for (let i = 0; i < 7; i++) { seen.push(cur.at); cur = { ...cur, ...nextAt(cur, true) }; }
+  ok('★ 같은 차례로 계속 돈다 ★', seen.join() === '0,1,2,0,1,2,0', seen.join());
+  ok('일곱 걸음이면 두 바퀴를 넘긴다', cur.lap === 2, `${cur.lap}바퀴`);
+
+  ok('빈 세트는 돌 게 없다', nextAt({ cards: [], at: 0, lap: 0 }, true) === null);
+  ok('세트가 없어도 안 죽는다', nextAt(null, true) === null);
+}
 
 console.log('\n[ 한 장의 걸음 ]');
 ok('방향은 둘', DIRECTIONS.length === 2, DIRECTIONS.map((d) => d.id).join(' / '));

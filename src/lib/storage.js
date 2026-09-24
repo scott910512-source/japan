@@ -326,6 +326,11 @@ export const DEFAULT_SETTINGS = {
   listenSayKo: true,  // 듣기 화면에서 뜻도 소리로 (기기 한국어 음성)
   listenDir: 'jp-ko',     // 'jp-ko' 듣고 뜻 떠올리기 | 'ko-jp' 뜻 듣고 일본어로 말하기
   listenScope: 'today',   // 'today' | 'kiju' | 'seen' | 'weak' | 'all' — 무엇을 들을지
+  /* 'block' 구간별(기본) | 'shuffle' 섞어서.
+     섞어 뽑으면 들을 때마다 딴 것이 나와서 한 덩어리를 귀에 붙일 수가 없다. */
+  listenOrder: 'block',
+  listenBlock: 0,         // 몇 번째 구간을 듣는가 (0부터)
+  listenLoop: true,       // 정지할 때까지 한 세트를 반복
   listenSayAnswer: true,  // 뒤집은 판에서 정답(일본어)도 소리로 낼지
   listenGap: 2,       // 문장 사이 뜸 (초)
   listenRecap: false, // 뜻까지 듣고 나서 일본어를 한 번 더 (한 장이 길어져 기본은 끔)

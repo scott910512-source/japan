@@ -72,11 +72,47 @@ function poolFor(scope, pool, kiju) {
  *
  * 섞는 게 기본이다. 안 섞으면 자료에 적힌 차례대로만 들려서, 어제 들은 것을
  * 오늘 또 같은 순서로 듣게 된다 — 그러면 소리가 아니라 순서를 외운다. */
+/* 후보를 구간으로 끊는다.
+ *
+ * ★ 섞어 뽑으면 한 덩어리를 못 외운다 ★
+ *
+ * 여태는 범위 안에서 무작위로 count개를 집었다. 들을 때마다 딴 것이 나오니
+ * 「이 스무 개를 귀에 붙이겠다」가 안 된다 — 매번 처음 듣는 낱말이 섞여서
+ * 한 바퀴를 돌아도 남는 게 없었다. 소리를 외우는 일은 같은 것을 여러 번
+ * 마주쳐야 되는 일이다.
+ *
+ * 구간은 「몇 번째부터 몇 번째까지」다. 기출이면 1구간이 제일 많이 나온
+ * 스무 개고, 그 구간만 반복해서 듣다가 다음 구간으로 넘어간다. 어디까지
+ * 들었는지를 사람이 정하고, 앱은 그 자리를 안 흔든다. */
+export function blockCount(total, size) {
+  return Math.max(1, Math.ceil(Math.max(0, total) / Math.max(1, size)));
+}
+
+export function pickBlock(list, { count = 20, block = 0 } = {}) {
+  const size = Math.max(1, count);
+  const last = blockCount(list.length, size) - 1;
+  const i = Math.min(Math.max(0, Math.round(block) || 0), last);
+  return list.slice(i * size, i * size + size);
+}
+
+/* 범위 안에 구간이 몇 개인가. 화면이 「3 / 11구간」을 적는 데 쓴다. */
+export function blocksIn(pool, review, {
+  scope = 'today', count = 20, today = todayKey(), kiju = null,
+} = {}) {
+  const src = poolFor(scope, pool, kiju);
+  const n = src.filter(({ id }) => inScope(stateOf(review, id), scope, today)).length;
+  return blockCount(n, count);
+}
+
 export function pickListen(pool, review, {
   scope = 'today', count = 20, shuffle = true, today = todayKey(), kiju = null,
+  order = 'shuffle', block = 0,
 } = {}) {
   const src = poolFor(scope, pool, kiju);
   const picked = src.filter(({ id }) => inScope(stateOf(review, id), scope, today));
+  /* 구간은 안 섞는다. 섞으면 같은 구간을 다시 틀어도 차례가 달라지는데,
+     그러면 「세 번째에 나오는 그 낱말」이라는 기억의 손잡이가 없어진다. */
+  if (order === 'block') return pickBlock(picked, { count, block });
   const ordered = shuffle ? shuffled(picked) : picked;
   return ordered.slice(0, Math.max(0, count));
 }
@@ -90,6 +126,27 @@ export function scopeCounts(pool, review, today = todayKey(), kiju = null) {
       .filter(({ id }) => inScope(stateOf(review, id), s.id, today)).length;
   }
   return out;
+}
+
+/* 한 장이 끝났다. 다음은 어디인가.
+ *
+ * ★ 정지할 때까지 한 세트를 돈다 ★
+ *
+ * 여태는 마지막 장에서 그냥 멈췄다. 한 바퀴 돌고 끝나면 열 개를 한 번씩
+ * 스친 것뿐이라 소리가 귀에 안 붙는다 — 외우는 일은 같은 것을 여러 번
+ * 마주쳐야 되는 일이다. 반복이면 제자리에서 다시 돌고, 멈추는 것은 사람이
+ * 정한다(그만 버튼).
+ *
+ * 세는 것은 바퀴 수다. 몇 장 남았는지가 아니라 몇 번 마주쳤는지가 귀에
+ * 붙는 정도를 말해 준다.
+ *
+ * null이면 끝났다는 뜻 — 화면은 판을 접고 설정으로 돌아간다. */
+export function nextAt(run, loop = true) {
+  if (!run?.cards?.length) return null;
+  const lap = run.lap || 0;
+  if (run.at + 1 < run.cards.length) return { at: run.at + 1, lap };
+  if (!loop) return null;
+  return { at: 0, lap: lap + 1 };
 }
 
 /* 한 장을 어떤 순서로 보여 줄까.

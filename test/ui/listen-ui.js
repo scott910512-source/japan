@@ -473,7 +473,9 @@ async function boot(browser, patch = {}, init = null) {
    * 그러면 소리가 아니라 순서를 외운다. */
   console.log('\n── 전체에서 골라 흩는다');
   {
-    const p9 = await boot(browser, { settings: { listenGap: 1, listenScope: 'all', listenCount: 100 } });
+    const p9 = await boot(browser, {
+      settings: { listenGap: 1, listenScope: 'all', listenCount: 100, listenOrder: 'shuffle' },
+    });
     await openMenu(p9, '듣기');
     await p9.locator('.lh-way[data-way="auto"]').click();
     await p9.waitForTimeout(900);
@@ -492,9 +494,79 @@ async function boot(browser, patch = {}, init = null) {
     /* ★ 개수 설정이 실제로 먹는다 ★ 위 끝(100)으로 골라도 그만큼 담기는지 본다 —
        고를 수만 있고 실제로는 50에서 잘리면 고친 게 아니다. */
     ok('고른 개수만큼 담긴다', seq[0].n.trim().endsWith('/ 100'), seq[0].n.trim());
-    ok('돌릴 때마다 첫 장이 달라진다', new Set(seq.map((s) => s.t)).size > 1,
+    ok('섞어서는 돌릴 때마다 첫 장이 달라진다', new Set(seq.map((s) => s.t)).size > 1,
       seq.map((s) => s.t).join(' / '));
     await p9.close();
+  }
+
+  /* ── 구간별로 끊어 듣기 ──
+   *
+   * 섞어 뽑으면 들을 때마다 딴 것이 나온다. 「이 스무 개를 귀에 붙이겠다」가
+   * 안 되고, 한 바퀴를 돌아도 매번 처음 듣는 낱말이 섞여서 남는 게 없다. */
+  console.log('\n── 구간별 · 정지할 때까지 반복 · 끝나면 시험');
+  {
+    const pb = await boot(browser, {
+      settings: { listenGap: 1, listenScope: 'all', listenCount: 10, listenOrder: 'block', listenBlock: 0 },
+    });
+    await openMenu(pb, '듣기');
+    await pb.locator('.lh-way[data-way="auto"]').click();
+    await pb.waitForTimeout(900);
+
+    ok('순서를 고를 수 있다', await pb.locator('.ls-order button').count() === 2);
+    ok('구간별이 기본으로 켜져 있다',
+      (await pb.locator('.ls-order button[data-order="block"]').getAttribute('class')).includes('active'));
+    const label = (await pb.locator('.ls-blockrow .set-title').innerText()).replace(/\s+/g, ' ');
+    ok('★ 몇 번째 구간인지 적힌다 ★', /1 \/ \d+구간/.test(label) && label.includes('1~10번째'), label);
+    ok('첫 구간에서는 앞으로 못 간다', await pb.locator('.ls-prev').isDisabled());
+
+    /* ★ 같은 구간은 늘 같은 낱말 ★ — 이게 「구간별」의 요지다 */
+    const firstOf = async () => {
+      await startListen(pb);
+      await pb.waitForTimeout(400);
+      const t = (await pb.textContent('.ls-jp')).trim();
+      await pb.locator('.listen .sub-back').click();
+      await pb.waitForTimeout(500);
+      return t;
+    };
+    const t1 = await firstOf();
+    const t2 = await firstOf();
+    ok('★ 같은 구간은 다시 틀어도 같은 낱말부터 ★', t1 === t2, `${t1} / ${t2}`);
+
+    await pb.locator('.ls-next').click(); await pb.waitForTimeout(400);
+    const label2 = (await pb.locator('.ls-blockrow .set-title').innerText()).replace(/\s+/g, ' ');
+    ok('다음 구간으로 넘어간다', label2.includes('11~20번째'), label2);
+    const t3 = await firstOf();
+    ok('구간이 바뀌면 낱말도 바뀐다', t3 !== t1, `${t1} → ${t3}`);
+
+    /* 정지할 때까지 반복 — 한 바퀴 돌고 끝나면 소리를 외울 만큼 못 만난다 */
+    ok('반복이 기본으로 켜져 있다',
+      (await pb.locator('.ls-loop').getAttribute('aria-pressed')) === 'true');
+    await pb.close();
+  }
+
+  /* ── 한 바퀴 돌면 시험으로 ──
+     귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다. */
+  {
+    const pq = await boot(browser, {
+      settings: { listenGap: 1, listenScope: 'all', listenCount: 10, listenOrder: 'block', listenLoop: true },
+    });
+    await openMenu(pq, '듣기');
+    await pq.locator('.lh-way[data-way="auto"]').click();
+    await pq.waitForTimeout(900);
+    await startListen(pq);
+    ok('듣는 동안에는 시험 버튼이 없다 — 한 바퀴도 안 돌고 보면 그냥 모른다',
+      await pq.locator('.ls-quiz').count() === 0);
+    await pq.locator('.listen .sub-back').click(); await pq.waitForTimeout(600);
+    ok('★ 방금 들은 세트로 시험 보는 길이 있다 ★', await pq.locator('.ls-quizlast').count() === 1,
+      (await pq.locator('.ls-quizlast').innerText().catch(() => '없음')).replace(/\s+/g, ' '));
+    await pq.locator('.ls-quizlast').click(); await pq.waitForTimeout(900);
+    ok('시험 화면이 열린다', await pq.locator('.qz-fromlisten').count() === 1);
+    ok('무엇을 푸는 시험인지 적혀 있다',
+      (await pq.locator('.qz-fromlisten').innerText()).includes('방금 들은'),
+      (await pq.locator('.qz-fromlisten').innerText()).replace(/\s+/g, ' ').slice(0, 40));
+    ok('들은 개수만큼 낸다', (await pq.locator('.bigstart').innerText()).includes('10문항'),
+      (await pq.locator('.bigstart').innerText()).replace(/\s+/g, ' '));
+    await pq.close();
   }
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
