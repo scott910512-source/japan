@@ -86,6 +86,12 @@ async function boot(browser, patch = {}, init = null) {
   ok('듣기 화면이 열림', await page.locator('.listen').count() === 1);
   ok('두 가지 방식', await page.locator('.listen .ls-mode').count() === 2, listen.slice(0, 40));
   ok('간격을 고를 수 있음', await page.locator('.listen .grouppick button', { hasText: '초' }).count() === 4);
+  /* ★ 한 번에 100장까지 ★ 50이 위 끝이던 시절에는 기출 205개를 네 번 나눠
+     돌아야 했다. 듣기는 판정을 안 해서 어디까지 들었는지가 안 남는다 —
+     끊어 도는 만큼 같은 앞부분만 다시 듣게 된다. */
+  const counts = (await page.locator('.listen .grouppick button').allTextContents())
+    .filter((t) => /^\d+$/.test(t.trim()));
+  ok('★ 개수는 100까지 고를 수 있다 ★', counts.includes('100'), counts.join(' '));
 
   /* ★ 무엇을 들을지 여기서 고른다 ★
      여태 오늘의 학습 큐를 빌려 써서, 배운 게 수백 개인데 늘 같은 스무 개가
@@ -467,7 +473,7 @@ async function boot(browser, patch = {}, init = null) {
    * 그러면 소리가 아니라 순서를 외운다. */
   console.log('\n── 전체에서 골라 흩는다');
   {
-    const p9 = await boot(browser, { settings: { listenGap: 1, listenScope: 'all', listenCount: 50 } });
+    const p9 = await boot(browser, { settings: { listenGap: 1, listenScope: 'all', listenCount: 100 } });
     await openMenu(p9, '듣기');
     await p9.locator('.lh-way[data-way="auto"]').click();
     await p9.waitForTimeout(900);
@@ -483,8 +489,9 @@ async function boot(browser, patch = {}, init = null) {
     };
     const seq = [];
     for (let i = 0; i < 6; i++) seq.push(await firstCard());
-    /* ★ 개수 설정이 실제로 먹는다 ★ 「50개만 듣고 자자」가 이 화면의 쓰임이다 */
-    ok('고른 개수만큼 담긴다', seq[0].n.trim().endsWith('/ 50'), seq[0].n.trim());
+    /* ★ 개수 설정이 실제로 먹는다 ★ 위 끝(100)으로 골라도 그만큼 담기는지 본다 —
+       고를 수만 있고 실제로는 50에서 잘리면 고친 게 아니다. */
+    ok('고른 개수만큼 담긴다', seq[0].n.trim().endsWith('/ 100'), seq[0].n.trim());
     ok('돌릴 때마다 첫 장이 달라진다', new Set(seq.map((s) => s.t)).size > 1,
       seq.map((s) => s.t).join(' / '));
     await p9.close();
