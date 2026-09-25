@@ -348,6 +348,7 @@
 .ls-blocknav { display: flex; gap: 8px; margin-top: 10px; }
 .ls-blocknav .ghost-btn { flex: 1; justify-content: center; min-height: 44px; }
 .ls-blocknav .ghost-btn:disabled { opacity: .4; cursor: default; }
+.ls-know { width: calc(100% - 32px); margin: 10px 16px 0; justify-content: center; min-height: 44px; }
 .ls-pause.on { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 .ls-quiz { margin: 0 16px 10px; width: calc(100% - 32px); justify-content: center; }
 .ls-quizlast { width: 100%; justify-content: center; margin-top: 14px; min-height: 44px; }
