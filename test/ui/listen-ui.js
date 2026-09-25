@@ -162,11 +162,21 @@ async function boot(browser, patch = {}, init = null) {
   /* ★ 읽는 법은 기본으로 안 뜬다 ★
      듣고 떠올리는 자리인데 읽는 법이 같이 떠 있으면 소리를 듣는 게 아니라
      글자를 읽게 된다 — 답을 보면서 푸는 시험과 같다. 켜면 뜬다. */
-  ok('★ 읽는 법은 기본으로 안 뜬다 ★', (await page.textContent('.ls-yomi')).trim().length === 0,
+  ok('★ 떠올리는 동안에는 읽는 법이 안 뜬다 ★', (await page.textContent('.ls-yomi')).trim().length === 0,
     JSON.stringify(await page.textContent('.ls-yomi')));
   ok('낱말 자체는 보인다', (await page.textContent('.ls-jp')).trim().length > 0,
     (await page.textContent('.ls-jp')).trim());
   ok('뜻은 아직 안 보임', (await page.textContent('.ls-ko')).trim() === '···');
+
+  /* ★ 답이 나오면 읽는 법도 같이 ★
+     뜻까지 나온 뒤에는 숨길 이유가 없다. 그때가 「맞았나」를 확인하는 자리인데
+     읽는 법이 없으면 반만 확인된다 — 呼吸이 「코큐우」인지 「코큐」인지가 안 풀린다. */
+  await page.waitForFunction(() => {
+    const el = document.querySelector('.ls-ko.on');
+    return el && el.textContent.trim() && el.textContent.trim() !== '···';
+  }, { timeout: 15000 }).catch(() => {});
+  ok('★ 뜻이 나오면 읽는 법도 같이 나온다 ★', (await page.textContent('.ls-yomi')).trim().length > 0,
+    `${(await page.textContent('.ls-ko')).trim()} / ${(await page.textContent('.ls-yomi')).trim()}`);
   /* 무엇을 읽으라고 넘겼는지만 가로챈다 — 진짜 음성 엔진은 검사에서 못 쓴다.
      일본어는 클라우드 음성을 쓸 수 있어 여기 안 잡힐 수도 있지만, 뜻은
      기기 음성으로만 내므로 반드시 잡힌다. */
@@ -591,6 +601,19 @@ async function boot(browser, patch = {}, init = null) {
     await startListen(pp);
 
     ok('멈춤 버튼이 있다', await pp.locator('.ls-pause').count() === 1);
+
+    /* ★ 익은 것은 이번 판에서 뺀다 ★
+       한 구간을 몇 바퀴 돌다 보면 먼저 익는 낱말이 생긴다. 그것까지 계속
+       들으면 남은 것을 만나는 틈이 그만큼 줄어든다. */
+    ok('「다 외웠어요」가 있다', await pp.locator('.ls-know').count() === 1);
+    const total = (await pp.locator('.listen .sub-title').innerText()).match(/\/\s*(\d+)/)[1];
+    const word = (await pp.textContent('.ls-jp')).trim();
+    await pp.locator('.ls-know').click(); await pp.waitForTimeout(600);
+    const total2 = (await pp.locator('.listen .sub-title').innerText()).match(/\/\s*(\d+)/)[1];
+    ok('★ 빼면 판이 한 장 줄어든다 ★', Number(total2) === Number(total) - 1, `${total} → ${total2}`);
+    ok('뺀 낱말은 자리에서 사라진다', (await pp.textContent('.ls-jp')).trim() !== word,
+      `${word} → ${(await pp.textContent('.ls-jp')).trim()}`);
+    ok('판은 그대로 돈다', await pp.locator('.ls-stage').count() === 1);
     const before = (await pp.locator('.listen .sub-title').innerText()).trim();
     await pp.locator('.ls-pause').click(); await pp.waitForTimeout(400);
     ok('누르면 「이어서」로 바뀐다', (await pp.locator('.ls-pause').innerText()).includes('이어서'),

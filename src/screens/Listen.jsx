@@ -90,6 +90,13 @@ export default function Listen({
      소리를 듣는 게 아니라 글자를 읽게 된다. 답을 보면서 푸는 시험과 같다.
      확인하고 싶을 때만 켠다. */
   const [showYomi, setShowYomi] = useState(settings.listenShowYomi === true);
+  /* 이번 듣기에서 뺀 낱말.
+     회독 기록은 안 건드린다 — 듣고 흘려보낸 것과 떠올려서 맞힌 것은 다른
+     일이라, 듣기 화면에서 「외웠다」를 적으면 복습 간격이 귀로 흔들린다.
+     그래서 이 화면이 열려 있는 동안만 기억한다. 나갔다 오면 다시 들어온다 —
+     「잠시」가 그 뜻이다. 아주 빼고 싶으면 설정의 「다 외운 단어는 빼기」가
+     회독 기록을 보고 골라 준다. */
+  const [dropped, setDropped] = useState(() => new Set());
 
   /* ★ 들은 것도 기록에 남는다 ★
    *
@@ -186,7 +193,7 @@ export default function Listen({
     const queue = pickListen(pool, review, {
       scope, count, today: todayKey(), kiju: kijuPool, order, block, skipDone,
     });
-    const cards = cardsForQueue(queue, words, sentences);
+    const cards = cardsForQueue(queue, words, sentences).filter((c) => !dropped.has(c.id));
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
     setRun({ cards, at: 0, lap: 0 });
     setLastSet(cards);
@@ -202,6 +209,24 @@ export default function Listen({
   }, []);
 
   const card = run?.cards[run.at];
+
+  /* 「다 외웠어요」 — 이번 판에서 이 낱말을 뺀다.
+     빼고 나면 그 자리에 다음 낱말이 온다. 자리(at)는 그대로 두는 게 맞다 —
+     한 칸 물러나면 방금 들은 것을 다시 듣게 된다. */
+  const dropCurrent = () => {
+    if (!run || !card) return;
+    const id = card.id;
+    setDropped((prev) => new Set(prev).add(id));
+    setStep(0);
+    setRun((r) => {
+      if (!r) return r;
+      const cards = r.cards.filter((c) => c.id !== id);
+      if (!cards.length) { onToast('다 뺐어요 — 이 구간은 끝'); return null; }
+      return { ...r, cards, at: Math.min(r.at, cards.length - 1) };
+    });
+    setNudge((v) => v + 1);
+    onToast(`${card.kanji} 빼요 — 이번 듣기에서만`);
+  };
 
   /* 한 장의 걸음표. 방향에 따라 순서가 통째로 뒤집힌다. */
   const steps = useMemo(
@@ -373,9 +398,15 @@ export default function Listen({
           <div className={`ls-jp${card.kind === 'sentence' ? ' long' : ''}`}>
             {showJp ? card.kanji : '···'}
           </div>
-          {/* 읽는 법은 기본으로 안 띄운다. 소리를 듣고 떠올리는 자리라,
-              같이 띄우면 듣는 게 아니라 읽는 것이 된다. */}
-          <div className="ls-yomi">{showJp && showYomi ? kanaToHangul(card.kana || card.kanji) : ''}</div>
+          {/* ★ 읽는 법은 답이 나올 때 같이 나온다 ★
+              듣고 떠올리는 동안에는 안 띄운다 — 같이 띄우면 듣는 게 아니라
+              읽는 것이 된다. 그런데 뜻까지 나온 뒤에는 숨길 이유가 없다.
+              그때가 「맞았나」를 확인하는 자리인데 읽는 법이 없으면 반만
+              확인된다 — 呼吸이 「코큐우」인지 「코큐」인지가 안 풀린다.
+              설정(showYomi)은 「처음부터 보여 달라」는 뜻으로 남는다. */}
+          <div className="ls-yomi">
+            {showJp && (showYomi || showKo) ? kanaToHangul(card.kana || card.kanji) : ''}
+          </div>
 
           {/* 뜻은 때가 되면 나온다. 미리 보이면 듣기가 아니라 읽기가 된다. */}
           {!showKo && <div className="ls-ko">···</div>}
@@ -403,6 +434,14 @@ export default function Listen({
           </button>
           <button className="ghost-btn" onClick={() => skip(1)}>다음</button>
         </div>
+
+        {/* ★ 익은 것은 이번 판에서 뺀다 ★
+            한 구간을 몇 바퀴 돌다 보면 먼저 익는 낱말이 생긴다. 그것까지
+            계속 들으면 남은 것을 만나는 틈이 그만큼 줄어든다. 회독 기록은
+            안 건드리고 이번 듣기에서만 뺀다 — 나갔다 오면 다시 들어온다. */}
+        <button className="ghost-btn ls-know" onClick={dropCurrent}>
+          다 외웠어요 — 이번 듣기에서 빼기
+        </button>
         <p className="set-note ls-note">
           손을 안 대도 넘어가요. 화면이 꺼지면 기기에 따라 멈출 수 있어요.
         </p>
