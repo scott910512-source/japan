@@ -3,6 +3,7 @@ import {
   IconCheck, IconX, IconSpeaker, IconArrowLeft, IconEye, IconPencil, IconList, IconRepeat,
 } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
+import { markBusy } from '../lib/busy.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
 import {
@@ -51,6 +52,13 @@ export default function Quiz({ words, review, settings, onChange, onToast, onRet
     scope: settings.quizScope ?? QUIZ_SCOPE.ALL,
   });
   const [run, setRun] = useState(null); // { questions, answers, index } — 없으면 설정 화면
+
+  /* 풀던 답은 제출 전까지 아무 데도 안 적힌다. 새 버전이 올라와도 시험이
+     끝날 때까지 갈아끼우지 않는다 — 반쯤 푼 시험이 사라지면 다시 풀 마음이 안 난다. */
+  useEffect(() => {
+    markBusy('quiz', Boolean(run));
+    return () => markBusy('quiz', false);
+  }, [run]);
 
   const set = fixedWords?.length ? fixedWords.filter((w) => w?.kind !== 'sentence') : null;
   const pool = useMemo(

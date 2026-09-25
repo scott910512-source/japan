@@ -602,6 +602,13 @@ async function boot(browser, patch = {}, init = null) {
 
     ok('멈춤 버튼이 있다', await pp.locator('.ls-pause').count() === 1);
 
+    /* ★ 듣는 중에는 새 버전으로 안 갈아끼운다 ★
+       어디까지 들었는지는 화면 안에만 있다. 여태 「회독 세션이 없으니 끊길 게
+       없다」로 읽혀서, 배포가 올라온 뒤 앱을 다시 앞으로 꺼내는 순간 듣던 판이
+       통째로 사라졌다 — 「자꾸 튕기고 리셋된다」의 정체다. */
+    const busy = () => pp.evaluate(() => (window.__jpBusy ? window.__jpBusy() : []));
+    ok('★ 재생 중에는 갱신을 미룬다 ★', (await busy()).includes('listen'), (await busy()).join() || '없음');
+
     /* ★ 익은 것은 이번 판에서 뺀다 ★
        한 구간을 몇 바퀴 돌다 보면 먼저 익는 낱말이 생긴다. 그것까지 계속
        들으면 남은 것을 만나는 틈이 그만큼 줄어든다. */
@@ -614,6 +621,8 @@ async function boot(browser, patch = {}, init = null) {
     ok('뺀 낱말은 자리에서 사라진다', (await pp.textContent('.ls-jp')).trim() !== word,
       `${word} → ${(await pp.textContent('.ls-jp')).trim()}`);
     ok('판은 그대로 돈다', await pp.locator('.ls-stage').count() === 1);
+    ok('멈춰 놔도 미루는 건 그대로 — 듣던 자리는 살아 있다',
+      (await busy()).includes('listen'));
     const before = (await pp.locator('.listen .sub-title').innerText()).trim();
     await pp.locator('.ls-pause').click(); await pp.waitForTimeout(400);
     ok('누르면 「이어서」로 바뀐다', (await pp.locator('.ls-pause').innerText()).includes('이어서'),
@@ -634,6 +643,9 @@ async function boot(browser, patch = {}, init = null) {
     ok('★ 풀면 다시 흘러간다 ★',
       (await pp.locator('.listen .sub-title').innerText()).trim() !== before,
       `${before} → ${(await pp.locator('.listen .sub-title').innerText()).trim()}`);
+    await pp.locator('.listen .sub-back').click(); await pp.waitForTimeout(600);
+    ok('★ 판을 닫으면 미루지 않는다 — 안 그러면 영영 갱신이 안 된다 ★',
+      !(await busy()).includes('listen'), (await busy()).join() || '없음');
     await pp.close();
   }
 
