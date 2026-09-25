@@ -331,6 +331,12 @@ export const DEFAULT_SETTINGS = {
   listenOrder: 'block',
   listenBlock: 0,         // 몇 번째 구간을 듣는가 (0부터)
   listenLoop: true,       // 정지할 때까지 한 세트를 반복
+  /* 다 외운 것을 뺄지. 기본은 안 빼는 쪽 — 눈으로 아는 낱말이 귀로는
+     낯선 일이 흔하고, 듣기는 그 낯섦을 없애는 자리다. */
+  listenSkipDone: false,
+  /* 듣기 화면에 읽는 법(한글 발음)을 띄울지. 기본은 안 띄운다 —
+     듣고 떠올리는 자리인데 읽는 법이 같이 뜨면 소리가 아니라 글자를 읽게 된다. */
+  listenShowYomi: false,
   listenSayAnswer: true,  // 뒤집은 판에서 정답(일본어)도 소리로 낼지
   listenGap: 2,       // 문장 사이 뜸 (초)
   listenRecap: false, // 뜻까지 듣고 나서 일본어를 한 번 더 (한 장이 길어져 기본은 끔)

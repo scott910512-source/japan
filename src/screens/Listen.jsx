@@ -79,6 +79,17 @@ export default function Listen({
   /* 방금 들은 세트. 다 듣고 나서 「그대로 시험」으로 넘어가는 자리다 —
      귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다. */
   const [lastSet, setLastSet] = useState(null);
+  /* 다 외운 것을 뺄지. 기본은 안 빼는 쪽이다 — 눈으로 아는 낱말이 귀로는
+     낯선 일이 흔하고, 듣기는 그 낯섦을 없애는 자리라서. */
+  const [skipDone, setSkipDone] = useState(settings.listenSkipDone === true);
+  /* 일시중지. 「그만」은 판을 접지만 이건 자리를 지킨다 — 말 한마디 하려고
+     끊었다가 처음부터 다시 듣는 건 이 화면을 쓰는 이유를 없앤다. */
+  const [paused, setPaused] = useState(false);
+  /* 읽는 법을 화면에 띄울지.
+     기본은 안 띄운다 — 듣고 떠올리는 자리인데 읽는 법이 같이 떠 있으면
+     소리를 듣는 게 아니라 글자를 읽게 된다. 답을 보면서 푸는 시험과 같다.
+     확인하고 싶을 때만 켠다. */
+  const [showYomi, setShowYomi] = useState(settings.listenShowYomi === true);
 
   /* ★ 들은 것도 기록에 남는다 ★
    *
@@ -173,19 +184,21 @@ export default function Listen({
      몫으로 좁혀져서 늘 같은 것만 들린다. */
   const start = () => {
     const queue = pickListen(pool, review, {
-      scope, count, today: todayKey(), kiju: kijuPool, order, block,
+      scope, count, today: todayKey(), kiju: kijuPool, order, block, skipDone,
     });
     const cards = cardsForQueue(queue, words, sentences);
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
     setRun({ cards, at: 0, lap: 0 });
     setLastSet(cards);
     setStep(0);
+    setPaused(false);
   };
 
   const stop = useCallback(() => {
     clearTimeout(timer.current);
     stopSpeaking();
     setRun(null);
+    setPaused(false);
   }, []);
 
   const card = run?.cards[run.at];
@@ -209,6 +222,10 @@ export default function Listen({
   useEffect(() => {
     if (!card) return undefined;
     clearTimeout(timer.current);
+    /* 멈춰 둔 동안에는 다음을 예약하지 않는다. 풀면 이 효과가 다시 돌면서
+       그 걸음부터 이어진다 — 끊긴 자리를 한 번 더 들려주는 셈이라,
+       무슨 말을 듣다 말았는지 떠올릴 틈이 된다. */
+    if (paused) { stopSpeaking(); return undefined; }
     const wait = gap * 1000;
     // 문장은 읽는 데 더 걸린다. 글자 수로 어림잡아 기다린다.
     const spoken = Math.min(6000, 900 + (card.kana?.length || 4) * 130);
@@ -287,7 +304,7 @@ export default function Listen({
       go(koWait + Math.max(600, wait));
     }
     return () => clearTimeout(timer.current);
-  }, [card, phase, last, nudge, direction, gap, rate, sayKo, sayAnswer, loop, onToast]);
+  }, [card, phase, last, nudge, direction, gap, rate, sayKo, sayAnswer, loop, paused, onToast]);
 
   const skip = (n) => {
     clearTimeout(timer.current);
@@ -302,11 +319,14 @@ export default function Listen({
   };
 
   const poolSize = useMemo(() => pool.length, [pool]);
-  const counts = useMemo(() => scopeCounts(pool, review, todayKey(), kijuPool), [pool, review, kijuPool]);
+  const counts = useMemo(
+    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone),
+    [pool, review, kijuPool, skipDone],
+  );
   /* 고른 범위에 구간이 몇 개인가. 개수를 바꾸면 구간 수도 따라 바뀐다. */
   const blocks = useMemo(
-    () => blocksIn(pool, review, { scope, count, today: todayKey(), kiju: kijuPool }),
-    [pool, review, scope, count, kijuPool],
+    () => blocksIn(pool, review, { scope, count, today: todayKey(), kiju: kijuPool, skipDone }),
+    [pool, review, scope, count, kijuPool, skipDone],
   );
   /* 개수나 범위를 바꾸면 구간 수가 줄어든다. 저장된 번호를 그대로 쓰면
      「12 / 11구간」이 뜬다 — 고르는 쪽에서 미리 당겨 둔다(뽑는 쪽도 막지만,
@@ -353,23 +373,33 @@ export default function Listen({
           <div className={`ls-jp${card.kind === 'sentence' ? ' long' : ''}`}>
             {showJp ? card.kanji : '···'}
           </div>
-          <div className="ls-yomi">{showJp ? kanaToHangul(card.kana || card.kanji) : ''}</div>
+          {/* 읽는 법은 기본으로 안 띄운다. 소리를 듣고 떠올리는 자리라,
+              같이 띄우면 듣는 게 아니라 읽는 것이 된다. */}
+          <div className="ls-yomi">{showJp && showYomi ? kanaToHangul(card.kana || card.kanji) : ''}</div>
 
           {/* 뜻은 때가 되면 나온다. 미리 보이면 듣기가 아니라 읽기가 된다. */}
           {!showKo && <div className="ls-ko">···</div>}
 
           <div className="ls-phase">
-            {phase === 'jp' && (back ? '이게 답이에요 — 두 번 들려줘요' : '듣는 중')}
-            {phase === 'say' && (back ? '일본어로 말해 보세요' : '따라 말해 보세요')}
-            {phase === 'ko' && (back ? '무슨 말일까요' : '뜻')}
-            {phase === 'jp2' && '뜻을 알고 한 번 더'}
+            {paused && '멈춰 있어요 — 「이어서」를 누르면 이 자리부터 다시 들려줘요'}
+            {!paused && phase === 'jp' && (back ? '이게 답이에요 — 두 번 들려줘요' : '듣는 중')}
+            {!paused && phase === 'say' && (back ? '일본어로 말해 보세요' : '따라 말해 보세요')}
+            {!paused && phase === 'ko' && (back ? '무슨 말일까요' : '뜻')}
+            {!paused && phase === 'jp2' && '뜻을 알고 한 번 더'}
           </div>
         </div>
 
         <div className="ls-controls">
           <button className="ghost-btn" onClick={() => skip(-1)} disabled={run.at === 0}>이전</button>
-          <button className="ghost-btn" onClick={() => speakJapanese(card.kana || card.kanji, rate)} aria-label="다시 듣기">
-            <IconSpeaker /> 다시
+          {/* ★ 잠깐 멈춤 ★ 「그만」은 판을 접지만 이건 자리를 지킨다.
+              말 한마디 하려고 끊었다가 처음부터 다시 듣는 건 이 화면을 쓰는
+              이유를 없앤다. */}
+          <button
+            className={`ghost-btn ls-pause${paused ? ' on' : ''}`}
+            onClick={() => setPaused((v) => !v)}
+            aria-pressed={paused}
+          >
+            {paused ? '이어서' : '잠깐 멈춤'}
           </button>
           <button className="ghost-btn" onClick={() => skip(1)}>다음</button>
         </div>
@@ -603,6 +633,41 @@ export default function Listen({
 
         {/* 정지할 때까지 한 세트를 돈다 — 소리를 외우는 일은 같은 것을
             여러 번 마주쳐야 되는 일이다. */}
+        {/* 읽는 법을 띄울지. 켜면 한글 발음이 낱말 밑에 뜬다. */}
+        <button
+          className="toggle-row setrow ls-yomitoggle"
+          onClick={() => { setShowYomi(!showYomi); onSettingsChange?.({ listenShowYomi: !showYomi }); }}
+          aria-pressed={showYomi}
+        >
+          <span>
+            <span className="set-title">읽는 법도 화면에</span>
+            <span className="set-sub">
+              {showYomi
+                ? '낱말 밑에 한글 발음이 떠요'
+                : '소리만 나와요 — 읽는 법이 같이 뜨면 듣는 게 아니라 읽게 돼요'}
+            </span>
+          </span>
+          <span className={`toggle${showYomi ? ' on' : ''}`} aria-hidden="true" />
+        </button>
+
+        {/* 다 외운 것을 뺀다. 205개 중 150개를 외운 사람에게 그 150개를 계속
+            들려주면 남은 55개를 만나는 데 세 배가 걸린다. */}
+        <button
+          className="toggle-row setrow ls-skipdone"
+          onClick={() => { setSkipDone(!skipDone); onSettingsChange?.({ listenSkipDone: !skipDone }); }}
+          aria-pressed={skipDone}
+        >
+          <span>
+            <span className="set-title">다 외운 단어는 빼기</span>
+            <span className="set-sub">
+              {skipDone
+                ? '회독에서 졸업한 낱말은 안 들려줘요'
+                : '외운 것도 같이 들려줘요 — 눈으로 아는 낱말이 귀로는 낯설 수 있어요'}
+            </span>
+          </span>
+          <span className={`toggle${skipDone ? ' on' : ''}`} aria-hidden="true" />
+        </button>
+
         <button
           className="toggle-row setrow ls-loop"
           onClick={() => { setLoop(!loop); onSettingsChange?.({ listenLoop: !loop }); }}

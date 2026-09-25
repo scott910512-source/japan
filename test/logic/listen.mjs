@@ -131,6 +131,35 @@ console.log('\n[ 구간별로 끊어 듣기 ]');
   ok('기출도 구간으로 끊린다', kb.length === 2 && ids.has(kb[0].id), kb.map((x) => x.id).join());
 }
 
+console.log('\n[ 다 외운 것 빼기 ]');
+{
+  /* 「외웠다」의 기준은 회독 쪽 한 군데에서 정한다(isDoneEnough) — 여기서
+     따로 세면 같은 낱말이 화면마다 다른 상태가 된다. 졸업한 카드를 몇 장
+     심고, 뺐을 때와 안 뺐을 때가 그만큼 차이 나는지 본다. */
+  const done = {};
+  for (const k of Object.keys(review)) done[k] = review[k];
+  // w50~w54는 졸업시킨다 — 복습일이 멀고 연속으로 맞힌 카드
+  for (let i = 50; i < 55; i++) {
+    done[`w${i}`] = { box: 3, streak: 6, level: 6, lastSeen: '2026-08-29', wrongCount: 0, vagueCount: 0, seenCount: 9, promotedOn: '2026-08-29' };
+  }
+  const before = scopeCounts(pool, done, TODAY);
+  const after = scopeCounts(pool, done, TODAY, null, true);
+  ok('★ 다 외운 것을 빼면 그만큼 줄어든다 ★', after.all === before.all - 5,
+    `${before.all} → ${after.all}`);
+  ok('안 빼면 그대로', before.all === 60);
+  ok('뽑을 때도 빠진다',
+    pickListen(pool, done, { scope: 'all', count: 60, today: TODAY, skipDone: true })
+      .every((x) => !['w50', 'w51', 'w52', 'w53', 'w54'].includes(x.id)));
+  ok('안 빼면 들어온다',
+    pickListen(pool, done, { scope: 'all', count: 60, today: TODAY })
+      .some((x) => x.id === 'w50'));
+  ok('구간 수도 줄어든 만큼으로 센다',
+    blocksIn(pool, done, { scope: 'all', count: 20, today: TODAY, skipDone: true }) === 3
+    && blocksIn(pool, done, { scope: 'all', count: 55, today: TODAY, skipDone: true }) === 1);
+  /* 외운 것만 빼는 것이지 약점까지 건드리지 않는다 */
+  ok('약점은 그대로', scopeCounts(pool, done, TODAY, null, true).weak === before.weak);
+}
+
 console.log('\n[ 정지할 때까지 반복 ]');
 {
   /* 한 바퀴 돌고 끝나면 열 개를 한 번씩 스친 것뿐이다 — 소리는 그렇게 안 붙는다.

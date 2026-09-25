@@ -251,7 +251,7 @@ const SYNCED_SETTINGS = [
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
   'listenDir', 'listenScope', 'listenSayKo', 'listenSayAnswer', 'listenGap', 'listenRecap',
-  'listenOrder', 'listenBlock', 'listenLoop',
+  'listenOrder', 'listenBlock', 'listenLoop', 'listenSkipDone', 'listenShowYomi',
   'sentenceScope', 'purpose', 'tripDate', 'quickJudge',
 ];
 

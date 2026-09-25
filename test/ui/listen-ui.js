@@ -159,7 +159,13 @@ async function boot(browser, patch = {}, init = null) {
   await page.waitForTimeout(400);
   ok('재생 화면으로 바뀜', await page.locator('.ls-stage').count() === 1);
   ok('일본어가 크게 나옴', (await page.textContent('.ls-jp')).trim().length > 0);
-  ok('한글 발음도 나옴', (await page.textContent('.ls-yomi')).trim().length > 0);
+  /* ★ 읽는 법은 기본으로 안 뜬다 ★
+     듣고 떠올리는 자리인데 읽는 법이 같이 떠 있으면 소리를 듣는 게 아니라
+     글자를 읽게 된다 — 답을 보면서 푸는 시험과 같다. 켜면 뜬다. */
+  ok('★ 읽는 법은 기본으로 안 뜬다 ★', (await page.textContent('.ls-yomi')).trim().length === 0,
+    JSON.stringify(await page.textContent('.ls-yomi')));
+  ok('낱말 자체는 보인다', (await page.textContent('.ls-jp')).trim().length > 0,
+    (await page.textContent('.ls-jp')).trim());
   ok('뜻은 아직 안 보임', (await page.textContent('.ls-ko')).trim() === '···');
   /* 무엇을 읽으라고 넘겼는지만 가로챈다 — 진짜 음성 엔진은 검사에서 못 쓴다.
      일본어는 클라우드 음성을 쓸 수 있어 여기 안 잡힐 수도 있지만, 뜻은
@@ -541,7 +547,71 @@ async function boot(browser, patch = {}, init = null) {
     /* 정지할 때까지 반복 — 한 바퀴 돌고 끝나면 소리를 외울 만큼 못 만난다 */
     ok('반복이 기본으로 켜져 있다',
       (await pb.locator('.ls-loop').getAttribute('aria-pressed')) === 'true');
+
+    /* ★ 다 외운 것 빼기 ★ 기본은 안 빼는 쪽 — 눈으로 아는 낱말이 귀로는
+       낯설 수 있고, 듣기는 그 낯섦을 없애는 자리다. */
+    /* 켜면 읽는 법이 뜬다 — 기본은 안 뜨는 것이고, 끄고 켤 수 있어야 한다 */
+    ok('읽는 법 칸이 있다', await pb.locator('.ls-yomitoggle').count() === 1);
+    ok('읽는 법은 기본으로 꺼져 있다',
+      (await pb.locator('.ls-yomitoggle').getAttribute('aria-pressed')) === 'false');
+    await pb.locator('.ls-yomitoggle').click(); await pb.waitForTimeout(400);
+    await startListen(pb); await pb.waitForTimeout(500);
+    ok('★ 켜면 읽는 법이 뜬다 ★', (await pb.textContent('.ls-yomi')).trim().length > 0,
+      (await pb.textContent('.ls-yomi')).trim());
+    await pb.locator('.listen .sub-back').click(); await pb.waitForTimeout(500);
+    await pb.locator('.ls-yomitoggle').click(); await pb.waitForTimeout(400);
+    await startListen(pb); await pb.waitForTimeout(500);
+    ok('끄면 다시 안 뜬다', (await pb.textContent('.ls-yomi')).trim().length === 0);
+    await pb.locator('.listen .sub-back').click(); await pb.waitForTimeout(500);
+
+    ok('다 외운 것 빼기 칸이 있다', await pb.locator('.ls-skipdone').count() === 1);
+    ok('기본은 안 빼는 쪽',
+      (await pb.locator('.ls-skipdone').getAttribute('aria-pressed')) === 'false');
+    await pb.locator('.ls-skipdone').click(); await pb.waitForTimeout(400);
+    ok('켜면 켜진 채로 남는다',
+      (await pb.locator('.ls-skipdone').getAttribute('aria-pressed')) === 'true');
+    ok('무엇을 빼는지 적혀 있다',
+      (await pb.locator('.ls-skipdone').innerText()).includes('졸업'),
+      (await pb.locator('.ls-skipdone').innerText()).replace(/\s+/g, ' ').slice(0, 50));
+    await pb.locator('.ls-skipdone').click(); await pb.waitForTimeout(400);
     await pb.close();
+  }
+
+  /* ── 잠깐 멈춤 ──
+     「그만」은 판을 접지만 이건 자리를 지킨다. 말 한마디 하려고 끊었다가
+     처음부터 다시 듣는 건 이 화면을 쓰는 이유를 없앤다. */
+  console.log('\n── 잠깐 멈춤');
+  {
+    const pp = await boot(browser, {
+      settings: { listenGap: 1, listenScope: 'all', listenCount: 10, listenOrder: 'block' },
+    });
+    await openMenu(pp, '듣기');
+    await pp.locator('.lh-way[data-way="auto"]').click();
+    await pp.waitForTimeout(900);
+    await startListen(pp);
+
+    ok('멈춤 버튼이 있다', await pp.locator('.ls-pause').count() === 1);
+    const before = (await pp.locator('.listen .sub-title').innerText()).trim();
+    await pp.locator('.ls-pause').click(); await pp.waitForTimeout(400);
+    ok('누르면 「이어서」로 바뀐다', (await pp.locator('.ls-pause').innerText()).includes('이어서'),
+      (await pp.locator('.ls-pause').innerText()).trim());
+    ok('멈춰 있다고 알려 준다', (await pp.locator('.ls-phase').innerText()).includes('멈춰'),
+      (await pp.locator('.ls-phase').innerText()).replace(/\s+/g, ' ').slice(0, 40));
+
+    /* ★ 멈춘 동안에는 안 넘어간다 ★ 이게 이 버튼의 전부다 */
+    await pp.waitForTimeout(6000);
+    ok('★ 멈춘 동안에는 다음 장으로 안 넘어간다 ★',
+      (await pp.locator('.listen .sub-title').innerText()).trim() === before,
+      `${before} → ${(await pp.locator('.listen .sub-title').innerText()).trim()}`);
+    ok('판은 그대로 열려 있다 — 「그만」과 다르다', await pp.locator('.ls-stage').count() === 1);
+
+    await pp.locator('.ls-pause').click(); await pp.waitForTimeout(400);
+    ok('풀면 다시 「잠깐 멈춤」', (await pp.locator('.ls-pause').innerText()).includes('잠깐'));
+    await pp.waitForTimeout(6000);
+    ok('★ 풀면 다시 흘러간다 ★',
+      (await pp.locator('.listen .sub-title').innerText()).trim() !== before,
+      `${before} → ${(await pp.locator('.listen .sub-title').innerText()).trim()}`);
+    await pp.close();
   }
 
   /* ── 한 바퀴 돌면 시험으로 ──
