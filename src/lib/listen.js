@@ -13,7 +13,7 @@
  * 그래서 여기서 따로 고른다. 판정을 안 하는 화면이니 규칙도 단순하다 —
  * 범위를 고르고, 섞고, 개수만큼 자른다. */
 
-import { stateOf, isWeak, isDue, shuffled, todayKey } from './review.js';
+import { stateOf, isDoneEnough, isWeak, isDue, shuffled, todayKey } from './review.js';
 
 export const SCOPES = [
   { id: 'today', label: '오늘 볼 것', sub: '복습일이 됐거나 아직 안 본 것' },
@@ -97,19 +97,35 @@ export function pickBlock(list, { count = 20, block = 0 } = {}) {
 
 /* 범위 안에 구간이 몇 개인가. 화면이 「3 / 11구간」을 적는 데 쓴다. */
 export function blocksIn(pool, review, {
-  scope = 'today', count = 20, today = todayKey(), kiju = null,
+  scope = 'today', count = 20, today = todayKey(), kiju = null, skipDone = false,
 } = {}) {
   const src = poolFor(scope, pool, kiju);
-  const n = src.filter(({ id }) => inScope(stateOf(review, id), scope, today)).length;
+  const keep = keepFor(review, skipDone);
+  const n = src.filter(({ id }) => inScope(stateOf(review, id), scope, today) && keep(id)).length;
   return blockCount(n, count);
+}
+
+/* 다 외운 것을 뺀다.
+ *
+ * 「외웠다」의 기준은 회독 쪽 한 군데에서 정한다(isDoneEnough) — 여기서 따로
+ * 세면 같은 낱말이 화면마다 다른 상태가 된다.
+ *
+ * 기본은 안 빼는 쪽이다. 눈으로 아는 낱말이 귀로는 낯선 일이 흔하고, 듣기는
+ * 그 낯섦을 없애는 자리라서 「외웠으니 됐다」가 곧바로 성립하지 않는다.
+ * 다만 205개 중 150개를 외운 사람에게 그 150개를 계속 들려주면 남은 55개를
+ * 만나는 데 세 배가 걸린다 — 그때 끄라고 둔 칸이다. */
+function keepFor(review, skipDone) {
+  if (!skipDone) return () => true;
+  return (id) => !isDoneEnough(stateOf(review, id));
 }
 
 export function pickListen(pool, review, {
   scope = 'today', count = 20, shuffle = true, today = todayKey(), kiju = null,
-  order = 'shuffle', block = 0,
+  order = 'shuffle', block = 0, skipDone = false,
 } = {}) {
   const src = poolFor(scope, pool, kiju);
-  const picked = src.filter(({ id }) => inScope(stateOf(review, id), scope, today));
+  const keep = keepFor(review, skipDone);
+  const picked = src.filter(({ id }) => inScope(stateOf(review, id), scope, today) && keep(id));
   /* 구간은 안 섞는다. 섞으면 같은 구간을 다시 틀어도 차례가 달라지는데,
      그러면 「세 번째에 나오는 그 낱말」이라는 기억의 손잡이가 없어진다. */
   if (order === 'block') return pickBlock(picked, { count, block });
@@ -119,11 +135,12 @@ export function pickListen(pool, review, {
 
 /* 범위마다 몇 개나 되는지. 골라 보고 나서야 「들을 게 없어요」를 만나면
    왜 없는지 모른다 — 고르기 전에 숫자를 보여 준다. */
-export function scopeCounts(pool, review, today = todayKey(), kiju = null) {
+export function scopeCounts(pool, review, today = todayKey(), kiju = null, skipDone = false) {
+  const keep = keepFor(review, skipDone);
   const out = {};
   for (const s of SCOPES) {
     out[s.id] = poolFor(s.id, pool, kiju)
-      .filter(({ id }) => inScope(stateOf(review, id), s.id, today)).length;
+      .filter(({ id }) => inScope(stateOf(review, id), s.id, today) && keep(id)).length;
   }
   return out;
 }
