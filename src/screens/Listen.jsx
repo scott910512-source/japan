@@ -85,6 +85,11 @@ export default function Listen({
   /* 일시중지. 「그만」은 판을 접지만 이건 자리를 지킨다 — 말 한마디 하려고
      끊었다가 처음부터 다시 듣는 건 이 화면을 쓰는 이유를 없앤다. */
   const [paused, setPaused] = useState(false);
+  /* 읽는 법을 화면에 띄울지.
+     기본은 안 띄운다 — 듣고 떠올리는 자리인데 읽는 법이 같이 떠 있으면
+     소리를 듣는 게 아니라 글자를 읽게 된다. 답을 보면서 푸는 시험과 같다.
+     확인하고 싶을 때만 켠다. */
+  const [showYomi, setShowYomi] = useState(settings.listenShowYomi === true);
 
   /* ★ 들은 것도 기록에 남는다 ★
    *
@@ -368,7 +373,9 @@ export default function Listen({
           <div className={`ls-jp${card.kind === 'sentence' ? ' long' : ''}`}>
             {showJp ? card.kanji : '···'}
           </div>
-          <div className="ls-yomi">{showJp ? kanaToHangul(card.kana || card.kanji) : ''}</div>
+          {/* 읽는 법은 기본으로 안 띄운다. 소리를 듣고 떠올리는 자리라,
+              같이 띄우면 듣는 게 아니라 읽는 것이 된다. */}
+          <div className="ls-yomi">{showJp && showYomi ? kanaToHangul(card.kana || card.kanji) : ''}</div>
 
           {/* 뜻은 때가 되면 나온다. 미리 보이면 듣기가 아니라 읽기가 된다. */}
           {!showKo && <div className="ls-ko">···</div>}
@@ -626,6 +633,23 @@ export default function Listen({
 
         {/* 정지할 때까지 한 세트를 돈다 — 소리를 외우는 일은 같은 것을
             여러 번 마주쳐야 되는 일이다. */}
+        {/* 읽는 법을 띄울지. 켜면 한글 발음이 낱말 밑에 뜬다. */}
+        <button
+          className="toggle-row setrow ls-yomitoggle"
+          onClick={() => { setShowYomi(!showYomi); onSettingsChange?.({ listenShowYomi: !showYomi }); }}
+          aria-pressed={showYomi}
+        >
+          <span>
+            <span className="set-title">읽는 법도 화면에</span>
+            <span className="set-sub">
+              {showYomi
+                ? '낱말 밑에 한글 발음이 떠요'
+                : '소리만 나와요 — 읽는 법이 같이 뜨면 듣는 게 아니라 읽게 돼요'}
+            </span>
+          </span>
+          <span className={`toggle${showYomi ? ' on' : ''}`} aria-hidden="true" />
+        </button>
+
         {/* 다 외운 것을 뺀다. 205개 중 150개를 외운 사람에게 그 150개를 계속
             들려주면 남은 55개를 만나는 데 세 배가 걸린다. */}
         <button
