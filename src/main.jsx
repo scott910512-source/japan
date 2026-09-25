@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
 import './index.css';
+import { isBusy } from './lib/busy.js';
 
 /* 새 버전이 올라와도 서비스워커가 옛 화면을 계속 내주면, 고쳐 놓은 게 안 보인다.
  * 홈 화면에 추가한 iOS 앱은 특히 오래 붙잡고 있다.
@@ -16,9 +17,17 @@ import './index.css';
  * 사라진다. 공부하다 갑자기 처음 화면으로 튕기는 것을 고친 것으로 볼 사람은
  * 없다.
  *
- * 그래서 미룬다. 진행 중인 판이 없을 때 갈아끼운다. */
+ * 그래서 미룬다. 진행 중인 판이 없을 때 갈아끼운다.
+ *
+ * ★ 저장된 세션만 봐서는 모자랐다 ★
+ *
+ * 자동 듣기·시험·N3 코스는 하던 자리가 저장소에 안 남는다. 그래서 여기서
+ * 「끊길 게 없다」로 읽혔고, 배포가 올라온 뒤 앱을 다시 앞으로 꺼내는 순간
+ * 듣던 판이 통째로 사라졌다. 이제 그 화면들이 스스로 알린다(lib/busy.js). */
 const SESSION_KEY = 'jp_manabu_session_v1';
 function studying() {
+  // 화면 안에만 있는 자리(듣기·시험·코스) — 저장소에는 안 보인다
+  if (isBusy()) return true;
   try {
     const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
     return Boolean(s?.queue?.length);

@@ -7,6 +7,7 @@ import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
 import { DIRECTIONS, SCOPES, blocksIn, nextAt, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
+import { markBusy } from '../lib/busy.js';
 
 /* 듣기 · 따라 말하기 — 화면을 못 보는 동안의 학습.
  *
@@ -209,6 +210,14 @@ export default function Listen({
   }, []);
 
   const card = run?.cards[run.at];
+
+  /* ★ 듣는 중에는 새 버전으로 안 갈아끼운다 ★
+     어디까지 들었는지는 화면 안에만 있어서, 배포가 올라온 뒤 앱을 다시 앞으로
+     꺼내는 순간 판이 통째로 사라졌다. 판을 닫으면 표시를 내린다. */
+  useEffect(() => {
+    markBusy('listen', Boolean(run));
+    return () => markBusy('listen', false);
+  }, [run]);
 
   /* 「다 외웠어요」 — 이번 판에서 이 낱말을 뺀다.
      빼고 나면 그 자리에 다음 낱말이 온다. 자리(at)는 그대로 두는 게 맞다 —

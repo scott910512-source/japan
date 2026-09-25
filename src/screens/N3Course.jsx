@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import '../styles/n3.css';
 import { IconArrowLeft } from '../components/Icons.jsx';
 import { todayKey } from '../lib/review.js';
+import { markBusy } from '../lib/busy.js';
 import { useToday } from '../lib/useToday.js';
 import {
   normalizeN3, ensureDayPlan, buildDayPlan, markStep, markLesson, recordAnswer, recordTest, recordExam,
@@ -89,6 +90,14 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
     if (same) return;
     setN3((p) => ({ ...p, summary: { done: prog.done, total: prog.total, pct: prog.pct, ready: ready.total, areas, at: Date.now() } }));
   }, [prog, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ★ 문제를 푸는 중에는 새 버전으로 안 갈아끼운다 ★
+     고른 보기와 풀던 자리는 화면 안에만 있다. 허브(목록)에 있을 때는 끊겨도
+     잃을 게 없으니 그때만 표시를 내린다. */
+  useEffect(() => {
+    markBusy('n3', view.kind !== 'hub');
+    return () => markBusy('n3', false);
+  }, [view.kind]);
 
   /* 복습·약점 판은 들어올 때 한 번만 짠다. 답을 적을 때마다 n3가 바뀌어 다시
      그려지는데, 그때 다시 섞으면 풀던 문제가 자리를 옮겨 버린다. */
