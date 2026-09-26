@@ -9,7 +9,8 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab, openListen, openMenu } from './_nav.js';
-import { KIJU_LIST } from '../../src/lib/kiju.js';
+import { KIJU_LIST, kijuCards } from '../../src/lib/kiju.js';
+import { ALL_WORDS } from '../../src/data/allWords.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -20,15 +21,16 @@ const ok = (l, c, e) => {
   if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); }
 };
 
-async function boot(browser) {
+async function boot(browser, review = null) {
   const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(() => {
+  await page.evaluate((r) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     s.onboarded = true; s.autoTTS = false;
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
-  });
+    if (r) localStorage.setItem('jp_manabu_review_v1', JSON.stringify(r));
+  }, review);
   await page.waitForTimeout(800);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
@@ -79,6 +81,14 @@ const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth > 
     (await page.locator('.kj-year', { hasText: '2020' }).first().innerText()).includes('취소'));
   await page.locator('.kj-tabs button', { hasText: '출제 순' }).click();
   await page.waitForTimeout(300);
+
+  console.log('\n── 서른 개씩 묶어서, 쌓아 가며');
+  ok('이번 묶음이 적힌다', (await page.locator('.kg-head').innerText()).replace(/\s+/g, ' ').includes('1묶음'),
+    (await page.locator('.kg-head').innerText()).replace(/\s+/g, ' '));
+  ok('처음에는 1~30번째 서른 장',
+    (await page.locator('.kg-head').innerText()).includes('1 ~ 30') && (await page.locator('.kg-head').innerText()).includes('30장'));
+  ok('일곱 묶음이 점으로 보인다', await page.locator('.kg-dot').count() === 7);
+  ok('지금 묶음이 표시된다', await page.locator('.kg-dot.now').count() === 1 && await page.locator('.kg-dot.done').count() === 0);
 
   console.log('\n── 시작하면 회독 판이 열린다');
   ok('가로 넘침 없음', !(await overflow(page)));
@@ -169,6 +179,40 @@ const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth > 
   await p3.locator('.ls-scope[data-scope="kiju"]').waitFor({ timeout: 8000 });
   ok('나갔다 들어와도 기출 범위가 켜져 있다',
     (await p3.locator('.ls-scope[data-scope="kiju"]').getAttribute('class')).includes('active'));
+
+  /* ★ 다 떼면 앞엣것을 달고 다음 묶음이 열린다 ★
+     앞엣것을 빼면 사흘 뒤에 잊었는지 확인할 길이 없어진다. 서른 개를
+     「알아요」로 한 번 뗀 기록을 심어 두고, 2묶음이 1~60으로 열리는지 본다. */
+  console.log('\n── ★ 다 떼면 다음 묶음이 앞엣것을 달고 열린다 ★');
+  {
+    const cards = kijuCards(ALL_WORDS);
+    const seeded = {};
+    for (const c of cards.slice(0, 30)) {
+      seeded[c.id] = { box: 3, streak: 1, level: 1, lastSeen: '2026-09-26', rounds: 1, wrongCount: 0, vagueCount: 0, seenAt: 1 };
+    }
+    const pg = await boot(browser, seeded);
+    await openMenu(pg, '기출 단어');
+    await pg.locator('.kg-head').waitFor({ timeout: 8000 });
+    const head = (await pg.locator('.kg-head').innerText()).replace(/\s+/g, ' ');
+    ok('★ 2묶음이 열린다 ★', head.includes('2묶음'), head);
+    ok('★ 1~60번째 예순 장 — 앞 서른 개가 그대로 ★',
+      head.includes('1 ~ 60') && head.includes('60장'), head);
+    ok('뗀 묶음이 점으로 표시된다', await pg.locator('.kg-dot.done').count() === 1);
+    ok('시작 버튼도 예순 장이라고 적는다',
+      (await pg.locator('.bigstart').innerText()).includes('60장'),
+      (await pg.locator('.bigstart').innerText()).replace(/\s+/g, ' '));
+
+    /* ★ 버튼에 적힌 만큼 실제로 담긴다 ★
+       예전엔 daily를 켜 두어서 예순 장을 눌러도 여덟 장만 열렸다 — 그래서
+       판이 열 때마다 달라졌다. 적힌 수와 담긴 수가 같아야 약속이 지켜진다. */
+    await pg.locator('.bigstart').click(); await pg.waitForTimeout(1200);
+    const sess = await pg.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('jp_manabu_session_v1') || 'null');
+      return s ? { deck: s.deckId, n: s.queue.length } : null;
+    });
+    ok('★ 적힌 대로 예순 장이 담긴다 ★', sess?.n === 60, `${sess?.deck} · ${sess?.n}장`);
+    await pg.close();
+  }
 
   ok('페이지 오류 없음', errors.length === 0, errors.join(' | ').slice(0, 200) || '없음');
 

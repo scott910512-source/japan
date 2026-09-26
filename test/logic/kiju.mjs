@@ -10,7 +10,8 @@
  * 빠지는 건 이 기능이 하려는 일의 정반대다. */
 import { ALL_WORDS } from '../../src/data/allWords.js';
 import {
-  KIJU_LIST, KIJU_SOURCE, kijuByWord, kijuByYear, kijuCards, kijuIndex, kijuMissing, kijuStat,
+  KIJU_GROUP, KIJU_LIST, KIJU_SOURCE, kijuByWord, kijuByYear, kijuCards, kijuGroupAt,
+  kijuIndex, kijuMissing, kijuStat,
 } from '../../src/lib/kiju.js';
 import { dailyPool } from '../../src/lib/cards.js';
 import { classifyDaily } from '../../src/lib/daily.js';
@@ -128,6 +129,61 @@ console.log('\n── 진도');
   const s2 = kijuStat(cards, (id) => stateOf(review, id), isDoneEnough);
   ok('외운 것 1 · 본 것 2', s2.done === 1 && s2.seen === 2, `done ${s2.done} seen ${s2.seen}`);
   ok('총계는 그대로', s2.total === 205 && s2.left === 203);
+}
+
+console.log('\n── 서른 개씩 묶어서, 쌓아 가며');
+{
+  const cards = kijuCards(ALL_WORDS);
+  ok('묶음은 서른 개', KIJU_GROUP === 30);
+
+  /* 아무것도 안 뗐으면 1묶음. 「이번 판」은 1~30이다. */
+  const g0 = kijuGroupAt(cards, () => false);
+  ok('처음에는 1묶음', g0.index === 0 && g0.to === 30, `${g0.index + 1}묶음 · 1~${g0.to}`);
+  ok('판은 서른 장', g0.list.length === 30);
+  ok('205개면 일곱 묶음', g0.groups === 7, `${g0.groups}묶음`);
+  ok('첫 장은 제일 많이 나온 낱말', g0.list[0].kanji === cards[0].kanji, g0.list[0].kanji);
+
+  /* 스물아홉 개만 떼면 아직 1묶음 — 하나 남아도 안 넘어간다.
+     건너뛰면 구멍이 생기고, 그 구멍은 시험장에서 열린다. */
+  const first29 = new Set(cards.slice(0, 29).map((c) => c.id));
+  const g29 = kijuGroupAt(cards, (id) => first29.has(id));
+  ok('★ 하나라도 남으면 안 넘어간다 ★', g29.index === 0 && g29.to === 30, `${g29.index + 1}묶음`);
+  ok('남은 수를 센다', g29.left === 1, `${g29.left}개`);
+
+  /* 서른 개를 다 떼면 2묶음 — 앞의 서른 개가 그대로 들어 있다 */
+  const first30 = new Set(cards.slice(0, 30).map((c) => c.id));
+  const g1 = kijuGroupAt(cards, (id) => first30.has(id));
+  ok('★ 다 떼면 다음 묶음 ★', g1.index === 1 && g1.to === 60, `${g1.index + 1}묶음 · 1~${g1.to}`);
+  ok('★ 앞 묶음이 빠지지 않는다 ★', g1.list.length === 60 && g1.list[0].kanji === cards[0].kanji,
+    `${g1.list.length}장`);
+  ok('새로 더해진 것은 서른 개', g1.fresh.length === 30 && g1.fresh[0].kanji === cards[30].kanji);
+  ok('새로 더해진 것은 아직 안 뗀 상태', g1.left === 30);
+  ok('뗀 것도 센다', g1.done === 30);
+
+  /* 세 묶음을 떼면 1~120 */
+  const first90 = new Set(cards.slice(0, 90).map((c) => c.id));
+  const g3 = kijuGroupAt(cards, (id) => first90.has(id));
+  ok('세 묶음을 떼면 1~120', g3.index === 3 && g3.list.length === 120, `1~${g3.to}`);
+
+  /* 중간에 구멍이 있으면 그 묶음에서 멈춘다 */
+  const hole = new Set(cards.slice(0, 90).map((c) => c.id));
+  hole.delete(cards[15].id);
+  const gh = kijuGroupAt(cards, (id) => hole.has(id));
+  ok('★ 1묶음에 구멍이 있으면 1묶음에 머문다 ★', gh.index === 0, `${gh.index + 1}묶음`);
+
+  /* 마지막 묶음에서는 더 안 나간다 — 205는 서른으로 안 나눠떨어진다 */
+  const all = new Set(cards.map((c) => c.id));
+  const gEnd = kijuGroupAt(cards, (id) => all.has(id));
+  ok('끝까지 떼면 마지막 묶음에 선다', gEnd.index === 6 && gEnd.to === 205, `${gEnd.index + 1}묶음 · 1~${gEnd.to}`);
+  ok('마지막 묶음은 스물다섯 장만 더해진다', gEnd.fresh.length === 25, `${gEnd.fresh.length}개`);
+  ok('전체가 판에 들어간다', gEnd.list.length === 205);
+  ok('다 끝났다고 말한다', gEnd.finished === true);
+  ok('아직일 때는 안 끝났다고 한다', g0.finished === false);
+
+  /* 묶음 크기를 바꿔 불러도 규칙은 같다 */
+  const g10 = kijuGroupAt(cards, () => false, 10);
+  ok('묶음 크기를 주면 그대로 쓴다', g10.to === 10 && g10.groups === 21, `1~${g10.to} · ${g10.groups}묶음`);
+  ok('빈 목록도 안 죽는다', kijuGroupAt([], () => false).list.length === 0);
 }
 
 console.log('\n── 오늘의 계획이 기출부터 꺼낸다');
