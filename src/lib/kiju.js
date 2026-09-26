@@ -109,10 +109,18 @@ export function kijuStat(cards, stateOf, isDoneEnough) {
  * 회독 쪽에 이미 있는 둘 중 낮은 쪽을 고르는 것이다.
  *
  * 어느 쪽을 쓸지는 부르는 쪽이 정한다 — 이 파일은 낱말이 몇 번 나왔는지만
- * 안다. */
+ * 안다.
+ *
+ * ★ 자리를 직접 줄 수도 있다 ★
+ *
+ * want에 번호를 주면 진도를 안 보고 그 묶음으로 간다. 「오늘은 1~90을 한 번에
+ * 훑겠다」는 그날의 사정이라 진도로는 알 수가 없다.
+ *
+ * 그래도 고르는 것은 「어디까지」다. 3묶음을 골라도 1번째부터 쌓아서 돈다 —
+ * 중간만 떼어 가면 구멍이 생기고, 그 구멍은 시험장에서 열린다. */
 export const KIJU_GROUP = 30;
 
-export function kijuGroupAt(cards = [], cleared = () => false, size = KIJU_GROUP) {
+export function kijuGroupAt(cards = [], cleared = () => false, size = KIJU_GROUP, want = null) {
   const step = Math.max(1, Math.round(size) || KIJU_GROUP);
   const total = cards.length;
   const groups = Math.max(1, Math.ceil(total / step));
@@ -130,6 +138,11 @@ export function kijuGroupAt(cards = [], cleared = () => false, size = KIJU_GROUP
     }
     if (!all) break;
     index += 1;
+  }
+
+  // 직접 고른 자리가 있으면 그쪽. 범위를 벗어난 숫자는 가장 가까운 자리로 당긴다
+  if (want != null && Number.isFinite(want)) {
+    index = Math.min(Math.max(0, Math.round(want)), groups - 1);
   }
 
   const newFrom = index * step;
