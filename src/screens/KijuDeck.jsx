@@ -32,9 +32,23 @@ export default function KijuDeck({ words, review, onStart }) {
      복습일에 네 번 맞혀야 해서 며칠이 걸리는데, 그걸 묶음 기준으로 쓰면
      1묶음에서 일주일을 머문다. 기준을 새로 만들지 않고 회독 쪽에 이미 있는
      둘 중 낮은 쪽을 고른 것이다. */
-  const group = useMemo(
+  const auto = useMemo(
     () => kijuGroupAt(cards, (id) => isSessionClear(stateOf(review, id))),
     [cards, review],
+  );
+
+  /* ★ 묶음은 직접도 고른다 ★
+     앱이 진도를 보고 정해 주는 게 기본이다. 그런데 「오늘은 1~90을 한 번에
+     훑고 싶다」나 「앞엣것만 다시 다지고 싶다」는 그날의 사정이고, 진도로는
+     알 수가 없다.
+     고르는 것은 「어디까지」다 — 늘 1번째부터 쌓아서 돈다. 중간만 떼어 갈 수
+     없게 해 둔 것은 구멍을 안 만들기 위해서다. 그래서 뒤 묶음을 골라도
+     앞엣것이 빠지지 않고, 앞 묶음을 골라도 순서가 흐트러지지 않는다. */
+  const [pick, setPick] = useState(null);   // null이면 앱이 정한 자리
+  const at = pick == null ? auto.index : Math.min(pick, auto.groups - 1);
+  const group = useMemo(
+    () => (at === auto.index ? auto : kijuGroupAt(cards, (id) => isSessionClear(stateOf(review, id)), KIJU_GROUP, at)),
+    [at, auto, cards, review],
   );
 
   /* 회독 상태를 한 글자로. 목록이 205줄이라 여기서 색만 바뀌어야 훑어진다. */
@@ -74,17 +88,33 @@ export default function KijuDeck({ words, review, onStart }) {
           <span className="kg-range">1 ~ {group.to}번째 · {group.list.length}장</span>
         </div>
         <div className="kg-note">
-          {group.left > 0
-            ? `이번에 더해진 ${group.fresh.length}개 중 ${group.left}개가 아직이에요. 다 떼면 다음 ${KIJU_GROUP}개가 붙어요.`
-            : (group.index + 1 < group.groups
-              ? '이번 묶음을 다 뗐어요 — 시작하면 다음 묶음이 붙어요'
-              : '마지막 묶음까지 다 뗐어요')}
+          {pick != null && pick !== auto.index
+            ? `직접 고른 묶음이에요. 1번째부터 ${group.to}번째까지 같이 돌아요.`
+            : (group.left > 0
+              ? `이번에 더해진 ${group.fresh.length}개 중 ${group.left}개가 아직이에요. 다 떼면 다음 ${KIJU_GROUP}개가 붙어요.`
+              : (group.index + 1 < group.groups
+                ? '이번 묶음을 다 뗐어요 — 시작하면 다음 묶음이 붙어요'
+                : '마지막 묶음까지 다 뗐어요'))}
         </div>
-        <div className="kg-dots">
-          {Array.from({ length: group.groups }, (_, i) => (
-            <i key={i} className={`kg-dot${i < group.index ? ' done' : ''}${i === group.index ? ' now' : ''}`} />
+        {/* 점을 눌러 묶음을 고른다. 고르는 것은 「어디까지」라 앞엣것은 늘 들어 있다 */}
+        <div className="kg-dots" role="group" aria-label="묶음 고르기">
+          {Array.from({ length: auto.groups }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`kg-dot${i < auto.index ? ' done' : ''}${i === at ? ' now' : ''}`}
+              data-group={i + 1}
+              aria-pressed={i === at}
+              aria-label={`${i + 1}묶음 · 1~${Math.min(cards.length, (i + 1) * KIJU_GROUP)}번째`}
+              onClick={() => setPick(i === auto.index ? null : i)}
+            />
           ))}
         </div>
+        {pick != null && pick !== auto.index && (
+          <button className="ghost-btn kg-auto" onClick={() => setPick(null)}>
+            {auto.index + 1}묶음으로 돌아가기 — 앱이 정한 자리
+          </button>
+        )}
       </div>
 
       <button className="bigstart" onClick={() => onStart(group.list, `기출 1~${group.to}`, `kiju:g${group.index + 1}`)}>

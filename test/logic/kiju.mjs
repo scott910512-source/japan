@@ -184,6 +184,21 @@ console.log('\n── 서른 개씩 묶어서, 쌓아 가며');
   const g10 = kijuGroupAt(cards, () => false, 10);
   ok('묶음 크기를 주면 그대로 쓴다', g10.to === 10 && g10.groups === 21, `1~${g10.to} · ${g10.groups}묶음`);
   ok('빈 목록도 안 죽는다', kijuGroupAt([], () => false).list.length === 0);
+
+  /* ★ 자리를 직접 고를 수도 있다 ★
+     「오늘은 1~90을 한 번에 훑겠다」는 그날의 사정이라 진도로는 알 수가 없다.
+     그래도 고르는 것은 「어디까지」다 — 3묶음을 골라도 1번째부터 쌓아서 돈다. */
+  const want2 = kijuGroupAt(cards, () => false, KIJU_GROUP, 2);
+  ok('★ 아무것도 안 뗐어도 3묶음을 고를 수 있다 ★', want2.index === 2 && want2.to === 90, `1~${want2.to}`);
+  ok('★ 골라도 1번째부터 쌓인다 ★',
+    want2.list.length === 90 && want2.list[0].kanji === cards[0].kanji, `${want2.list.length}장`);
+
+  const back = kijuGroupAt(cards, (id) => first90.has(id), KIJU_GROUP, 0);
+  ok('앞 묶음으로 되돌아갈 수도 있다', back.index === 0 && back.to === 30, `1~${back.to}`);
+
+  ok('범위를 넘겨 고르면 마지막 묶음', kijuGroupAt(cards, () => false, KIJU_GROUP, 99).index === 6);
+  ok('음수를 고르면 첫 묶음', kijuGroupAt(cards, () => false, KIJU_GROUP, -5).index === 0);
+  ok('안 주면 진도대로', kijuGroupAt(cards, (id) => first30.has(id), KIJU_GROUP, null).index === 1);
 }
 
 console.log('\n── 오늘의 계획이 기출부터 꺼낸다');

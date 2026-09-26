@@ -489,3 +489,6 @@
 .kg-dot.done { background: var(--ok, #16a34a); }
 .kg-dot.now { background: var(--accent, #2563eb); }
 .kj-all { width: 100%; justify-content: center; margin-top: 8px; }
+.kg-dots button.kg-dot { border: 0; padding: 0; cursor: pointer; min-height: 22px; }
+.kg-dots button.kg-dot::after { content: ''; display: block; height: 22px; margin-top: -8px; }
+.kg-auto { width: 100%; justify-content: center; margin-top: 10px; min-height: 44px; }

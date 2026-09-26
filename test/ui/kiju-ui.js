@@ -90,6 +90,22 @@ const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth > 
   ok('일곱 묶음이 점으로 보인다', await page.locator('.kg-dot').count() === 7);
   ok('지금 묶음이 표시된다', await page.locator('.kg-dot.now').count() === 1 && await page.locator('.kg-dot.done').count() === 0);
 
+  /* ★ 묶음을 직접 고를 수 있다 ★
+     앱이 정해 주는 게 기본이지만, 「오늘은 1~90을 한 번에 훑겠다」는 그날의
+     사정이라 진도로는 알 수가 없다. 골라도 1번째부터 쌓여서 돈다. */
+  await page.locator('.kg-dot[data-group="3"]').click(); await page.waitForTimeout(300);
+  const g3 = (await page.locator('.kg-head').innerText()).replace(/\s+/g, ' ');
+  ok('★ 3묶음을 고르면 1~90번째 ★', g3.includes('3묶음') && g3.includes('1 ~ 90') && g3.includes('90장'), g3);
+  ok('직접 고른 것이라고 적는다', (await page.locator('.kg-note').innerText()).includes('직접 고른'),
+    (await page.locator('.kg-note').innerText()).replace(/\s+/g, ' ').slice(0, 40));
+  ok('시작 버튼도 아흔 장이라 적는다', (await page.locator('.bigstart').innerText()).includes('90장'),
+    (await page.locator('.bigstart').innerText()).replace(/\s+/g, ' '));
+  ok('앱이 정한 자리로 돌아가는 길이 있다', await page.locator('.kg-auto').count() === 1);
+  await page.locator('.kg-auto').click(); await page.waitForTimeout(300);
+  ok('돌아가면 다시 1묶음', (await page.locator('.kg-head').innerText()).includes('1묶음'),
+    (await page.locator('.kg-head').innerText()).replace(/\s+/g, ' '));
+  ok('돌아가면 그 버튼은 사라진다', await page.locator('.kg-auto').count() === 0);
+
   console.log('\n── 시작하면 회독 판이 열린다');
   ok('가로 넘침 없음', !(await overflow(page)));
   await page.locator('.bigstart').click();
