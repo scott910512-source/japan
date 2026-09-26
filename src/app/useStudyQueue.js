@@ -157,17 +157,25 @@ export function useStudyQueue({
     setDeck({ id: 'words', label: '오늘 학습', cards: pool, daily: true });
   }, [words, settings.levels, showToast, setDeck, setSub]);
 
-  /* 기출 판 — 고른 목록을 그대로 받는다.
-     daily를 켜서 설정한 「새 단어」 몫만큼만 연다. 205장을 한 번에 열면
-     아무도 안 끝내고, 안 끝낸 판은 회독이 아니라 밀린 숙제가 된다.
-     목록이 이미 많이 나온 순서라 앞에서부터 담긴다(buildDailySession). */
+  /* 기출 판 — 받은 목록을 그대로 한 판으로 돈다.
+   *
+   * ★ daily를 안 켠다 ★
+   *
+   * 예전엔 켜 두어서, 서른 장을 넘겨도 「새 단어」 몫만큼(여덟 장)만 열렸다.
+   * 그러면 판이 열 때마다 달라진다 — 여덟 개를 떼면 다음엔 그다음 여덟 개가
+   * 나오니, 같은 낱말을 다시 만나는 일이 우연에 맡겨진다. 외우는 일은 같은
+   * 것을 여러 번 마주쳐야 되는 일인데 그 구조가 없었다.
+   *
+   * 이 화면의 버튼은 전부 「이만큼을 돈다」는 약속이다. 묶음이면 묶음 전부,
+   * 전체면 전체. 몇 장인지는 버튼에 적혀 있으니, 여기서 몰래 줄이면 그 약속이
+   * 깨진다. 회독 화면이 알아서 판을 거듭하며 안 뗀 것만 남긴다. */
   const startKijuDeck = useCallback((cards, label, id) => {
     if (!cards?.length) {
       showToast('기출 단어를 불러오지 못했어요');
       return;
     }
     setSub(null);
-    setDeck({ id, label, cards, daily: true });
+    setDeck({ id, label, cards });
   }, [showToast, setDeck, setSub]);
 
   const startDueDeck = useCallback(() => {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { KIJU_SOURCE, kijuByYear, kijuCards, kijuStat } from '../lib/kiju.js';
-import { isDoneEnough, stateOf } from '../lib/review.js';
+import { KIJU_GROUP, KIJU_SOURCE, kijuByYear, kijuCards, kijuGroupAt, kijuStat } from '../lib/kiju.js';
+import { isDoneEnough, isSessionClear, stateOf } from '../lib/review.js';
 
 /* 기출 단어 — 열여섯 해 동안 실제로 나온 낱말부터.
  *
@@ -26,6 +26,16 @@ export default function KijuDeck({ words, review, onStart }) {
     [cards, review],
   );
   const years = useMemo(() => kijuByYear(), []);
+
+  /* ★ 서른 개씩 묶어서, 쌓아 가며 ★
+     「뗐다」는 알아요로 한 번 정리한 것(isSessionClear). 졸업(isDoneEnough)은
+     복습일에 네 번 맞혀야 해서 며칠이 걸리는데, 그걸 묶음 기준으로 쓰면
+     1묶음에서 일주일을 머문다. 기준을 새로 만들지 않고 회독 쪽에 이미 있는
+     둘 중 낮은 쪽을 고른 것이다. */
+  const group = useMemo(
+    () => kijuGroupAt(cards, (id) => isSessionClear(stateOf(review, id))),
+    [cards, review],
+  );
 
   /* 회독 상태를 한 글자로. 목록이 205줄이라 여기서 색만 바뀌어야 훑어진다. */
   const markOf = (id) => {
@@ -54,10 +64,33 @@ export default function KijuDeck({ words, review, onStart }) {
         </div>
       </div>
 
-      <button className="bigstart" onClick={() => onStart(cards, '기출 단어', 'kiju')}>
-        <span className="bs-t">기출 순서대로 시작</span>
+      {/* ★ 이번 묶음 ★
+          열 때마다 다른 낱말이 나오면 한 덩어리를 못 외운다. 서른 개를 다 뗄
+          때까지 같은 서른 개가 나오고, 다 떼면 다음 묶음이 앞엣것을 달고
+          열린다 — 앞엣것을 빼면 사흘 뒤에 잊었는지 확인할 길이 없어진다. */}
+      <div className="card kj-group">
+        <div className="kg-head">
+          <b>{group.index + 1}묶음</b>
+          <span className="kg-range">1 ~ {group.to}번째 · {group.list.length}장</span>
+        </div>
+        <div className="kg-note">
+          {group.left > 0
+            ? `이번에 더해진 ${group.fresh.length}개 중 ${group.left}개가 아직이에요. 다 떼면 다음 ${KIJU_GROUP}개가 붙어요.`
+            : (group.index + 1 < group.groups
+              ? '이번 묶음을 다 뗐어요 — 시작하면 다음 묶음이 붙어요'
+              : '마지막 묶음까지 다 뗐어요')}
+        </div>
+        <div className="kg-dots">
+          {Array.from({ length: group.groups }, (_, i) => (
+            <i key={i} className={`kg-dot${i < group.index ? ' done' : ''}${i === group.index ? ' now' : ''}`} />
+          ))}
+        </div>
+      </div>
+
+      <button className="bigstart" onClick={() => onStart(group.list, `기출 1~${group.to}`, `kiju:g${group.index + 1}`)}>
+        <span className="bs-t">{group.index + 1}묶음 회독하기</span>
         <span className="bs-s">
-          {stat.left > 0 ? `많이 나온 것부터 — 아직 ${stat.left}개 남음` : '다 봤어요 — 복습으로 이어져요'}
+          1~{group.to}번째 {group.list.length}장 — 앞 묶음까지 같이 돌아요
         </span>
       </button>
 
@@ -67,6 +100,14 @@ export default function KijuDeck({ words, review, onStart }) {
         onClick={() => onStart(top, '기출 · 두 번 이상', 'kiju:top')}
       >
         두 번 이상 나온 {top.length}개만 돌기
+      </button>
+
+      {/* 묶음을 안 따지고 전체를 도는 길. 시험이 코앞일 때 쓴다 */}
+      <button
+        className="ghost-btn kj-all"
+        onClick={() => onStart(cards, '기출 전체', 'kiju')}
+      >
+        {cards.length}개 전체 돌기
       </button>
 
       <div className="segment kj-tabs">
@@ -109,7 +150,9 @@ export default function KijuDeck({ words, review, onStart }) {
       )}
 
       <div className="set-note kj-note">
-        홈의 「새로 배우기」도 이 목록을 먼저 꺼내요. 기출을 다 보면 나머지 단어로 이어집니다.
+        묶음은 「알아요」로 한 번 뗀 것을 셉니다. 회독 기록은 홈·복습과 한 벌이라
+        여기서 뗀 것은 복습일이 되면 다시 나와요. 홈의 「새로 배우기」도 이 목록을
+        먼저 꺼냅니다.
       </div>
     </>
   );
