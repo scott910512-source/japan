@@ -337,6 +337,8 @@ export const DEFAULT_SETTINGS = {
   /* 듣기 화면에 읽는 법(한글 발음)을 띄울지. 기본은 안 띄운다 —
      듣고 떠올리는 자리인데 읽는 법이 같이 뜨면 소리가 아니라 글자를 읽게 된다. */
   listenShowYomi: false,
+  /* 듣기에서 「다 외웠어요」로 뺀 낱말 id. 되돌리는 길은 듣기 설정에 있다. */
+  listenDropped: [],
   listenSayAnswer: true,  // 뒤집은 판에서 정답(일본어)도 소리로 낼지
   listenGap: 2,       // 문장 사이 뜸 (초)
   listenRecap: false, // 뜻까지 듣고 나서 일본어를 한 번 더 (한 장이 길어져 기본은 끔)

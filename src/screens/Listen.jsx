@@ -97,7 +97,23 @@ export default function Listen({
      그래서 이 화면이 열려 있는 동안만 기억한다. 나갔다 오면 다시 들어온다 —
      「잠시」가 그 뜻이다. 아주 빼고 싶으면 설정의 「다 외운 단어는 빼기」가
      회독 기록을 보고 골라 준다. */
-  const [dropped, setDropped] = useState(() => new Set());
+  /* 「다 외웠어요」로 뺀 낱말.
+   *
+   * ★ 기기에 남긴다 ★
+   *
+   * 처음에는 화면이 열려 있는 동안만 기억했다. 나갔다 오면 다시 들어오니
+   * 「잠시」였는데, 그러면 어제 뺀 서른 개가 오늘 그대로 다시 나온다 — 뺀
+   * 보람이 하루도 안 간다.
+   *
+   * 대신 되돌리는 길을 같이 둔다. 안 두면 왜 안 나오는지 모르는 낱말이
+   * 쌓이고, 그건 목록이 줄어드는 것보다 나쁘다. */
+  const [dropped, setDropped] = useState(
+    () => new Set(Array.isArray(settings.listenDropped) ? settings.listenDropped : []),
+  );
+  const dropSave = (next) => {
+    setDropped(next);
+    onSettingsChange?.({ listenDropped: [...next] });
+  };
 
   /* ★ 들은 것도 기록에 남는다 ★
    *
@@ -225,7 +241,7 @@ export default function Listen({
   const dropCurrent = () => {
     if (!run || !card) return;
     const id = card.id;
-    setDropped((prev) => new Set(prev).add(id));
+    dropSave(new Set(dropped).add(id));
     setStep(0);
     setRun((r) => {
       if (!r) return r;
@@ -234,7 +250,7 @@ export default function Listen({
       return { ...r, cards, at: Math.min(r.at, cards.length - 1) };
     });
     setNudge((v) => v + 1);
-    onToast(`${card.kanji} 빼요 — 이번 듣기에서만`);
+    onToast(`${card.kanji} 빼요 — 설정에서 되돌릴 수 있어요`);
   };
 
   /* 한 장의 걸음표. 방향에 따라 순서가 통째로 뒤집힌다. */
@@ -413,8 +429,17 @@ export default function Listen({
               그때가 「맞았나」를 확인하는 자리인데 읽는 법이 없으면 반만
               확인된다 — 呼吸이 「코큐우」인지 「코큐」인지가 안 풀린다.
               설정(showYomi)은 「처음부터 보여 달라」는 뜻으로 남는다. */}
+          {/* ★ 히라가나와 한글 발음을 같이 ★
+              한글 발음만 두면 「코큐우」를 보고 こきゅう를 못 쓴다. 시험이 묻는
+              것은 가나 표기라, 소리를 한글로만 익히면 답안지에서 막힌다.
+              둘을 같이 두면 소리(한글)와 표기(가나)가 한자리에서 붙는다. */}
           <div className="ls-yomi">
-            {showJp && (showYomi || showKo) ? kanaToHangul(card.kana || card.kanji) : ''}
+            {showJp && (showYomi || showKo) && (
+              <>
+                <span className="ly-kana">{card.kana || card.kanji}</span>
+                <span className="ly-han">{kanaToHangul(card.kana || card.kanji)}</span>
+              </>
+            )}
           </div>
 
           {/* 뜻은 때가 되면 나온다. 미리 보이면 듣기가 아니라 읽기가 된다. */}
@@ -681,6 +706,23 @@ export default function Listen({
 
         {/* 정지할 때까지 한 세트를 돈다 — 소리를 외우는 일은 같은 것을
             여러 번 마주쳐야 되는 일이다. */}
+        {/* 뺀 낱말을 몇 개인지 보여 주고 되돌리는 길. 안 두면 왜 안 나오는지
+            모르는 낱말이 쌓인다 — 그건 목록이 줄어드는 것보다 나쁘다. */}
+        {dropped.size > 0 && (
+          <div className="setrow col ls-droprow">
+            <div className="set-title">
+              뺀 낱말 <span className="set-val">{dropped.size}개</span>
+            </div>
+            <div className="set-sub">「다 외웠어요」로 뺀 것이에요. 다시 넣으면 그날부터 또 나와요.</div>
+            <button
+              className="ghost-btn ls-dropreset"
+              onClick={() => { dropSave(new Set()); onToast('뺀 낱말을 모두 다시 넣었어요'); }}
+            >
+              {dropped.size}개 다시 넣기
+            </button>
+          </div>
+        )}
+
         {/* 읽는 법을 띄울지. 켜면 한글 발음이 낱말 밑에 뜬다. */}
         <button
           className="toggle-row setrow ls-yomitoggle"
