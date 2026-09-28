@@ -16,6 +16,7 @@ import Today from './screens/Today.jsx';
 import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { dailyPool } from './lib/cards.js';
+import { markBusy } from './lib/busy.js';
 import { kijuIndex } from './lib/kiju.js';
 import {
   touchStreak, loadStreak, setStorageErrorHandler, setStorageOkHandler,
@@ -157,6 +158,32 @@ export default function App() {
   }, [showToast]);
 
   useLayerNavigation({ deck, sub, setDeck, setSub });
+
+  /* ★ 밀어 넣은 화면이 열려 있으면 새 버전으로 안 갈아끼운다 ★
+   *
+   * 화면마다 따로 알리게 해 두었더니 구멍이 남았다 — N3 코스는 문제를 푸는
+   * 중에만 표시를 세웠고, 코스를 열어 놓고 무엇을 할지 고르는 동안(허브)은
+   * 「끊길 게 없다」로 읽혔다. 거기가 바로 「N3 들어가서 공부하려고 할 때」다.
+   * 기출 단어·단어·문법도 마찬가지로 비어 있었다.
+   *
+   * 화면을 하나씩 세는 방식이 틀렸다. 밀어 넣은 화면이 열려 있다는 것은 곧
+   * 새로고침하면 그 화면이 닫히고 탭으로 돌아간다는 뜻이고, 그게 쓰는 사람에게
+   * 「튕겼다」이다. 무엇을 하던 중인지는 따질 필요가 없다.
+   *
+   * 회독 판(deck)과 영상도 같이 본다. 판은 저장소에도 남지만 여기서 보면
+   * 저장되기 전의 한 걸음까지 덮인다. */
+  useEffect(() => {
+    markBusy('sub', Boolean(sub));
+    return () => markBusy('sub', false);
+  }, [sub]);
+  useEffect(() => {
+    markBusy('deck', Boolean(deck));
+    return () => markBusy('deck', false);
+  }, [deck]);
+  useEffect(() => {
+    markBusy('videos', activeTab === 'videos');
+    return () => markBusy('videos', false);
+  }, [activeTab]);
 
   /* 온보딩을 열지 말지 정한다.
    *

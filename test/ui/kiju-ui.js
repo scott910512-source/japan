@@ -82,6 +82,15 @@ const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth > 
   await page.locator('.kj-tabs button', { hasText: '출제 순' }).click();
   await page.waitForTimeout(300);
 
+  /* ★ 밀어 넣은 화면이 열려 있으면 새 버전으로 안 갈아끼운다 ★
+     화면마다 따로 알리게 했더니 구멍이 남았다 — N3 코스는 문제를 푸는 중에만
+     표시를 세워서, 코스를 열어 놓고 무엇을 할지 고르는 동안은 비어 있었다.
+     거기가 바로 「들어가서 공부하려고 할 때」고, 그때 새로고침이 나면 화면이
+     닫히고 탭으로 돌아간다 — 쓰는 사람에게는 「튕겼다」이다. */
+  ok('★ 밀어 넣은 화면에서는 갱신을 미룬다 ★',
+    (await page.evaluate(() => (window.__jpBusy ? window.__jpBusy() : []))).includes('sub'),
+    (await page.evaluate(() => (window.__jpBusy ? window.__jpBusy() : []))).join() || '없음');
+
   console.log('\n── 서른 개씩 묶어서, 쌓아 가며');
   ok('이번 묶음이 적힌다', (await page.locator('.kg-head').innerText()).replace(/\s+/g, ' ').includes('1묶음'),
     (await page.locator('.kg-head').innerText()).replace(/\s+/g, ' '));
