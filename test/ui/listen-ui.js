@@ -177,6 +177,13 @@ async function boot(browser, patch = {}, init = null) {
   }, { timeout: 15000 }).catch(() => {});
   ok('★ 뜻이 나오면 읽는 법도 같이 나온다 ★', (await page.textContent('.ls-yomi')).trim().length > 0,
     `${(await page.textContent('.ls-ko')).trim()} / ${(await page.textContent('.ls-yomi')).trim()}`);
+  /* ★ 히라가나와 한글 발음을 같이 ★
+     한글 발음만 두면 「코큐우」를 보고 こきゅう를 못 쓴다. 시험이 묻는 것은
+     가나 표기라, 소리를 한글로만 익히면 답안지에서 막힌다. */
+  const kana = (await page.textContent('.ls-yomi .ly-kana')).trim();
+  const han = (await page.textContent('.ls-yomi .ly-han')).trim();
+  ok('★ 히라가나도 같이 나온다 ★', /[ぁ-んァ-ンー]/.test(kana), kana);
+  ok('한글 발음도 그대로', /[가-힣]/.test(han), han);
   /* 무엇을 읽으라고 넘겼는지만 가로챈다 — 진짜 음성 엔진은 검사에서 못 쓴다.
      일본어는 클라우드 음성을 쓸 수 있어 여기 안 잡힐 수도 있지만, 뜻은
      기기 음성으로만 내므로 반드시 잡힌다. */
@@ -613,6 +620,8 @@ async function boot(browser, patch = {}, init = null) {
        한 구간을 몇 바퀴 돌다 보면 먼저 익는 낱말이 생긴다. 그것까지 계속
        들으면 남은 것을 만나는 틈이 그만큼 줄어든다. */
     ok('「다 외웠어요」가 있다', await pp.locator('.ls-know').count() === 1);
+    const dropped = () => pp.evaluate(() => (JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').listenDropped || []).length);
+    ok('아직 뺀 것이 없다', (await dropped()) === 0);
     const total = (await pp.locator('.listen .sub-title').innerText()).match(/\/\s*(\d+)/)[1];
     const word = (await pp.textContent('.ls-jp')).trim();
     await pp.locator('.ls-know').click(); await pp.waitForTimeout(600);
@@ -621,6 +630,20 @@ async function boot(browser, patch = {}, init = null) {
     ok('뺀 낱말은 자리에서 사라진다', (await pp.textContent('.ls-jp')).trim() !== word,
       `${word} → ${(await pp.textContent('.ls-jp')).trim()}`);
     ok('판은 그대로 돈다', await pp.locator('.ls-stage').count() === 1);
+
+    /* ★ 뺀 낱말은 기기에 남는다 ★
+       화면이 열려 있는 동안만 기억하면 어제 뺀 서른 개가 오늘 그대로 다시
+       나온다 — 뺀 보람이 하루도 안 간다. 대신 되돌리는 길을 같이 둔다. */
+    ok('★ 뺀 낱말이 저장된다 ★', (await dropped()) === 1, `${await dropped()}개`);
+    await pp.locator('.listen .sub-back').click(); await pp.waitForTimeout(700);
+    ok('나와도 저장된 채로', (await dropped()) === 1);
+    ok('설정에 몇 개인지 적힌다', (await pp.locator('.ls-droprow').innerText()).includes('1개'),
+      (await pp.locator('.ls-droprow').innerText()).replace(/\s+/g, ' ').slice(0, 40));
+    ok('되돌리는 길이 있다', await pp.locator('.ls-dropreset').count() === 1);
+    await pp.locator('.ls-dropreset').click(); await pp.waitForTimeout(600);
+    ok('★ 다시 넣으면 0으로 ★', (await dropped()) === 0);
+    ok('되돌리면 그 줄이 사라진다', await pp.locator('.ls-droprow').count() === 0);
+    await startListen(pp); await pp.waitForTimeout(500);
     ok('멈춰 놔도 미루는 건 그대로 — 듣던 자리는 살아 있다',
       (await busy()).includes('listen'));
     const before = (await pp.locator('.listen .sub-title').innerText()).trim();

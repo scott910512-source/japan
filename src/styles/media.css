@@ -348,6 +348,9 @@
 .ls-blocknav { display: flex; gap: 8px; margin-top: 10px; }
 .ls-blocknav .ghost-btn { flex: 1; justify-content: center; min-height: 44px; }
 .ls-blocknav .ghost-btn:disabled { opacity: .4; cursor: default; }
+.ls-yomi .ly-kana { font-weight: 700; }
+.ls-yomi .ly-han { margin-left: 8px; opacity: .75; }
+.ls-droprow .ghost-btn { margin-top: 10px; width: 100%; justify-content: center; min-height: 44px; }
 .ls-know { width: calc(100% - 32px); margin: 10px 16px 0; justify-content: center; min-height: 44px; }
 .ls-pause.on { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 .ls-quiz { margin: 0 16px 10px; width: calc(100% - 32px); justify-content: center; }
