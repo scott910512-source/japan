@@ -195,10 +195,20 @@ export function buildQuestion(word, { type, dir }, pool, rng = Math.random) {
   if (type !== QUIZ_TYPE.CHOICE) return base;
 
   const distractors = pickDistractors(word, pool, CHOICE_COUNT - 1, rng);
+  /* ★ 보기마다 일본어를 같이 싣는다 ★
+   *
+   * 뜻을 고르는 문제에서 틀리면 「옮기다」를 골랐다는 것만 남았다. 그 「옮기다」가
+   * 일본어로 무엇인지는 안 나온다 — 헷갈린 두 낱말을 나란히 놓고 봐야 다음에
+   * 안 헷갈리는데, 그 자리가 없었다.
+   *
+   * 화면에서 단어장을 다시 뒤지게 하지 않는다. 보기를 만들 때 이미 그 낱말을
+   * 손에 들고 있으니 여기서 같이 넘긴다. */
   const options = shuffled([word, ...distractors], rng).map((w) => ({
     wordId: w.id,
     label: jpFirst ? w.mean : w.kanji,
     sub: jpFirst ? null : w.kana,
+    jp: w.kanji,
+    jpKana: w.kana,
   }));
   return { ...base, options };
 }

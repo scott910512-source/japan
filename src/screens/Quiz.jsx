@@ -199,6 +199,10 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
 
   const [typed, setTyped] = useState('');
   const [shownSub, setShownSub] = useState(false);
+  /* 일본어를 고르는 문제에서 읽는 법을 열어 볼지.
+     기본은 안 보여 준다 — 시험이 묻는 것은 표기고, 가나가 같이 떠 있으면
+     한자를 못 읽어도 소리로 찍을 수 있다. 막히면 그때 연다. */
+  const [shownOpt, setShownOpt] = useState(false);
   const inputRef = useRef(null);
   const hasKeyboard = useHasKeyboard();
 
@@ -209,6 +213,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
   useEffect(() => {
     setTyped('');
     setShownSub(false);
+    setShownOpt(false);
     if (q?.type === QUIZ_TYPE.TYPING) inputRef.current?.focus();
   }, [index, q?.type]);
 
@@ -216,6 +221,19 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
   // 읽는 법인 가나를 보내야 외우려는 소리가 나온다.
   const speak = useCallback(() => {
     if (word) speakJapanese(word.kana || word.kanji, settings.speechRate);
+  }, [word, settings.speechRate]);
+
+  /* ★ 정답의 예문을 읽어 준다 ★
+   *
+   * 낱말 하나만 들으면 그 소리가 문장 안에서 어떻게 서는지를 모른다. 시험은
+   * 낱말을 묻지만 시험장 밖에서 만나는 것은 문장이라, 답을 확인하는 자리에서
+   * 한 번은 문장으로 들려준다.
+   *
+   * 예문에는 한자가 섞여 있다. 카나로 바꿔 둔 것(exampleKana)이 있으면 그걸
+   * 보낸다 — 한자를 그대로 보내면 음독으로 읽히는 낱말이 있다. */
+  const speakExample = useCallback(() => {
+    if (!word?.example) return;
+    speakJapanese(word.exampleKana || word.example, settings.speechRate);
   }, [word, settings.speechRate]);
 
   /* 일→한 문제에서 문제를 읽어 주면 답이 아니라 문제를 들려주는 거라 괜찮다.
@@ -228,6 +246,18 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
     if (spokenFor.current === index) return;
     spokenFor.current = index;
     speak();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, Boolean(answered)]);
+
+  /* 답을 낸 뒤 예문을 한 번. 낱말을 먼저 읽고 조금 뒤에 문장을 읽는다 —
+     바로 이어 붙이면 앞엣것이 잘린다(기기 음성은 부르는 족족 앞것을 끊는다). */
+  const exampleFor = useRef(null);
+  useEffect(() => {
+    if (!settings.autoTTS || !answered || !word?.example) return;
+    if (exampleFor.current === index) return;
+    exampleFor.current = index;
+    const t = setTimeout(speakExample, 1400);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, Boolean(answered)]);
 
@@ -332,6 +362,14 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
         )}
       </div>
 
+      {/* 일본어를 고르는 문제에서 읽는 법을 열어 보는 길. 답을 내면 어차피
+          보이니 그 전에만 둔다. */}
+      {q.type === QUIZ_TYPE.CHOICE && q.dir === QUIZ_DIR.KO_JP && !answered && !shownOpt && (
+        <button className="sc-peek qz-hint" onClick={() => setShownOpt(true)}>
+          <IconEye /> 읽는 법 보기
+        </button>
+      )}
+
       {q.type === QUIZ_TYPE.CHOICE ? (
         <div className="qoptions">
           {q.options.map((o, i) => {
@@ -349,7 +387,11 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
                 <span className="qo-num">{hasKeyboard ? <kbd>{i + 1}</kbd> : i + 1}</span>
                 <span className="qo-body">
                   <b>{o.label}</b>
-                  {o.sub && <span>{o.sub}</span>}
+                  {/* ★ 읽는 법은 눌러야 나온다 ★
+                      시험이 묻는 것은 표기다. 가나가 같이 떠 있으면 한자를 못
+                      읽어도 소리로 찍을 수 있어서, 아는 것과 찍은 것이 안 갈린다.
+                      답을 낸 뒤에는 확인하는 자리라 그냥 보여 준다. */}
+                  {o.sub && (shownOpt || answered) && <span>{o.sub}</span>}
                   {/* 설명은 정답 보기 안에 붙인다. 아래에 따로 상자를 띄우면
                       그만큼 '다음 문제'가 화면 밖으로 밀려난다. */}
                   {answered && isAnswer && answered.verdict !== 'correct' && (
@@ -363,8 +405,35 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
                       )}
                     </span>
                   )}
+                  {/* ★ 내가 고른 틀린 답은 무슨 낱말이었나 ★
+                      「옮기다」를 골랐다는 것만 남으면 다음에 또 고른다. 헷갈린
+                      둘을 나란히 놓고 봐야 갈린다. */}
+                  {answered && isMine && !isAnswer && o.jp && o.jp !== o.label && (
+                    <span className="qo-mine">
+                      <b>{o.jp}</b>
+                      {o.jpKana && o.jpKana !== o.jp && <i>{o.jpKana}</i>}
+                    </span>
+                  )}
                 </span>
-                {answered && isAnswer && <span className="qo-mark ok"><IconCheck /> 정답</span>}
+                {answered && isAnswer && (
+                  <span className="qo-mark ok">
+                    <IconCheck /> 정답
+                    {/* 예문을 다시 듣는 자리. 자동으로 한 번 읽어 주지만,
+                        놓쳤을 때 손으로 부를 길이 없으면 그걸로 끝이다. */}
+                    {word?.example && (
+                      <i
+                        className="qo-replay"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="예문 다시 듣기"
+                        onClick={(e) => { e.stopPropagation(); speakExample(); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); speakExample(); } }}
+                      >
+                        <IconSpeaker />
+                      </i>
+                    )}
+                  </span>
+                )}
                 {answered && isMine && !isAnswer && <span className="qo-mark no"><IconX /> 내가 고른 답</span>}
               </button>
             );

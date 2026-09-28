@@ -90,6 +90,19 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   } else {
     ok('틀리면 설명이 정답 보기 안에 붙음', await page.locator('.qopt.correct .qo-why').count() === 1);
     ok('틀리면 아래 상자는 안 뜸', await page.locator('.qverdict').count() === 0);
+
+    /* ★ 내가 고른 틀린 답이 무슨 낱말이었나 ★
+       「하다」를 골랐다는 것만 남으면 다음에 또 고른다. 헷갈린 둘을 나란히
+       놓고 봐야 갈린다 — 틀린 보기 밑에 그 일본어를 적는다. */
+    const mine = page.locator('.qopt.wrong .qo-mine');
+    ok('★ 틀린 보기에 그 낱말의 일본어가 뜬다 ★', await mine.count() === 1,
+      (await mine.innerText().catch(() => '없음')).replace(/\s+/g, ' '));
+    ok('일본어가 비어 있지 않다', (await mine.innerText().catch(() => '')).trim().length > 0);
+
+    /* 정답의 예문을 다시 들을 길. 자동으로 한 번 읽어 주지만 놓쳤을 때
+       손으로 부를 수 없으면 그걸로 끝이다. */
+    ok('정답 쪽에 예문 다시 듣기가 있다', await page.locator('.qopt.correct .qo-replay').count() === 1);
+
     const btn = page.locator('.qnext .submit-btn');
     ok('틀리면 다음 버튼이 있음', await btn.count() === 1);
     const box = await btn.boundingBox();
