@@ -307,6 +307,16 @@ group('시험 · 출제');
   const q2 = buildQuestion(ALL_WORDS[0], { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.KO_JP }, ALL_WORDS, rng);
   ok('한→일은 뜻을 묻고 한자를 고름', q2.prompt === ALL_WORDS[0].mean && q2.answer === ALL_WORDS[0].kanji);
 
+  /* ★ 보기마다 일본어를 같이 싣는다 ★
+     뜻을 고르는 문제에서 틀리면 「옮기다」를 골랐다는 것만 남았다. 그 「옮기다」가
+     일본어로 무엇인지 화면이 알아야 헷갈린 둘을 나란히 놓고 보여 줄 수 있다. */
+  ok('★ 보기마다 일본어가 실려 있다 ★', q.options.every((o) => o.jp));
+  ok('읽는 법도 같이', q.options.every((o) => typeof o.jpKana === 'string'));
+  const byId = new Map(ALL_WORDS.map((w) => [w.id, w]));
+  ok('실린 일본어가 그 낱말의 것', q.options.every((o) => o.jp === byId.get(o.wordId).kanji));
+  ok('일본어를 고르는 문제에도 실린다', q2.options.every((o) => o.jp === byId.get(o.wordId).kanji));
+  ok('뜻 고르기의 보기 글자는 그대로 뜻', q.options.every((o) => o.label === byId.get(o.wordId).mean));
+
   // 핵심: 정답과 뜻이 겹치는 보기가 나오면 안 된다
   let ambiguous = 0, short = 0;
   for (let i = 0; i < 1200; i++) {

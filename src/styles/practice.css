@@ -563,3 +563,11 @@
 .swl-fde b { font-size: 18px; }
 .swl-fde span { color: var(--ink-soft); font-size: 12px; }
 .swl-feedback .sw-tip { margin-top: 8px; }
+
+/* 시험 — 틀린 보기의 일본어 · 예문 다시 듣기 · 읽는 법 힌트 */
+.qopt .qo-mine { display: block; margin-top: 6px; font-size: 13px; }
+.qopt .qo-mine b { font-weight: 800; }
+.qopt .qo-mine i { margin-left: 6px; font-style: normal; font-size: 11.5px; opacity: .75; }
+.qo-mark .qo-replay { display: inline-flex; margin-left: 8px; cursor: pointer; vertical-align: middle; }
+.qo-mark .qo-replay svg { width: 16px; height: 16px; }
+.qz-hint { margin: 0 0 10px; }
