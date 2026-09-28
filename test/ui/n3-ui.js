@@ -317,9 +317,21 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   await page.locator('.n3-done').click();
   await page.waitForTimeout(300);
 
+  /* ★ 코스를 열어 둔 동안에는 새 버전으로 안 갈아끼운다 ★
+     허브(무엇을 할지 고르는 자리)에서 비어 있던 것이 「N3 들어가서 공부하려고
+     하면 튕긴다」의 정체였다. 새로고침이 나면 코스가 닫히고 탭으로 돌아간다. */
+  console.log('\n── 갱신 미루기');
+  await page.locator('.n3-hub').waitFor({ timeout: 8000 }).catch(() => {});
+  ok('★ 코스가 열려 있으면 갱신을 미룬다 ★',
+    (await page.evaluate(() => (window.__jpBusy ? window.__jpBusy() : []))).length > 0,
+    (await page.evaluate(() => (window.__jpBusy ? window.__jpBusy() : []))).join() || '없음');
+
   console.log('\n── 뒤로가기 · 넘침 · 오류');
   await page.goBack(); await page.waitForTimeout(500);
   ok('브라우저 뒤로가기가 코스만 닫는다', await page.locator('.subscreen.open').count() === 0 && await page.locator('.tabbar').count() === 1);
+  ok('코스를 닫으면 미루지 않는다 — 안 그러면 영영 갱신이 안 된다',
+    !(await page.evaluate(() => (window.__jpBusy ? window.__jpBusy() : []))).includes('sub'),
+    (await page.evaluate(() => (window.__jpBusy ? window.__jpBusy() : []))).join() || '없음');
   ok('페이지 오류 없음', errors.length === 0, errors.join(' | ').slice(0, 200) || '없음');
   ok('가로 넘침 없음', !(await overflow(page)));
 
