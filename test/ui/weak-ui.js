@@ -68,8 +68,11 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
 
     await openMenu(page, '단어 시험');
     await page.waitForTimeout(700);
-    await page.locator('.submit-btn').first().click();
-    await page.waitForTimeout(800);
+    /* 시작 버튼은 .bigstart다 — .submit-btn으로 찾으면 30초를 기다리다 죽는다.
+       quiz-flow가 이미 글자로 찾고 있어서 같은 방식을 쓴다. */
+    await page.locator('button', { hasText: '시험 시작' }).first().click()
+      .catch(async () => { await page.locator('.bigstart, .submit-btn').first().click(); });
+    await page.waitForTimeout(900);
     ok('시험이 시작됨', await page.locator('.qoptions').count() === 1);
 
     /* 끝까지 푼다. 늘 첫 보기를 눌러서 맞기도 하고 틀리기도 한다 —
@@ -163,7 +166,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
 
   console.log('\n[ 듣기 — 바퀴마다 순서 섞기 ]');
   {
-    await openListen(page, '자동 듣기');
+    await openListen(page, 'auto');
     await page.waitForTimeout(700);
 
     /* ★ 방향도 섞을 수 있다 ★

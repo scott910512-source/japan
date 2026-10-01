@@ -143,8 +143,12 @@ async function boot(browser, patch = {}, init = null) {
 
   /* ★ 화면을 못 보는 동안 쓰는 자리다 ★
      뜻이 눈으로만 나오면 일본어 뒤에 침묵만 남는다 — 절반이 안 들리는 셈이다. */
-  ok('뜻도 소리로 낼 수 있다', listen.includes('한국어 뜻도 소리로'));
-  const koRow = page.locator('.listen .toggle-row', { hasText: '한국어 뜻도' });
+  /* 칸을 글자가 아니라 클래스로 찾는다. 설정 화면을 접으면서 제목이
+     「한국어 뜻도 소리로」에서 「뜻도 소리로」로 짧아졌는데, 글자로 찾던
+     이 줄이 거기서 30초를 기다리다 죽었다 — 고르는 자리의 이름은 바뀔 수
+     있지만 그 자리가 하는 일은 안 바뀐다. */
+  const koRow = page.locator('.listen .ls-sayko');
+  ok('뜻도 소리로 낼 수 있다', await koRow.count() === 1);
   /* ★ 목록이 비었다고 꺼 두지 않는다 ★
      예전엔 음성 목록에 한국어가 없으면 토글을 끄고 회색으로 잠갔다. 그런데
      안드로이드 크롬·웹뷰는 목록이 []인데도 소리가 멀쩡히 난다 — 그 기기에서
@@ -155,7 +159,7 @@ async function boot(browser, patch = {}, init = null) {
     (await koRow.innerText()).replace(/\n/g, ' ').slice(0, 70));
   ok('잠가 두지 않는다', !(await koRow.isDisabled()));
   ok('무엇을 해 주는지 적혀 있다',
-    (await koRow.innerText()).includes('뜻을 읽어 줘요'),
+    (await koRow.innerText()).includes('읽어 줘요'),
     (await koRow.innerText()).replace(/\n/g, ' ').slice(0, 70));
   ok('화면이 꺼지면 멈길 수 있다고 밝힘', listen.includes('멈출 수 있'));
 
@@ -235,10 +239,13 @@ async function boot(browser, patch = {}, init = null) {
     await p7.locator('.lh-way[data-way="auto"]').click();
     await p7.waitForTimeout(900);
 
-    const row = p7.locator('.listen .toggle-row', { hasText: '한국어 뜻도' });
+    const row = p7.locator('.listen .ls-sayko');
     ok('한국어 음성이 있으면 켜진다', await row.locator('.toggle.on').count() === 1,
       (await row.innerText()).replace(/\n/g, ' ').slice(0, 60));
-    ok('안내도 바뀐다', (await row.innerText()).includes('화면을 안 봐도'));
+    /* 음성이 잡힌 기기에는 「안 잡혔어요」를 안 띄운다. 띄우면 멀쩡한 기기에서
+       매번 겁을 주는 셈이고, 그런 안내는 한 번 보고 나면 아무도 안 읽는다. */
+    ok('안내도 바뀐다', await p7.locator('.ls-konote').count() === 0,
+      (await row.innerText()).replace(/\n/g, ' ').slice(0, 60));
 
     await p7.evaluate(() => { window.__said = []; });
     await startListen(p7);
@@ -428,7 +435,7 @@ async function boot(browser, patch = {}, init = null) {
     await ansRow.click();
     await p8.waitForTimeout(300);
     ok('답 소리를 끌 수 있다', await ansRow.locator('.toggle.on').count() === 0);
-    ok('끄면 왜 조용한지 적어 준다', (await ansRow.innerText()).includes('화면으로 확인'),
+    ok('끄면 왜 조용한지 적어 준다', (await ansRow.innerText()).includes('화면으로만'),
       (await ansRow.innerText()).replace(/\n/g, ' ').slice(0, 70));
 
     await p8.evaluate(() => { window.__said = []; });
@@ -472,7 +479,10 @@ async function boot(browser, patch = {}, init = null) {
     const way = pv.locator('.lh-way[data-way="auto"]');
     if (await way.count()) { await way.click(); await pv.waitForTimeout(800); }
 
-    const r = pv.locator('.listen .ls-sayans');
+    /* 답을 소리로 내는 칸은 방향마다 다른 쪽이다. 설정 화면을 접으면서
+       둘을 한 칸이 번갈아 맡던 것을 각자 칸으로 갈랐다 — 랜덤에서는 두
+       방향이 다 나오니 한 칸으로는 둘 다 못 끈다. */
+    const r = pv.locator(dir === 'ko-jp' ? '.listen .ls-sayans' : '.listen .ls-sayko');
     ok(`[${dir}] 목록이 비어도 토글을 끌 수 없게 잠그지 않는다`, !(await r.isDisabled()));
     ok(`[${dir}] 기본으로 켜져 있다`, await r.locator('.toggle.on').count() === 1);
 
