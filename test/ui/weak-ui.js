@@ -137,10 +137,19 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
       return picked;
     });
 
+    /* ★ 켠 채로 새로 불러온 뒤에 끊는다 ★
+       심어 둔 기록은 앱이 켜질 때 한 번만 읽히니 새로 불러와야 한다. 그런데
+       끊긴 채로 불러오면 서비스워커가 아직 자리를 안 잡았을 때 아무것도 안
+       뜬다 — 인터넷이 되는 곳(CI)에서 이것 때문에 탭바를 30초 기다리다
+       죽었다. 맨 위에서 한 것과 같은 차례로 간다. */
+    await page.context().setOffline(false);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
+    await page.context().setOffline(true);
     const off2 = page.locator('.gate-offline');
+    await off2.waitFor({ timeout: 8000 }).catch(() => {});
     if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
+    await page.locator('.tabbar').waitFor({ timeout: 20000 });
     await goTab(page, '복습');
     await page.waitForTimeout(600);
 
