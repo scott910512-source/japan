@@ -37,7 +37,35 @@ export const SCOPES = [
 export const DIRECTIONS = [
   { id: 'jp-ko', label: '일본어 → 뜻', sub: '듣고 뜻을 떠올려요' },
   { id: 'ko-jp', label: '뜻 → 일본어', sub: '뜻을 듣고 일본어로 말해요' },
+  /* ★ 섞어서 ★
+     한 방향으로만 돌면 그 방향에만 익는다. 「일본어를 들으면 뜻이 떠오르는데
+     뜻을 보면 일본어가 안 나오는」 상태가 그렇게 생긴다 — 시험은 앞쪽을 묻고
+     여행은 뒤쪽을 묻는다.
+     그리고 방향이 고정이면 다음 장에 무엇이 나올지 알고 듣는다. 어느 쪽으로
+     올지 모르면 매번 맨손으로 떠올려야 한다. */
+  { id: 'mix', label: '랜덤', sub: '두 방향을 섞어서 — 어느 쪽이 올지 몰라요' },
 ];
+
+/* 이 장은 어느 방향인가.
+ *
+ * ★ 그릴 때마다 뽑으면 안 된다 ★
+ * Math.random을 화면에서 바로 부르면 한 장이 흘러가는 동안에도 다시 그릴
+ * 때마다 방향이 바뀐다 — 일본어를 듣다가 뜻 쪽으로 넘어가 버린다.
+ * 그래서 판(run)의 씨앗과 자리·바퀴로 정한다. 같은 자리는 늘 같은 방향이고,
+ * 판이 바뀌면 패턴도 바뀐다. */
+function mix32(n) {
+  let x = (n | 0) + 0x9e3779b9;
+  x = Math.imul(x ^ (x >>> 16), 0x21f0aaad);
+  x = Math.imul(x ^ (x >>> 15), 0x735a2d97);
+  return (x ^ (x >>> 15)) >>> 0;
+}
+
+export function dirOf(direction, run) {
+  if (direction !== 'mix') return direction;
+  if (!run) return 'jp-ko';
+  const seed = (run.seed || 0) + (run.lap || 0) * 2654435761 + (run.at || 0);
+  return mix32(seed) % 2 ? 'ko-jp' : 'jp-ko';
+}
 
 export function inScope(st, scope, today = todayKey(), rec = null) {
   if (scope === 'all') return true;

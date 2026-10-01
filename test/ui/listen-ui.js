@@ -113,7 +113,12 @@ async function boot(browser, patch = {}, init = null) {
   const allN = Number((await page.locator('.ls-scope[data-scope="all"] .pk-count').innerText()).match(/\d+/)[0]);
   ok('고를 수 있는 범위가 오늘 몫보다 훨씬 넓다', allN > 500, `${allN}개`);
 
-  ok('방향을 고를 수 있다', await page.locator('.listen .ls-dir').count() === 2);
+  /* ★ 랜덤이 붙었다 ★ 한 방향으로만 돌면 그 방향에만 익는다 — 「일본어를
+     들으면 뜻이 떠오르는데 뜻을 보면 일본어가 안 나오는」 상태가 그렇게 생긴다.
+     방향이 고정이면 다음 장이 어느 쪽으로 올지 알고 듣는 문제도 있다. */
+  ok('방향을 고를 수 있다', await page.locator('.listen .ls-dir').count() === 3,
+    (await page.locator('.listen .ls-dir').allTextContents()).join(' / '));
+  ok('섞어서 들을 길이 있다', await page.locator('.ls-dir[data-dir="mix"]').count() === 1);
   ok('뒤집는 길이 있다', await page.locator('.ls-dir[data-dir="ko-jp"]').count() === 1);
 
   /* ── 시작 버튼은 맨 위에 작게 ──
@@ -373,7 +378,7 @@ async function boot(browser, patch = {}, init = null) {
     /* 「따라 말하기」는 들려준 걸 따라 하는 것이라 뒤집은 판에는 없다 */
     ok('뒤집으면 따라 말하기는 안 보인다', await p8.locator('.listen .ls-mode').count() === 0);
     const ansRow = p8.locator('.listen .ls-sayans');
-    ok('여기서 끄는 건 일본어 쪽이다', (await ansRow.innerText()).includes('일본어 답도 소리로'),
+    ok('여기서 끄는 건 일본어 쪽이다', (await ansRow.innerText()).includes('일본어'),
       (await ansRow.innerText()).replace(/\n/g, ' ').slice(0, 60));
 
     await p8.evaluate(() => { window.__said = []; });

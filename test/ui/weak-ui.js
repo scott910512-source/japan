@@ -166,6 +166,36 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
     await openListen(page, '자동 듣기');
     await page.waitForTimeout(700);
 
+    /* ★ 방향도 섞을 수 있다 ★
+       한 방향으로만 돌면 그 방향에만 익는다. 그리고 방향이 고정이면 다음
+       장이 어느 쪽으로 올지 알고 듣는다. */
+    ok('방향에 랜덤이 있다', await page.locator('.ls-dir[data-dir="mix"]').count() === 1);
+    await page.locator('.ls-dir[data-dir="mix"]').click();
+    await page.waitForTimeout(350);
+    ok('고르면 켜진다',
+      ((await page.locator('.ls-dir[data-dir="mix"]').getAttribute('class')) || '').includes('active'));
+    ok('기기에 남는다',
+      await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').listenDir) === 'mix');
+    /* 랜덤은 두 방향이 다 나오니, 두 방향의 소리 칸이 다 있어야 한다 */
+    ok('일본어 답 소리 칸이 있다', await page.locator('.ls-sayans').count() === 1);
+    ok('한국어 뜻 소리 칸도 같이 있다', await page.locator('.ls-sayko').count() === 1);
+    await page.locator('.ls-dir[data-dir="jp-ko"]').click();
+    await page.waitForTimeout(350);
+    ok('일본어 → 뜻으로 돌아오면 일본어 답 칸은 빠진다',
+      await page.locator('.ls-sayans').count() === 0);
+
+    /* ★ 한 줄에 한 옵션이 아니다 ★
+       옵션 하나가 한 줄을 먹던 화면이다. 여기는 고르고 바로 시작하는
+       자리라, 고르는 품이 듣는 시간보다 길면 안 쓰게 된다. */
+    const opts = await page.locator('.ls-opts .toggle-pill').all();
+    ok('켜고 끄는 칸이 두 개씩 놓인다', opts.length >= 4, `${opts.length}개`);
+    const xs = [];
+    for (const o of opts) { const b2 = await o.boundingBox(); xs.push(Math.round(b2.x)); }
+    ok('★ 한 줄에 두 개가 나란히 선다 ★', new Set(xs).size === 2, [...new Set(xs)].join(' / '));
+    ok('방향도 한 줄에 셋', new Set(await Promise.all(
+      (await page.locator('.ls-dir').all()).map(async (e) => Math.round((await e.boundingBox()).y)),
+    )).size === 1);
+
     const row = page.locator('.ls-reshuffle');
     ok('바퀴마다 섞는 칸이 있다', await row.count() === 1);
     ok('기본은 켜져 있다 — 차례를 외우는 걸 막는 게 기본이어야 한다',

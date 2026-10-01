@@ -4,7 +4,7 @@
  * 배운 게 500개인데 늘 같은 스무 개만 들렸고, 순서까지 매번 같았다.
  * 그래서 소리가 아니라 순서를 외우게 됐다. 여기서 그걸 지킨다. */
 import {
-  SCOPES, DIRECTIONS, blockCount, blocksIn, inScope, nextAt, pickBlock, pickListen, scopeCounts, stepsOf,
+  SCOPES, DIRECTIONS, blockCount, blocksIn, dirOf, inScope, nextAt, pickBlock, pickListen, scopeCounts, stepsOf,
 } from '../../src/lib/listen.js';
 
 let pass = 0; let fail = 0;
@@ -233,8 +233,57 @@ console.log('\n[ 바퀴마다 순서 섞기 ]');
   ok('반복을 끄면 섞을 일도 없다', nextAt(last, false, { reshuffle: true }) === null);
 }
 
+console.log('\n[ 방향 — 랜덤 ]');
+{
+  /* ★ 한 방향으로만 돌면 그 방향에만 익는다 ★
+     「일본어를 들으면 뜻이 떠오르는데 뜻을 보면 일본어가 안 나오는」 상태가
+     그렇게 생긴다. 시험은 앞쪽을 묻고 여행은 뒤쪽을 묻는다.
+     그리고 방향이 고정이면 다음 장이 어느 쪽으로 올지 알고 듣는다. */
+  ok('방향은 셋 — 랜덤이 붙었다', DIRECTIONS.length === 3, DIRECTIONS.map((d) => d.id).join(' / '));
+  ok('랜덤이 목록에 있다', DIRECTIONS.some((d) => d.id === 'mix'));
+
+  const run = { cards: [{ id: 'a' }], at: 0, lap: 0, seed: 12345 };
+  ok('랜덤이 아니면 고른 그대로', dirOf('jp-ko', run) === 'jp-ko');
+  ok('뒤집은 것도 그대로', dirOf('ko-jp', run) === 'ko-jp');
+
+  /* ★ 같은 자리는 늘 같은 방향 ★
+     그릴 때마다 뽑으면 한 장이 흘러가는 동안에도 방향이 바뀐다 — 일본어를
+     듣다가 뜻 쪽으로 넘어가 버린다. */
+  const a1 = dirOf('mix', run);
+  ok('★ 같은 자리를 다시 물어도 같은 답 ★',
+    dirOf('mix', run) === a1 && dirOf('mix', { ...run }) === a1, a1);
+
+  // 자리가 바뀌면 방향도 다시 뽑힌다 — 한쪽으로 쏠리면 섞는 뜻이 없다
+  const seen = {};
+  for (let i = 0; i < 60; i++) {
+    const d = dirOf('mix', { ...run, at: i });
+    seen[d] = (seen[d] || 0) + 1;
+  }
+  ok('★ 두 방향이 다 나온다 ★', seen['jp-ko'] > 0 && seen['ko-jp'] > 0,
+    `일→뜻 ${seen['jp-ko'] || 0} · 뜻→일 ${seen['ko-jp'] || 0}`);
+  ok('한쪽으로 심하게 안 쏠린다', Math.min(seen['jp-ko'], seen['ko-jp']) >= 15,
+    `적은 쪽 ${Math.min(seen['jp-ko'], seen['ko-jp'])} / 60`);
+
+  // 바퀴가 바뀌면 패턴도 바뀐다 — 안 그러면 두 바퀴째가 첫 바퀴와 똑같다
+  const lap0 = [];
+  const lap1 = [];
+  for (let i = 0; i < 20; i++) {
+    lap0.push(dirOf('mix', { ...run, at: i, lap: 0 }));
+    lap1.push(dirOf('mix', { ...run, at: i, lap: 1 }));
+  }
+  ok('★ 바퀴가 바뀌면 방향 차례도 바뀐다 ★', lap0.join() !== lap1.join());
+
+  // 판이 바뀌면 패턴도 바뀐다 — 매번 같은 차례로 뒤집히면 그것도 외워진다
+  const other = [];
+  for (let i = 0; i < 20; i++) other.push(dirOf('mix', { ...run, at: i, seed: 999 }));
+  ok('판이 바뀌면 패턴도 바뀐다', lap0.join() !== other.join());
+
+  ok('판이 없으면 기본 방향', dirOf('mix', null) === 'jp-ko');
+  ok('씨앗이 없어도 안 죽는다', ['jp-ko', 'ko-jp'].includes(dirOf('mix', { at: 0, lap: 0 })));
+}
+
 console.log('\n[ 한 장의 걸음 ]');
-ok('방향은 둘', DIRECTIONS.length === 2, DIRECTIONS.map((d) => d.id).join(' / '));
+ok('방향은 셋 — 일→뜻 · 뜻→일 · 랜덤', DIRECTIONS.length === 3, DIRECTIONS.map((d) => d.id).join(' / '));
 ok('일본어 → 뜻', stepsOf('jp-ko').join() === 'jp,ko');
 ok('따라 말하기는 사이에 말할 틈',
   stepsOf('jp-ko', { shadow: true }).join() === 'jp,say,ko',
