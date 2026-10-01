@@ -15,7 +15,7 @@ import { reviewLeftOf } from '../lib/plan.js';
  * SRS 안쪽 구조(box·level·간격)는 여기서 말하지 않는다. 「오늘 복습해야 하는
  * 것」과 「틀린 것」만 있으면 쓸 수 있어야 한다. */
 export default function ReviewHub({
-  planNow, sentenceDue, weakWords, wrongCount, weakGrammar,
+  planNow, sentenceDue, weakWords, wrongCount, weakGrammar, weakBook = null, weakRows = [],
   onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeakWords, onOpenWeakGrammar, onOpenRepeat,
 }) {
   /* 홈·배지와 같은 함수 — 여기서 따로 세지 않는다 */
@@ -66,6 +66,50 @@ export default function ReviewHub({
         )}
       </div>
 
+      {/* ★ 약점 장부 ★
+          「약점 12개」만 보여 주면 무엇을 할지가 안 정해진다. 시험에서 틀리는
+          낱말과 쉰 번 들었는데 안 붙는 낱말은 다음에 할 일이 다르다.
+          그리고 「금방 잊는지」는 횟수로는 안 나온다 — 어제 외운 게 오늘
+          무너진 낱말이 제일 위험한데, 틀린 횟수는 한 번일 수 있다.
+          세는 자리는 lib/weak.js 한 군데다. */}
+      {weakRows.length > 0 && (
+        <>
+          <div className="section-label">약점 장부</div>
+          <div className="card wb-card">
+            <div className="wb-sum">
+              {[
+                weakBook?.quizWrong ? `시험 오답 ${weakBook.quizWrong}번` : null,
+                weakBook?.forgot ? `외웠다가 다시 틀림 ${weakBook.forgot}번` : null,
+                weakBook?.fast ? `금방 잊는 낱말 ${weakBook.fast}개` : null,
+              ].filter(Boolean).join(' · ') || '회독에서 틀린 것만 모여 있어요'}
+            </div>
+            <div className="wb-list">
+              {weakRows.map((w) => (
+                <div key={w.id} className="wb-row" data-weak={w.id}>
+                  <span className="wb-w">
+                    <b>{w.kanji}</b>
+                    <small>{w.kana}{w.mean ? ` · ${w.mean}` : ''}</small>
+                  </span>
+                  <span className="wb-why">
+                    {w.speed && <i className="wb-fast">{w.speed}</i>}
+                    <span>{w.reasons.join(' · ')}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button className="ghost-btn wb-start" onClick={onOpenWeakWords}>
+              {weakWords > weakRows.length
+                ? `약한 것부터 ${weakWords}개 외우기`
+                : `${weakWords}개 외우기`}
+            </button>
+            <p className="set-note wb-note">
+              시험·듣기는 복습 간격을 안 바꿔요. 맞고 틀린 것만 여기 쌓여서,
+              오늘 학습의 약점 갈래와 「약점」 범위가 이 순서를 봐요.
+            </p>
+          </div>
+        </>
+      )}
+
       <div className="section-label">더 보기</div>
       <div className="card rv-list">
         {/* 0이면 누를 것이 없다 — 취약 단어처럼 흐리게, 설명은 「아직 없어요」로 */}
@@ -77,7 +121,7 @@ export default function ReviewHub({
         </button>
         <button className="listrow rv-row" data-row="weak-words" onClick={onOpenWeakWords} disabled={weakWords === 0}>
           <span className="rv-ic"><IconFlame /></span>
-          <span className="rv-body"><b>취약 단어</b><span>{weakWords ? '몰라요·애매해요가 3번 이상 쌓인 단어' : '아직 없어요 — 잘하고 있어요'}</span></span>
+          <span className="rv-body"><b>취약 단어</b><span>{weakWords ? '회독·시험에서 틀린 것이 쌓인 단어 — 약한 것부터' : '아직 없어요 — 잘하고 있어요'}</span></span>
           <span className="rv-cnt">{weakWords}</span>
           <IconChevron className="chev" />
         </button>

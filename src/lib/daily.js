@@ -13,6 +13,9 @@
 import {
   stateOf, isDue, isDoneEnough, todayKey, dueDate, shuffled,
 } from './review.js';
+/* 약점 장부 — 시험·듣기·잊어버림. 회독 기록이 못 답하는 몫을 여기서 받는다.
+   장부를 안 주면 errorSignals·weakScore는 회독 기록만 보고 셈을 한다. */
+import { errorSignals, weakEntry, weakScore } from './weak.js';
 
 /* 갈래마다 제 목표를 가진다 — 신규 20 · 복습 20 · 약점 20.
  *
@@ -150,7 +153,7 @@ function item(id, kind, bucket) {
 
 /* 세 갈래로 나눈다. 겹치지 않게 나누는 게 중요하다 — 약점이면서 복습일인 카드가
  * 양쪽에 다 들어가면 같은 게 두 번 나온다. 약점이 먼저 가져간다. */
-export function classifyDaily(pool, review, today = todayKey()) {
+export function classifyDaily(pool, review, today = todayKey(), ledger = null) {
   const weak = []; const due = []; const fresh = [];
   for (const { id, kind } of pool) {
     const st = stateOf(review, id);
@@ -159,7 +162,15 @@ export function classifyDaily(pool, review, today = todayKey()) {
        복습일이 안 됐을 때만 뺀다. */
     if (isDoneEnough(st) && !isDue(st, today)) continue;
     if (!st.lastSeen) { fresh.push(item(id, kind, 'fresh')); continue; }
-    if (st.wrongCount + st.vagueCount >= WEAK_THRESHOLD) { weak.push(item(id, kind, 'weak')); continue; }
+    /* ★ 시험에서 틀린 것도 오늘의 약점이다 ★
+       여태 이 줄은 회독 기록만 봤다. 그런데 시험과 듣기는 회독에 아무것도
+       안 쓴다 — 그래서 시험에서 열 번 틀린 낱말이 오늘 학습의 약점 갈래에
+       한 번도 안 들어왔다. 약점 장부를 같이 본다(lib/weak.js).
+       장부를 안 주면 errorSignals는 몰라요+애매해요라, 예전과 같은 값이다. */
+    if (errorSignals(st, ledger ? weakEntry(ledger, id) : null) >= WEAK_THRESHOLD) {
+      weak.push(item(id, kind, 'weak'));
+      continue;
+    }
     if (isDue(st, today)) due.push(item(id, kind, 'review'));
   }
   /* 복습은 오래 밀린 것부터. 신규는 자료 차례대로 — 뒤섞으면 N5 앞쪽부터
@@ -169,10 +180,13 @@ export function classifyDaily(pool, review, today = todayKey()) {
     const db = dueDate(stateOf(review, b.id));
     return da < db ? -1 : da > db ? 1 : 0;
   });
-  /* 약점은 많이 틀린 것부터 */
+  /* 약점은 제일 약한 것부터. 무게는 lib/weak.js가 정한다 —
+     금방 잊어버린 것 > 잊어버린 것 > 몰라요·시험 오답 > 애매해요. 시간이
+     모자랄 때 위에서 끊어도 남는 게 있어야 한다. */
   weak.sort((a, b) => {
     const sa = stateOf(review, a.id); const sb = stateOf(review, b.id);
-    return (sb.wrongCount + sb.vagueCount) - (sa.wrongCount + sa.vagueCount);
+    return weakScore(sb, ledger ? weakEntry(ledger, b.id) : null)
+      - weakScore(sa, ledger ? weakEntry(ledger, a.id) : null);
   });
   return { weak, due, fresh };
 }
@@ -341,10 +355,10 @@ function capSentences(picked, groups, got, goal, sentenceMax = FRESH_SENTENCE_MA
  * lanes: 어느 갈래만 담을지. 홈 화면이 「단어 외우기(신규)」와 「복습하기
  *        (복습+약점)」를 따로 열기 때문에 갈래를 골라 짤 수 있어야 한다.
  * 반환: { queue, review, weak, fresh, left, minutes } */
-function draw(pool, review, { goals, lanes, today, sentenceMax }) {
+function draw(pool, review, { goals, lanes, today, sentenceMax, ledger = null }) {
   const want = normalizeGoals(goals);
   const use = new Set(lanes?.length ? lanes : LANES);
-  const groups = classifyDaily(pool, review, today);
+  const groups = classifyDaily(pool, review, today, ledger);
   const sizes = { review: groups.due.length, weak: groups.weak.length, fresh: groups.fresh.length };
 
   // 안 고른 갈래는 목표를 0으로 — 큐에서 통째로 빠진다
@@ -366,12 +380,12 @@ function draw(pool, review, { goals, lanes, today, sentenceMax }) {
 /* 오늘 계획이 배정할 것 — 순서를 짜기 전의 목록.
    plan.js가 이걸로 하루치를 적어 둔다. 약점 두 번은 그대로 두 칸이다 —
    「연습 횟수」와 「카드 수」를 가르는 일은 plan.js가 한다. */
-export function takeForPlan(pool, review, { goals, lanes, today = todayKey(), sentenceMax } = {}) {
-  return draw(pool, review, { goals, lanes, today, sentenceMax }).picked;
+export function takeForPlan(pool, review, { goals, lanes, today = todayKey(), sentenceMax, ledger = null } = {}) {
+  return draw(pool, review, { goals, lanes, today, sentenceMax, ledger }).picked;
 }
 
-export function buildDailyStudyQueue(pool, review, { goals, lanes, today = todayKey() } = {}) {
-  const { sizes, got, picked } = draw(pool, review, { goals, lanes, today });
+export function buildDailyStudyQueue(pool, review, { goals, lanes, today = todayKey(), ledger = null } = {}) {
+  const { sizes, got, picked } = draw(pool, review, { goals, lanes, today, ledger });
   return {
     queue: arrange(picked),
     review: got.review,
@@ -420,8 +434,8 @@ export function estimateMinutes(items) {
 
 /* 화면에 미리 적어 줄 숫자 — 큐를 실제로 짜지 않고도 알 수 있어야
  * 대시보드가 매번 섞는 비용을 안 낸다. */
-export function planToday(pool, review, { goals, lanes, today = todayKey() } = {}) {
-  const { sizes, got, picked } = draw(pool, review, { goals, lanes, today });
+export function planToday(pool, review, { goals, lanes, today = todayKey(), ledger = null } = {}) {
+  const { sizes, got, picked } = draw(pool, review, { goals, lanes, today, ledger });
   return {
     total: picked.length,
     ...got,

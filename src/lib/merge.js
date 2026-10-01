@@ -12,6 +12,8 @@
  * seenAt이 없는 건 이 기능 이전에 쌓인 기록이라 있는 쪽을 나중으로 본다. */
 /* N3 코스 — 규칙은 lib/n3.js. 레슨 완료는 OR, 정답률·시험은 큰 쪽, 오답 노트는 나중 쪽. */
 import { mergeN3 } from './n3progress.js';
+/* 약점 장부 — 규칙은 lib/weak.js. 횟수는 큰 쪽, 잊어버린 간격은 작은 쪽. */
+import { mergeWeak } from './weak.js';
 
 function laterOf(l, r) {
   const dl = l.lastSeen || '';
@@ -170,6 +172,9 @@ export function mergeProgress(local = {}, remote = {}) {
     // 활용 성적은 두 기기에서 푼 게 다 남아야 한다 — local이 통째로 덮으면 사라진다
     conj: mergeConj(local.conj, remote.conj),
     rpg: mergeRpg(local.rpg, remote.rpg),
+    /* 약점 장부도 두 기기에서 쌓은 게 다 남아야 한다 — local이 통째로 덮으면
+       폰에서 본 시험 성적이 태블릿과 합치는 순간 사라진다(활용 성적과 같은 일). */
+    weak: mergeWeak(local.weak, remote.weak),
     /* 둘 다 없으면 null로 둔다 — 한 번도 안 연 사람에게 빈 코스 기록을 만들지 않는다 */
     n3: (local.n3 || remote.n3) ? mergeN3(local.n3, remote.n3) : null,
   };
@@ -251,7 +256,8 @@ const SYNCED_SETTINGS = [
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',
   'listenDir', 'listenScope', 'listenSayKo', 'listenSayAnswer', 'listenGap', 'listenRecap',
-  'listenOrder', 'listenBlock', 'listenLoop', 'listenSkipDone', 'listenShowYomi', 'listenDropped',
+  'listenOrder', 'listenBlock', 'listenLoop', 'listenReshuffle', 'listenSkipDone',
+  'listenShowYomi', 'listenDropped',
   'sentenceScope', 'purpose', 'tripDate', 'quickJudge',
 ];
 

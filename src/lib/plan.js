@@ -30,7 +30,7 @@ export const MORE_STEP = 10;
  * 것은 「연습 횟수」이지 「배운 카드 수」가 아니다 — 둘을 같은 칸에 세면
  * 20개를 배정하고 22개를 끝낸 것처럼 보인다. */
 export function buildPlan(pool, review, {
-  goals, today = todayKey(), purpose, cardOf,
+  goals, today = todayKey(), purpose, cardOf, ledger = null,
 } = {}) {
   const want = normalizeGoals(goals);
   /* 무엇을 먼저 배정할지는 학습 목적이 정한다. 거르지 않고 차례만 바꾼다 —
@@ -44,10 +44,13 @@ export function buildPlan(pool, review, {
     goals: want,
     today,
     sentenceMax: purpose ? freshSentenceMax(purposeOf({ purpose })) : undefined,
+    /* 약점 장부. 시험에서 틀린 낱말이 오늘의 약점 갈래에 들어오는 길이다 —
+       안 넘기면 회독 기록만 보고, 시험은 아무 데도 안 비친다. */
+    ledger,
   });
   /* 오늘 후보가 갈래마다 몇 개였는지. 배정에 다 못 담은 복습이 있으면
      조용히 밀어 두지 않고 알려 줘야 해서 같이 적어 둔다. */
-  const groups = classifyDaily(use, review, today);
+  const groups = classifyDaily(use, review, today, ledger);
   const sizes = { review: groups.due.length, weak: groups.weak.length, fresh: groups.fresh.length };
 
   const assigned = [];
@@ -188,10 +191,10 @@ export function remaining(plan, lanes = null) {
  *
  * 더 하고 싶으면 명시적으로 늘린다. 저절로 다음 20개가 따라 나오면 「오늘
  * 할 것」이 끝이 없는 목록이 되고, 끝냈다는 느낌을 영영 못 받는다. */
-export function addMore(plan, pool, review, { count = MORE_STEP, today = todayKey() } = {}) {
+export function addMore(plan, pool, review, { count = MORE_STEP, today = todayKey(), ledger = null } = {}) {
   if (!plan || plan.date !== today) return plan;
   const taken = new Set(plan.assigned.map((x) => x.id));
-  const groups = classifyDaily(pool, review, today);
+  const groups = classifyDaily(pool, review, today, ledger);
   const add = [];
   /* 신규부터 채우고, 모자라면 복습·약점에서 마저 채운다 */
   for (const lane of [groups.fresh, groups.due, groups.weak]) {

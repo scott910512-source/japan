@@ -5,9 +5,10 @@ import { koreanVoiceListed, speechReady, speakJapanese, speakKorean, stopSpeakin
 import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
-import { DIRECTIONS, SCOPES, blocksIn, nextAt, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
+import { DIRECTIONS, SCOPES, blocksIn, dirOf, nextAt, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { markBusy } from '../lib/busy.js';
+import { WEAK_KIND } from '../lib/weak.js';
 
 /* 듣기 · 따라 말하기 — 화면을 못 보는 동안의 학습.
  *
@@ -52,7 +53,7 @@ export const COUNTS = [10, 20, 30, 50, 100];
 
 export default function Listen({
   pool, words, sentences, review, settings, onSettingsChange, onClose, onToast,
-  onActivity, onQuiz, initialMode = 'listen',
+  onActivity, onWeakness, onQuiz, ledger = null, initialMode = 'listen',
 }) {
   const [mode, setMode] = useState(initialMode);
   /* 어느 쪽을 먼저 들려줄까. 「뜻 → 일본어」가 있어야 입이 열린다 —
@@ -76,6 +77,10 @@ export default function Listen({
   /* 정지할 때까지 한 세트를 돈다. 소리를 외우는 일은 같은 것을 여러 번
      마주쳐야 되는 일이라, 한 바퀴 돌고 끝나면 남는 게 없다. */
   const [loop, setLoop] = useState(settings.listenLoop !== false);
+  /* 바퀴마다 순서를 다시 섞을지. 기본은 켬 — 세 바퀴째부터 다음 낱말이 먼저
+     떠오르는 건 차례를 외운 것이고, 시험장에는 그 차례가 없다. 세트는 안
+     바뀐다(구간 고정은 그대로). */
+  const [reshuffle, setReshuffle] = useState(settings.listenReshuffle !== false);
   const [run, setRun] = useState(null);   // { cards, at, lap }
   /* 방금 들은 세트. 다 듣고 나서 「그대로 시험」으로 넘어가는 자리다 —
      귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다. */
@@ -128,14 +133,30 @@ export default function Listen({
    * 처음엔 이 블록을 위쪽에 뒀는데, 의존성 배열의 run이 그릴 때 평가되면서
    * 선언 전 접근(TDZ)이 됐다 — 듣기 화면이 그려질 때마다 죽었고 듣기·디자인
    * 검사가 통째로 멈췄다. 효과 본문은 나중에 돌지만 배열은 지금 읽힌다. */
+  /* ★ 낱말마다도 센다 ★
+   *
+   * 일별 활동(listened)은 「오늘 몇 장 들었나」라서, 쉰 번 들은 낱말과 한 번도
+   * 안 들은 낱말을 구별하지 못한다. 그런데 「쉰 번 들었는데 아직 틀린다」는
+   * 약점의 정도를 말해 주는 몇 안 되는 신호다 — 그래서 약점 장부에도 한 줄
+   * 적는다(lib/weak.js).
+   *
+   * 회독 저장소에는 여전히 안 쓴다. 들으면서 흘려보낸 것과 떠올려서 맞힌
+   * 것은 다른 일이고, 그 둘을 한 칸에 담으면 복습일이 거짓이 된다.
+   *
+   * 자리(at)가 앞으로 갈 때만 센다 — 바퀴를 넘기면 0으로 돌아오니 바퀴
+   * 번호까지 같이 보고 판단한다. 안 그러면 두 바퀴째 첫 장이 안 세어진다. */
   const countedAt = useRef(-1);
+  const countedLap = useRef(-1);
   useEffect(() => {
-    if (!run) { countedAt.current = -1; return; }
-    if (run.at > countedAt.current) {
-      countedAt.current = run.at;
-      onActivity?.({ listened: 1 });
-    }
-  }, [run, onActivity]);
+    if (!run) { countedAt.current = -1; countedLap.current = -1; return; }
+    const lap = run.lap || 0;
+    if (lap === countedLap.current && run.at <= countedAt.current) return;
+    countedAt.current = run.at;
+    countedLap.current = lap;
+    onActivity?.({ listened: 1 });
+    const id = run.cards[run.at]?.id;
+    if (id) onWeakness?.([{ id, kind: WEAK_KIND.LISTEN }]);
+  }, [run, onActivity, onWeakness]);
 
   /* 뜻도 소리로 낼지. 화면을 못 보는 동안 쓰라고 만든 자리인데 뜻이 눈으로만
      나오면 절반이 안 들린다. 기본은 켬 — 끄고 싶은 사람은 여기서 끈다. */
@@ -208,11 +229,13 @@ export default function Listen({
      몫으로 좁혀져서 늘 같은 것만 들린다. */
   const start = () => {
     const queue = pickListen(pool, review, {
-      scope, count, today: todayKey(), kiju: kijuPool, order, block, skipDone,
+      scope, count, today: todayKey(), kiju: kijuPool, order, block, skipDone, ledger,
     });
     const cards = cardsForQueue(queue, words, sentences).filter((c) => !dropped.has(c.id));
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
-    setRun({ cards, at: 0, lap: 0 });
+    /* 씨앗은 판마다 새로 뽑는다. 「랜덤」 방향이 이것과 자리·바퀴로 정해져서,
+       같은 자리는 한 판 안에서 늘 같은 방향이고 판이 바뀌면 패턴도 바뀐다. */
+    setRun({ cards, at: 0, lap: 0, seed: Math.floor(Math.random() * 2 ** 31) });
     setLastSet(cards);
     setStep(0);
     setPaused(false);
@@ -253,10 +276,16 @@ export default function Listen({
     onToast(`${card.kanji} 빼요 — 설정에서 되돌릴 수 있어요`);
   };
 
+  /* ★ 이 장은 어느 방향인가 ★
+     「랜덤」을 고르면 장마다 달라진다. 그릴 때마다 뽑으면 한 장이 흘러가는
+     동안에도 방향이 바뀌니, 판의 씨앗과 자리·바퀴로 정한다(lib/listen.js).
+     판이 없는 설정 화면에서는 고른 값을 그대로 쓴다. */
+  const cardDir = run ? dirOf(direction, run) : (direction === 'mix' ? 'jp-ko' : direction);
+
   /* 한 장의 걸음표. 방향에 따라 순서가 통째로 뒤집힌다. */
   const steps = useMemo(
-    () => stepsOf(direction, { shadow: mode === 'shadow', recap }),
-    [direction, mode, recap],
+    () => stepsOf(cardDir, { shadow: mode === 'shadow', recap }),
+    [cardDir, mode, recap],
   );
   const phase = steps[Math.min(step, steps.length - 1)] || 'jp';
   const last = step >= steps.length - 1;
@@ -264,7 +293,7 @@ export default function Listen({
   /* 답을 소리로 낼지. 방향마다 「답」이 다른 쪽이라 켜고 끄는 칸도 따로다.
        일본어 → 뜻  이면 답은 한국어 뜻   (sayKo)
        뜻 → 일본어  이면 답은 일본어      (sayAnswer) */
-  const answerAloud = direction === 'ko-jp' ? sayAnswer : sayKo;
+  const answerAloud = cardDir === 'ko-jp' ? sayAnswer : sayKo;
 
   /* 한 장의 흐름을 여기서 돌린다. 걸음이 바뀔 때마다 다음 걸음을 예약한다.
      말이 끝나는 시각을 알 수 없는 기기가 있어서, 끝났다는 신호가 아니라
@@ -290,10 +319,10 @@ export default function Listen({
         setStep(0);
         setRun((r) => {
           if (!r) return r;
-          const next = nextAt(r, loop);
+          const next = nextAt(r, loop, { reshuffle });
           if (!next) { onToast('다 들었어요 — 시험으로 확인해 볼까요'); return null; }
           // 한 바퀴를 넘겼으면 알린다. 화면을 안 보고 있어도 어디쯤인지는 알아야 한다
-          if (next.lap > r.lap) onToast(`${next.lap}바퀴 돌았어요`);
+          if (next.lap > r.lap) onToast(`${next.lap}바퀴 돌았어요${reshuffle ? ' — 순서를 섞었어요' : ''}`);
           return { ...r, ...next };
         });
       }, after);
@@ -302,11 +331,11 @@ export default function Listen({
     if (phase === 'jp') {
       /* 「뜻 → 일본어」에서 이 걸음은 답이다. 안 읽어 주기로 했으면 소리 없이
          화면에만 띄운다 — 눈으로 확인할 길까지 막을 이유는 없다. */
-      const mute = direction === 'ko-jp' && !sayAnswer;
+      const mute = cardDir === 'ko-jp' && !sayAnswer;
       if (mute) { go(300 + wait); return () => clearTimeout(timer.current); }
 
       speakJapanese(say, rate);
-      if (direction !== 'ko-jp') { go(spoken + wait); return () => clearTimeout(timer.current); }
+      if (cardDir !== 'ko-jp') { go(spoken + wait); return () => clearTimeout(timer.current); }
 
       /* ★ 답은 두 번 읽어 준다 ★
          뒤집은 판에서 답은 긴 침묵 뒤에 딱 한 번 스치듯 지나갔다. 「나무」를
@@ -330,7 +359,7 @@ export default function Listen({
       speakJapanese(say, rate);
       go(spoken + wait);
     } else if (phase === 'say') {
-      if (direction === 'ko-jp') {
+      if (cardDir === 'ko-jp') {
         // 입으로 말해 볼 시간. 여기서는 아무 소리도 안 낸다 — 내가 말할 차례다
         go(spoken + wait);
       } else {
@@ -345,7 +374,7 @@ export default function Listen({
       /* 뜻을 읽어 준다.
          「뜻 → 일본어」에서는 이게 문제다 — 안 읽으면 물어보는 게 없다.
          「일본어 → 뜻」에서는 답이라, 끄고 싶으면 끌 수 있다. */
-      const speak = direction === 'ko-jp' || sayKo;
+      const speak = cardDir === 'ko-jp' || sayKo;
       let koWait = 0;
       if (speak && koText) {
         speakKorean(koText, rate);
@@ -354,7 +383,7 @@ export default function Listen({
       go(koWait + Math.max(600, wait));
     }
     return () => clearTimeout(timer.current);
-  }, [card, phase, last, nudge, direction, gap, rate, sayKo, sayAnswer, loop, paused, onToast]);
+  }, [card, phase, last, nudge, cardDir, gap, rate, sayKo, sayAnswer, loop, reshuffle, paused, onToast]);
 
   const skip = (n) => {
     clearTimeout(timer.current);
@@ -370,13 +399,13 @@ export default function Listen({
 
   const poolSize = useMemo(() => pool.length, [pool]);
   const counts = useMemo(
-    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone),
-    [pool, review, kijuPool, skipDone],
+    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone, ledger),
+    [pool, review, kijuPool, skipDone, ledger],
   );
   /* 고른 범위에 구간이 몇 개인가. 개수를 바꾸면 구간 수도 따라 바뀐다. */
   const blocks = useMemo(
-    () => blocksIn(pool, review, { scope, count, today: todayKey(), kiju: kijuPool, skipDone }),
-    [pool, review, scope, count, kijuPool, skipDone],
+    () => blocksIn(pool, review, { scope, count, today: todayKey(), kiju: kijuPool, skipDone, ledger }),
+    [pool, review, scope, count, kijuPool, skipDone, ledger],
   );
   /* 개수나 범위를 바꾸면 구간 수가 줄어든다. 저장된 번호를 그대로 쓰면
      「12 / 11구간」이 뜬다 — 고르는 쪽에서 미리 당겨 둔다(뽑는 쪽도 막지만,
@@ -388,7 +417,7 @@ export default function Listen({
     /* 무엇을 가릴지가 방향의 전부다.
        일본어 → 뜻 : 일본어는 늘 보이고, 뜻은 때가 되어야 나온다
        뜻 → 일본어 : 뜻은 늘 보이고, 일본어는 내가 말한 뒤에 나온다 */
-    const back = direction === 'ko-jp';
+    const back = cardDir === 'ko-jp';
     const showJp = !back || phase === 'jp';
     /* 뜻은 한 번 나오면 그 장이 끝날 때까지 남는다. 마지막에 일본어를 한 번 더
        들려주는 동안 뜻이 사라지면, 소리와 뜻을 붙이라고 만든 걸음에서 정작
@@ -494,7 +523,7 @@ export default function Listen({
       <div className="ls-top">
         <div className="ls-topbody">
           <b>{DIRECTIONS.find((d) => d.id === direction)?.label}</b>
-          <span>{count}개 · {gap}초 간격</span>
+          <span>{SCOPES.find((s) => s.id === scope)?.label} · {count}개 · {gap}초 간격</span>
         </div>
         <button className="ls-go" onClick={() => setAsk(true)} disabled={poolSize === 0}>
           <IconPlay /> 시작
@@ -506,24 +535,39 @@ export default function Listen({
         회독 기록은 건드리지 않아요 — 귀에 넣는 것만 해요.
       </p>
 
+      {/* ★ 설정을 한 화면에 ★
+       *
+       * 여태 옵션 하나가 한 줄을 통째로 먹었다. 방향 둘, 범위 다섯, 방식 둘,
+       * 토글 다섯 — 한 줄씩 세로로 쌓이니 설정을 한 번 보려면 네 번 넘겨야
+       * 했다. 그런데 여기는 「고르고 바로 시작」하는 화면이다. 고르는 데 드는
+       * 품이 듣는 시간보다 길면 안 쓰게 된다.
+       *
+       * 기능은 그대로 두고 줄만 접는다. 짧은 것(방향·방식·순서)은 한 줄에
+       * 나란히, 범위는 칩으로, 토글은 두 개씩. 설명은 고른 것만 밑에 한 줄로
+       * 나온다 — 다섯 개 설명을 늘 펼쳐 둘 이유가 없다. */}
+
       {/* ★ 방향 ★
           듣고 알아듣는 것과, 듣고 말해 보는 것은 다른 연습이다. 여행에서
-          막히는 쪽은 뒤엣것인데 여태 앞엣것만 있었다. */}
+          막히는 쪽은 뒤엣것인데 여태 앞엣것만 있었다.
+          「랜덤」은 둘을 섞는다 — 방향이 고정이면 다음 장이 어느 쪽으로 올지
+          알고 듣게 되고, 그러면 한쪽으로만 익는다. */}
       <div className="section-label" style={{ marginTop: 0 }}>방향</div>
-      <div className="pickstack">
+      <div className="ls-pills ls-dirs">
         {DIRECTIONS.map((d) => (
           <button
             key={d.id}
-            className={`pickrow ls-dir${direction === d.id ? ' active' : ''}`}
+            className={`ls-pill ls-dir${direction === d.id ? ' active' : ''}`}
             data-dir={d.id}
             onClick={() => { setDirection(d.id); onSettingsChange?.({ listenDir: d.id }); }}
           >
-            <span className="pk-icon">{d.id === 'ko-jp' ? <IconRepeat /> : <IconSpeaker />}</span>
-            <span className="pk-body"><b>{d.label}</b><span>{d.sub}</span></span>
+            {d.id === 'ko-jp' ? '뜻 → 일본어' : d.id === 'mix' ? '랜덤' : '일본어 → 뜻'}
           </button>
         ))}
       </div>
-      {direction === 'ko-jp' && !koListed && (
+      <p className="set-note ls-dirnote">
+        {DIRECTIONS.find((d) => d.id === direction)?.sub}
+      </p>
+      {direction !== 'jp-ko' && !koListed && (
         <p className="set-note">
           이 기기의 음성 목록에 한국어가 안 잡혔어요. 그래도 소리는 날 수 있으니 한 번
           들어 보세요 — 정말 안 나면 기기 설정에서 한국어 음성을 받으면 돼요.
@@ -532,121 +576,67 @@ export default function Listen({
 
       {/* ★ 범위 ★
           여태 오늘의 학습 큐를 빌려 써서, 배운 게 500개인데 늘 같은 스무 개만
-          들렸다. 무엇을 들을지는 여기서 고른다. */}
+          들렸다. 무엇을 들을지는 여기서 고른다.
+          다섯 줄을 칩으로 접었다. 설명은 고른 것만 밑에 뜬다 — 다섯 개 설명이
+          늘 펼쳐져 있어 봐야 고르고 나면 넷은 안 읽는다. */}
       <div className="section-label">무엇을 들을까</div>
-      <div className="pickstack">
+      <div className="ls-pills ls-scopes">
         {SCOPES.map((s) => (
           <button
             key={s.id}
-            className={`pickrow ls-scope${scope === s.id ? ' active' : ''}`}
+            className={`ls-pill ls-scope${scope === s.id ? ' active' : ''}`}
             data-scope={s.id}
             disabled={counts[s.id] === 0}
             onClick={() => { setScope(s.id); onSettingsChange?.({ listenScope: s.id }); }}
           >
-            <span className="pk-body"><b>{s.label}</b><span>{s.sub}</span></span>
+            {s.label}
             <span className="pk-count">{counts[s.id]}개</span>
           </button>
         ))}
       </div>
+      <p className="set-note ls-scopenote">
+        {SCOPES.find((s) => s.id === scope)?.sub}
+      </p>
 
       {/* 「따라 말하기」는 들려준 걸 따라 하는 거라 뒤집은 판에는 없다.
-          거기서는 안 들려준 걸 내가 먼저 말하니까 — 그 자체가 말하기 연습이다. */}
-      {direction === 'jp-ko' && (
+          거기서는 안 들려준 걸 내가 먼저 말하니까 — 그 자체가 말하기 연습이다.
+          랜덤은 일본어 → 뜻 장이 섞여 있어서 여기서도 고를 수 있다. */}
+      {direction !== 'ko-jp' && (
         <>
           <div className="section-label">방식</div>
-          <div className="pickstack">
+          <div className="ls-pills ls-modes">
             {MODES.map((m) => (
               <button
                 key={m.id}
-                className={`pickrow ls-mode${mode === m.id ? ' active' : ''}`}
+                className={`ls-pill ls-mode${mode === m.id ? ' active' : ''}`}
+                data-mode={m.id}
                 onClick={() => setMode(m.id)}
               >
-                <span className="pk-icon">{m.id === 'shadow' ? <IconRepeat /> : <IconSpeaker />}</span>
-                <span className="pk-body"><b>{m.label}</b><span>{m.sub}</span></span>
+                {m.label}
               </button>
             ))}
           </div>
+          <p className="set-note ls-modenote">{MODES.find((m) => m.id === mode)?.sub}</p>
         </>
       )}
 
-      <div className="section-label">사이 간격</div>
-      <div className="card">
-        <div className="setrow col">
-          <div className="set-title">문장 사이 <span className="set-val">{gap}초</span></div>
-          <div className="grouppick">
-            {GAPS.map((g) => (
-              <button key={g} className={gap === g ? 'active' : ''} onClick={() => { setGap(g); onSettingsChange?.({ listenGap: g }); }}>{g}초</button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 답을 소리로 낼지.
-          방향마다 「답」이 다른 쪽이라 켜고 끄는 칸도 따로다. 뒤집어서 말하는
-          연습을 할 때 일본어를 읽어 주면, 떠올리기 전에 답이 먼저 들려서
-          말하기가 아니라 따라 하기가 된다 — 그래서 끌 수 있어야 한다.
-          꺼도 화면에는 뜬다. 맞았는지 확인할 길까지 막을 이유는 없다. */}
-      <div className="section-label">답도 소리로</div>
-      <div className="card">
-        <button
-          className="toggle-row setrow ls-sayans"
-          onClick={() => {
-            if (direction === 'ko-jp') {
-              setSayAnswer(!sayAnswer); onSettingsChange?.({ listenSayAnswer: !sayAnswer });
-            } else {
-              setSayKo(!sayKo); onSettingsChange?.({ listenSayKo: !sayKo });
-            }
-          }}
-          aria-pressed={answerAloud}
-        >
-          <span>
-            <span className="set-title">
-              {direction === 'ko-jp' ? '일본어 답도 소리로' : '한국어 뜻도 소리로'}
-            </span>
-            <span className="set-sub">
-              {direction === 'ko-jp'
-                ? (sayAnswer
-                  ? '말해 본 다음에 정답을 들려줘요'
-                  : '소리는 안 나와요 — 답은 화면으로 확인해요')
-                : (koListed
-                  ? '일본어 다음에 뜻을 읽어 줘요 — 화면을 안 봐도 됩니다'
-                  : '일본어 다음에 뜻을 읽어 줘요. 이 기기는 음성 목록에 한국어가 안 잡혔는데, 그래도 나는 기기가 있어요')}
-            </span>
-          </span>
-          <span className={`toggle${answerAloud ? ' on' : ''}`} aria-hidden="true" />
-        </button>
-
-        {/* ★ 뜻을 알고 한 번 더 ★
-            처음 듣는 일본어는 그냥 소리다. 뜻을 알고 다시 들으면 그제야 소리와
-            뜻이 붙는다 — 같은 문장을 두 번 듣는 게 아니라 모르고 한 번, 알고
-            한 번 듣는 것이다. 한 장에 드는 시간이 늘어나니 고르게 둔다.
-            뒤집은 판은 원래 일본어로 끝나서 여기서는 안 보여 준다. */}
-        {direction !== 'ko-jp' && (
-          <button
-            className="toggle-row setrow ls-recap"
-            onClick={() => { setRecap(!recap); onSettingsChange?.({ listenRecap: !recap }); }}
-            aria-pressed={recap}
-          >
-            <span>
-              <span className="set-title">끝에 일본어 한 번 더</span>
-              <span className="set-sub">
-                {recap
-                  ? '일본어 → 뜻 → 일본어 순서로 들려주고 넘어가요'
-                  : '뜻까지 듣고 나서 일본어를 한 번 더 들려줘요'}
-              </span>
-            </span>
-            <span className={`toggle${recap ? ' on' : ''}`} aria-hidden="true" />
-          </button>
-        )}
-      </div>
-
-      <div className="section-label">개수</div>
-      <div className="card">
+      {/* 개수와 간격은 둘 다 「숫자 하나 고르기」다. 한 카드에 나란히 둔다 —
+          따로 두면 제목 두 줄과 카드 두 개가 더 붙는다. */}
+      <div className="section-label">얼마나 · 얼마 간격으로</div>
+      <div className="card ls-nums">
         <div className="setrow col">
           <div className="set-title">한 번에 <span className="set-val">{count}개</span></div>
           <div className="grouppick">
             {COUNTS.map((n) => (
               <button key={n} className={count === n ? 'active' : ''} onClick={() => { setCount(n); onSettingsChange?.({ listenCount: n }); }}>{n}</button>
+            ))}
+          </div>
+        </div>
+        <div className="setrow col">
+          <div className="set-title">문장 사이 <span className="set-val">{gap}초</span></div>
+          <div className="grouppick">
+            {GAPS.map((g) => (
+              <button key={g} className={gap === g ? 'active' : ''} onClick={() => { setGap(g); onSettingsChange?.({ listenGap: g }); }}>{g}초</button>
             ))}
           </div>
         </div>
@@ -674,7 +664,7 @@ export default function Listen({
         </button>
       </div>
 
-      <div className="card">
+      <div className="card ls-block">
         {order === 'block' ? (
           <div className="setrow col ls-blockrow">
             <div className="set-title">
@@ -703,13 +693,141 @@ export default function Listen({
             <div className="set-sub">들을 때마다 이 범위에서 새로 뽑아요.</div>
           </div>
         )}
+      </div>
+
+      {/* ★ 켜고 끄는 것들 ★
+          여섯 개가 한 줄씩 쌓여 있었다. 전부 「켜거나 끄거나」라 설명 두 줄을
+          늘 펼쳐 둘 필요가 없다 — 지금 어느 쪽인지만 짧게 적고 두 개씩 둔다.
+          기능은 하나도 안 뺐다. */}
+      <div className="section-label">켜고 끄기</div>
+      <div className="ls-opts">
+        {/* 답을 소리로 낼지. 방향마다 「답」이 다른 쪽이라 칸도 따로다.
+            뒤집어서 말하는 연습을 할 때 일본어를 읽어 주면, 떠올리기 전에 답이
+            먼저 들려서 말하기가 아니라 따라 하기가 된다 — 그래서 끌 수 있다.
+            꺼도 화면에는 뜬다. 맞았는지 확인할 길까지 막을 이유는 없다.
+            랜덤은 두 방향이 다 나오니 둘 다 보여 준다. */}
+        {direction !== 'jp-ko' && (
+          <button
+            className="toggle-pill ls-sayans"
+            onClick={() => { setSayAnswer(!sayAnswer); onSettingsChange?.({ listenSayAnswer: !sayAnswer }); }}
+            aria-pressed={sayAnswer}
+          >
+            <span className="tp-text">
+              <b>답도 소리로</b>
+              <span>{sayAnswer ? '말한 뒤 일본어를 들려줘요' : '일본어 답은 화면으로만'}</span>
+            </span>
+            <span className={`toggle${sayAnswer ? ' on' : ''}`} aria-hidden="true" />
+          </button>
+        )}
+        {direction !== 'ko-jp' && (
+          <button
+            className="toggle-pill ls-sayko"
+            onClick={() => { setSayKo(!sayKo); onSettingsChange?.({ listenSayKo: !sayKo }); }}
+            aria-pressed={sayKo}
+          >
+            <span className="tp-text">
+              <b>뜻도 소리로</b>
+              <span>{sayKo ? '한국어로 읽어 줘요' : '뜻은 화면으로만'}</span>
+            </span>
+            <span className={`toggle${sayKo ? ' on' : ''}`} aria-hidden="true" />
+          </button>
+        )}
+
+        {/* ★ 뜻을 알고 한 번 더 ★
+            처음 듣는 일본어는 그냥 소리다. 뜻을 알고 다시 들으면 그제야 소리와
+            뜻이 붙는다 — 같은 문장을 두 번 듣는 게 아니라 모르고 한 번, 알고
+            한 번 듣는 것이다. 뒤집은 판은 원래 일본어로 끝나서 안 보여 준다. */}
+        {direction !== 'ko-jp' && (
+          <button
+            className="toggle-pill ls-recap"
+            onClick={() => { setRecap(!recap); onSettingsChange?.({ listenRecap: !recap }); }}
+            aria-pressed={recap}
+          >
+            <span className="tp-text">
+              <b>끝에 한 번 더</b>
+              <span>{recap ? '일본어 → 뜻 → 일본어' : '뜻까지 듣고 끝'}</span>
+            </span>
+            <span className={`toggle${recap ? ' on' : ''}`} aria-hidden="true" />
+          </button>
+        )}
+
+        {/* 읽는 법을 띄울지. 켜면 가나와 한글 발음이 낱말 밑에 뜬다. */}
+        <button
+          className="toggle-pill ls-yomitoggle"
+          onClick={() => { setShowYomi(!showYomi); onSettingsChange?.({ listenShowYomi: !showYomi }); }}
+          aria-pressed={showYomi}
+        >
+          <span className="tp-text">
+            <b>읽는 법 보기</b>
+            <span>{showYomi ? '가나·한글 발음이 떠요' : '소리만 — 안 보여 줘요'}</span>
+          </span>
+          <span className={`toggle${showYomi ? ' on' : ''}`} aria-hidden="true" />
+        </button>
+
+        {/* 다 외운 것을 뺀다. 205개 중 150개를 외운 사람에게 그 150개를 계속
+            들려주면 남은 55개를 만나는 데 세 배가 걸린다. */}
+        <button
+          className="toggle-pill ls-skipdone"
+          onClick={() => { setSkipDone(!skipDone); onSettingsChange?.({ listenSkipDone: !skipDone }); }}
+          aria-pressed={skipDone}
+        >
+          <span className="tp-text">
+            <b>외운 건 빼기</b>
+            <span>{skipDone ? '졸업한 낱말은 안 나와요' : '외운 것도 같이 들려줘요'}</span>
+          </span>
+          <span className={`toggle${skipDone ? ' on' : ''}`} aria-hidden="true" />
+        </button>
 
         {/* 정지할 때까지 한 세트를 돈다 — 소리를 외우는 일은 같은 것을
             여러 번 마주쳐야 되는 일이다. */}
-        {/* 뺀 낱말을 몇 개인지 보여 주고 되돌리는 길. 안 두면 왜 안 나오는지
-            모르는 낱말이 쌓인다 — 그건 목록이 줄어드는 것보다 나쁘다. */}
-        {dropped.size > 0 && (
-          <div className="setrow col ls-droprow">
+        <button
+          className="toggle-pill ls-loop"
+          onClick={() => { setLoop(!loop); onSettingsChange?.({ listenLoop: !loop }); }}
+          aria-pressed={loop}
+        >
+          <span className="tp-text">
+            <b>끝까지 반복</b>
+            <span>{loop ? '다 돌면 그 자리에서 다시' : '한 바퀴만 돌고 멈춰요'}</span>
+          </span>
+          <span className={`toggle${loop ? ' on' : ''}`} aria-hidden="true" />
+        </button>
+
+        {/* ★ 바퀴마다 순서를 섞는다 ★
+            세트는 그대로 두고 순서만 바꾼다. 세 바퀴째부터는 다음에 뭐가 올지
+            먼저 떠오르는데, 그건 낱말을 외운 게 아니라 차례를 외운 것이다 —
+            시험장에는 그 차례가 없다. 섞으면 매번 맨손으로 떠올려야 한다. */}
+        {loop && (
+          <button
+            className="toggle-pill ls-reshuffle"
+            onClick={() => { setReshuffle(!reshuffle); onSettingsChange?.({ listenReshuffle: !reshuffle }); }}
+            aria-pressed={reshuffle}
+          >
+            <span className="tp-text">
+              <b>순서 섞기</b>
+              <span>{reshuffle ? '바퀴마다 다른 차례로' : '늘 같은 차례로'}</span>
+            </span>
+            <span className={`toggle${reshuffle ? ' on' : ''}`} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+
+      {/* ★ 한국어 음성이 목록에 없을 때 ★
+          목록이 비었다고 토글을 잠그지는 않는다 — 안드로이드 크롬·웹뷰는
+          목록이 []인데도 소리가 멀쩡히 난다. 다만 「켰는데 안 들린다」는
+          말을 들을 수 있으니, 그럴 땐 여기 한 줄로 알려 준다.
+          칸이 짧아져서 설명을 못 담은 몫을 여기서 받는다. */}
+      {sayKo && !koListed && direction !== 'ko-jp' && (
+        <p className="set-note ls-konote">
+          이 기기의 음성 목록에 한국어가 안 잡혔어요. 그래도 소리는 날 수 있으니 한 번
+          들어 보세요 — 정말 안 나면 기기 설정에서 한국어 음성을 받으면 돼요.
+        </p>
+      )}
+
+      {/* 뺀 낱말을 몇 개인지 보여 주고 되돌리는 길. 안 두면 왜 안 나오는지
+          모르는 낱말이 쌓인다 — 그건 목록이 줄어드는 것보다 나쁘다. */}
+      {dropped.size > 0 && (
+        <div className="card ls-droprow">
+          <div className="setrow col">
             <div className="set-title">
               뺀 낱말 <span className="set-val">{dropped.size}개</span>
             </div>
@@ -721,59 +839,8 @@ export default function Listen({
               {dropped.size}개 다시 넣기
             </button>
           </div>
-        )}
-
-        {/* 읽는 법을 띄울지. 켜면 한글 발음이 낱말 밑에 뜬다. */}
-        <button
-          className="toggle-row setrow ls-yomitoggle"
-          onClick={() => { setShowYomi(!showYomi); onSettingsChange?.({ listenShowYomi: !showYomi }); }}
-          aria-pressed={showYomi}
-        >
-          <span>
-            <span className="set-title">읽는 법도 화면에</span>
-            <span className="set-sub">
-              {showYomi
-                ? '낱말 밑에 한글 발음이 떠요'
-                : '소리만 나와요 — 읽는 법이 같이 뜨면 듣는 게 아니라 읽게 돼요'}
-            </span>
-          </span>
-          <span className={`toggle${showYomi ? ' on' : ''}`} aria-hidden="true" />
-        </button>
-
-        {/* 다 외운 것을 뺀다. 205개 중 150개를 외운 사람에게 그 150개를 계속
-            들려주면 남은 55개를 만나는 데 세 배가 걸린다. */}
-        <button
-          className="toggle-row setrow ls-skipdone"
-          onClick={() => { setSkipDone(!skipDone); onSettingsChange?.({ listenSkipDone: !skipDone }); }}
-          aria-pressed={skipDone}
-        >
-          <span>
-            <span className="set-title">다 외운 단어는 빼기</span>
-            <span className="set-sub">
-              {skipDone
-                ? '회독에서 졸업한 낱말은 안 들려줘요'
-                : '외운 것도 같이 들려줘요 — 눈으로 아는 낱말이 귀로는 낯설 수 있어요'}
-            </span>
-          </span>
-          <span className={`toggle${skipDone ? ' on' : ''}`} aria-hidden="true" />
-        </button>
-
-        <button
-          className="toggle-row setrow ls-loop"
-          onClick={() => { setLoop(!loop); onSettingsChange?.({ listenLoop: !loop }); }}
-          aria-pressed={loop}
-        >
-          <span>
-            <span className="set-title">정지할 때까지 반복</span>
-            <span className="set-sub">
-              {loop
-                ? '한 바퀴를 다 돌면 그 자리에서 다시 시작해요'
-                : '한 바퀴만 돌고 멈춰요'}
-            </span>
-          </span>
-          <span className={`toggle${loop ? ' on' : ''}`} aria-hidden="true" />
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* 방금 들은 세트로 바로 시험. 듣기는 판정을 안 하니, 귀에 붙었는지는
           물어봐야 안다. */}
@@ -799,18 +866,20 @@ export default function Listen({
             </div>
             <div className="td-cell"><b>{gap}</b><span>초 간격</span></div>
             <div className="td-cell">
-              <b>{direction === 'ko-jp' ? '뜻→일' : '일→뜻'}</b>
-              <span>{mode === 'shadow' && direction === 'jp-ko' ? '따라 말하기' : '방향'}</span>
+              <b>{direction === 'mix' ? '랜덤' : direction === 'ko-jp' ? '뜻→일' : '일→뜻'}</b>
+              <span>{mode === 'shadow' && direction !== 'ko-jp' ? '따라 말하기' : '방향'}</span>
             </div>
           </div>
           <p className="set-note">
-            {direction === 'ko-jp'
-              ? (sayAnswer
-                ? '뜻을 들려주고, 말해 본 다음에 일본어를 들려줘요.'
-                : '뜻을 들려주고 답은 화면에만 띄워요.')
-              : (sayKo
-                ? '일본어 → 뜸 → 뜻까지 소리로 나와요.'
-                : '일본어만 소리로 나와요. 뜻은 화면에 뜹니다.')}
+            {direction === 'mix'
+              ? '장마다 방향이 바뀌어요 — 어느 쪽이 올지 모르니 매번 떠올려야 해요.'
+              : direction === 'ko-jp'
+                ? (sayAnswer
+                  ? '뜻을 들려주고, 말해 본 다음에 일본어를 들려줘요.'
+                  : '뜻을 들려주고 답은 화면에만 띄워요.')
+                : (sayKo
+                  ? '일본어 → 뜸 → 뜻까지 소리로 나와요.'
+                  : '일본어만 소리로 나와요. 뜻은 화면에 뜹니다.')}
             {' '}이어폰을 꽂았는지 한 번 보세요.
           </p>
           <button className="submit-btn" onClick={() => { setAsk(false); start(); }}>
