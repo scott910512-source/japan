@@ -25,7 +25,8 @@ import {
 import { addToDay, removeFromDay, noteActivity as noteActivityIn } from './lib/stats.js';
 import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
 import { configureSTT } from './lib/stt.js';
-import { applyVerdict, dueCards, isSessionClear, stateOf, summarize, todayKey, weakCards } from './lib/review.js';
+import { applyVerdict, dueCards, isSessionClear, stateOf, summarize, todayKey } from './lib/review.js';
+import { forgetSpeed, noteWeak, relapseNotes, weakReasons, weakSummary } from './lib/weak.js';
 import { roundSummary } from './lib/rounds.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { useToday } from './lib/useToday.js';
@@ -303,6 +304,19 @@ export default function App() {
     const ids = Object.keys(map || {});
     if (!ids.length) return;
     const day = todayKey();
+    /* ★ 잊어버림은 판정을 적용하기 전에 센다 ★
+       적용하고 나면 기억 단계가 0으로 내려가서, 「외웠던 낱말이 무너졌다」는
+       사실이 사라진다. 판정 뒤에 세면 전부 「그냥 모르는 낱말」로 보인다.
+
+       ★ setReview 안에서 세지 않는다 ★
+       그 안이 판정 직전의 상태를 쥐고 있어서 처음엔 거기서 셌는데, 갱신
+       함수는 React가 두 번 부를 수 있다(StrictMode). 세는 일은 더하기라
+       두 번 불리면 한 번 틀린 것이 두 번으로 적힌다. 그래서 바깥에서, 그릴
+       때 담아 둔 회독 기록(reviewRef)으로 센다. */
+    const relapses = relapseNotes(reviewRef.current, map, day);
+    if (relapses.length) {
+      setProgress((p) => ({ ...p, weak: noteWeak(p.weak, relapses) }));
+    }
     setReview((prev) => {
       const next = { ...prev };
       for (const id of ids) next[id] = applyVerdict(next[id], map[id], day);
@@ -383,9 +397,17 @@ export default function App() {
       today,
       purpose: settings.purpose,
       cardOf: (id) => sentById.get(id) || byId.get(id),
+      /* 약점 장부. 시험에서 틀린 낱말·외웠다가 무너진 낱말이 오늘의 약점
+         갈래로 들어오는 길이다 — 안 넘기면 회독 기록만 보던 예전 그대로다. */
+      ledger: progress.weak,
     }));
     /* review를 같이 본다. 아침에 동기화가 끝나기 전 짠 「복습 0」짜리 계획이
-       하루 종일 남는 것을 막기 위해서다. 손댄 뒤로는 ensurePlan이 얼린다. */
+       하루 종일 남는 것을 막기 위해서다. 손댄 뒤로는 ensurePlan이 얼린다.
+
+       약점 장부(progress.weak)는 일부러 안 본다. 듣기가 한 장 넘길 때마다
+       장부에 한 줄이 쌓이는데, 그걸 여기 넣으면 스무 장을 듣는 동안 계획을
+       스무 번 다시 짠다. 장부는 계획을 짤 때 읽히고, 듣는 중에 쌓인 것은
+       다음 계획에 반영된다 — 오늘 할 일이 듣는 중에 바뀌지도 않는다. */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today, todayPool.length, settings.goals, settings.purpose, review]);
 
@@ -399,8 +421,50 @@ export default function App() {
      「11개」라 같은 화면에서 숫자가 달랐다. 밀린 것은 복습 탭 안에서만 말한다. */
   const reviewLeft = useMemo(() => reviewLeftOf(planNow).left, [planNow]);
 
-  /* 취약 단어 수 — 복습 탭과 내 학습이 같은 함수(weakCards)를 본다 */
-  const weakWords = useMemo(() => weakCards(wordIds, review).length, [wordIds, review]);
+  /* 약점 — 복습 탭·내 학습·취약 단어 덱이 한 군데를 본다.
+   *
+   * 여기서 보는 것은 회독 기록(review)과 약점 장부(progress.weak) 둘이다.
+   * 회독만 보던 때는 시험에서 열 번 틀린 낱말이 약점 0이었다 — 시험·듣기가
+   * 회독에 아무것도 안 쓰기 때문이다(그 판단은 그대로 둔다). 장부가 그
+   * 빈자리를 채운다. 규칙은 lib/weak.js 한 군데에 있다. */
+  const weakBook = useMemo(
+    () => weakSummary(wordIds, review, progress.weak),
+    [wordIds, review, progress.weak],
+  );
+  const weakWords = weakBook.total;
+
+  /* 복습 탭이 그릴 줄 — 제일 약한 다섯 개와 왜 약한지.
+     숫자만 보여 주면 무엇을 할지가 안 정해진다. 「시험에서 세 번 틀렸어요」와
+     「쉰 번 들었어요」는 다음에 할 일이 다른 낱말이다. */
+  const weakRows = useMemo(() => weakBook.top.map(({ id, st, rec }) => {
+    const card = byId.get(id);
+    return {
+      id,
+      kanji: card?.kanji || id,
+      kana: card?.kana || '',
+      mean: (card?.mean || '').split(';')[0].trim(),
+      reasons: weakReasons(st, rec).slice(0, 3),
+      speed: forgetSpeed(rec),
+    };
+  }), [weakBook, byId]);
+
+  /* 회독 기록을 그릴 때마다 담아 둔다. 판정을 받는 함수(applyVerdicts)는
+     의존성이 빈 배열이라 지금 상태를 모르는데, 「외웠던 낱말인가」를 알려면
+     판정 직전의 기록이 필요하다. 의존성에 review를 넣으면 판정마다 함수가
+     새로 생기고, 그걸 의존성으로 쓰는 효과(N3 코스)가 같이 다시 돈다. */
+  const reviewRef = useRef(review);
+  useEffect(() => { reviewRef.current = review; }, [review]);
+
+  /* 약점 장부에 한 줄 적는다 — 시험과 듣기가 부른다.
+     회독 저장소는 안 건드린다. 시험 때문에 복습 간격이 흔들리면 시험을
+     마음 편히 못 보고, 듣기는 흘려들은 것까지 외운 것으로 세게 된다. */
+  const noteWeakness = useCallback((notes) => {
+    if (!notes?.length) return;
+    setProgress((p) => {
+      const weak = noteWeak(p.weak, notes);
+      return weak === p.weak ? p : { ...p, weak };
+    });
+  }, []);
   /* 단어 회독 현황과 기억 단계 — 학습 탭·내 학습이 각자 세던 것을 한 번만 센다.
      review가 바뀔 때만 다시 센다(판정 한 번에 한 번). */
   const wordStat = useMemo(() => summarize(wordIds, review), [wordIds, review]);
@@ -439,6 +503,8 @@ export default function App() {
   } = useStudyQueue({
     session, plan, planNow, setPlan, words, wordIds, byId, sentenceCards, review, settings, due, todayPool, today,
     setDeck, setSub, showToast,
+    /* 약점 장부 — 취약 단어 판과 「10개 더」가 본다 */
+    ledger: progress.weak,
   });
 
   /* 학습 메뉴를 연다.
@@ -616,6 +682,9 @@ export default function App() {
             planNow={planNow}
             sentenceDue={sentenceDue}
             weakWords={weakWords}
+            /* 약점 장부 — 어느 게 약한지, 금방 잊어버리는지 */
+            weakBook={weakBook}
+            weakRows={weakRows}
             wrongCount={n3Wrong.all}
             weakGrammar={n3Wrong.grammar}
             onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
@@ -738,6 +807,8 @@ export default function App() {
                 setCustomWords={setCustomWords}
                 startQuizWrongDeck={startQuizWrongDeck}
                 noteActivity={noteActivity}
+                /* 약점 장부 — 시험과 듣기가 한 줄씩 적는다 */
+                noteWeakness={noteWeakness}
                 listenMode={listenMode}
                 quizSet={quizSet}
                 onQuizSet={(cards) => { setQuizSet(cards); setSub('quiz'); }}

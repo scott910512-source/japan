@@ -3,7 +3,8 @@ import { addMore, remaining } from '../lib/plan.js';
 import { buildPlannedStudyQueue } from '../lib/daily.js';
 import { cardsForQueue } from '../lib/cards.js';
 import { filterByLevel } from '../lib/wordFilters.js';
-import { todayKey, weakCards } from '../lib/review.js';
+import { todayKey } from '../lib/review.js';
+import { weakIds } from '../lib/weak.js';
 
 /* 회독 판(덱)을 짜는 함수들 — App.jsx(900줄)에서 떼어 냈다. 동작은 그대로다.
  *
@@ -41,17 +42,17 @@ export function LANE_LABEL(lanes) {
 
 export function useStudyQueue({
   session, plan, planNow, setPlan, words, wordIds, byId, sentenceCards, review, settings, due, todayPool, today,
-  setDeck, setSub, showToast,
+  setDeck, setSub, showToast, ledger,
 }) {
   /* 「10개 더 배우기」 — 계획을 다 하고도 더 하고 싶을 때만 명시적으로 늘린다.
      저절로 다음 20개가 따라 나오면 끝냈다는 느낌을 영영 못 받는다. */
   const learnMore = useCallback((count) => {
     setPlan((prev) => {
-      const next = addMore(prev, todayPool, review, { count, today });
+      const next = addMore(prev, todayPool, review, { count, today, ledger });
       if (next === prev) showToast('더 배울 게 없어요');
       return next;
     });
-  }, [todayPool, review, today, showToast, setPlan]);
+  }, [todayPool, review, today, ledger, showToast, setPlan]);
 
   /* 세션 저장소가 한 칸이라, 새 판을 열면 하던 판이 말없이 사라진다.
      한 번 묻고 연다 — 「조용히 삼키지 말고」가 이 저장소가 정한 원칙이다.
@@ -186,14 +187,19 @@ export function useStudyQueue({
     setDeck({ id: 'due', label: '오늘 복습', cards: due.map((id) => byId.get(id)).filter(Boolean) });
   }, [due, byId, showToast, setDeck]);
 
+  /* 취약 단어 판 — 제일 약한 것부터.
+     「약점이다/아니다」로만 고르면 40장이 자료 차례대로 나오는데, 시간이
+     모자랄 때 앞에서 끊으면 그냥 N5 앞쪽을 본 것이 된다. 무게는 lib/weak.js가
+     정한다(금방 잊은 것 > 잊은 것 > 몰라요·시험 오답 > 애매해요).
+     시험 오답과 잊어버림이 여기 들어오는 길도 그 장부다. */
   const startWeakDeck = useCallback(() => {
-    const weak = weakCards(wordIds, review);
+    const weak = weakIds(wordIds, review, ledger);
     if (weak.length === 0) {
       showToast('취약 단어가 아직 없어요');
       return;
     }
     setDeck({ id: 'weak', label: '취약 단어', cards: weak.map((id) => byId.get(id)).filter(Boolean) });
-  }, [wordIds, review, byId, showToast, setDeck]);
+  }, [wordIds, review, ledger, byId, showToast, setDeck]);
 
   // JLPT 세트는 고른 100개만 도는 덱이다 — 오늘 학습 세션과 섞지 않는다.
   const startJlptSet = useCallback((cards, label, id) => {

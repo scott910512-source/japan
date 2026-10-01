@@ -21,6 +21,7 @@ export default function FeatureScreen({
   setCustomWords,
   startQuizWrongDeck,
   noteActivity,
+  noteWeakness,
   listenMode,
   todayPool,
   sentenceCards,
@@ -117,6 +118,11 @@ export default function FeatureScreen({
                 onToast={showToast}
                 onRetryWrong={startQuizWrongDeck}
                 onActivity={noteActivity}
+                /* 맞고 틀린 것이 약점 장부에 쌓인다. 복습 간격은 그대로 둔다 —
+                   시험 때문에 일정이 흔들리면 시험을 마음 편히 못 본다. */
+                onWeakness={noteWeakness}
+                /* 「약점」 범위가 시험 오답·잊어버림까지 본다 */
+                ledger={progress.weak}
                 /* 듣기에서 넘어온 세트가 있으면 그것만 묻는다 */
                 fixedWords={quizSet}
               />
@@ -133,6 +139,11 @@ export default function FeatureScreen({
                 onClose={() => setSub(null)}
                 onToast={showToast}
                 onActivity={noteActivity}
+                /* 몇 번 들었는지가 낱말마다 쌓인다. 쉰 번 들었는데 아직 틀리는
+                   낱말은 더 약한 낱말이라, 약점 순서에서 위로 올라온다. */
+                onWeakness={noteWeakness}
+                /* 「약점만」 범위가 시험 오답·잊어버림까지 본다 */
+                ledger={progress.weak}
                 /* 듣던 세트를 그대로 시험으로. 귀로 들은 것과 답할 수 있는
                    것은 다르고, 그 차이는 물어봐야 안다. */
                 onQuiz={onQuizSet}

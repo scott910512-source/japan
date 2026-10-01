@@ -175,6 +175,10 @@ const DEFAULT_PROGRESS = {
      id로 그대로 적힌다. 모양은 lib/n3.js의 normalizeN3가 맞춘다.
      progress 안에 두어서 백업·동기화에 저절로 실린다 — 새 열쇠를 만들지 않는다. */
   n3: null,
+  /* 약점 장부 — { 낱말id: { quizWrong, quizRight, listen, forgot, fastDays, at } }.
+     시험·듣기·잊어버림을 센다. 복습 간격은 안 건드린다(회독 저장소가 따로 있다).
+     여기 두는 이유도 n3과 같다 — 백업·동기화에 저절로 실린다(mergeWeak). */
+  weak: {},
 };
 export function loadProgress() {
   const saved = read(KEYS.progress, {});
@@ -187,6 +191,7 @@ export function loadProgress() {
     dailyGrammar: saved?.dailyGrammar || {},
     rpg: { exp: saved?.rpg?.exp || 0, stages: saved?.rpg?.stages || {} },
     n3: saved?.n3 && typeof saved.n3 === 'object' ? saved.n3 : null,
+    weak: saved?.weak && typeof saved.weak === 'object' ? saved.weak : {},
   };
 }
 export function saveProgress(progress) {
@@ -331,6 +336,10 @@ export const DEFAULT_SETTINGS = {
   listenOrder: 'block',
   listenBlock: 0,         // 몇 번째 구간을 듣는가 (0부터)
   listenLoop: true,       // 정지할 때까지 한 세트를 반복
+  /* 바퀴마다 순서를 다시 섞을지. 기본은 켬 — 세 바퀴째부터는 다음에 뭐가
+     올지 먼저 떠오르는데, 그건 차례를 외운 것이고 시험장에는 그 차례가 없다.
+     세트는 안 바뀐다. 구간 고정(listenOrder)은 그대로다. */
+  listenReshuffle: true,
   /* 다 외운 것을 뺄지. 기본은 안 빼는 쪽 — 눈으로 아는 낱말이 귀로는
      낯선 일이 흔하고, 듣기는 그 낯섦을 없애는 자리다. */
   listenSkipDone: false,

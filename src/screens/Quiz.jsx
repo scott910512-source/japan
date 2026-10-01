@@ -9,6 +9,7 @@ import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
 import {
   QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords,
 } from '../lib/quiz.js';
+import { WEAK_KIND } from '../lib/weak.js';
 
 const COUNTS = [10, 20, 30, 50];
 
@@ -44,7 +45,10 @@ const SCOPE_OPTS = [
  * 시험」인데 거기서 범위를 또 고르게 하면 무엇을 푸는 시험인지 흐려진다.
  * 보기(오답 후보)도 그 세트 안에서 뽑는다. 같은 구간에서 헷갈리는 것끼리
  * 겨루는 편이, 안 들은 낱말이 보기로 나오는 것보다 낫다. */
-export default function Quiz({ words, review, settings, onChange, onToast, onRetryWrong, onActivity, fixedWords = null }) {
+export default function Quiz({
+  words, review, settings, onChange, onToast, onRetryWrong, onActivity, onWeakness,
+  fixedWords = null, ledger = null,
+}) {
   const [config, setConfig] = useState({
     count: settings.quizCount ?? 20,
     type: settings.quizType ?? QUIZ_TYPE.CHOICE,
@@ -66,8 +70,8 @@ export default function Quiz({ words, review, settings, onChange, onToast, onRet
     [set, words, settings.levels],
   );
   const available = useMemo(
-    () => (set ? set.length : scopeWords(pool, review, config.scope).length),
-    [set, pool, review, config.scope],
+    () => (set ? set.length : scopeWords(pool, review, config.scope, ledger).length),
+    [set, pool, review, config.scope, ledger],
   );
 
   const patch = (p) => {
@@ -85,6 +89,9 @@ export default function Quiz({ words, review, settings, onChange, onToast, onRet
       dir: config.dir,
       scope: subset?.length ? QUIZ_SCOPE.ALL : config.scope,
       review,
+      /* 「약점」 범위가 시험 오답까지 본다 — 시험에서 틀린 낱말을 다시 묻는
+         자리인데, 여태 회독 기록만 봐서 그걸 못 보고 있었다. */
+      ledger,
     });
     if (!questions.length) {
       onToast('출제할 단어가 없어요');
@@ -103,6 +110,8 @@ export default function Quiz({ words, review, settings, onChange, onToast, onRet
         onQuit={() => setRun(null)}
         onRetryWrong={onRetryWrong}
         onToast={onToast}
+        onActivity={onActivity}
+        onWeakness={onWeakness}
       />
     );
   }
@@ -192,7 +201,7 @@ export default function Quiz({ words, review, settings, onChange, onToast, onRet
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) {
+function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -261,8 +270,39 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, Boolean(answered)]);
 
+  /* ★ 맞고 틀린 것을 약점 장부에 적는다 ★
+   *
+   * 회독 저장소는 안 건드린다 — 시험 때문에 복습 간격이 흔들리면 시험을
+   * 마음 편히 못 본다. 그 판단은 그대로 두는데, 그 탓에 시험에서 열 번 틀린
+   * 낱말이 「약점 0」이었다. 장부가 그 빈자리를 채운다(lib/weak.js).
+   *
+   * ★ 결과 화면이 아니라 문항마다 적는다 ★
+   * 결과 화면에서 한 번에 적으면 점수와 딱 맞아떨어져서 처음엔 그게 맞아
+   * 보였다. 그런데 스무 문항 중 열다섯을 풀고 나간 사람의 열다섯 문항이
+   * 아무 데도 안 남는다 — 약점을 모으는 게 이 장부의 전부라 그게 제일 아깝다.
+   *
+   * 「거의 맞았어요」(close)는 아직 안 적는다. 사용자가 인정하면 정답이 되고
+   * 안 하면 오답이라, 그 자리에서는 결론이 없다. 결론이 날 때 적는다.
+   *
+   * 한 문항은 한 번만 적는다(logged). 인정하기와 다음으로 넘기기가 같은
+   * 문항을 두 번 부를 수 있다. */
+  const logged = useRef(new Set());
+  useEffect(() => { logged.current = new Set(); }, [questions]);
+
+  const noteQuiz = useCallback((verdict) => {
+    if (!q || !onWeakness) return;
+    if (verdict !== 'correct' && verdict !== 'wrong') return;
+    if (logged.current.has(q.id)) return;
+    logged.current.add(q.id);
+    onWeakness([{
+      id: q.wordId,
+      kind: verdict === 'correct' ? WEAK_KIND.QUIZ_RIGHT : WEAK_KIND.QUIZ_WRONG,
+    }]);
+  }, [q, onWeakness]);
+
   const record = (verdict, value) => {
     if (answered) return;
+    noteQuiz(verdict);
     onRun({ ...run, answers: { ...answers, [q.id]: { verdict, value } } });
   };
 
@@ -273,7 +313,11 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
     record(checkTyping(word, q.dir, typed), typed);
   };
 
-  const next = () => onRun({ ...run, index: index + 1 });
+  const next = () => {
+    // 인정하지 않고 넘어간 「거의 맞았어요」는 오답이다 — 점수도 그렇게 센다
+    if (answered?.verdict === 'close') noteQuiz('wrong');
+    onRun({ ...run, index: index + 1 });
+  };
 
   /* 맞혔으면 버튼을 한 번 더 누르게 하지 않는다. 맞은 문제에서 더 볼 것도 없는데
    * 화면 아래 버튼까지 손을 내리는 게 스무 문제 내내 반복된다.
@@ -288,10 +332,13 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast }) 
   }, [answered, index]);
 
   // 오타로 틀리는 건 실력이 아니다. 애매한 답은 내가 인정할 수 있게 둔다.
-  const acceptClose = () => onRun({
-    ...run,
-    answers: { ...answers, [q.id]: { ...answers[q.id], verdict: 'correct' } },
-  });
+  const acceptClose = () => {
+    noteQuiz('correct');
+    onRun({
+      ...run,
+      answers: { ...answers, [q.id]: { ...answers[q.id], verdict: 'correct' } },
+    });
+  };
 
   useHotkeys({
     Enter: () => {

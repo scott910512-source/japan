@@ -185,6 +185,54 @@ console.log('\n[ 정지할 때까지 반복 ]');
   ok('세트가 없어도 안 죽는다', nextAt(null, true) === null);
 }
 
+console.log('\n[ 바퀴마다 순서 섞기 ]');
+{
+  /* ★ 차례를 외우는 것을 막는다 ★
+     순서를 안 바꾸면 세 바퀴째부터 다음에 뭐가 올지 먼저 떠오른다. 그건
+     낱말을 외운 게 아니라 차례를 외운 것이고, 시험장에는 그 차례가 없다.
+
+     ★ 세트는 안 바뀐다 ★
+     구간 고정(위의 구간 설명)이 이것과 같이 깨지면 「이 스무 개를 귀에
+     붙이겠다」가 다시 안 된다. 바뀌는 것은 차례뿐이다. */
+  const cards = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' }];
+  const set = { cards, at: 0, lap: 0 };
+  const last = { ...set, at: 4 };
+
+  ok('가운데서는 안 섞는다 — 한 바퀴 안에서는 차례가 안 흔들려야 한다',
+    nextAt(set, true, { reshuffle: true }).cards === undefined);
+
+  const over = nextAt(last, true, { reshuffle: true });
+  ok('바퀴를 넘길 때 새 차례가 같이 온다', Array.isArray(over.cards));
+  ok('처음으로 돌아간다', over.at === 0 && over.lap === 1);
+  ok('★ 세트는 그대로다 — 같은 다섯 개 ★',
+    over.cards.map((c) => c.id).sort().join() === 'a,b,c,d,e', over.cards.map((c) => c.id).join());
+  ok('빠지거나 늘어나지 않는다', over.cards.length === cards.length);
+
+  /* 섞은 결과가 그대로면 한 번 틀어 준다. 다섯 개가 우연히 같은 차례로 나올
+     일은 드물지만, 두세 개짜리 구간에서는 흔하다 — 거기서 「섞었는데
+     똑같다」가 되면 켠 보람이 없다. */
+  let same = 0;
+  for (let i = 0; i < 40; i++) {
+    const r = nextAt(last, true, { reshuffle: true });
+    if (r.cards.map((c) => c.id).join() === 'a,b,c,d,e') same += 1;
+  }
+  ok('★ 매번 차례가 달라진다 ★', same === 0, `40번 중 그대로 ${same}번`);
+
+  const two = { cards: [{ id: 'a' }, { id: 'b' }], at: 1, lap: 0 };
+  let flips = 0;
+  for (let i = 0; i < 20; i++) {
+    if (nextAt(two, true, { reshuffle: true }).cards.map((c) => c.id).join() !== 'a,b') flips += 1;
+  }
+  ok('두 개짜리도 반드시 바뀐다', flips === 20, `20번 중 ${flips}번`);
+
+  const one = { cards: [{ id: 'a' }], at: 0, lap: 0 };
+  ok('한 개짜리는 바꿀 게 없다', nextAt(one, true, { reshuffle: true }).cards.length === 1);
+
+  ok('안 켜면 차례를 안 준다 — 받는 쪽이 예전처럼 자리만 쓴다',
+    nextAt(last, true).cards === undefined);
+  ok('반복을 끄면 섞을 일도 없다', nextAt(last, false, { reshuffle: true }) === null);
+}
+
 console.log('\n[ 한 장의 걸음 ]');
 ok('방향은 둘', DIRECTIONS.length === 2, DIRECTIONS.map((d) => d.id).join(' / '));
 ok('일본어 → 뜻', stepsOf('jp-ko').join() === 'jp,ko');

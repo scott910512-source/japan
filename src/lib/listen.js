@@ -13,7 +13,9 @@
  * 그래서 여기서 따로 고른다. 판정을 안 하는 화면이니 규칙도 단순하다 —
  * 범위를 고르고, 섞고, 개수만큼 자른다. */
 
-import { stateOf, isDoneEnough, isWeak, isDue, shuffled, todayKey } from './review.js';
+import { stateOf, isDoneEnough, isDue, shuffled, todayKey } from './review.js';
+/* 「약점만」의 기준 — 회독 기록에 시험 오답·잊어버림까지 더해서 본다 */
+import { isWeakNow, weakEntry } from './weak.js';
 
 export const SCOPES = [
   { id: 'today', label: '오늘 볼 것', sub: '복습일이 됐거나 아직 안 본 것' },
@@ -23,7 +25,7 @@ export const SCOPES = [
      외웠는지 안 외웠는지는 안 본다. 이미 아는 것도 귀로는 낯설 수 있다. */
   { id: 'kiju', label: '기출 단어', sub: '시험에 나온 것만 — 외운 것도 같이' },
   { id: 'seen', label: '배운 것', sub: '한 번이라도 본 것 전체' },
-  { id: 'weak', label: '약점만', sub: '세 번 넘게 틀린 것' },
+  { id: 'weak', label: '약점만', sub: '회독·시험에서 세 번 넘게 틀린 것' },
   { id: 'all', label: '전체', sub: '아직 안 본 것까지 다' },
 ];
 
@@ -37,10 +39,12 @@ export const DIRECTIONS = [
   { id: 'ko-jp', label: '뜻 → 일본어', sub: '뜻을 듣고 일본어로 말해요' },
 ];
 
-export function inScope(st, scope, today = todayKey()) {
+export function inScope(st, scope, today = todayKey(), rec = null) {
   if (scope === 'all') return true;
   if (scope === 'seen') return Boolean(st.lastSeen);
-  if (scope === 'weak') return isWeak(st);
+  /* 장부를 안 주면 회독 기록만 본다 — 예전과 같은 목록이다. 주면 시험에서
+     틀린 낱말과 외웠다가 무너진 낱말이 「약점만」에 들어온다. */
+  if (scope === 'weak') return isWeakNow(st, rec);
   /* 기출은 회독 상태로 고르는 범위가 아니다 — 「시험에 나왔나」는 카드의
      내력이 아니라 목록이 답한다. 그래서 여기서는 거르지 않고, 후보 목록
      자체를 기출로 바꿔 끼운다(poolFor). 이 함수에 기출이 들어왔다는 것은
@@ -97,11 +101,13 @@ export function pickBlock(list, { count = 20, block = 0 } = {}) {
 
 /* 범위 안에 구간이 몇 개인가. 화면이 「3 / 11구간」을 적는 데 쓴다. */
 export function blocksIn(pool, review, {
-  scope = 'today', count = 20, today = todayKey(), kiju = null, skipDone = false,
+  scope = 'today', count = 20, today = todayKey(), kiju = null, skipDone = false, ledger = null,
 } = {}) {
   const src = poolFor(scope, pool, kiju);
   const keep = keepFor(review, skipDone);
-  const n = src.filter(({ id }) => inScope(stateOf(review, id), scope, today) && keep(id)).length;
+  const n = src.filter(({ id }) => (
+    inScope(stateOf(review, id), scope, today, weakEntry(ledger, id)) && keep(id)
+  )).length;
   return blockCount(n, count);
 }
 
@@ -121,11 +127,13 @@ function keepFor(review, skipDone) {
 
 export function pickListen(pool, review, {
   scope = 'today', count = 20, shuffle = true, today = todayKey(), kiju = null,
-  order = 'shuffle', block = 0, skipDone = false,
+  order = 'shuffle', block = 0, skipDone = false, ledger = null,
 } = {}) {
   const src = poolFor(scope, pool, kiju);
   const keep = keepFor(review, skipDone);
-  const picked = src.filter(({ id }) => inScope(stateOf(review, id), scope, today) && keep(id));
+  const picked = src.filter(({ id }) => (
+    inScope(stateOf(review, id), scope, today, weakEntry(ledger, id)) && keep(id)
+  ));
   /* 구간은 안 섞는다. 섞으면 같은 구간을 다시 틀어도 차례가 달라지는데,
      그러면 「세 번째에 나오는 그 낱말」이라는 기억의 손잡이가 없어진다. */
   if (order === 'block') return pickBlock(picked, { count, block });
@@ -135,12 +143,12 @@ export function pickListen(pool, review, {
 
 /* 범위마다 몇 개나 되는지. 골라 보고 나서야 「들을 게 없어요」를 만나면
    왜 없는지 모른다 — 고르기 전에 숫자를 보여 준다. */
-export function scopeCounts(pool, review, today = todayKey(), kiju = null, skipDone = false) {
+export function scopeCounts(pool, review, today = todayKey(), kiju = null, skipDone = false, ledger = null) {
   const keep = keepFor(review, skipDone);
   const out = {};
   for (const s of SCOPES) {
     out[s.id] = poolFor(s.id, pool, kiju)
-      .filter(({ id }) => inScope(stateOf(review, id), s.id, today) && keep(id)).length;
+      .filter(({ id }) => inScope(stateOf(review, id), s.id, today, weakEntry(ledger, id)) && keep(id)).length;
   }
   return out;
 }
@@ -157,13 +165,40 @@ export function scopeCounts(pool, review, today = todayKey(), kiju = null, skipD
  * 세는 것은 바퀴 수다. 몇 장 남았는지가 아니라 몇 번 마주쳤는지가 귀에
  * 붙는 정도를 말해 준다.
  *
+ * ★ 바퀴마다 순서를 다시 섞는다 ★
+ *
+ * 세트는 그대로 두고 순서만 바꾼다. 둘을 같이 묶으면 안 된다 — 세트까지
+ * 바뀌면 「이 스무 개를 귀에 붙이겠다」가 다시 깨진다(위의 구간 설명).
+ *
+ * 순서를 안 바꾸면 세 바퀴째부터 다음에 뭐가 올지 먼저 떠오른다. 그건 낱말을
+ * 외운 게 아니라 차례를 외운 것이고, 시험장에는 그 차례가 없다. 섞으면 매번
+ * 맨손으로 떠올려야 한다.
+ *
+ * 섞은 결과가 그대로면 한 번 틀어 준다. 스무 개가 우연히 같은 차례로 나올
+ * 일은 거의 없지만, 두세 개짜리 구간에서는 흔하다 — 거기서 「섞었는데 똑같다」가
+ * 되면 켠 보람이 없다.
+ *
  * null이면 끝났다는 뜻 — 화면은 판을 접고 설정으로 돌아간다. */
-export function nextAt(run, loop = true) {
+export function reorderLap(cards = []) {
+  if (cards.length < 2) return cards;
+  const next = shuffled(cards);
+  const same = next.every((c, i) => c === cards[i]);
+  if (!same) return next;
+  const swapped = next.slice();
+  [swapped[0], swapped[1]] = [swapped[1], swapped[0]];
+  return swapped;
+}
+
+export function nextAt(run, loop = true, { reshuffle = false } = {}) {
   if (!run?.cards?.length) return null;
   const lap = run.lap || 0;
   if (run.at + 1 < run.cards.length) return { at: run.at + 1, lap };
   if (!loop) return null;
-  return { at: 0, lap: lap + 1 };
+  const next = { at: 0, lap: lap + 1 };
+  /* 카드를 같이 돌려준다. 자리(at)만 돌려주면 받는 쪽이 「0번째」가 어느
+     낱말인지 따로 정해야 하고, 그러면 순서를 아는 곳이 둘로 갈린다. */
+  if (reshuffle) next.cards = reorderLap(run.cards);
+  return next;
 }
 
 /* 한 장을 어떤 순서로 보여 줄까.

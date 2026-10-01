@@ -8,6 +8,7 @@ import { cardsForQueue } from '../lib/cards.js';
 import { DIRECTIONS, SCOPES, blocksIn, nextAt, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { markBusy } from '../lib/busy.js';
+import { WEAK_KIND } from '../lib/weak.js';
 
 /* 듣기 · 따라 말하기 — 화면을 못 보는 동안의 학습.
  *
@@ -52,7 +53,7 @@ export const COUNTS = [10, 20, 30, 50, 100];
 
 export default function Listen({
   pool, words, sentences, review, settings, onSettingsChange, onClose, onToast,
-  onActivity, onQuiz, initialMode = 'listen',
+  onActivity, onWeakness, onQuiz, ledger = null, initialMode = 'listen',
 }) {
   const [mode, setMode] = useState(initialMode);
   /* 어느 쪽을 먼저 들려줄까. 「뜻 → 일본어」가 있어야 입이 열린다 —
@@ -76,6 +77,10 @@ export default function Listen({
   /* 정지할 때까지 한 세트를 돈다. 소리를 외우는 일은 같은 것을 여러 번
      마주쳐야 되는 일이라, 한 바퀴 돌고 끝나면 남는 게 없다. */
   const [loop, setLoop] = useState(settings.listenLoop !== false);
+  /* 바퀴마다 순서를 다시 섞을지. 기본은 켬 — 세 바퀴째부터 다음 낱말이 먼저
+     떠오르는 건 차례를 외운 것이고, 시험장에는 그 차례가 없다. 세트는 안
+     바뀐다(구간 고정은 그대로). */
+  const [reshuffle, setReshuffle] = useState(settings.listenReshuffle !== false);
   const [run, setRun] = useState(null);   // { cards, at, lap }
   /* 방금 들은 세트. 다 듣고 나서 「그대로 시험」으로 넘어가는 자리다 —
      귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다. */
@@ -128,14 +133,30 @@ export default function Listen({
    * 처음엔 이 블록을 위쪽에 뒀는데, 의존성 배열의 run이 그릴 때 평가되면서
    * 선언 전 접근(TDZ)이 됐다 — 듣기 화면이 그려질 때마다 죽었고 듣기·디자인
    * 검사가 통째로 멈췄다. 효과 본문은 나중에 돌지만 배열은 지금 읽힌다. */
+  /* ★ 낱말마다도 센다 ★
+   *
+   * 일별 활동(listened)은 「오늘 몇 장 들었나」라서, 쉰 번 들은 낱말과 한 번도
+   * 안 들은 낱말을 구별하지 못한다. 그런데 「쉰 번 들었는데 아직 틀린다」는
+   * 약점의 정도를 말해 주는 몇 안 되는 신호다 — 그래서 약점 장부에도 한 줄
+   * 적는다(lib/weak.js).
+   *
+   * 회독 저장소에는 여전히 안 쓴다. 들으면서 흘려보낸 것과 떠올려서 맞힌
+   * 것은 다른 일이고, 그 둘을 한 칸에 담으면 복습일이 거짓이 된다.
+   *
+   * 자리(at)가 앞으로 갈 때만 센다 — 바퀴를 넘기면 0으로 돌아오니 바퀴
+   * 번호까지 같이 보고 판단한다. 안 그러면 두 바퀴째 첫 장이 안 세어진다. */
   const countedAt = useRef(-1);
+  const countedLap = useRef(-1);
   useEffect(() => {
-    if (!run) { countedAt.current = -1; return; }
-    if (run.at > countedAt.current) {
-      countedAt.current = run.at;
-      onActivity?.({ listened: 1 });
-    }
-  }, [run, onActivity]);
+    if (!run) { countedAt.current = -1; countedLap.current = -1; return; }
+    const lap = run.lap || 0;
+    if (lap === countedLap.current && run.at <= countedAt.current) return;
+    countedAt.current = run.at;
+    countedLap.current = lap;
+    onActivity?.({ listened: 1 });
+    const id = run.cards[run.at]?.id;
+    if (id) onWeakness?.([{ id, kind: WEAK_KIND.LISTEN }]);
+  }, [run, onActivity, onWeakness]);
 
   /* 뜻도 소리로 낼지. 화면을 못 보는 동안 쓰라고 만든 자리인데 뜻이 눈으로만
      나오면 절반이 안 들린다. 기본은 켬 — 끄고 싶은 사람은 여기서 끈다. */
@@ -208,7 +229,7 @@ export default function Listen({
      몫으로 좁혀져서 늘 같은 것만 들린다. */
   const start = () => {
     const queue = pickListen(pool, review, {
-      scope, count, today: todayKey(), kiju: kijuPool, order, block, skipDone,
+      scope, count, today: todayKey(), kiju: kijuPool, order, block, skipDone, ledger,
     });
     const cards = cardsForQueue(queue, words, sentences).filter((c) => !dropped.has(c.id));
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
@@ -290,10 +311,10 @@ export default function Listen({
         setStep(0);
         setRun((r) => {
           if (!r) return r;
-          const next = nextAt(r, loop);
+          const next = nextAt(r, loop, { reshuffle });
           if (!next) { onToast('다 들었어요 — 시험으로 확인해 볼까요'); return null; }
           // 한 바퀴를 넘겼으면 알린다. 화면을 안 보고 있어도 어디쯤인지는 알아야 한다
-          if (next.lap > r.lap) onToast(`${next.lap}바퀴 돌았어요`);
+          if (next.lap > r.lap) onToast(`${next.lap}바퀴 돌았어요${reshuffle ? ' — 순서를 섞었어요' : ''}`);
           return { ...r, ...next };
         });
       }, after);
@@ -354,7 +375,7 @@ export default function Listen({
       go(koWait + Math.max(600, wait));
     }
     return () => clearTimeout(timer.current);
-  }, [card, phase, last, nudge, direction, gap, rate, sayKo, sayAnswer, loop, paused, onToast]);
+  }, [card, phase, last, nudge, direction, gap, rate, sayKo, sayAnswer, loop, reshuffle, paused, onToast]);
 
   const skip = (n) => {
     clearTimeout(timer.current);
@@ -370,13 +391,13 @@ export default function Listen({
 
   const poolSize = useMemo(() => pool.length, [pool]);
   const counts = useMemo(
-    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone),
-    [pool, review, kijuPool, skipDone],
+    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone, ledger),
+    [pool, review, kijuPool, skipDone, ledger],
   );
   /* 고른 범위에 구간이 몇 개인가. 개수를 바꾸면 구간 수도 따라 바뀐다. */
   const blocks = useMemo(
-    () => blocksIn(pool, review, { scope, count, today: todayKey(), kiju: kijuPool, skipDone }),
-    [pool, review, scope, count, kijuPool, skipDone],
+    () => blocksIn(pool, review, { scope, count, today: todayKey(), kiju: kijuPool, skipDone, ledger }),
+    [pool, review, scope, count, kijuPool, skipDone, ledger],
   );
   /* 개수나 범위를 바꾸면 구간 수가 줄어든다. 저장된 번호를 그대로 쓰면
      「12 / 11구간」이 뜬다 — 고르는 쪽에서 미리 당겨 둔다(뽑는 쪽도 막지만,
@@ -773,6 +794,28 @@ export default function Listen({
           </span>
           <span className={`toggle${loop ? ' on' : ''}`} aria-hidden="true" />
         </button>
+
+        {/* ★ 바퀴마다 순서를 섞는다 ★
+            세트는 그대로 두고 순서만 바꾼다. 세 바퀴째부터는 다음에 뭐가 올지
+            먼저 떠오르는데, 그건 낱말을 외운 게 아니라 차례를 외운 것이다 —
+            시험장에는 그 차례가 없다. 섞으면 매번 맨손으로 떠올려야 한다. */}
+        {loop && (
+          <button
+            className="toggle-row setrow ls-reshuffle"
+            onClick={() => { setReshuffle(!reshuffle); onSettingsChange?.({ listenReshuffle: !reshuffle }); }}
+            aria-pressed={reshuffle}
+          >
+            <span>
+              <span className="set-title">바퀴마다 순서 섞기</span>
+              <span className="set-sub">
+                {reshuffle
+                  ? '같은 낱말들을 매번 다른 차례로 들려줘요 — 차례를 외우는 걸 막아요'
+                  : '늘 같은 차례로 돌아요 — 세 바퀴째부터 다음 낱말이 먼저 떠올라요'}
+              </span>
+            </span>
+            <span className={`toggle${reshuffle ? ' on' : ''}`} aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       {/* 방금 들은 세트로 바로 시험. 듣기는 판정을 안 하니, 귀에 붙었는지는
