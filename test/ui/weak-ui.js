@@ -232,6 +232,34 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
     ok('반복을 켜면 돌아온다', await page.locator('.ls-reshuffle').count() === 1);
   }
 
+  console.log('\n[ 홈이 아닌 자리에서는 새 버전으로 안 갈아끼운다 ]');
+  {
+    /* ★ 「처음 들어가면 한 번 홈으로 튕긴다」 ★
+       갈아끼우기는 곧 새로고침이고, 이 앱은 주소가 없다 — 어느 탭에 있었든
+       새로고침하면 홈이다. 여태 이 표시는 판정하는 자리만 세워서, 학습 탭을
+       눌러 둔 사람은 그대로 튕겼다. 한 배포에 한 번씩 꼭 일어났다. */
+    const busy = () => page.evaluate(() => (window.__jpBusy ? window.__jpBusy() : []));
+    await page.locator('.subscreen.open .sub-back:visible, .sh-close:visible').first().click()
+      .catch(() => {});
+    await page.waitForTimeout(500);
+    await goTab(page, '홈');
+    await page.waitForTimeout(500);
+    ok('★ 홈에서는 안 미룬다 — 안 그러면 영영 갱신이 안 된다 ★',
+      (await busy()).length === 0, (await busy()).join() || '없음');
+
+    for (const tab of ['학습', '복습', '내 학습']) {
+      await goTab(page, tab);
+      await page.waitForTimeout(400);
+      ok(`★ ${tab} 탭에서는 미룬다 ★`, (await busy()).includes('tab'),
+        (await busy()).join() || '없음');
+    }
+
+    await goTab(page, '홈');
+    await page.waitForTimeout(400);
+    ok('홈으로 돌아오면 표시가 내려간다', (await busy()).length === 0,
+      (await busy()).join() || '없음');
+  }
+
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

@@ -136,7 +136,9 @@ export default function App() {
     setTTSErrorHandler(showToast);
     /* 새 버전이 준비됐는데 학습 중이라 미뤄 둔 경우(main.jsx). 조용히 미루면
        왜 안 바뀌는지 알 수 없으니 한 번 알린다 — 판을 끝내면 적용된다. */
-    const onWaiting = () => showToast('새 버전이 준비됐어요 · 학습을 마치면 적용돼요');
+    const onWaiting = (e) => showToast(
+      e?.detail?.label || '새 버전이 준비됐어요 · 앱을 내려놨다 열면 적용돼요',
+    );
     window.addEventListener('jp:update-waiting', onWaiting);
     /* 연속일은 여기서 올리지 않는다 — 앱을 켠 것과 공부한 것은 다르다.
        올리는 자리는 오늘 첫 판정(applyReview)이다. */
@@ -184,6 +186,18 @@ export default function App() {
   useEffect(() => {
     markBusy('videos', activeTab === 'videos');
     return () => markBusy('videos', false);
+  }, [activeTab]);
+  /* ★ 홈이 아닌 자리도 「하던 중」이다 ★
+   *
+   * 여태 이 표시는 판정하는 자리(듣기·시험·코스·회독)만 세웠다. 그런데
+   * 갈아끼우기는 곧 새로고침이고, 이 앱은 주소가 없다 — 어느 탭에 있었든
+   * 새로고침하면 홈이다. 학습 탭을 열어 둔 사람에게 그건 그냥 튕김이다.
+   *
+   * 홈에 그대로 있을 때는 세우지 않는다. 그 자리에서는 새로고침해도 다시
+   * 홈이라 잃는 게 없고, 그 틈이 있어야 새 버전이 실제로 적용된다. */
+  useEffect(() => {
+    markBusy('tab', activeTab !== 'home');
+    return () => markBusy('tab', false);
   }, [activeTab]);
 
   /* 온보딩을 열지 말지 정한다.
