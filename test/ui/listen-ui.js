@@ -96,7 +96,15 @@ async function boot(browser, patch = {}, init = null) {
   /* ★ 무엇을 들을지 여기서 고른다 ★
      여태 오늘의 학습 큐를 빌려 써서, 배운 게 수백 개인데 늘 같은 스무 개가
      같은 차례로 들렸다. 그러면 소리가 아니라 순서를 외운다. */
-  ok('무엇을 들을지 고를 수 있다', await page.locator('.listen .ls-scope').count() === 5);
+  ok('무엇을 들을지 고를 수 있다', await page.locator('.listen .ls-scope').count() === 6,
+    (await page.locator('.listen .ls-scope').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim()).join(' / '));
+
+  /* ★ 여행 벼락치기 ★
+     이 목록은 급수로 고르지 않았다. 両替·免税·乗り換え는 N3도 N5도 아니지만
+     공항에서 못 하면 그 자리에서 막힌다. 기본 설정이 N5라, 거르는 규칙을 한 번만
+     잘못 통과하면 140개가 스무 개로 준다 — 기출에서 205개가 18개가 됐던 자리다. */
+  const tripN = Number((await page.locator('.ls-scope[data-scope="trip"] .pk-count').innerText()).match(/\d+/)[0]);
+  ok('★ 여행 범위가 있다 ★', tripN === 140, `${tripN}개`);
   /* 기출만 듣는 자리 — 손이 안 비는 시간에 귀로 시험 범위를 한 바퀴 돈다.
      다른 범위는 「얼마나 외웠나」로 고르는데 이것만 「시험에 나왔나」로 고른다. */
   const kijuN = Number((await page.locator('.ls-scope[data-scope="kiju"] .pk-count').innerText()).match(/\d+/)[0]);
@@ -110,6 +118,11 @@ async function boot(browser, patch = {}, init = null) {
     (await page.locator('.listen .ls-scope .pk-count').allTextContents()).join(' / '));
   /* ★ 오늘 몫 스무 장에 묶여 있지 않다 ★
      이 화면이 회독 큐를 빌려 쓰던 시절엔 고를 수 있는 게 그 스무 장이 전부였다. */
+  /* 낱말만으로는 여행이 안 된다 — 空港을 알아도 「JRの乗り場はどこですか」가
+     안 나오면 공항에서 못 움직인다. 낱말 70 + 짧은 문장 70. */
+  ok('낱말과 짧은 문장이 같이 있다', tripN > 100, `${tripN}개`);
+  ok('기출은 고른 레벨에 안 묶인다(여행도 같다)', tripN > seenN, `여행 ${tripN} · 배운 것 ${seenN}`);
+
   const allN = Number((await page.locator('.ls-scope[data-scope="all"] .pk-count').innerText()).match(/\d+/)[0]);
   ok('고를 수 있는 범위가 오늘 몫보다 훨씬 넓다', allN > 500, `${allN}개`);
 

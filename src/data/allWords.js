@@ -15,6 +15,8 @@ import { N3_WORDS_I } from './words-n3i.js';
 import { N3_WORDS_J } from './words-n3j.js';
 /* 기출(한자읽기 2010~2025)에 나왔는데 단어장에 없던 68개 */
 import { KIJU_WORDS } from './words-kiju.js';
+/* 삿포로 여행 목록(data/sapporo.js) 70개 중 단어장에 없던 20개 */
+import { SAPPORO_WORDS } from './words-sapporo.js';
 
 /* 기본 수록 단어를 한 곳으로 모은다.
  *
@@ -65,4 +67,5 @@ export const ALL_WORDS = mergeUnique(
   N3_WORDS, N3_WORDS_B, N3_WORDS_C, N3_WORDS_D, N3_WORDS_E,
   N3_WORDS_F, N3_WORDS_G, N3_WORDS_H, N3_WORDS_I, N3_WORDS_J,
   KIJU_WORDS,
+  SAPPORO_WORDS,
 );

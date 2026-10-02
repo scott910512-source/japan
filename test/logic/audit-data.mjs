@@ -3,6 +3,7 @@
  * 학습이 전부 이 데이터 위에 서 있다. 여기가 틀리면 회독도 시험도 틀린 걸
  * 가르친다 — 그런데 화면만 보면 멀쩡해 보여서 안 걸린다. 그래서 따로 잰다. */
 import { ALL_WORDS } from '../../src/data/allWords.js';
+import { NO_JLPT } from '../../src/data/words-sapporo.js';
 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => {
@@ -47,13 +48,29 @@ for (const w of ALL_WORDS) seen.set(w.id, (seen.get(w.id) || 0) + 1);
 const dupIds = [...seen].filter(([, n]) => n > 1);
 ok('id가 안 겹침', dupIds.length === 0, dupIds.slice(0, 3).map(([i]) => i).join(', ') || undefined);
 
-// 규격 밖 값이 들어오면 레벨 필터·품사 표시가 조용히 어긋난다
-const LV = new Set(['N5', 'N4', 'N3', 'N2', 'N1']);
+/* 규격 밖 값이 들어오면 레벨 필터·품사 표시가 조용히 어긋난다.
+ *
+ * 급수밖(NO_JLPT)은 일부러 둔 하나다. 札幌·小樽·市電 같은 낱말은 JLPT 급수가
+ * 없는데, 비워 두면 단어장에 실릴 때 N5로 메워져서(allWords.js의 `|| 'N5'`)
+ * 「N5 어휘 534개」가 늘어난다. 공부할 범위를 세는 숫자에 여행 낱말을 섞으면
+ * 그 숫자가 무슨 뜻인지 알 수 없게 된다.
+ *
+ * 허용하되 이가 빠지지 않게, 그 표시를 단 낱말이 아는 것들뿐인지 아래에서
+ * 따로 센다 — 오타로 생긴 레벨은 여전히 여기서 걸린다. */
+const LV = new Set(['N5', 'N4', 'N3', 'N2', 'N1', NO_JLPT]);
 const TY = new Set(['verb', 'noun', 'adj-i', 'adj-na', 'adv', 'conj', 'etc', 'pron', 'num', 'expr', 'prefix', 'suffix']);
 const oddLv = [...new Set(ALL_WORDS.map((w) => w.level).filter((l) => !LV.has(l)))];
 const oddTy = [...new Set(ALL_WORDS.map((w) => w.type).filter((t) => !TY.has(t)))];
 ok('레벨이 규격 안에 있음', oddLv.length === 0, oddLv.join(', ') || undefined);
 ok('품사가 규격 안에 있음', oddTy.length === 0, oddTy.join(', ') || undefined);
+
+/* 급수밖은 여행 고유명사뿐이다. 늘어나면 둘 중 하나다 —
+   진짜 급수 없는 낱말을 더 넣었거나, 레벨을 적는 것을 잊었거나. */
+const outside = ALL_WORDS.filter((w) => w.level === NO_JLPT);
+ok('급수밖은 여행 고유명사 8개뿐', outside.length === 8,
+  outside.map((w) => w.kanji).join(' · '));
+ok('전부 여행 낱말이다', outside.every((w) => w.id.startsWith('sp-')),
+  outside.filter((w) => !w.id.startsWith('sp-')).map((w) => w.id).join(',') || '전부 맞음');
 
 // 레벨별로 실제로 몇 개인지 — 데이터가 통째로 빠지면 여기서 보인다
 const count = (l) => ALL_WORDS.filter((w) => w.level === l).length;
