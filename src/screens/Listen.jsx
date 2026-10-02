@@ -7,6 +7,7 @@ import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
 import { DIRECTIONS, SCOPES, blocksIn, dirOf, nextAt, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
+import { tripPool } from '../lib/trip.js';
 import { markBusy } from '../lib/busy.js';
 import { WEAK_KIND } from '../lib/weak.js';
 
@@ -224,12 +225,21 @@ export default function Listen({
     [words],
   );
 
+  /* 여행 후보도 화면이 만들어 넘긴다 — lib/listen.js는 단어 자료를 모른 채로 둔다.
+     여기도 레벨로 안 거른다. 両替·免税·乗り換え는 급수로 고를 낱말이 아니고,
+     거르면 공항에서 필요한 말이 빠진다.
+     낱말과 짧은 문장이 같이 돈다 — 여행은 낱말만으로 안 되고, 空港을 알아도
+     「JRの乗り場はどこですか」가 안 나오면 못 움직인다. 문장 id는 자료가 직접
+     내놓는다(lib/trip.js). */
+  const tripList = useMemo(() => tripPool(words || []), [words]);
+
   /* 회독 큐를 빌려 쓰지 않는다. 판정을 안 하는 화면이라 「복습으로 열고
      약점을 흩는다」는 순서를 지킬 이유가 없고, 그 큐에 얽히면 범위가 오늘
      몫으로 좁혀져서 늘 같은 것만 들린다. */
   const start = () => {
     const queue = pickListen(pool, review, {
-      scope, count, today: todayKey(), kiju: kijuPool, order, block, skipDone, ledger,
+      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList,
+      order, block, skipDone, ledger,
     });
     const cards = cardsForQueue(queue, words, sentences).filter((c) => !dropped.has(c.id));
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
@@ -399,13 +409,15 @@ export default function Listen({
 
   const poolSize = useMemo(() => pool.length, [pool]);
   const counts = useMemo(
-    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone, ledger),
-    [pool, review, kijuPool, skipDone, ledger],
+    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone, ledger, tripList),
+    [pool, review, kijuPool, skipDone, ledger, tripList],
   );
   /* 고른 범위에 구간이 몇 개인가. 개수를 바꾸면 구간 수도 따라 바뀐다. */
   const blocks = useMemo(
-    () => blocksIn(pool, review, { scope, count, today: todayKey(), kiju: kijuPool, skipDone, ledger }),
-    [pool, review, scope, count, kijuPool, skipDone, ledger],
+    () => blocksIn(pool, review, {
+      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList, skipDone, ledger,
+    }),
+    [pool, review, scope, count, kijuPool, tripList, skipDone, ledger],
   );
   /* 개수나 범위를 바꾸면 구간 수가 줄어든다. 저장된 번호를 그대로 쓰면
      「12 / 11구간」이 뜬다 — 고르는 쪽에서 미리 당겨 둔다(뽑는 쪽도 막지만,
