@@ -16,6 +16,7 @@
 import { ALL_WORDS } from '../../src/data/allWords.js';
 import { SAPPORO_GROUPS, SAPPORO_LIST } from '../../src/data/sapporo.js';
 import { SAPPORO_SITUATION } from '../../src/data/situations-sapporo.js';
+import { NO_JLPT } from '../../src/data/words-sapporo.js';
 import { ALL_SITUATIONS } from '../../src/data/allSituations.js';
 import { allSentenceCards } from '../../src/lib/content.js';
 import { tripLines, tripMissing, tripPool, tripStat, tripWords } from '../../src/lib/trip.js';
@@ -117,6 +118,32 @@ console.log('\n[ ★ 레벨로 안 잘린다 ★ ]');
     n5only.map((w) => ({ id: w.id, kind: 'word' })), review, todayKey(), null, false, null, POOL,
   );
   ok('★ 범위 숫자도 140 그대로 ★', counts.trip === 140, `${counts.trip}개`);
+}
+
+console.log('\n[ ★ JLPT 어휘 수를 안 건드린다 ★ ]');
+{
+  /* 札幌·小樽·市電은 JLPT 급수가 없다. 처음엔 레벨을 비워 뒀는데(null)
+     단어장에 실릴 때 N5로 메워져서(allWords.js의 `|| 'N5'`) 「N5 어휘
+     534개」가 542개가 됐다. 공부할 범위를 세는 숫자에 여행 낱말을 섞으면
+     그 숫자가 무슨 뜻인지 알 수 없게 된다. */
+  const byLevel = {};
+  for (const w of ALL_WORDS) byLevel[w.level] = (byLevel[w.level] || 0) + 1;
+  ok('★ N5는 534개 그대로 ★', byLevel.N5 === 534, `${byLevel.N5}개`);
+  ok('N4도 그대로', byLevel.N4 === 613, `${byLevel.N4}개`);
+  ok('N3도 그대로', byLevel.N3 === 1607, `${byLevel.N3}개`);
+  ok('급수 밖이 따로 세어진다', byLevel[NO_JLPT] === 8, `${byLevel[NO_JLPT]}개`);
+  ok('급수는 다섯 + 급수밖뿐', Object.keys(byLevel).sort().join(',') === ['N3', 'N4', 'N5', NO_JLPT].sort().join(','),
+    Object.keys(byLevel).join(','));
+
+  /* 레벨을 고른 사람에게는 안 보인다 — 그래야 「N5만 공부」가 참말이 된다 */
+  const n5 = filterByLevel(ALL_WORDS, ['N5']);
+  ok('★ N5를 고르면 札幌이 안 나온다 ★', !n5.some((w) => w.kanji === '札幌'));
+  ok('전부 고르면 나온다', filterByLevel(ALL_WORDS, []).some((w) => w.kanji === '札幌'));
+
+  /* 그래도 여행 듣기에는 나온다 — 후보 목록을 통째로 바꿔 끼우기 때문이다.
+     표를 사려면 읽어야 하는 글자라, 여기서 빠지면 안 된다. */
+  ok('★ 그래도 여행 듣기에는 있다 ★',
+    POOL.some((x) => byId.get(x.id)?.kanji === '札幌'));
 }
 
 console.log('\n[ 듣기 범위에 자리가 있다 ]');
