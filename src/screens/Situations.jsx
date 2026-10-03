@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTimeouts } from '../hooks/useTimeouts.js';
 import {
   IconSpeaker, IconChevron, IconArrowLeft, IconCheck, IconX, IconTriangle, IconRewind, IconEye,
 } from '../components/Icons.jsx';
@@ -25,6 +26,9 @@ const MODES = [
 const STAR_LABEL = { 3: '꼭 필요', 2: '권장', 1: '여유되면' };
 
 export default function Situations({ review, settings, onReviewChange, onToast }) {
+  /* 화면을 나가면 걸려 있던 타이머도 같이 꺼진다 — 안 그러면 나간 뒤에
+     한 판이 적히거나 한 문제가 넘어간다(hooks/useTimeouts.js) */
+  const { after } = useTimeouts();
   const [situationId, setSituationId] = useState(SITUATIONS[0]?.id);
   const [onlyStar, setOnlyStar] = useState(false);
   const [part, setPart] = useState(null);   // 선택한 파트
@@ -268,7 +272,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     if (verdict === VERDICT.MASTER) {
       onToast(selfKnownLabel(stateOf(result.progress, item.id)));
     }
-    setTimeout(() => setLocked(false), 220);
+    after(() => setLocked(false), 220);
   };
 
   const undo = () => {

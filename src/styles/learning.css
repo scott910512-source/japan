@@ -75,8 +75,8 @@
    자기평가의 기준은 「답을 보기 전에 떠올렸는지」다. 판정 버튼이 앞면에서도
    눌리면 그 기준이 흐려진다. 못 떠올린 사람에게도 답은 보여 준다. */
 .revealrow { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; }
-.revealrow .sc-reveal { min-height: 56px; font-size: 15.5px; margin-top: 0; }
-.revealrow .sc-miss { min-height: 44px; margin-top: 0; }
+.revealrow .sc-reveal { min-height: var(--touch-lg); font-size: 15.5px; margin-top: 0; }
+.revealrow .sc-miss { min-height: var(--touch); margin-top: 0; }
 .judge {
   min-height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; padding: 8px 4px;

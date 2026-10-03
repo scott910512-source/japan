@@ -315,7 +315,7 @@
 }
 .td-done b { font-size: 15px; font-weight: 800; }
 .td-done span { font-size: 12.5px; color: var(--ink-soft); }
-.td-more { margin-top: 8px; min-height: 44px; padding: 0 18px; }
+.td-more { margin-top: 8px; min-height: var(--touch); padding: 0 18px; }
 
 /* 설정 목표와 오늘 실제 배정량은 다른 숫자다 —
    복습이 없는 날 목표 60을 띄우면 있지도 않은 40개를 못 한 것처럼 보인다 */
@@ -357,7 +357,7 @@
    큰 버튼보다 눈에 먼저 들어오면 안 된다. */
 .hm-goal {
   display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 4px;
-  padding: 10px 12px; min-height: 44px; border-radius: 14px; border: none;
+  padding: 10px 12px; min-height: var(--touch); border-radius: 14px; border: none;
   background: var(--surface-2); color: var(--ink); cursor: pointer; text-align: left; font: inherit;
 }
 .hg-lab { flex: 0 0 auto; font-size: 12.5px; font-weight: 800; color: var(--kon); }
@@ -393,7 +393,7 @@
 .rv-num.rv-ok { font-size: 20px; color: var(--kon); }
 .rv-sub { font-size: 12.5px; color: var(--ink-soft); }
 .rv-start { margin: 6px 0 0; }
-.rv-more { margin-top: 4px; min-height: 44px; }
+.rv-more { margin-top: 4px; min-height: var(--touch); }
 .rv-list { padding: 4px 6px; }
 .rv-row { gap: 12px; min-height: 58px; }
 .rv-row:disabled { opacity: .55; cursor: default; }
@@ -426,7 +426,7 @@
   text-align: right; font-size: 11px; color: var(--ink-soft); line-height: 1.45;
 }
 .wb-fast { font-style: normal; font-weight: 800; color: var(--shu); }
-.wb-start { margin: 0; min-height: 44px; }
+.wb-start { margin: 0; min-height: var(--touch); }
 .wb-note { margin: 0; }
 
 /* ── 내 학습: JLPT N3 ── */
@@ -513,4 +513,4 @@
 .kj-all { width: 100%; justify-content: center; margin-top: 8px; }
 .kg-dots button.kg-dot { border: 0; padding: 0; cursor: pointer; min-height: 22px; }
 .kg-dots button.kg-dot::after { content: ''; display: block; height: 22px; margin-top: -8px; }
-.kg-auto { width: 100%; justify-content: center; margin-top: 10px; min-height: 44px; }
+.kg-auto { width: 100%; justify-content: center; margin-top: 10px; min-height: var(--touch); }

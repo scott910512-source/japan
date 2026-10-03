@@ -335,7 +335,7 @@
   display: flex; align-items: center; gap: 2px; background: none; border: none;
   color: var(--kon); font: inherit; font-size: 14px; font-weight: 600; padding: 6px; cursor: pointer;
   /* 손가락으로 짚는 것은 44px는 돼야 한다. 글자 높이만 두면 30px밖에 안 된다. */
-  min-height: 44px;
+  min-height: var(--touch);
 }
 .inner-back svg { width: 18px; height: 18px; }
 
@@ -352,7 +352,7 @@
 .ls-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .ls-pill {
   flex: 0 1 auto; display: inline-flex; align-items: center; gap: 6px;
-  min-height: 44px; padding: 0 14px; border-radius: 12px;
+  min-height: var(--touch); padding: 0 14px; border-radius: 12px;
   border: 1.5px solid var(--line); background: var(--surface);
   color: var(--ink); font: inherit; font-size: 13.5px; font-weight: 700;
   cursor: pointer;
@@ -371,7 +371,7 @@
 .ls-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .toggle-pill {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  min-height: 56px; padding: 9px 11px; border-radius: 14px;
+  min-height: var(--touch-lg); padding: 9px 11px; border-radius: 14px;
   border: 1.5px solid var(--line); background: var(--surface);
   color: var(--ink); font: inherit; text-align: left; cursor: pointer;
 }
@@ -397,7 +397,7 @@
 .ls-beat {
   width: calc(100% - 32px); margin: 10px 16px 0;
   flex-direction: column; gap: 2px;
-  justify-content: center; min-height: 56px; font-size: 15px; font-weight: 700;
+  justify-content: center; min-height: var(--touch-lg); font-size: 15px; font-weight: 700;
 }
 .ls-beat.on { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 /* 지금 값은 크게, 다음에 무엇이 되는지는 작게. 숨이 찬 상태로 보면 글자
@@ -406,7 +406,7 @@
 .ls-beat .lb-now { font-size: 17px; font-variant-numeric: tabular-nums; }
 .ls-beat .lb-hint { font-size: 11px; font-weight: 600; opacity: 0.7; }
 .ls-beatcard { display: flex; flex-direction: column; gap: 12px; }
-.ls-beatcard .toggle-pill { min-height: 56px; }
+.ls-beatcard .toggle-pill { min-height: var(--touch-lg); }
 .ls-bpms button { font-variant-numeric: tabular-nums; }
 
 /* ── 듣기: 구간 · 바퀴 · 시험으로 ── */
@@ -418,7 +418,7 @@
    누르는 자리는 44px를 지킨다. 구간이 마흔 개가 넘는 범위도 있어서 접힌다. */
 .ls-blockpick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .ls-blk {
-  min-width: 44px; min-height: 44px; padding: 0 8px; border-radius: 11px;
+  min-width: 44px; min-height: var(--touch); padding: 0 8px; border-radius: 11px;
   border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
   font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
   font-variant-numeric: tabular-nums;
@@ -427,13 +427,13 @@
 .ls-blockrow .set-sub { margin-top: 8px; }
 
 .ls-blocknav { display: flex; gap: 8px; margin-top: 10px; }
-.ls-blocknav .ghost-btn { flex: 1; justify-content: center; min-height: 44px; }
+.ls-blocknav .ghost-btn { flex: 1; justify-content: center; min-height: var(--touch); }
 .ls-blocknav .ghost-btn:disabled { opacity: .4; cursor: default; }
 .ls-yomi .ly-kana { font-weight: 700; }
 .ls-yomi .ly-han { margin-left: 8px; opacity: .75; }
-.ls-droprow .ghost-btn { margin-top: 10px; width: 100%; justify-content: center; min-height: 44px; }
-.ls-know { width: calc(100% - 32px); margin: 10px 16px 0; justify-content: center; min-height: 44px; }
+.ls-droprow .ghost-btn { margin-top: 10px; width: 100%; justify-content: center; min-height: var(--touch); }
+.ls-know { width: calc(100% - 32px); margin: 10px 16px 0; justify-content: center; min-height: var(--touch); }
 .ls-pause.on { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 .ls-quiz { margin: 0 16px 10px; width: calc(100% - 32px); justify-content: center; }
-.ls-quizlast { width: 100%; justify-content: center; margin-top: 14px; min-height: 44px; }
+.ls-quizlast { width: 100%; justify-content: center; margin-top: 14px; min-height: var(--touch); }
 .qz-fromlisten .set-sub { margin-top: 4px; font-size: 12.5px; color: var(--ink-soft); }

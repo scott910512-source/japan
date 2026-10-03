@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTimeouts } from '../../hooks/useTimeouts.js';
 import { IconCheck, IconX, IconArrowLeft } from '../../components/Icons.jsx';
 import { speakJapanese, stopSpeaking } from '../../lib/tts.js';
 import { BLANK } from '../../data/n3/grammar.js';
@@ -18,6 +19,9 @@ export default function QuizRunner({
   questions, title, mode = 'study', rate = 0.9, autoSpeak = true,
   onAnswer, onFinish, onDone, onQuit, doneLabel = '완료', finishExtra = null, hideFinish = false, lastLabel = '결과 보기',
 }) {
+  /* 화면을 나가면 걸려 있던 타이머도 같이 꺼진다 — 안 그러면 나간 뒤에
+     한 판이 적히거나 한 문제가 넘어간다(hooks/useTimeouts.js) */
+  const { after } = useTimeouts();
   const [at, setAt] = useState(0);
   const [picked, setPicked] = useState(null);
   const [results, setResults] = useState([]);
@@ -49,7 +53,7 @@ export default function QuizRunner({
     onAnswer?.(q, ok, opt);
     if (ok && q.speakAfter && autoSpeak) speakJapanese(q.speakAfter, rate);
     /* 실전은 바로 다음으로 — 설명은 끝에 */
-    if (mode === 'exam') setTimeout(() => advance(next), 250);
+    if (mode === 'exam') after(() => advance(next), 250);
   };
 
   const advance = (list = results) => {

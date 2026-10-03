@@ -53,6 +53,26 @@ export function sessionFrom(res) {
  *   offlinePass  「오프라인으로 계속」을 고른 적 있나
  *
  * 'loading' 확인 중 · 'gate' 로그인 문 · 'app' 앱 */
+/* ★ 「이 기기 기록으로 계속하기」를 보여 줄까 ★
+ *
+ * 여태 navigator.onLine 하나로 정했다. 그런데 그 값은 「랜선이 꽂혀 있나」에
+ * 가깝다 — 와이파이에는 붙었는데 인터넷이 안 되는 자리(호텔 로그인 페이지,
+ * 기내 와이파이, 회사 방화벽)에서 참이고, 서버가 죽었을 때도 참이다.
+ *
+ * 그 경우가 제일 나쁘다. onLine이 참이니 이 버튼이 안 뜨고, 로그인은
+ * 서버가 없어서 안 되고, 그래서 이 화면에 갇힌다 — 기기에는 어제까지 공부한
+ * 기록이 멀쩡히 있는데 들어갈 길이 없다.
+ *
+ * 그래서 「서버가 안 받는다」도 같이 본다. 로그인 확인이 시간초과로 끝났거나
+ * 동기화가 실패한 상태가 그것이다.
+ *
+ * 전에 로그인한 적이 없으면 안 보여 준다. 그 기기에는 이어 갈 기록이 없고,
+ * 빈손으로 들어가면 아무것도 없는 앱을 보게 된다. */
+export function canContinueOffline({ signedInOnce = false, online = true, serverDown = false } = {}) {
+  if (!signedInOnce) return false;
+  return !online || Boolean(serverDown);
+}
+
 export function authGate({ configured = true, ready = false, session = null, offlinePass = false } = {}) {
   if (!configured) return 'app';        // 서버를 안 쓰면 그냥 들어간다
   if (session) return 'app';            // 세션이 있으면 확인이 끝나기 전이라도 들어간다

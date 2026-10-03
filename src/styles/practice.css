@@ -85,7 +85,7 @@
   width: 100%; margin-top: 10px; display: flex; align-items: center; gap: 12px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
   padding: 14px 14px; text-align: left; color: inherit; font: inherit; cursor: pointer;
-  min-height: 56px;
+  min-height: var(--touch-lg);
 }
 .rc-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--kon-soft); color: var(--kon); flex: 0 0 auto; }
 .rc-icon svg { width: 18px; height: 18px; }
@@ -472,7 +472,7 @@
 .swh-ubody b { font-size: 15px; font-weight: 800; }
 .swh-ubody span { font-size: 11.5px; color: var(--ink-soft); }
 .swh-lessons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.swh-lesson { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 700; min-height: 44px; }
+.swh-lesson { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 700; min-height: var(--touch); }
 .swh-lesson.open { border-color: var(--kon); }
 .swh-lesson.done { border-color: var(--kon); background: var(--kon-soft); }
 .swh-lesson.locked { opacity: .5; cursor: default; }
@@ -496,10 +496,10 @@
 .swl-bigspk svg { width: 38px; height: 38px; }
 .swl-slow { margin-top: 6px; }
 .qopt.picked { border-color: var(--kon); }
-.swl-built { min-height: 56px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; border-bottom: 1.5px dashed var(--line); margin-top: 12px; }
+.swl-built { min-height: var(--touch-lg); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; border-bottom: 1.5px dashed var(--line); margin-top: 12px; }
 .swl-hint { font-size: 12px; color: var(--ink-soft); }
 .swl-bank { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0; }
-.swl-tok { padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-size: 16px; font-weight: 700; cursor: pointer; min-height: 44px; }
+.swl-tok { padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-size: 16px; font-weight: 700; cursor: pointer; min-height: var(--touch); }
 .swl-tok.on { border-color: var(--kon); background: var(--kon-soft); }
 .swl-tok.used { opacity: .25; }
 .swl-feedback { margin-top: 14px; padding: 14px; border-radius: 14px; border: 1.5px solid var(--line); }
@@ -513,7 +513,7 @@
 .swl-fbody em { font-style: normal; color: var(--ink-soft); font-size: 12px; }
 .swl-match { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
 .swl-mcol { display: flex; flex-direction: column; gap: 8px; }
-.swl-mbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 56px; }
+.swl-mbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; min-height: var(--touch-lg); }
 .swl-mbtn b { font-size: 15px; font-weight: 800; }
 .swl-mbtn span { font-size: 11px; color: var(--kon); }
 .swl-mbtn.sel { border-color: var(--kon); background: var(--kon-soft); }
@@ -536,7 +536,7 @@
 
 /* ── 🔊 버튼과 스위스 팁 (독일어 코스) ──
    손가락 자리 44px. 읽는 중이면 색이 바뀐다 — 열 개 중 어느 것이 나는지 보여야 한다. */
-.spk { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 0 10px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--kon); cursor: pointer; flex: 0 0 auto; }
+.spk { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: var(--touch); padding: 0 10px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--kon); cursor: pointer; flex: 0 0 auto; }
 .spk svg { width: 20px; height: 20px; }
 .spk.playing { background: linear-gradient(135deg, var(--kon), var(--kon-deep)); border-color: transparent; color: #fff; box-shadow: var(--glow-btn); animation: spk-pulse 1s ease-in-out infinite; }
 @keyframes spk-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }

@@ -15,6 +15,10 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
   const [vaultKey, setVaultKey] = useState(() => loadVaultKey());
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
   const [recovering, setRecovering] = useState(false);
+  /* 로그인 확인이 시간초과로 끝났나. 「서버에 닿지 못했다」는 뜻이라,
+     로그인 문이 「이 기기 기록으로 계속하기」를 띄울지 정하는 데 쓴다 —
+     와이파이는 잡혔는데 서버가 죽은 자리에서 갇히지 않게. */
+  const [authTimedOut, setAuthTimedOut] = useState(false);
 
   const patchSettings = useCallback((patch) => setSettings((s) => ({ ...s, ...patch })), []);
   /* ── 계정 · 기기 간 동기화 ── */
@@ -39,6 +43,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     const giveUp = setTimeout(() => {
       if (settled) return;
       settled = true;
+      setAuthTimedOut(true);
       setAuthReady(true);
     }, AUTH_READY_TIMEOUT);
     const done = (session) => {
@@ -48,19 +53,21 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
       setAuthSession(session);
       setAuthReady(true);
     };
+    /* 거절로 끝난 경우도 「서버에 닿지 못했다」다 — 시간초과와 같게 다룬다 */
+    const failed = () => { if (!settled) setAuthTimedOut(true); done(null); };
     try {
       supabase.auth.getSession()
         .then((res) => done(sessionFrom(res)))
-        .catch(() => done(null));
+        .catch(failed);
     } catch {
       /* 부르는 그 자리에서 던지는 경우도 있다 — 설정이 깨졌을 때가 그렇다 */
-      done(null);
+      failed();
     }
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setAuthSession(next);
       /* 상태 변화가 왔다는 것은 로그인 쪽이 살아 있다는 뜻이다 — 아직
          기다리는 중이면 여기서 끝낸다. */
-      if (!settled) { settled = true; clearTimeout(giveUp); setAuthReady(true); }
+      if (!settled) { settled = true; clearTimeout(giveUp); setAuthTimedOut(false); setAuthReady(true); }
       // 재설정 메일 링크로 돌아온 경우다. 세션만 열고 끝내면 비밀번호는 안 바뀐다.
       if (event === 'PASSWORD_RECOVERY') setRecovering(true);
     });
@@ -214,6 +221,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     setRemoteKeyEnvelope,
     vaultKey,
     authReady,
+    authTimedOut,
     recovering,
     setRecovering,
     rememberVaultKey,

@@ -14,7 +14,9 @@
  * 그 「고를 수 있는 자리」가 로그인 문이고, 거기에는 전에 로그인한 적
  * 있으면 오프라인으로 계속하는 길이 있다 — 서버가 죽어 있어도 기기에 있는
  * 것으로 공부할 수 있어야 한다. */
-import { AUTH_READY_TIMEOUT, authGate, sessionFrom } from '../../src/lib/authboot.js';
+import {
+  AUTH_READY_TIMEOUT, authGate, canContinueOffline, sessionFrom,
+} from '../../src/lib/authboot.js';
 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => {
@@ -93,6 +95,29 @@ console.log('\n[ ★ 네 갈래 어디로 가도 갇히지 않는다 ★ ]');
     const g = authGate({ configured: true, ...st });
     ok(`${name} → 기다리는 화면에 안 갇힌다`, g !== 'loading', g);
   }
+}
+
+console.log('\n[ ★ 이 기기 기록으로 계속하기 ★ ]');
+{
+  /* 여태 navigator.onLine 하나로 정했다. 그 값은 「랜선이 꽂혀 있나」에
+     가까워서, 와이파이에는 붙었는데 인터넷이 안 되는 자리에서 참이고
+     서버가 죽었을 때도 참이다 — 그러면 버튼이 안 뜨고, 로그인은 서버가
+     없어서 안 되니 로그인 문에 갇힌다. 기기에는 기록이 멀쩡히 있는데. */
+  ok('인터넷이 없고 전에 로그인한 적 있으면 보여 준다',
+    canContinueOffline({ signedInOnce: true, online: false }) === true);
+  ok('★ 와이파이는 잡혔는데 서버가 죽었을 때도 보여 준다 ★',
+    canContinueOffline({ signedInOnce: true, online: true, serverDown: true }) === true);
+  ok('둘 다 멀쩡하면 안 보여 준다 — 로그인하면 된다',
+    canContinueOffline({ signedInOnce: true, online: true }) === false);
+
+  /* ★ 전에 로그인한 적이 없으면 안 보여 준다 ★
+     그 기기에는 이어 갈 기록이 없다. 빈손으로 들어가면 아무것도 없는 앱을
+     보게 되고, 그게 「고장났다」로 읽힌다. */
+  ok('★ 처음 쓰는 기기에는 안 보여 준다 ★',
+    canContinueOffline({ signedInOnce: false, online: false }) === false);
+  ok('처음 쓰는 기기 + 서버 죽음도 안 보여 준다',
+    canContinueOffline({ signedInOnce: false, online: true, serverDown: true }) === false);
+  ok('빈손으로 불러도 안 죽는다', canContinueOffline() === false);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

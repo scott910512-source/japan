@@ -1,14 +1,17 @@
 import { useAppData, usePersistAppData } from './app/useAppData.js';
-import { useLayerNavigation } from './app/useLayerNavigation.js';
 import FeatureScreen from './app/FeatureScreen.jsx';
 import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
 import { filterByLevel } from './lib/wordFilters.js';
 import { useAccountSync } from './app/useAccountSync.js';
+import { useAppNavigation } from './app/useAppNavigation.js';
+import { useAppBoot } from './app/useAppBoot.js';
+import { useVerdicts } from './app/useVerdicts.js';
+import { useAppNumbers } from './app/useAppNumbers.js';
 import { useToast } from './app/useToast.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TabBar from './components/TabBar.jsx';
-import { ensurePlan, markStudied, noteFreeStudy, planStatus, reviewLeftOf, unmarkStudied } from './lib/plan.js';
+import { ensurePlan } from './lib/plan.js';
 import { LANE_DECK, useStudyQueue } from './app/useStudyQueue.js';
 import BottomSheet from './components/BottomSheet.jsx';
 import Onboarding from './components/Onboarding.jsx';
@@ -16,22 +19,12 @@ import Today from './screens/Today.jsx';
 import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { dailyPool } from './lib/cards.js';
-import { markBusy } from './lib/busy.js';
 import { kijuIndex } from './lib/kiju.js';
-import {
-  touchStreak, loadStreak, setStorageErrorHandler, setStorageOkHandler,
-  hasSignedInOnce,
-} from './lib/storage.js';
-import { addToDay, removeFromDay, noteActivity as noteActivityIn } from './lib/stats.js';
-import { audioUnlocked, configureTTS, setTTSErrorHandler, unlockAudio } from './lib/tts.js';
-import { configureSTT } from './lib/stt.js';
-import { applyVerdict, dueCards, isSessionClear, stateOf, summarize, todayKey } from './lib/review.js';
-import { forgetSpeed, noteWeak, relapseNotes, weakReasons, weakSummary } from './lib/weak.js';
-import { roundSummary } from './lib/rounds.js';
+import { hasSignedInOnce } from './lib/storage.js';
+import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
 import { useToday } from './lib/useToday.js';
-import { GRAMMAR_MODULES } from './data/grammar.js';
 
 const SUB_TITLES = {
   basics: '완전기초',
@@ -56,21 +49,15 @@ const SUB_TITLES = {
 };
 
 export default function App() {
-  /* 탭은 넷 — 홈 · 학습 · 복습 · 내 학습. 영상(videos)은 탭이 아니라 학습 탭
-     안의 화면인데, 유튜브 플레이어를 품고 있어서 밀어 넣는 화면(sub)이 아니라
-     탭 자리(ScreenSlot)에 산다 — 그래서 activeTab 값으로 남아 있다. */
-  const [activeTab, setActiveTab] = useState('home');
-  const [videosSeen, setVideosSeen] = useState(false); // 영상 화면에 한 번이라도 들어갔는지
-  const [sub, setSub] = useState(null);
-  /* N3 코스를 어느 자리에서 열지 — 학습 탭 「한자」는 한자 과정, 복습 탭
-     「틀린 문제」는 오답노트. 코스가 열릴 때 한 번 읽는다. */
-  const [n3View, setN3View] = useState(null);
-  // 듣기에 어떤 방식으로 들어왔는지 — 자동 듣기냐 따라 말하기냐
-  const [listenMode, setListenMode] = useState('listen');
-  /* 듣기에서 시험으로 넘어갈 때 들고 가는 세트. 비어 있으면 시험은 평소대로
-     제 설정(범위·개수)으로 문제를 짠다. */
-  const [quizSet, setQuizSet] = useState(null);
-  const [deck, setDeck] = useState(null); // 학습 중인 덱 (있으면 회독 화면이 전체를 덮는다)
+  /* 어디에 있나 — 탭 · 밀어 넣은 화면 · 회독 판, 그리고 뒤로가기 연동과
+     「지금 갈아끼우면 잃는 게 있나」 표시까지 app/useAppNavigation.js가 쥔다.
+     주소가 없는 앱이라 「지금 어느 화면인가」가 전부 상태값이고, 그게 일곱
+     개로 흩어져 있으면 한 자리를 열 때 함께 할 일을 빼먹는다. */
+  const nav = useAppNavigation();
+  const {
+    activeTab, sub, deck, n3View, listenMode, quizSet, videosSeen,
+    setActiveTab, setSub, setDeck, setQuizSet, selectTab, openListen,
+  } = nav;
 
   const appData = useAppData();
   const {
@@ -106,11 +93,12 @@ export default function App() {
     setTrends,
     removeVideo
   } = appData;
-  const [streak, setStreak] = useState({ count: 0, lastDate: null });
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const { toast, showToast } = useToast();
-  /* 저장이 막힌 상태. 해결될 때까지 남는다 — 토스트만으로는 못 알아챈다. */
-  const [storeError, setStoreError] = useState(null);
+  /* 앱을 켤 때 브라우저와 맞추는 일들 — 저장 실패를 받는 손, 음성 오류,
+     「새 버전이 준비됐다」 알림, iOS 오디오 열기, 연속일, 테마, 음성 설정.
+     전부 바깥 시스템과 맞추는 일이라 app/useAppBoot.js에 모았다. */
+  const { storeError, streak, setStreak } = useAppBoot({ settings, showToast });
   const [offlinePass, setOfflinePass] = useState(false);
   const {
     authSession,
@@ -120,6 +108,7 @@ export default function App() {
     setRemoteKeyEnvelope,
     vaultKey,
     authReady,
+    authTimedOut,
     recovering,
     setRecovering,
     rememberVaultKey,
@@ -127,79 +116,6 @@ export default function App() {
     syncedFor,
     patchSettings
   } = useAccountSync({ data: appData, streak, setStreak, showToast });
-
-  useEffect(() => {
-    /* 저장 실패는 토스트로 끝내지 않는다 — 두 걸음 걷고 나면 사라지는데 그
-       사이 기록은 계속 저장되지 않는다. 해결될 때까지 설정의 저장 상태에 남는다. */
-    setStorageErrorHandler((msg) => { showToast(msg); setStoreError(msg); });
-    // 켜져 있을 때만 끈다 — write가 성공할 때마다 화면을 다시 그리지 않게
-    setStorageOkHandler(() => setStoreError((cur) => (cur ? null : cur)));
-    setTTSErrorHandler(showToast);
-    /* 새 버전이 준비됐는데 학습 중이라 미뤄 둔 경우(main.jsx). 조용히 미루면
-       왜 안 바뀌는지 알 수 없으니 한 번 알린다 — 판을 끝내면 적용된다. */
-    const onWaiting = (e) => showToast(
-      e?.detail?.label || '새 버전이 준비됐어요 · 앱을 내려놨다 열면 적용돼요',
-    );
-    window.addEventListener('jp:update-waiting', onWaiting);
-    /* 연속일은 여기서 올리지 않는다 — 앱을 켠 것과 공부한 것은 다르다.
-       올리는 자리는 오늘 첫 판정(applyReview)이다. */
-    setStreak(loadStreak());
-    /* 온보딩은 여기서 열지 않는다. 로그인한 사람은 계정에 이미 답이 있는데,
-       동기화가 내려오기 전에 물어보면 기기를 바꿀 때마다 「가타카나 읽을 줄
-       아세요?」를 다시 답하게 된다. 아래 effect가 알 만해진 뒤에 정한다. */
-
-    // iOS는 첫 사용자 제스처에서만 오디오를 열어준다.
-    // 한 번에 성공하지 못할 수 있어 열릴 때까지 계속 시도한다.
-    const unlock = () => {
-      unlockAudio();
-      if (audioUnlocked()) window.removeEventListener('pointerdown', unlock);
-    };
-    window.addEventListener('pointerdown', unlock);
-    return () => {
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('jp:update-waiting', onWaiting);
-    };
-  }, [showToast]);
-
-  useLayerNavigation({ deck, sub, setDeck, setSub });
-
-  /* ★ 밀어 넣은 화면이 열려 있으면 새 버전으로 안 갈아끼운다 ★
-   *
-   * 화면마다 따로 알리게 해 두었더니 구멍이 남았다 — N3 코스는 문제를 푸는
-   * 중에만 표시를 세웠고, 코스를 열어 놓고 무엇을 할지 고르는 동안(허브)은
-   * 「끊길 게 없다」로 읽혔다. 거기가 바로 「N3 들어가서 공부하려고 할 때」다.
-   * 기출 단어·단어·문법도 마찬가지로 비어 있었다.
-   *
-   * 화면을 하나씩 세는 방식이 틀렸다. 밀어 넣은 화면이 열려 있다는 것은 곧
-   * 새로고침하면 그 화면이 닫히고 탭으로 돌아간다는 뜻이고, 그게 쓰는 사람에게
-   * 「튕겼다」이다. 무엇을 하던 중인지는 따질 필요가 없다.
-   *
-   * 회독 판(deck)과 영상도 같이 본다. 판은 저장소에도 남지만 여기서 보면
-   * 저장되기 전의 한 걸음까지 덮인다. */
-  useEffect(() => {
-    markBusy('sub', Boolean(sub));
-    return () => markBusy('sub', false);
-  }, [sub]);
-  useEffect(() => {
-    markBusy('deck', Boolean(deck));
-    return () => markBusy('deck', false);
-  }, [deck]);
-  useEffect(() => {
-    markBusy('videos', activeTab === 'videos');
-    return () => markBusy('videos', false);
-  }, [activeTab]);
-  /* ★ 홈이 아닌 자리도 「하던 중」이다 ★
-   *
-   * 여태 이 표시는 판정하는 자리(듣기·시험·코스·회독)만 세웠다. 그런데
-   * 갈아끼우기는 곧 새로고침이고, 이 앱은 주소가 없다 — 어느 탭에 있었든
-   * 새로고침하면 홈이다. 학습 탭을 열어 둔 사람에게 그건 그냥 튕김이다.
-   *
-   * 홈에 그대로 있을 때는 세우지 않는다. 그 자리에서는 새로고침해도 다시
-   * 홈이라 잃는 게 없고, 그 틈이 있어야 새 버전이 실제로 적용된다. */
-  useEffect(() => {
-    markBusy('tab', activeTab !== 'home');
-    return () => markBusy('tab', false);
-  }, [activeTab]);
 
   /* 온보딩을 열지 말지 정한다.
    *
@@ -223,23 +139,6 @@ export default function App() {
 
   usePersistAppData(appData);
 
-  // 음성 인식도 같은 Google API 키를 쓴다
-  useEffect(() => {
-    configureTTS({
-      gttsKey: settings.gttsKey,
-      useCloud: settings.useCloudTTS,
-      voice: settings.gttsVoice,
-      deviceVoiceURI: settings.deviceVoiceURI,
-    });
-    configureSTT({ gttsKey: settings.gttsKey, useCloud: settings.useCloudTTS });
-  }, [settings.gttsKey, settings.useCloudTTS, settings.gttsVoice, settings.deviceVoiceURI]);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (settings.theme === 'system') root.removeAttribute('data-theme');
-    else root.setAttribute('data-theme', settings.theme);
-  }, [settings.theme]);
-
   /* ★ 학습 자료는 따로 받는다 ★
      단어 2,674·상황 문장 600을 App이 정적으로 불러와서 첫 로딩 JS의 대부분이
      자료였다. lib/content.js를 import()로 열어 껍데기(탭·홈)가 먼저 뜨고, 자료가
@@ -256,123 +155,19 @@ export default function App() {
   /* 오늘 날짜를 화면에 묶는다. 렌더 안에서 todayKey()를 부르기만 하면
      자정을 넘겨도 리액트가 다시 안 그려서, 복습 배지가 어제 값에 머문다. */
   const today = useToday();
-  const due = useMemo(() => dueCards(wordIds, review, today), [wordIds, review, today]);
-
   const sentenceIds = useMemo(() => content?.sentenceIds || [], [content]);
-  const sentenceDue = useMemo(
-    () => dueCards(sentenceIds, review, today).length,
-    [sentenceIds, review, today],
-  );
 
 
   /* ── 회독 ── */
 
-  const applyReview = useCallback((nextReview, verdict, cardId, opts) => {
-    setReview(nextReview);
-
-    /* ★ 「몇 번 눌렀나」와 「무엇을 끝냈나」는 다른 숫자다 ★
-       아래 stats는 앞엣것(활동 통계), plan은 뒤엣것(고유 학습 완료)이다.
-       한 카드를 세 번 만나면 stats는 3이 오르고 plan은 1이 오른다. */
-    if (cardId) {
-      /* ★ 「만났다」와 「끝냈다」는 다르다 ★
-         몰라요를 누른 카드는 이번 판에서 다시 나온다. 그걸 완료로 세면
-         「남은 0개」인데 화면에는 카드가 계속 나오는 꼴이 된다.
-         이번 판에서 정리된 것(isSessionClear)만 완료로 센다. */
-      const clear = isSessionClear(stateOf(nextReview, cardId));
-      setPlan((prev) => (opts?.undo || !clear
-        ? unmarkStudied(prev, cardId)
-        : markStudied(prev, cardId)));
-    }
-
-    if (!verdict) return;
-
-    /* 되돌릴 때는 그 판정이 적힌 날에서 뺀다. 오늘로 잡으면 자정을 넘겨
-       되돌렸을 때 어제 올린 것을 오늘에서 빼게 된다. */
-    const day = opts?.day || todayKey();
-
-    /* ★ 되돌리면 활동 수도 물러야 한다 ★
-     *
-     * 여태 판정은 올리고 되돌리기는 안 뺐다. 그래서 잘못 눌러 되돌리고 다시
-     * 누르면 카드 하나를 한 번 판정했는데 활동이 둘로 셌다. 화면에 「오늘 40개」가
-     * 뜨는데 실제로 본 카드는 스무 장인 식이다 — 고칠 데를 찾으려고 기록을
-     * 보는 사람에게 기록이 거짓말을 하면 볼 이유가 없다. */
-    if (opts?.undo) {
-      setStats((prev) => removeFromDay(prev, day, [verdict]));
-      /* 연속일은 되돌리지 않는다. 「오늘 공부했나」는 판정 하나에 달린 게 아니고,
-         한 장을 물렀다고 그 날 안 한 것이 되지도 않는다. 되돌릴 근거가 없다. */
-      return;
-    }
-
-    // 오늘 처음 판정한 순간에 연속일이 오른다. 같은 날 두 번째부터는 그대로 둔다.
-    setStreak((prev) => (prev.lastDate === day ? prev : touchStreak()));
-    setStats((prev) => addToDay(prev, day, [verdict]));
-  }, []);
-
-  /* 회독 화면 밖에서 판정이 들어올 때 — 지금은 실전 연습이 유일하다.
-   *
-   * { 표현id: 판정 } 여러 개를 한꺼번에 받는다. 실전 한 판이 끝나야 결과가
-   * 나오니 낱장으로 부를 자리가 없다. 여기를 거치면 그 표현은 회독 저장소에
-   * 들어가고, 다음 날 오늘의 학습이 약점으로 집어 간다 — 별도 배선 없이.
-   *
-   * 연속일은 여기서 올린다. 실전도 공부다. 통계의 studied도 같이 센다. */
-  const applyVerdicts = useCallback((map) => {
-    const ids = Object.keys(map || {});
-    if (!ids.length) return;
-    const day = todayKey();
-    /* ★ 잊어버림은 판정을 적용하기 전에 센다 ★
-       적용하고 나면 기억 단계가 0으로 내려가서, 「외웠던 낱말이 무너졌다」는
-       사실이 사라진다. 판정 뒤에 세면 전부 「그냥 모르는 낱말」로 보인다.
-
-       ★ setReview 안에서 세지 않는다 ★
-       그 안이 판정 직전의 상태를 쥐고 있어서 처음엔 거기서 셌는데, 갱신
-       함수는 React가 두 번 부를 수 있다(StrictMode). 세는 일은 더하기라
-       두 번 불리면 한 번 틀린 것이 두 번으로 적힌다. 그래서 바깥에서, 그릴
-       때 담아 둔 회독 기록(reviewRef)으로 센다. */
-    const relapses = relapseNotes(reviewRef.current, map, day);
-    if (relapses.length) {
-      setProgress((p) => ({ ...p, weak: noteWeak(p.weak, relapses) }));
-    }
-    setReview((prev) => {
-      const next = { ...prev };
-      for (const id of ids) next[id] = applyVerdict(next[id], map[id], day);
-      return next;
-    });
-    setStreak((prev) => (prev.lastDate === day ? prev : touchStreak()));
-    /* 계획 밖 자유 학습이라도 계획의 같은 항목을 채웠으면 한 번만 반영한다.
-       계획에 없는 카드면 여기서 계획 수를 늘리지 않는다 — 자유 학습으로
-       오늘 목표가 저절로 커지면 「오늘 할 것」이 무슨 뜻인지 알 수 없게 된다. */
-    setPlan((prev) => ids.reduce((pl, id) => noteFreeStudy(pl, id), prev));
-    /* 여기도 같은 표를 쓴다. 손으로 세던 때는 known을 빼먹어서, 실전에서
-       맞힌 것이 어느 칸에도 안 남았다. */
-    setStats((prev) => addToDay(prev, day, ids.map((id) => map[id])));
-  }, []);
-
-  /* 판정이 아닌 활동(듣기·시험). 회독 진도는 올리지 않고 활동 칸에만 적는다 —
-     들으면서 흘려보낸 것과 떠올려서 맞힌 것은 다른 일이다. 그래도 아무 데도
-     안 남으면 한 시간 듣고도 기록이 그대로라, 노력한 내역은 보여 준다. */
-  const noteActivity = useCallback((patch) => {
-    setStats((prev) => noteActivityIn(prev, todayKey(), patch));
-  }, []);
-
-  const saveMemo = useCallback((id, text) => {
-    setMemos((prev) => {
-      if (!text) {
-        const { [id]: _drop, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [id]: { text, at: new Date().toISOString() } };
-    });
-  }, []);
-
-  const toggleBookmark = useCallback((id) => {
-    setProgress((p) => {
-      const list = p.bookmarks || [];
-      return {
-        ...p,
-        bookmarks: list.includes(id) ? list.filter((x) => x !== id) : [...list, id],
-      };
-    });
-  }, []);
+  /* 판정이 들어올 때 무엇을 적는가 — 회독 기록 · 계획 · 활동 통계 · 약점
+     장부 네 군데가 각자 다른 셈법을 쓴다. 되돌리기까지 app/useVerdicts.js에
+     모았다(되돌릴 때 활동 수를 안 빼면 카드 하나가 둘로 세어진다). */
+  const {
+    applyReview, applyVerdicts, noteActivity, noteWeakness, saveMemo, toggleBookmark,
+  } = useVerdicts({
+    review, setReview, setPlan, setProgress, setStats, setStreak, setMemos,
+  });
 
   // 오늘 학습 덱만 daily로 표시한다 — 복습 섞기 + 신규로 세션을 짜라는 뜻.
   /* 오늘의 학습 — 앱이 짜 준 큐 하나로 단어와 문장을 같이 돈다.
@@ -426,89 +221,15 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today, todayPool.length, settings.goals, settings.purpose, review]);
 
-  /* 화면·큐·통계가 모두 이 하나를 본다 — 같은 정보를 여러 곳에서 다른
-     숫자로 보여 주지 않으려면 셈하는 자리가 하나여야 한다. */
-  const planNow = useMemo(() => planStatus(plan), [plan]);
-
-  /* ★ 복습 탭 배지 · 홈 · 복습 탭이 같은 수를 본다 ★
-     오늘 계획의 복습·약점 갈래에서 남은 것 — reviewLeftOf 한 곳에서. 밀린
-     복습(backlog)은 배지에 더하지 않는다. 더했더니 배지는 「99+」인데 복습 탭은
-     「11개」라 같은 화면에서 숫자가 달랐다. 밀린 것은 복습 탭 안에서만 말한다. */
-  const reviewLeft = useMemo(() => reviewLeftOf(planNow).left, [planNow]);
-
-  /* 약점 — 복습 탭·내 학습·취약 단어 덱이 한 군데를 본다.
-   *
-   * 여기서 보는 것은 회독 기록(review)과 약점 장부(progress.weak) 둘이다.
-   * 회독만 보던 때는 시험에서 열 번 틀린 낱말이 약점 0이었다 — 시험·듣기가
-   * 회독에 아무것도 안 쓰기 때문이다(그 판단은 그대로 둔다). 장부가 그
-   * 빈자리를 채운다. 규칙은 lib/weak.js 한 군데에 있다. */
-  const weakBook = useMemo(
-    () => weakSummary(wordIds, review, progress.weak),
-    [wordIds, review, progress.weak],
-  );
-  const weakWords = weakBook.total;
-
-  /* 복습 탭이 그릴 줄 — 제일 약한 다섯 개와 왜 약한지.
-     숫자만 보여 주면 무엇을 할지가 안 정해진다. 「시험에서 세 번 틀렸어요」와
-     「쉰 번 들었어요」는 다음에 할 일이 다른 낱말이다. */
-  const weakRows = useMemo(() => weakBook.top.map(({ id, st, rec }) => {
-    const card = byId.get(id);
-    return {
-      id,
-      kanji: card?.kanji || id,
-      kana: card?.kana || '',
-      mean: (card?.mean || '').split(';')[0].trim(),
-      reasons: weakReasons(st, rec).slice(0, 3),
-      speed: forgetSpeed(rec),
-    };
-  }), [weakBook, byId]);
-
-  /* 회독 기록을 그릴 때마다 담아 둔다. 판정을 받는 함수(applyVerdicts)는
-     의존성이 빈 배열이라 지금 상태를 모르는데, 「외웠던 낱말인가」를 알려면
-     판정 직전의 기록이 필요하다. 의존성에 review를 넣으면 판정마다 함수가
-     새로 생기고, 그걸 의존성으로 쓰는 효과(N3 코스)가 같이 다시 돈다. */
-  const reviewRef = useRef(review);
-  useEffect(() => { reviewRef.current = review; }, [review]);
-
-  /* 약점 장부에 한 줄 적는다 — 시험과 듣기가 부른다.
-     회독 저장소는 안 건드린다. 시험 때문에 복습 간격이 흔들리면 시험을
-     마음 편히 못 보고, 듣기는 흘려들은 것까지 외운 것으로 세게 된다. */
-  const noteWeakness = useCallback((notes) => {
-    if (!notes?.length) return;
-    setProgress((p) => {
-      const weak = noteWeak(p.weak, notes);
-      return weak === p.weak ? p : { ...p, weak };
-    });
-  }, []);
-  /* 단어 회독 현황과 기억 단계 — 학습 탭·내 학습이 각자 세던 것을 한 번만 센다.
-     review가 바뀔 때만 다시 센다(판정 한 번에 한 번). */
-  const wordStat = useMemo(() => summarize(wordIds, review), [wordIds, review]);
-  const rounds = useMemo(() => roundSummary(wordIds, review), [wordIds, review]);
-
-  /* N3 오답노트 수 — 코스 자료를 안 불러오고 progress.n3.wrong만 센다.
-     취약 문법은 같은 꼭지를 두 번 넘게 틀린 것. */
-  const n3Wrong = useMemo(() => {
-    const w = progress.n3?.wrong || {};
-    let all = 0; const refs = {};
-    for (const e of Object.values(w)) {
-      all += 1;
-      if ((e.cat === 'grammar' || e.cat === 'particle') && e.ref) refs[e.ref] = (refs[e.ref] || 0) + (e.c || 1);
-    }
-    return { all, grammar: Object.values(refs).filter((c) => c >= 2).length };
-  }, [progress.n3?.wrong]);
-
-  /* 아직 한 번도 안 본 문법 꼭지 수. 홈이 「오늘의 문법」에 적는다 —
-     숫자가 없으면 눌러 보고 나서야 할 게 있는지 알게 된다. */
-  const grammarLeft = useMemo(
-    () => GRAMMAR_MODULES.filter((m) => !(progress.grammarDone?.[m.id] > 0)).length,
-    [progress.grammarDone],
-  );
-  /* 오늘 볼 문법 꼭지 이름. 개수만 적으면 무엇을 배우는지 모른 채로 누른다 —
-     「아직 안 본 것 3개」와 「て형」은 같은 정보가 아니다. */
-  const grammarNext = useMemo(() => {
-    const m = GRAMMAR_MODULES.find((x) => !(progress.grammarDone?.[x.id] > 0));
-    return m ? `${m.title} · 짧은 테스트까지` : null;
-  }, [progress.grammarDone]);
+  /* 화면들이 보여 주는 숫자 — app/useAppNumbers.js 한 군데서만 센다.
+     복습 탭 배지는 「99+」인데 열어 보면 「11개」인 적이 있었다. 같은 화면에서
+     숫자가 다르면 쓰는 사람은 둘 다 안 믿는다. */
+  const {
+    due, sentenceDue, planNow, reviewLeft,
+    weakBook, weakWords, weakRows, wordStat, rounds, n3Wrong, grammarLeft, grammarNext,
+  } = useAppNumbers({
+    words, wordIds, byId, review, progress, plan, sentenceIds, today,
+  });
 
   /* 회독 판을 짜는 함수들은 app/useStudyQueue.js에 — 오늘의 학습·이어하기·
      단어·복습·취약·JLPT 세트·시험 오답. 동작은 App에 있던 그대로다. */
@@ -522,40 +243,17 @@ export default function App() {
     ledger: progress.weak,
   });
 
-  /* 학습 메뉴를 연다.
-     한자는 N3 코스의 한자 과정을, 듣기는 듣기 고르기(자동·따라·영상)를 연다.
-     같은 자료·화면을 두 벌 두지 않는다 — 길만 여기서 정한다. */
+  /* 메뉴를 연다. 길은 app/useAppNavigation.js가 알고, 「약점」만 여기서
+     가로챈다 — 그건 화면이 아니라 판이라서(회독 큐를 짜야 한다) 자리를
+     정하는 쪽이 알 일이 아니다. */
   const openMenu = useCallback((id, opts = {}) => {
-    /* 메뉴로 들어온 시험은 평소 시험이다 — 듣던 세트를 들고 가지 않는다.
-       안 비우면 듣기를 한 번 쓴 뒤로 「단어 시험」이 영영 그 스무 개만 묻는다. */
-    if (id !== 'quiz') setQuizSet(null);
-    if (id === 'words') { setSub('worddeck'); return; }
     if (id === 'weak') { startWeakDeck(); return; }
-    if (id === 'videos') { setVideosSeen(true); setSub(null); setActiveTab('videos'); return; }
-    if (id === 'listen') { setSub('listenhub'); return; }
-    if (id === 'kanji') { setN3View({ kind: 'curriculum', chapter: 'ch4' }); setSub('n3'); return; }
-    if (id === 'n3') { setN3View(opts.view || null); setSub('n3'); return; }
-    setSub(id);
-  }, [startWeakDeck]);
-
-  /* 듣기에서 무엇을 여는가. 자동 듣기와 따라 말하기는 같은 화면이고
-     방식만 다르다 — 화면을 두 벌로 만들면 고친 게 한쪽에만 남는다. */
-  const openListen = useCallback((id) => {
-    if (id === 'videos') { setVideosSeen(true); setSub(null); setActiveTab('videos'); return; }
-    setListenMode(id === 'shadow' ? 'shadow' : 'listen');
-    setSub('listen');
-  }, []);
+    nav.openMenu(id, opts);
+  }, [startWeakDeck, nav.openMenu]);
 
   const finishOnboarding = (patch) => {
     patchSettings(patch);
     setOnboardingOpen(false);
-  };
-
-  /* 학습 탭은 예전엔 화면이 아니라 바로 회독으로 들어가는 통로였다.
-     이제 「오늘」이 그 자리를 맡으니, 학습은 골라 들어가는 목록으로 돌린다. */
-  const selectTab = (id) => {
-    setSub(null);
-    setActiveTab(id);
   };
 
   if (recovering && authSession) {
@@ -599,6 +297,10 @@ export default function App() {
               onVaultKey={rememberVaultKey}
               onToast={showToast}
               signedInOnce={hasSignedInOnce()}
+              /* 와이파이는 잡혔는데 서버가 죽은 자리에서 갇히지 않게 —
+                 확인이 시간초과·거절로 끝났거나 동기화가 실패했으면
+                 「이 기기 기록으로 계속하기」를 띄운다 */
+              serverDown={authTimedOut || Boolean(syncState.error)}
               onContinueOffline={() => setOfflinePass(true)}
             />
           </section>
