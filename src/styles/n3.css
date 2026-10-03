@@ -114,6 +114,8 @@
 .n3-qspk { margin-top: 4px; }
 .n3-order { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; font-size: 18px; font-weight: 700; }
 .n3-slot { display: inline-block; min-width: 40px; padding: 2px 6px; border-radius: 8px; border: 1.5px dashed var(--line); color: var(--ink-soft); }
+/* 고른 상태의 모양은 refinements.css와 같다. 여기 두는 이유는 그 파일에
+   적어 두었다 — n3.css는 코스 청크와 같이 받는다. */
 .n3-slot.star { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 .n3-hint { width: 100%; font-size: 12px; color: var(--ink-soft); margin-top: 6px; font-weight: 500; }
 .n3-opts { margin-top: 12px; }

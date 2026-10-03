@@ -57,3 +57,27 @@
 @media (prefers-reduced-motion: reduce) {
   .loading-mark { animation: none; }
 }
+
+/* ★ 「이게 고른 것이다」는 한 가지 모양으로 ★
+ *
+ * 테두리·글자·배경 세 줄이 여섯 군데에 똑같이 적혀 있었다 — 칩, 구간 번호,
+ * 개수 고르기, 박자 버튼, 멈춤, 즐겨찾기 편집. 전부 같은 뜻인데
+ * 따로 적혀 있으니, 강조 색을 한 번 바꾸면 여러 군데를 찾아 고쳐야 하고
+ * 한 군데를 빼먹으면 같은 화면에 두 가지 「고른 상태」가 생긴다.
+ *
+ * 색을 바꾸는 자리가 아니다 — 흩어진 같은 말을 한 줄로 모은 것뿐이라
+ * 그려지는 모양은 전과 같다.
+ *
+ * N3 별표(.n3-slot.star)는 여기 안 넣는다. n3.css는 코스 청크와 같이 받게
+ * 일부러 첫 로딩 CSS에서 뺀 것이라, 그 한 줄을 공용으로 올리면 그 결정이
+ * 깨진다 — 코스를 안 여는 사람이 코스 스타일을 받게 된다. */
+.grouppick button.active,
+.sh-edit[aria-pressed="true"],
+.ls-pill.active,
+.ls-beat.on,
+.ls-blk.active,
+.ls-pause.on {
+  border-color: var(--kon);
+  color: var(--kon);
+  background: var(--kon-soft);
+}

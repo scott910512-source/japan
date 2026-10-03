@@ -357,7 +357,6 @@
   color: var(--ink); font: inherit; font-size: 13.5px; font-weight: 700;
   cursor: pointer;
 }
-.ls-pill.active { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 .ls-pill:disabled { opacity: .4; cursor: default; }
 .ls-pill .pk-count { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); }
 .ls-pill.active .pk-count { color: var(--kon); opacity: .85; }
@@ -399,7 +398,6 @@
   flex-direction: column; gap: 2px;
   justify-content: center; min-height: var(--touch-lg); font-size: 15px; font-weight: 700;
 }
-.ls-beat.on { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 /* 지금 값은 크게, 다음에 무엇이 되는지는 작게. 숨이 찬 상태로 보면 글자
    크기 차이가 색보다 먼저 읽힌다. 숫자는 폭을 고정해서 170 → 180에
    버튼이 들썩이지 않게 한다. */
@@ -423,7 +421,6 @@
   font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
-.ls-blk.active { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 .ls-blockrow .set-sub { margin-top: 8px; }
 
 .ls-blocknav { display: flex; gap: 8px; margin-top: 10px; }
@@ -433,7 +430,6 @@
 .ls-yomi .ly-han { margin-left: 8px; opacity: .75; }
 .ls-droprow .ghost-btn { margin-top: 10px; width: 100%; justify-content: center; min-height: var(--touch); }
 .ls-know { width: calc(100% - 32px); margin: 10px 16px 0; justify-content: center; min-height: var(--touch); }
-.ls-pause.on { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 .ls-quiz { margin: 0 16px 10px; width: calc(100% - 32px); justify-content: center; }
 .ls-quizlast { width: 100%; justify-content: center; margin-top: 14px; min-height: var(--touch); }
 .qz-fromlisten .set-sub { margin-top: 4px; font-size: 12.5px; color: var(--ink-soft); }
