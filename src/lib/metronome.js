@@ -103,6 +103,9 @@ export function nextBpm(cur) {
 let ctx = null;
 let timer = null;
 let state = null;   // { bpm, cursor, count, gain }
+/* 걸어 둔 소리들. 멈출 때 이걸 취소해야 한다 — 안 하면 1.5초치가 큐에
+   남아 있다가, 다시 시작한 새 박자와 겹쳐서 쏟아진다. */
+let queued = [];
 
 function audio() {
   if (ctx) return ctx;
@@ -110,6 +113,24 @@ function audio() {
   if (!AC) return null;
   try { ctx = new AC(); } catch { ctx = null; }
   return ctx;
+}
+
+/* ★ 걸어 둔 소리를 거둬들인다 ★
+ *
+ * 「멈췄다가 와다다다」의 정체가 이것이었다. 멈출 때 타이머만 끄고 이미
+ * 예약해 둔 소리는 그대로 뒀는데, 그게 큐에 1.5초치 남아 있다. 다시 시작하면
+ * 새 예약이 0.12초 뒤부터 깔리면서 두 벌이 겹쳐 울린다.
+ *
+ * 소리가 이미 나기 시작한 것은 그냥 끝나게 둔다 — 한가운데서 끊으면 「퍽」
+ * 소리가 난다. 아직 시작 전인 것만 취소한다. */
+function clearQueued(from) {
+  const live = [];
+  for (const n of queued) {
+    if (n.at <= from) { live.push(n); continue; }   // 이미 울리는 중
+    try { n.osc.stop(from); } catch { /* 이미 끝났으면 던진다 */ }
+    try { n.osc.disconnect(); n.gain.disconnect(); } catch { /* 무시 */ }
+  }
+  queued = live;
 }
 
 /* 딱 소리 하나. 짧고 마른 소리여야 발에 붙는다 — 길게 울리면 어디가 박자인지
@@ -131,6 +152,9 @@ function click(at, accent, volume) {
   gain.connect(c.destination);
   osc.start(at);
   osc.stop(at + 0.06);
+  /* 끝난 것은 목록에서 뺀다. 안 빼면 한 시간 뛰는 동안 만 개가 쌓인다. */
+  queued.push({ osc, gain, at });
+  osc.onended = () => { queued = queued.filter((n) => n.osc !== osc); };
 }
 
 function tick() {
@@ -141,19 +165,36 @@ function tick() {
   state.count = got.count;
 }
 
-/* 박자를 시작한다. 이미 돌고 있으면 빠르기만 바꾼다 — 끊고 다시 시작하면
-   첫 박이 어긋나서, 달리는 중에 발이 한 번 꼬인다.
-   볼륨 기본값이 낮은 이유는 위에(말소리를 덮으면 둘 다 못 듣는다). */
+/* 박자를 시작한다.
+ *
+ * ★ 이미 돌고 있으면 건드리지 않는다 ★
+ *
+ * 처음엔 「이미 돌고 있으면 빠르기만 바꾼다」로 뒀는데, 부르는 쪽(듣기 화면)이
+ * 장이 넘어갈 때마다 멈췄다 다시 켜고 있었다 — 그때마다 첫 박이 지금으로
+ * 당겨져서 박자가 통째로 어긋났다. 같은 빠르기로 다시 부르는 것은 「계속
+ * 돌아라」는 뜻이지 「다시 시작하라」가 아니다.
+ *
+ * 빠르기가 바뀌었을 때만 다시 짠다. 그때는 걸어 둔 옛 빠르기의 소리를
+ * 거둬들여야 한다 — 안 그러면 바꾸고 나서 1.5초 동안 두 빠르기가 같이 난다. */
 export function startBeat(bpm, { volume = 0.1 } = {}) {
   const c = audio();
   if (!c) return false;
   c.resume?.().catch(() => {});
+  const want = clampBpm(bpm);
+
   if (state) {
-    state.bpm = clampBpm(bpm);
     state.gain = volume;
+    if (state.bpm === want) return true;        // 그대로 두는 게 맞다
+    state.bpm = want;
+    clearQueued(c.currentTime);
+    state.cursor = c.currentTime + 0.08;
+    state.count = 0;                            // 빠르기를 바꿨으면 센 박도 처음부터
+    tick();
     return true;
   }
-  state = { bpm: clampBpm(bpm), cursor: c.currentTime + 0.12, count: 0, gain: volume };
+
+  queued = [];
+  state = { bpm: want, cursor: c.currentTime + 0.12, count: 0, gain: volume };
   tick();
   timer = setInterval(tick, TICK * 1000);
   return true;
@@ -163,9 +204,11 @@ export function stopBeat() {
   clearInterval(timer);
   timer = null;
   state = null;
+  if (ctx) clearQueued(ctx.currentTime);
   /* 컨텍스트는 안 닫는다. 닫으면 다시 켤 때 새로 만들어야 하고, iOS는 그때
-     또 사용자 제스처를 요구한다 — 달리다가 켠 박자가 안 나는 쪽이 더 나쁘다. */
-  ctx?.suspend?.().catch(() => {});
+     또 사용자 제스처를 요구한다 — 달리다가 켠 박자가 안 나는 쪽이 더 나쁘다.
+     멈추지도 않는다. suspend/resume을 자주 하면 그 자체가 끊김으로 들리고,
+     resume은 비동기라 돌아오는 시점이 들쭉날쭉하다. 소리를 안 걸면 조용하다. */
 }
 
 export function beatRunning() {
