@@ -78,3 +78,54 @@ export function groupedMenus(menus = {}) {
 
 /* 켤 수 있는 메뉴 id — 설정 화면이 이걸로 목록을 그린다 */
 export const MENU_IDS = MENUS.map((m) => m.id);
+
+/* ── 바로가기 ──
+ *
+ * ★ 왜 묶음이 있는데 또 앞에 두나 ★
+ *
+ * 묶음(콘텐츠·연습·그 밖에)은 「처음 오는 사람이 무엇이 있는지 알아보는」
+ * 차례다. 그건 그대로 맞는데, 매일 쓰는 사람에게는 맞지 않는다 — 날마다
+ * 듣기와 기출만 쓰는 사람이 날마다 그 두 칸을 찾아 내려가야 한다.
+ *
+ * 묶음을 흔들어서 풀 문제가 아니다. 자주 쓰는 것이 위로 저절로 올라오게
+ * 하면(쓴 횟수 같은 것으로) 자리가 계속 바뀌어서, 눈 감고 누르던 자리가
+ * 매번 달라진다. 그건 더 나쁘다.
+ *
+ * 그래서 사람이 고른 것만 맨 앞에 둔다. 고른 차례 그대로 — 앱이 다시
+ * 정렬하지 않는다.
+ *
+ * ★ 여섯 개까지 ★
+ *
+ * 더 두면 바로가기가 아니라 목록을 한 벌 더 만드는 것이다. 그러면 위에서도
+ * 찾고 아래에서도 찾게 된다. */
+export const FAV_MAX = 6;
+
+/* 즐겨찾기한 메뉴. 꺼 둔 메뉴는 빼고, 고른 차례대로. */
+export function favMenus(favs = [], menus = {}) {
+  const byId = new Map(MENUS.map((m) => [m.id, m]));
+  const seen = new Set();
+  const out = [];
+  for (const id of Array.isArray(favs) ? favs : []) {
+    const m = byId.get(id);
+    /* 설정에서 끈 메뉴는 바로가기에서도 안 보인다 — 껐는데 위에 남아 있으면
+       끈 게 아니다. 즐겨찾기 자체는 안 지운다(다시 켜면 돌아온다). */
+    if (!m || seen.has(id) || !menus[id]) continue;
+    seen.add(id);
+    out.push(m);
+  }
+  return out;
+}
+
+/* 켜고 끄기. 꽉 찼으면 받은 그대로 돌려준다 —
+   부르는 쪽이 같은 배열이 오면 「자리가 없다」로 읽고 알린다. */
+export function toggleFav(favs = [], id, max = FAV_MAX) {
+  const cur = (Array.isArray(favs) ? favs : []).filter((x) => MENU_IDS.includes(x));
+  if (cur.includes(id)) return cur.filter((x) => x !== id);
+  if (!MENU_IDS.includes(id)) return favs;
+  if (cur.length >= max) return favs;
+  return [...cur, id];
+}
+
+export function isFav(favs = [], id) {
+  return Array.isArray(favs) && favs.includes(id);
+}

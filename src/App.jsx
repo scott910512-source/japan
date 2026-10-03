@@ -686,6 +686,9 @@ export default function App() {
             settings={settings}
             n3Summary={progress.n3?.summary || null}
             onOpen={openMenu}
+            /* 바로가기 — 자주 쓰는 메뉴를 사람이 골라 맨 앞에 둔다 */
+            onChange={patchSettings}
+            onToast={showToast}
           />
         </ScreenSlot>
 

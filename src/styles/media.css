@@ -392,11 +392,34 @@
   .ls-opts { grid-template-columns: 1fr; }
 }
 
+/* 달리기 박자 — 달리는 중에는 화면을 못 본다. 한 자리를 눌러 돌리게 하고,
+   손가락이 안 보고도 맞게 넓고 두껍게 잡는다. 켜져 있으면 색으로 알린다. */
+.ls-beat {
+  width: calc(100% - 32px); margin: 10px 16px 0;
+  justify-content: center; min-height: 52px; font-size: 15px; font-weight: 700;
+}
+.ls-beat.on { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
+.ls-beatcard { display: flex; flex-direction: column; gap: 12px; }
+.ls-beatcard .toggle-pill { min-height: 56px; }
+.ls-bpms button { font-variant-numeric: tabular-nums; }
+
 /* ── 듣기: 구간 · 바퀴 · 시험으로 ── */
 .ls-lap { display: block; font-size: 11px; font-weight: 700; color: var(--ink-soft); }
 .ls-order { margin-bottom: 10px; }
 .ls-blockrow .set-title { display: flex; align-items: baseline; gap: 2px; flex-wrap: wrap; }
 .ls-range { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+/* 구간 번호 — 여러 개를 고를 수 있다. 번호만 있으면 되니 작게 깔되,
+   누르는 자리는 44px를 지킨다. 구간이 마흔 개가 넘는 범위도 있어서 접힌다. */
+.ls-blockpick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ls-blk {
+  min-width: 44px; min-height: 44px; padding: 0 8px; border-radius: 11px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.ls-blk.active { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
+.ls-blockrow .set-sub { margin-top: 8px; }
+
 .ls-blocknav { display: flex; gap: 8px; margin-top: 10px; }
 .ls-blocknav .ghost-btn { flex: 1; justify-content: center; min-height: 44px; }
 .ls-blocknav .ghost-btn:disabled { opacity: .4; cursor: default; }

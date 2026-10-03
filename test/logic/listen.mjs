@@ -4,7 +4,8 @@
  * 배운 게 500개인데 늘 같은 스무 개만 들렸고, 순서까지 매번 같았다.
  * 그래서 소리가 아니라 순서를 외우게 됐다. 여기서 그걸 지킨다. */
 import {
-  SCOPES, DIRECTIONS, blockCount, blocksIn, dirOf, inScope, nextAt, pickBlock, pickListen, scopeCounts, stepsOf,
+  SCOPES, DIRECTIONS, blockCount, blocksIn, dirOf, inScope, nextAt, normalizeBlocks,
+  pickBlock, pickBlocks, pickListen, scopeCounts, stepsOf,
 } from '../../src/lib/listen.js';
 
 let pass = 0; let fail = 0;
@@ -158,6 +159,61 @@ console.log('\n[ 다 외운 것 빼기 ]');
     && blocksIn(pool, done, { scope: 'all', count: 55, today: TODAY, skipDone: true }) === 1);
   /* 외운 것만 빼는 것이지 약점까지 건드리지 않는다 */
   ok('약점은 그대로', scopeCounts(pool, done, TODAY, null, true).weak === before.weak);
+}
+
+console.log('\n[ ★ 구간을 여러 개 ★ ]');
+{
+  /* 한 구간은 스무 개다. 그게 한 덩어리를 귀에 붙이기 좋은 크기인데, 어떤
+     날은 그 묶음 셋을 한 번에 돌고 싶다 — 시험이 가깝거나, 이미 뗀 구간을
+     같이 섞어 다시 다지고 싶을 때다.
+     그렇다고 「전체」로 가면 안 된다. 그건 구간을 안 쓰는 것이고, 들을 때마다
+     딴 것이 나오는 자리로 돌아간다. */
+  const list = Array.from({ length: 100 }, (_, i) => ({ id: `w${i}` }));
+
+  const one = pickBlocks(list, { count: 20, blocks: [0] });
+  ok('하나만 고르면 그 구간', one.length === 20 && one[0].id === 'w0');
+
+  const three = pickBlocks(list, { count: 20, blocks: [0, 2, 4] });
+  ok('★ 셋을 고르면 예순 개 ★', three.length === 60, `${three.length}개`);
+  ok('고른 구간의 낱말만 들어온다',
+    three.map((c) => c.id).join() === [
+      ...Array.from({ length: 20 }, (_, i) => `w${i}`),
+      ...Array.from({ length: 20 }, (_, i) => `w${40 + i}`),
+      ...Array.from({ length: 20 }, (_, i) => `w${80 + i}`),
+    ].join());
+
+  /* 번호 차례로 이어 붙인다. 고른 차례대로 두면 눌러 본 순서에 따라 듣는
+     차례가 달라진다 — 같은 설정인데 매번 다르게 들리는 셈이다. */
+  ok('★ 누른 차례가 아니라 번호 차례 ★',
+    pickBlocks(list, { count: 20, blocks: [4, 0, 2] }).map((c) => c.id).join()
+      === three.map((c) => c.id).join());
+  ok('같은 번호를 두 번 눌러도 한 번만', pickBlocks(list, { count: 20, blocks: [1, 1, 1] }).length === 20);
+
+  ok('범위 밖 번호는 버린다', pickBlocks(list, { count: 20, blocks: [0, 99] }).length === 20);
+  ok('전부 범위 밖이면 첫 구간 — 빈손으로 두지 않는다',
+    pickBlocks(list, { count: 20, blocks: [50, 99] }).length === 20);
+  ok('빈 목록도 첫 구간', pickBlocks(list, { count: 20, blocks: [] }).length === 20);
+  ok('숫자가 아닌 게 섞여도 안 죽는다',
+    pickBlocks(list, { count: 20, blocks: [0, null, '헛것', 2] }).length === 40);
+
+  ok('마지막 구간은 남은 만큼만', pickBlocks(list, { count: 30, blocks: [3] }).length === 10);
+  ok('전부 고르면 전체', pickBlocks(list, { count: 20, blocks: [0, 1, 2, 3, 4] }).length === 100);
+
+  ok('번호를 성하게 만든다', normalizeBlocks([3, 1, 1, 9, -2], 5).join() === '1,3');
+  ok('빈손이면 빈손', normalizeBlocks([], 5).length === 0);
+  ok('배열이 아니어도 받는다', normalizeBlocks(2, 5).join() === '2');
+
+  /* 한 구간만 쓰던 길(옛 설정)은 그대로 — 범위를 넘기면 마지막 구간으로 당긴다.
+     하나뿐일 때 버리면 들을 게 없어지는데, 개수를 늘려 구간 수가 줄면 저장해
+     둔 번호가 바로 범위 밖이 된다. */
+  ok('옛 길은 넘기면 마지막 구간', pickBlock(list, { count: 20, block: 99 })[0].id === 'w80');
+
+  // 뽑는 쪽에서도 여러 구간이 먹는다
+  const pool = list.map((c) => ({ id: c.id, kind: 'word' }));
+  const got = pickListen(pool, {}, { scope: 'all', count: 20, order: 'block', blocks: [0, 2] });
+  ok('★ 듣기에서도 두 구간이 이어진다 ★', got.length === 40, `${got.length}개`);
+  ok('안 주면 옛 설정 하나를 본다',
+    pickListen(pool, {}, { scope: 'all', count: 20, order: 'block', block: 1 }).length === 20);
 }
 
 console.log('\n[ 정지할 때까지 반복 ]');

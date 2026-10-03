@@ -566,9 +566,49 @@ async function boot(browser, patch = {}, init = null) {
     ok('순서를 고를 수 있다', await pb.locator('.ls-order button').count() === 2);
     ok('구간별이 기본으로 켜져 있다',
       (await pb.locator('.ls-order button[data-order="block"]').getAttribute('class')).includes('active'));
-    const label = (await pb.locator('.ls-blockrow .set-title').innerText()).replace(/\s+/g, ' ');
-    ok('★ 몇 번째 구간인지 적힌다 ★', /1 \/ \d+구간/.test(label) && label.includes('1~10번째'), label);
+    const label = async () => (await pb.locator('.ls-blockrow .set-title').innerText()).replace(/\s+/g, ' ');
+    const first = await label();
+    ok('★ 몇 번째 구간인지 적힌다 ★', /1 \/ \d+구간/.test(first) && first.includes('1~10번째'), first);
     ok('첫 구간에서는 앞으로 못 간다', await pb.locator('.ls-prev').isDisabled());
+
+    /* ★ 구간을 여러 개 고를 수 있다 ★
+       한 구간은 한 덩어리를 귀에 붙이기 좋은 크기인데, 어떤 날은 그 묶음
+       셋을 한 번에 돌고 싶다. 「전체」로 가면 구간을 안 쓰는 것이라 들을
+       때마다 딴 게 나온다 — 고른 것만 이어 붙이면 덩어리는 그대로다. */
+    const chips = pb.locator('.ls-blk');
+    ok('구간마다 번호가 있다', await chips.count() > 2, `${await chips.count()}개`);
+    ok('처음엔 하나만 켜져 있다', await pb.locator('.ls-blk.active').count() === 1);
+
+    await pb.locator('.ls-blk[data-block="3"]').click();
+    await pb.waitForTimeout(250);
+    await pb.locator('.ls-blk[data-block="5"]').click();
+    await pb.waitForTimeout(250);
+    ok('★ 셋을 같이 고를 수 있다 ★', await pb.locator('.ls-blk.active').count() === 3,
+      (await pb.locator('.ls-blk.active').allTextContents()).join(','));
+    const many = await label();
+    ok('고른 번호가 다 적힌다', many.includes('1 · 3 · 5'), many);
+    ok('장수로 알려 준다', many.includes('30개'), many);
+    ok('기기에 남는다',
+      await pb.evaluate(() => JSON.stringify(
+        JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').listenBlocks,
+      )) === '[0,2,4]');
+
+    /* 실제로 세 구간이 다 담기는지 — 화면에만 적히고 안 담기면 고친 게 아니다 */
+    await startListen(pb);
+    await pb.waitForTimeout(500);
+    const size = (await pb.locator('.listen .sub-title').innerText()).trim();
+    ok('★ 고른 만큼 담긴다 ★', size.endsWith('/ 30'), size);
+    await pb.locator('.listen .sub-back').click();
+    await pb.waitForTimeout(500);
+
+    /* 마지막 하나는 못 끈다 — 전부 끄면 들을 게 없어진다. 그건 고르는 게
+       아니라 꺼 버리는 것이고, 끄는 자리는 「순서」 쪽에 따로 있다. */
+    for (const n of ['3', '5', '1']) {
+      await pb.locator(`.ls-blk[data-block="${n}"]`).click();
+      await pb.waitForTimeout(200);
+    }
+    ok('★ 전부 끌 수는 없다 ★', await pb.locator('.ls-blk.active').count() === 1,
+      (await pb.locator('.ls-blk.active').allTextContents()).join(',') || '없음');
 
     /* ★ 같은 구간은 늘 같은 낱말 ★ — 이게 「구간별」의 요지다 */
     const firstOf = async () => {

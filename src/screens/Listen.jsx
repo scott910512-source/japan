@@ -5,9 +5,13 @@ import { koreanVoiceListed, speechReady, speakJapanese, speakKorean, stopSpeakin
 import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
-import { DIRECTIONS, SCOPES, blocksIn, dirOf, nextAt, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
+import {
+  DIRECTIONS, SCOPES, blocksIn, countsAsStuck, dirOf, nextAt, normalizeBlocks, pickListen,
+  scopeCounts, stepsOf,
+} from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
+import { BPMS, DEFAULT_BPM, nextBpm, startBeat, stopBeat } from '../lib/metronome.js';
 import { markBusy } from '../lib/busy.js';
 import { WEAK_KIND } from '../lib/weak.js';
 
@@ -74,7 +78,13 @@ export default function Listen({
   /* 구간별로 끊어 듣기. 섞어 뽑으면 들을 때마다 딴 것이 나와서 한 덩어리를
      귀에 붙일 수가 없다 — 매번 처음 듣는 낱말이 섞인다. */
   const [order, setOrder] = useState(settings.listenOrder || 'block');
-  const [block, setBlock] = useState(settings.listenBlock || 0);
+  /* 고른 구간들. 옛 설정은 하나뿐이라(listenBlock) 그걸 한 칸짜리로 읽는다 —
+     쓰던 사람이 업데이트하는 순간 고른 자리가 사라지면 안 된다. */
+  const [picked, setPicked] = useState(() => {
+    const saved = settings.listenBlocks;
+    if (Array.isArray(saved) && saved.length) return saved;
+    return [settings.listenBlock || 0];
+  });
   /* 정지할 때까지 한 세트를 돈다. 소리를 외우는 일은 같은 것을 여러 번
      마주쳐야 되는 일이라, 한 바퀴 돌고 끝나면 남는 게 없다. */
   const [loop, setLoop] = useState(settings.listenLoop !== false);
@@ -82,6 +92,17 @@ export default function Listen({
      떠오르는 건 차례를 외운 것이고, 시험장에는 그 차례가 없다. 세트는 안
      바뀐다(구간 고정은 그대로). */
   const [reshuffle, setReshuffle] = useState(settings.listenReshuffle !== false);
+  /* ★ 달리기 박자 ★
+     달릴 때 귀는 두 가지를 받는다 — 외우려는 일본어와 발을 맞출 박자다.
+     둘을 다른 앱으로 틀면 한쪽이 다른 쪽을 끊는다(iOS가 특히 그렇다).
+     null이면 꺼짐. 켜면 160·170·180 중 하나다(달리기 피치). */
+  const [bpm, setBpm] = useState(
+    () => (settings.listenBeat ? (settings.listenBpm || DEFAULT_BPM) : null),
+  );
+  const saveBpm = (v) => {
+    setBpm(v);
+    onSettingsChange?.({ listenBeat: v != null, ...(v != null ? { listenBpm: v } : {}) });
+  };
   const [run, setRun] = useState(null);   // { cards, at, lap }
   /* 방금 들은 세트. 다 듣고 나서 「그대로 시험」으로 넘어가는 자리다 —
      귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다. */
@@ -156,7 +177,16 @@ export default function Listen({
     countedLap.current = lap;
     onActivity?.({ listened: 1 });
     const id = run.cards[run.at]?.id;
-    if (id) onWeakness?.([{ id, kind: WEAK_KIND.LISTEN }]);
+    if (!id) return;
+    const notes = [{ id, kind: WEAK_KIND.LISTEN }];
+    /* ★ 세 바퀴째에도 안 뗀 낱말을 센다 ★
+       들은 횟수만으로는 약점이 안 쌓인다 — 「얼마나 만났나」지 「되나
+       안 되나」가 아니라서, 쉰 번 들은 멀쩡한 낱말까지 약점이 될까 봐
+       신호로 안 세고 있었다. 그래서 달리면서 듣기만 하면 약점이 0이었다.
+       세 바퀴째까지 「다 외웠어요」에 손이 안 간 낱말은 다르다. 그건
+       사람이 직접 낸 신호다. 뺀 낱말은 판에서 아예 빠지니 저절로 안 센다. */
+    if (countsAsStuck(lap)) notes.push({ id, kind: WEAK_KIND.STUCK });
+    onWeakness?.(notes);
   }, [run, onActivity, onWeakness]);
 
   /* 뜻도 소리로 낼지. 화면을 못 보는 동안 쓰라고 만든 자리인데 뜻이 눈으로만
@@ -194,6 +224,17 @@ export default function Listen({
     clearTimeout(timer.current);
     stopSpeaking();
   }, []);
+
+  /* ★ 박자는 판이 돌 때만 ★
+     설정 화면에서 울리면 고르는 동안 계속 딱딱거린다. 멈춤을 누르면 같이
+     멈춘다 — 신발 끈 묶는 동안 박자만 계속 가면 그게 더 급하다.
+     켜고 끄는 일은 여기 한 군데서 한다(화면 여러 곳에서 start/stop을 부르면
+     어느 쪽이 마지막인지가 렌더 차례에 달리게 된다). */
+  useEffect(() => {
+    if (!run || paused || bpm == null) { stopBeat(); return undefined; }
+    startBeat(bpm);
+    return () => stopBeat();
+  }, [run, paused, bpm]);
 
   /* 화면이 꺼져도 소리는 이어지는 게 이 화면의 존재 이유다. 다만 브라우저는
      화면이 잠기면 타이머를 늦추거나 멈춘다 — 어디까지 되는지는 기기마다
@@ -239,7 +280,7 @@ export default function Listen({
   const start = () => {
     const queue = pickListen(pool, review, {
       scope, count, today: todayKey(), kiju: kijuPool, trip: tripList,
-      order, block, skipDone, ledger,
+      order, blocks: at, skipDone, ledger,
     });
     const cards = cardsForQueue(queue, words, sentences).filter((c) => !dropped.has(c.id));
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
@@ -275,6 +316,10 @@ export default function Listen({
     if (!run || !card) return;
     const id = card.id;
     dropSave(new Set(dropped).add(id));
+    /* 쌓아 둔 바퀴 수를 되돌린다. 그 수의 뜻이 「아직 안 뗀 채로」라서,
+       뗀 순간 더는 참이 아니다 — 안 되돌리면 방금 외운 낱말이 약점 목록
+       맨 위에 그대로 남는다. */
+    onWeakness?.([{ id, kind: WEAK_KIND.CLEARED }]);
     setStep(0);
     setRun((r) => {
       if (!r) return r;
@@ -422,7 +467,22 @@ export default function Listen({
   /* 개수나 범위를 바꾸면 구간 수가 줄어든다. 저장된 번호를 그대로 쓰면
      「12 / 11구간」이 뜬다 — 고르는 쪽에서 미리 당겨 둔다(뽑는 쪽도 막지만,
      화면에 거짓말이 뜨는 것은 그것대로 문제다). */
-  const at = Math.min(block, blocks - 1);
+  /* 범위 밖 번호는 버린다. 하나도 안 남으면 첫 구간 — 빈손이면 「들을 게
+     없어요」가 뜨는데, 설정이 낡아서 그렇게 되는 건 사고다. */
+  const at = useMemo(() => {
+    const ok = normalizeBlocks(picked, blocks);
+    return ok.length ? ok : [0];
+  }, [picked, blocks]);
+
+  const pickBlockAt = (i) => {
+    /* 마지막 하나는 못 끈다. 전부 끄면 들을 게 없어진다 — 그건 고르는 게
+       아니라 꺼 버리는 것이고, 끄는 자리는 「순서」 쪽에 따로 있다. */
+    const next = at.includes(i)
+      ? (at.length > 1 ? at.filter((x) => x !== i) : at)
+      : [...at, i].sort((x, y) => x - y);
+    setPicked(next);
+    onSettingsChange?.({ listenBlocks: next, listenBlock: next[0] });
+  };
 
   // ── 재생 중 ──
   if (run && card) {
@@ -509,6 +569,18 @@ export default function Listen({
           </button>
           <button className="ghost-btn" onClick={() => skip(1)}>다음</button>
         </div>
+
+        {/* ★ 달리면서 누르는 자리 ★
+            달리는 중에는 화면을 못 본다. 그래서 고르는 칸을 여럿 두지 않고
+            한 자리를 눌러 돌린다 — 160 → 170 → 180 → 끄기 → 160.
+            넓게 잡아 둬서 안 보고 눌러도 맞는다. */}
+        <button
+          className={`ghost-btn ls-beat${bpm != null ? ' on' : ''}`}
+          onClick={() => saveBpm(nextBpm(bpm))}
+          aria-pressed={bpm != null}
+        >
+          {bpm != null ? `달리기 박자 ${bpm}` : '달리기 박자 — 꺼짐'}
+        </button>
 
         {/* ★ 익은 것은 이번 판에서 뺀다 ★
             한 구간을 몇 바퀴 돌다 보면 먼저 익는 낱말이 생긴다. 그것까지
@@ -679,25 +751,65 @@ export default function Listen({
       <div className="card ls-block">
         {order === 'block' ? (
           <div className="setrow col ls-blockrow">
+            {/* ★ 구간을 여러 개 고를 수 있다 ★
+                한 구간은 스무 개다. 그게 한 덩어리를 귀에 붙이기 좋은 크기인데,
+                어떤 날은 그 묶음 셋을 한 번에 돌고 싶다 — 시험이 가깝거나,
+                이미 뗀 구간을 같이 섞어 다시 다지고 싶을 때다.
+                그렇다고 「전체」로 가면 안 된다. 그건 구간을 안 쓰는 것이고,
+                들을 때마다 딴 것이 나오는 자리로 돌아간다. 고른 것만 이어
+                붙이면 덩어리는 그대로 두고 길이만 늘릴 수 있다. */}
             <div className="set-title">
-              <span className="set-val">{at + 1}</span> / {blocks}구간
-              <small className="ls-range"> · {at * count + 1}~{Math.min((at + 1) * count, counts[scope] || 0)}번째</small>
+              <span className="set-val">{at.map((i) => i + 1).join(' · ')}</span>
+              {' / '}{blocks}구간
+              <small className="ls-range">
+                {' · '}
+                {at.length === 1
+                  ? `${at[0] * count + 1}~${Math.min((at[0] + 1) * count, counts[scope] || 0)}번째`
+                  : `${at.reduce((n, i) => n + Math.max(0, Math.min((i + 1) * count, counts[scope] || 0) - i * count), 0)}개`}
+              </small>
+            </div>
+            <div className="ls-blockpick" role="group" aria-label="구간 고르기">
+              {Array.from({ length: blocks }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`ls-blk${at.includes(i) ? ' active' : ''}`}
+                  data-block={i + 1}
+                  aria-pressed={at.includes(i)}
+                  aria-label={`${i + 1}구간 · ${i * count + 1}~${Math.min((i + 1) * count, counts[scope] || 0)}번째`}
+                  onClick={() => pickBlockAt(i)}
+                >
+                  {i + 1}
+                </button>
+              ))}
             </div>
             <div className="ls-blocknav">
               <button
                 className="ghost-btn ls-prev"
-                disabled={at === 0}
-                onClick={() => { const b = Math.max(0, at - 1); setBlock(b); onSettingsChange?.({ listenBlock: b }); }}
+                disabled={at.length === 1 && at[0] === 0}
+                onClick={() => {
+                  const b = Math.max(0, at[0] - 1);
+                  setPicked([b]);
+                  onSettingsChange?.({ listenBlocks: [b], listenBlock: b });
+                }}
               >
                 <IconArrowLeft /> 앞 구간
               </button>
               <button
                 className="ghost-btn ls-next"
-                disabled={at >= blocks - 1}
-                onClick={() => { const b = Math.min(blocks - 1, at + 1); setBlock(b); onSettingsChange?.({ listenBlock: b }); }}
+                disabled={at.length === 1 && at[at.length - 1] >= blocks - 1}
+                onClick={() => {
+                  const b = Math.min(blocks - 1, at[at.length - 1] + 1);
+                  setPicked([b]);
+                  onSettingsChange?.({ listenBlocks: [b], listenBlock: b });
+                }}
               >
                 다음 구간
               </button>
+            </div>
+            <div className="set-sub">
+              번호를 눌러 여러 구간을 같이 들을 수 있어요. 고른 차례가 아니라 번호
+              차례로 이어서 돌아요.
             </div>
           </div>
         ) : (
@@ -820,6 +932,42 @@ export default function Listen({
             </span>
             <span className={`toggle${reshuffle ? ' on' : ''}`} aria-hidden="true" />
           </button>
+        )}
+      </div>
+
+      {/* ★ 달리기 박자 ★
+          달릴 때 귀는 두 가지를 받는다 — 외우려는 일본어와 발을 맞출 박자다.
+          둘을 다른 앱으로 틀면 한쪽이 다른 쪽을 끊는다.
+          160·170·180은 달리기 피치(분당 걸음 수)다. 170~180은 발이 땅에 닿는
+          시간을 줄여 주고, 160은 몸을 푸는 쪽이다. 1씩 고르게 하면 달리면서
+          못 맞추니 세 칸만 둔다. */}
+      <div className="section-label">달리기 박자</div>
+      <div className="card ls-beatcard">
+        <button
+          className={`toggle-pill ls-beattoggle${bpm != null ? ' on' : ''}`}
+          onClick={() => saveBpm(bpm == null ? DEFAULT_BPM : null)}
+          aria-pressed={bpm != null}
+        >
+          <span className="tp-text">
+            <b>박자 같이 듣기</b>
+            <span>{bpm != null ? `${bpm} 걸음 / 분` : '소리만 — 박자 없음'}</span>
+          </span>
+          <span className={`toggle${bpm != null ? ' on' : ''}`} aria-hidden="true" />
+        </button>
+        {bpm != null && (
+          <div className="setrow col">
+            <div className="set-title">분당 걸음 <span className="set-val">{bpm}</span></div>
+            <div className="grouppick ls-bpms">
+              {BPMS.map((n) => (
+                <button key={n} className={bpm === n ? 'active' : ''} data-bpm={n}
+                  onClick={() => saveBpm(n)}>{n}</button>
+              ))}
+            </div>
+            <div className="set-sub">
+              재생 중에도 화면 가운데 버튼을 눌러 160 → 170 → 180 → 끄기로 돌릴 수 있어요.
+              말소리를 안 덮게 작게 나와요.
+            </div>
+          </div>
         )}
       </div>
 

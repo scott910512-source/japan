@@ -81,6 +81,7 @@ export default function ReviewHub({
                 weakBook?.quizWrong ? `시험 오답 ${weakBook.quizWrong}번` : null,
                 weakBook?.forgot ? `외웠다가 다시 틀림 ${weakBook.forgot}번` : null,
                 weakBook?.fast ? `금방 잊는 낱말 ${weakBook.fast}개` : null,
+                weakBook?.stuck ? `듣다 안 뗀 낱말 ${weakBook.stuck}개` : null,
               ].filter(Boolean).join(' · ') || '회독에서 틀린 것만 모여 있어요'}
             </div>
             <div className="wb-list">
