@@ -11,7 +11,9 @@ import {
 } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
-import { BPMS, DEFAULT_BPM, nextBpm, startBeat, stopBeat } from '../lib/metronome.js';
+import { BPMS, nextBpmLabel } from '../lib/metronome.js';
+import { useListenBeat } from '../hooks/useListenBeat.js';
+import { useWakeLock } from '../hooks/useWakeLock.js';
 import { markBusy } from '../lib/busy.js';
 import { WEAK_KIND } from '../lib/weak.js';
 
@@ -92,17 +94,6 @@ export default function Listen({
      떠오르는 건 차례를 외운 것이고, 시험장에는 그 차례가 없다. 세트는 안
      바뀐다(구간 고정은 그대로). */
   const [reshuffle, setReshuffle] = useState(settings.listenReshuffle !== false);
-  /* ★ 달리기 박자 ★
-     달릴 때 귀는 두 가지를 받는다 — 외우려는 일본어와 발을 맞출 박자다.
-     둘을 다른 앱으로 틀면 한쪽이 다른 쪽을 끊는다(iOS가 특히 그렇다).
-     null이면 꺼짐. 켜면 160·170·180 중 하나다(달리기 피치). */
-  const [bpm, setBpm] = useState(
-    () => (settings.listenBeat ? (settings.listenBpm || DEFAULT_BPM) : null),
-  );
-  const saveBpm = (v) => {
-    setBpm(v);
-    onSettingsChange?.({ listenBeat: v != null, ...(v != null ? { listenBpm: v } : {}) });
-  };
   const [run, setRun] = useState(null);   // { cards, at, lap }
   /* 방금 들은 세트. 다 듣고 나서 「그대로 시험」으로 넘어가는 자리다 —
      귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다. */
@@ -113,6 +104,19 @@ export default function Listen({
   /* 일시중지. 「그만」은 판을 접지만 이건 자리를 지킨다 — 말 한마디 하려고
      끊었다가 처음부터 다시 듣는 건 이 화면을 쓰는 이유를 없앤다. */
   const [paused, setPaused] = useState(false);
+  /* ★ 달리기 박자 ★
+     달릴 때 귀는 두 가지를 받는다 — 외우려는 일본어와 발을 맞출 박자다.
+     둘을 다른 앱으로 틀면 한쪽이 다른 쪽을 끊는다(iOS가 특히 그렇다).
+     bpm이 null이면 꺼짐. 켜면 160·170·180 중 하나다(달리기 피치).
+     언제 울릴지·언제 끊을지는 hooks/useListenBeat.js가 정한다 — 이 화면은
+     「판이 도는가 · 멈췄는가」만 넘기고 WebAudio는 모른다. */
+  const beat = useListenBeat({
+    running: Boolean(run), paused, settings, onSettingsChange,
+  });
+  const bpm = beat.bpm;
+  /* 화면이 꺼져도 소리는 이어지는 게 이 화면의 존재 이유다. 걸쇠를 못 잡는
+     기기(아이폰 사파리)에서도 듣기는 그대로 돈다 — hooks/useWakeLock.js. */
+  useWakeLock(Boolean(run));
   /* 읽는 법을 화면에 띄울지.
      기본은 안 띄운다 — 듣고 떠올리는 자리인데 읽는 법이 같이 떠 있으면
      소리를 듣는 게 아니라 글자를 읽게 된다. 답을 보면서 푸는 시험과 같다.
@@ -224,50 +228,6 @@ export default function Listen({
     clearTimeout(timer.current);
     stopSpeaking();
   }, []);
-
-  /* ★ 박자는 판이 돌 때만 ★
-     설정 화면에서 울리면 고르는 동안 계속 딱딱거린다. 멈춤을 누르면 같이
-     멈춘다 — 신발 끈 묶는 동안 박자만 계속 가면 그게 더 급하다.
-     켜고 끄는 일은 여기 한 군데서 한다(화면 여러 곳에서 start/stop을 부르면
-     어느 쪽이 마지막인지가 렌더 차례에 달리게 된다). */
-  /* ★ run을 의존성에 두면 안 된다 ★
-     run은 장이 넘어갈 때마다 새 객체다. 그걸 그대로 보면 몇 초마다 박자를
-     멈췄다 다시 켜는 셈이고, 그때마다 첫 박이 지금으로 당겨져 박자가 통째로
-     어긋난다 — 거기에 걸어 둔 옛 소리까지 겹쳐서 쏟아졌다.
-     보는 것은 「지금 박자가 나야 하나」 하나다. */
-  const beatOn = Boolean(run) && !paused && bpm != null;
-  useEffect(() => {
-    if (!beatOn) { stopBeat(); return undefined; }
-    startBeat(bpm);
-    return () => stopBeat();
-    // bpm은 아래가 맡는다 — 여기서 받으면 빠르기를 바꿀 때 판이 끊긴다
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [beatOn]);
-
-  /* 빠르기만 바꿀 때는 끊지 않는다. startBeat이 돌고 있는 판의 빠르기만
-     갈아 끼우고, 걸어 둔 옛 빠르기의 소리는 거둬들인다. */
-  useEffect(() => {
-    if (beatOn) startBeat(bpm);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bpm]);
-
-  /* 화면이 꺼져도 소리는 이어지는 게 이 화면의 존재 이유다. 다만 브라우저는
-     화면이 잠기면 타이머를 늦추거나 멈춘다 — 어디까지 되는지는 기기마다
-     다르다. 그래서 "됩니다"라고 적지 않고, 안 되면 안 된다고만 적는다. */
-  const wake = useRef(null);
-  useEffect(() => {
-    if (!run) return undefined;
-    let released = false;
-    navigator.wakeLock?.request('screen').then((s) => {
-      if (released) { s.release(); return; }
-      wake.current = s;
-    }).catch(() => { /* 못 잡아도 그냥 진행한다 */ });
-    return () => {
-      released = true;
-      wake.current?.release().catch(() => {});
-      wake.current = null;
-    };
-  }, [run]);
 
   /* 기출 후보는 화면이 만들어 넘긴다 — lib/listen.js는 단어 자료를 모른 채로 둔다.
      레벨로 거르지 않는다. 기출은 시험에 나온 것이라 「내가 고른 레벨」과 상관이
@@ -591,10 +551,26 @@ export default function Listen({
             넓게 잡아 둬서 안 보고 눌러도 맞는다. */}
         <button
           className={`ghost-btn ls-beat${bpm != null ? ' on' : ''}`}
-          onClick={() => saveBpm(nextBpm(bpm))}
+          onClick={beat.cycle}
           aria-pressed={bpm != null}
         >
-          {bpm != null ? `달리기 박자 ${bpm}` : '달리기 박자 — 꺼짐'}
+          {/* ★ 달리면서 한눈에 ★
+              여태 「달리기 박자 170」이라고만 적혀 있었다. 숨이 차서 눈이
+              흔들리는 상태로 보면 글자 넷이 다 비슷하게 생겼다 — 켜져 있는지
+              아닌지가 바로 안 읽힌다. 달리는 사람 그림과 단위를 붙이면 「지금
+              박자가 돌고 있다」가 글자를 읽기 전에 보인다.
+              보조 설명은 한 줄로 짧게 둔다. 길면 달리면서 안 읽는다. */}
+          {bpm != null ? (
+            <>
+              <b className="lb-now">🏃 {bpm} BPM</b>
+              <small className="lb-hint">누르면 {nextBpmLabel(bpm)}</small>
+            </>
+          ) : (
+            <>
+              <b className="lb-now">달리기 박자 — 꺼짐</b>
+              <small className="lb-hint">누르면 160</small>
+            </>
+          )}
         </button>
 
         {/* ★ 익은 것은 이번 판에서 뺀다 ★
@@ -960,7 +936,7 @@ export default function Listen({
       <div className="card ls-beatcard">
         <button
           className={`toggle-pill ls-beattoggle${bpm != null ? ' on' : ''}`}
-          onClick={() => saveBpm(bpm == null ? DEFAULT_BPM : null)}
+          onClick={beat.toggle}
           aria-pressed={bpm != null}
         >
           <span className="tp-text">
@@ -975,7 +951,7 @@ export default function Listen({
             <div className="grouppick ls-bpms">
               {BPMS.map((n) => (
                 <button key={n} className={bpm === n ? 'active' : ''} data-bpm={n}
-                  onClick={() => saveBpm(n)}>{n}</button>
+                  onClick={() => beat.pick(n)}>{n}</button>
               ))}
             </div>
             <div className="set-sub">
