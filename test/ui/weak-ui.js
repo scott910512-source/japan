@@ -463,14 +463,106 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
     ok('다시 켜면 160부터', (await live.innerText()).includes('160'),
       (await live.innerText()).trim());
 
-    /* 멈춤을 누르면 박자도 멈춘다 — 신발 끈 묶는 동안 박자만 계속 가면
-       그게 더 급하다. */
+    /* ★ 멈춤과 넘김은 다르다 ★
+     *
+     *   · 「잠깐 멈춤」은 사람이 멈춘 것이다 — 신발 끈을 묶거나 신호를
+     *     기다린다. 말도 박자도 다 멈춰야 한다. 박자만 계속 가면 서 있는
+     *     사람 귀에 뛰라고 재촉하는 소리가 남는다.
+     *   · 「다음」이나 「다 외웠어요」는 발이 계속 가는 중이다. 장만 넘어간다.
+     *     여기서 박자가 끊기면 걸음이 흐트러진다 — 넘기는 건 몇 초마다
+     *     한 번씩 있는 일이라, 끊길 때마다 리듬을 다시 잡아야 한다.
+     *
+     * 수를 세는 것만으로는 「끊겼다」와 「느려졌다」를 못 가른다. 그래서
+     * 예약 시각(오디오 시계)과 만든 시각(performance.now)을 같이 적어서,
+     * 어느 구간에 걸린 박자인지와 그 구간의 간격을 따로 본다. */
+    await page.evaluate(() => {
+      window.__said = [];
+      const ss = window.speechSynthesis;
+      if (ss && !ss.__patched) {
+        const orig = ss.speak.bind(ss);
+        ss.speak = (u) => { window.__said.push(performance.now()); return orig(u); };
+        ss.__patched = true;
+      }
+    });
+    const mark = () => page.evaluate(() => performance.now());
+    /* 지금 160이다(바로 위에서 다시 켰다). 잰 간격을 이것과 견준다. */
+    const step = 60 / 160;
+    const seen = (a, z) => page.evaluate(([a2, z2]) => {
+      const b = [...(window.__when2 || [])].filter((x) => x.made >= a2 && x.made <= z2)
+        .sort((x, y) => x.at - y.at);
+      const gaps = b.slice(1).map((x, i) => x.at - b[i].at);
+      return {
+        n: b.length,
+        worst: gaps.length ? Math.max(...gaps) : 0,
+        said: (window.__said || []).filter((t) => t >= a2 && t <= z2).length,
+      };
+    }, [a, z]);
+    /* 위의 __when은 숫자만 적는다. 구간을 가르려면 「언제 걸었나」도 필요해서
+       한 겹 더 쌓는다 — 앞의 검사들을 건드리지 않으려고 따로 둔다. */
+    await page.evaluate(() => {
+      window.__when2 = [];
+      const P = (window.AudioContext || window.webkitAudioContext).prototype;
+      if (P.__patched2) return;
+      const orig = P.createOscillator;
+      P.createOscillator = function (...a) {
+        const o = orig.apply(this, a);
+        const st = o.start.bind(o);
+        o.start = (t) => { window.__when2.push({ at: t, made: performance.now() }); return st(t); };
+        return o;
+      };
+      P.__patched2 = true;
+    });
+    await page.waitForTimeout(1200);
+
+    // ① 넘겨도 박자는 계속 — 네 번 연달아 넘긴다
+    const s1 = await mark();
+    for (let i = 0; i < 4; i++) {
+      await page.locator('.ls-controls .ghost-btn').last().click();
+      await page.waitForTimeout(450);
+    }
+    await page.waitForTimeout(600);
+    const s2 = await mark();
+    const skipped = await seen(s1, s2);
+    ok('★ 넘겨도 박자는 계속 간다 ★', skipped.n > 2, `넘기는 동안 ${skipped.n}박`);
+    ok('넘길 때 박자가 벌어지지 않는다', skipped.worst <= step + 0.005,
+      `제일 긴 간격 ${skipped.worst.toFixed(4)}초 (있어야 할 간격 ${step.toFixed(4)}초)`);
+
+    // ②「다 외웠어요」로 빼도 — 이것도 판을 바꾼다
+    const d1 = await mark();
+    await page.locator('.ls-know').click();
+    await page.waitForTimeout(1500);
+    const d2 = await mark();
+    const dropped = await seen(d1, d2);
+    ok('「다 외웠어요」로 빼도 박자는 계속 간다', dropped.n > 2, `${dropped.n}박`);
+
+    // ③ 멈추면 둘 다 — 박자도 말도
+    const before2 = await seen(await mark() - 1800, await mark());
     await page.locator('.ls-pause').click();
-    await page.waitForTimeout(400);
-    const p1 = await page.evaluate(() => window.__ticks);
-    await page.waitForTimeout(1800);
-    const p2 = await page.evaluate(() => window.__ticks);
-    ok('★ 잠깐 멈춤에 박자도 멈춘다 ★', p2 === p1, `${p2 - p1}번 더`);
+    await page.waitForTimeout(500);
+    const p1 = await mark();
+    await page.waitForTimeout(2000);
+    const p2 = await mark();
+    const held = await seen(p1, p2);
+    ok('★ 잠깐 멈춤에 박자도 멈춘다 ★', held.n === 0, `${held.n}박 더`);
+    ok('★ 잠깐 멈춤에 말도 멈춘다 ★', held.said === 0,
+      `${held.said}번 더 (멈추기 전 같은 길이에 ${before2.said}번)`);
+    ok('멈추기 전에는 말하고 있었다 — 위 검사가 헛돌지 않게', before2.said > 0,
+      `${before2.said}번`);
+
+    // ④ 이어서 — 둘 다 다시 돈다
+    await page.locator('.ls-pause').click();
+    /* 말은 박자처럼 바로 돌아오지 않는다. 멈춘 자리가 「뜻을 읽는 걸음」이나
+       「따라 말할 시간」이면 그 걸음을 마치고 나서야 다음 소리가 난다 —
+       그래서 정해진 시간을 기다리지 않고, 말이 돌아올 때까지 본다. */
+    let back = await seen(p2 + 300, await mark());
+    for (let i = 0; i < 12 && back.said === 0; i++) {
+      await page.waitForTimeout(700);
+      back = await seen(p2 + 300, await mark());
+    }
+    ok('★ 이어서 누르면 박자도 말도 다시 돈다 ★', back.n > 2 && back.said > 0,
+      `${back.n}박 · ${back.said}번 말`);
+    ok('이어서 돈 박자도 고르다', back.worst <= step + 0.005,
+      `제일 긴 간격 ${back.worst.toFixed(4)}초`);
   }
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
