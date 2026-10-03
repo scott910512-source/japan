@@ -90,24 +90,51 @@ const readReview = (page) => page.evaluate(
      1/81쯤 되는데, 그러면 틀린 걸 한 번도 못 보고 「설명이 뜬다」가 깨진다 —
      이 화면의 본론이 우연히 안 돌아가는 셈이다. 실제로 CI에서 그렇게 깨졌다.
      보기 차례는 판마다 섞이니, 다 맞혔으면 나갔다 다시 들어와 한 바퀴 더 돈다. */
+  /* ★ 찾는 데 쓸 시간에 한계를 둔다 ★
+   *
+   * 전에는 「여섯 바퀴 × 다섯 문제」로 횟수만 막아 뒀다. 그런데 클릭 하나가
+   * 눌릴 때까지 기다리는 시간은 기기가 정한다 — 느린 러너에서는 그 기다림이
+   * 쌓여 서른 번이 3분을 넘겼고, 검사 틀이 180초에 통째로 죽였다. 죽으면
+   * 요약도 안 찍히니 「멈춤」만 남고 어디서 멈췄는지 알 수가 없다(실제로
+   * CI에서 그랬다).
+   *
+   * 그래서 시계로 막는다. 시간 안에 못 찾으면 그 사실을 말하고 끝낸다 —
+   * 조용히 죽는 것보다 「틀린 보기를 못 찾았다」가 백 배 낫다.
+   *
+   * 한 묶음은 서너 문제고 보기는 셋이라 한 바퀴에 다 맞힐 확률이 1/81쯤이다.
+   * 보기 차례는 판마다 섞이니 나갔다 들어오면 다시 뽑는 셈이고, 몇 바퀴면
+   * 사실상 반드시 틀린 것을 만난다. 그래도 그게 「반드시」는 아니라서
+   * 시간으로 받쳐 둔다. */
+  const FIND_BUDGET = 60_000;
+  const findStart = Date.now();
+  const left = () => FIND_BUDGET - (Date.now() - findStart);
   let wrongPicked = false;
-  for (let round = 0; round < 6 && !wrongPicked; round += 1) {
+  let rounds = 0;
+  for (let round = 0; round < 6 && !wrongPicked && left() > 8000; round += 1) {
+    rounds = round + 1;
     if (round > 0) {
       // 나갔다 다시 들어온다 — 보기 차례가 다시 섞인다
-      await page.locator('.sub-back, .bl-quit').first().click().catch(() => {});
+      await page.locator('.sub-back, .bl-quit').first().click({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(500);
-      await page.locator('.av-set').first().click().catch(() => {});
+      await page.locator('.av-set').first().click({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(700);
     }
-    for (let q = 0; q < 5 && !wrongPicked; q += 1) {
+    for (let q = 0; q < 5 && !wrongPicked && left() > 4000; q += 1) {
       if (await page.locator('.qopt').count() === 0) break;
-      await page.locator('.qopt').first().click();
+      /* 문제마다 다른 자리를 눌러 본다. 늘 첫 보기만 누르면 그 묶음에서
+         첫 보기가 계속 정답인 경우에 한 바퀴를 헛돈다. */
+      const opts = await page.locator('.qopt').count();
+      const pickAt = q % Math.max(1, opts);
+      /* 클릭 하나에 30초를 기다리지 않는다. 그 기본값이 쌓여서 검사가
+         죽었다 — 안 눌리면 그 문제는 건너뛰는 게 맞다. */
+      await page.locator('.qopt').nth(pickAt).click({ timeout: 6000 }).catch(() => {});
       await page.waitForTimeout(600);
       if (await page.locator('.av-why').count()) { wrongPicked = true; break; }
       await page.waitForTimeout(900);   // 맞혔다 — 다음 문제로 넘어가기를 기다린다
     }
   }
-  ok('틀리면 설명이 뜬다', wrongPicked);
+  ok('틀리면 설명이 뜬다', wrongPicked,
+    wrongPicked ? `${rounds}바퀴에서 찾음` : `${rounds}바퀴 · ${Math.round((Date.now() - findStart) / 1000)}초 동안 틀린 보기를 못 찾았다`);
 
   if (wrongPicked) {
     const why = await page.locator('.av-why').innerText();
