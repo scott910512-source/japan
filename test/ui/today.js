@@ -423,7 +423,24 @@ async function boot(browser, patch = {}, init = null) {
        버튼을 찾고 있었다. 끝내 안 뜨면 그건 진짜 문제이고, 그때는
        이 검사가 그렇게 말한다. */
     await resume.waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
-    ok('이어하기 버튼이 있다', await resume.count() > 0);
+    /* ★ 없으면 무엇이 보이는지 적는다 ★
+     * 로컬에서는 뜨고 CI에서는 안 떴다. 두 번 고쳐 봤는데(기다리기 ·
+     * 세는 시간) 둘 다 아니었다 — 그러면 추측을 멈추고 화면을 봐야 한다.
+     * 이 한 줄이 있으면 다음 CI 로그가 바로 답을 준다. */
+    const seen = await p3.evaluate(async () => {
+      const rs = navigator.serviceWorker
+        ? await navigator.serviceWorker.getRegistrations() : null;
+      return {
+        gate: document.querySelectorAll('.gate').length,
+        off: document.querySelectorAll('.gate-offline').length,
+        loading: document.querySelectorAll('.screen-loading').length,
+        tabbar: document.querySelectorAll('.tabbar').length,
+        cta: document.querySelectorAll('.bigcta').length,
+        sw: rs ? (rs.map((r) => (r.active ? 'active' : 'pending')).join(',') || '없음') : 'API없음',
+        body: (document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 100),
+      };
+    });
+    ok('이어하기 버튼이 있다', await resume.count() > 0, JSON.stringify(seen));
     if (await resume.count()) {
       await resume.click();
       await p3.waitForTimeout(900);
