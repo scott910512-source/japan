@@ -6,7 +6,8 @@ import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
 import {
-  DIRECTIONS, SCOPES, blocksIn, countsAsStuck, dirOf, nextAt, pickListen, scopeCounts, stepsOf,
+  DIRECTIONS, SCOPES, blocksIn, countsAsStuck, dirOf, nextAt, normalizeBlocks, pickListen,
+  scopeCounts, stepsOf,
 } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
@@ -77,7 +78,13 @@ export default function Listen({
   /* 구간별로 끊어 듣기. 섞어 뽑으면 들을 때마다 딴 것이 나와서 한 덩어리를
      귀에 붙일 수가 없다 — 매번 처음 듣는 낱말이 섞인다. */
   const [order, setOrder] = useState(settings.listenOrder || 'block');
-  const [block, setBlock] = useState(settings.listenBlock || 0);
+  /* 고른 구간들. 옛 설정은 하나뿐이라(listenBlock) 그걸 한 칸짜리로 읽는다 —
+     쓰던 사람이 업데이트하는 순간 고른 자리가 사라지면 안 된다. */
+  const [picked, setPicked] = useState(() => {
+    const saved = settings.listenBlocks;
+    if (Array.isArray(saved) && saved.length) return saved;
+    return [settings.listenBlock || 0];
+  });
   /* 정지할 때까지 한 세트를 돈다. 소리를 외우는 일은 같은 것을 여러 번
      마주쳐야 되는 일이라, 한 바퀴 돌고 끝나면 남는 게 없다. */
   const [loop, setLoop] = useState(settings.listenLoop !== false);
@@ -273,7 +280,7 @@ export default function Listen({
   const start = () => {
     const queue = pickListen(pool, review, {
       scope, count, today: todayKey(), kiju: kijuPool, trip: tripList,
-      order, block, skipDone, ledger,
+      order, blocks: at, skipDone, ledger,
     });
     const cards = cardsForQueue(queue, words, sentences).filter((c) => !dropped.has(c.id));
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
@@ -460,7 +467,22 @@ export default function Listen({
   /* 개수나 범위를 바꾸면 구간 수가 줄어든다. 저장된 번호를 그대로 쓰면
      「12 / 11구간」이 뜬다 — 고르는 쪽에서 미리 당겨 둔다(뽑는 쪽도 막지만,
      화면에 거짓말이 뜨는 것은 그것대로 문제다). */
-  const at = Math.min(block, blocks - 1);
+  /* 범위 밖 번호는 버린다. 하나도 안 남으면 첫 구간 — 빈손이면 「들을 게
+     없어요」가 뜨는데, 설정이 낡아서 그렇게 되는 건 사고다. */
+  const at = useMemo(() => {
+    const ok = normalizeBlocks(picked, blocks);
+    return ok.length ? ok : [0];
+  }, [picked, blocks]);
+
+  const pickBlockAt = (i) => {
+    /* 마지막 하나는 못 끈다. 전부 끄면 들을 게 없어진다 — 그건 고르는 게
+       아니라 꺼 버리는 것이고, 끄는 자리는 「순서」 쪽에 따로 있다. */
+    const next = at.includes(i)
+      ? (at.length > 1 ? at.filter((x) => x !== i) : at)
+      : [...at, i].sort((x, y) => x - y);
+    setPicked(next);
+    onSettingsChange?.({ listenBlocks: next, listenBlock: next[0] });
+  };
 
   // ── 재생 중 ──
   if (run && card) {
@@ -729,25 +751,65 @@ export default function Listen({
       <div className="card ls-block">
         {order === 'block' ? (
           <div className="setrow col ls-blockrow">
+            {/* ★ 구간을 여러 개 고를 수 있다 ★
+                한 구간은 스무 개다. 그게 한 덩어리를 귀에 붙이기 좋은 크기인데,
+                어떤 날은 그 묶음 셋을 한 번에 돌고 싶다 — 시험이 가깝거나,
+                이미 뗀 구간을 같이 섞어 다시 다지고 싶을 때다.
+                그렇다고 「전체」로 가면 안 된다. 그건 구간을 안 쓰는 것이고,
+                들을 때마다 딴 것이 나오는 자리로 돌아간다. 고른 것만 이어
+                붙이면 덩어리는 그대로 두고 길이만 늘릴 수 있다. */}
             <div className="set-title">
-              <span className="set-val">{at + 1}</span> / {blocks}구간
-              <small className="ls-range"> · {at * count + 1}~{Math.min((at + 1) * count, counts[scope] || 0)}번째</small>
+              <span className="set-val">{at.map((i) => i + 1).join(' · ')}</span>
+              {' / '}{blocks}구간
+              <small className="ls-range">
+                {' · '}
+                {at.length === 1
+                  ? `${at[0] * count + 1}~${Math.min((at[0] + 1) * count, counts[scope] || 0)}번째`
+                  : `${at.reduce((n, i) => n + Math.max(0, Math.min((i + 1) * count, counts[scope] || 0) - i * count), 0)}개`}
+              </small>
+            </div>
+            <div className="ls-blockpick" role="group" aria-label="구간 고르기">
+              {Array.from({ length: blocks }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`ls-blk${at.includes(i) ? ' active' : ''}`}
+                  data-block={i + 1}
+                  aria-pressed={at.includes(i)}
+                  aria-label={`${i + 1}구간 · ${i * count + 1}~${Math.min((i + 1) * count, counts[scope] || 0)}번째`}
+                  onClick={() => pickBlockAt(i)}
+                >
+                  {i + 1}
+                </button>
+              ))}
             </div>
             <div className="ls-blocknav">
               <button
                 className="ghost-btn ls-prev"
-                disabled={at === 0}
-                onClick={() => { const b = Math.max(0, at - 1); setBlock(b); onSettingsChange?.({ listenBlock: b }); }}
+                disabled={at.length === 1 && at[0] === 0}
+                onClick={() => {
+                  const b = Math.max(0, at[0] - 1);
+                  setPicked([b]);
+                  onSettingsChange?.({ listenBlocks: [b], listenBlock: b });
+                }}
               >
                 <IconArrowLeft /> 앞 구간
               </button>
               <button
                 className="ghost-btn ls-next"
-                disabled={at >= blocks - 1}
-                onClick={() => { const b = Math.min(blocks - 1, at + 1); setBlock(b); onSettingsChange?.({ listenBlock: b }); }}
+                disabled={at.length === 1 && at[at.length - 1] >= blocks - 1}
+                onClick={() => {
+                  const b = Math.min(blocks - 1, at[at.length - 1] + 1);
+                  setPicked([b]);
+                  onSettingsChange?.({ listenBlocks: [b], listenBlock: b });
+                }}
               >
                 다음 구간
               </button>
+            </div>
+            <div className="set-sub">
+              번호를 눌러 여러 구간을 같이 들을 수 있어요. 고른 차례가 아니라 번호
+              차례로 이어서 돌아요.
             </div>
           </div>
         ) : (

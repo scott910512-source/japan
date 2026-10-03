@@ -408,6 +408,18 @@
 .ls-order { margin-bottom: 10px; }
 .ls-blockrow .set-title { display: flex; align-items: baseline; gap: 2px; flex-wrap: wrap; }
 .ls-range { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+/* 구간 번호 — 여러 개를 고를 수 있다. 번호만 있으면 되니 작게 깔되,
+   누르는 자리는 44px를 지킨다. 구간이 마흔 개가 넘는 범위도 있어서 접힌다. */
+.ls-blockpick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ls-blk {
+  min-width: 44px; min-height: 44px; padding: 0 8px; border-radius: 11px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.ls-blk.active { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
+.ls-blockrow .set-sub { margin-top: 8px; }
+
 .ls-blocknav { display: flex; gap: 8px; margin-top: 10px; }
 .ls-blocknav .ghost-btn { flex: 1; justify-content: center; min-height: 44px; }
 .ls-blocknav .ghost-btn:disabled { opacity: .4; cursor: default; }

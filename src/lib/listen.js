@@ -130,11 +130,54 @@ export function blockCount(total, size) {
   return Math.max(1, Math.ceil(Math.max(0, total) / Math.max(1, size)));
 }
 
+/* 고른 구간 번호를 성하게 만든다.
+ *
+ * 설정에서 온 값이라 뭐든 들어올 수 있다 — 범위 밖 번호(개수를 줄이면
+ * 생긴다), 같은 번호 두 번, 숫자가 아닌 것. 걸러 내고 차례대로 둔다.
+ * 차례가 중요하다 — 1·3을 골랐으면 1구간이 먼저 나와야 한다. 고른 차례대로
+ * 두면 눌러 본 순서에 따라 듣는 차례가 달라진다. */
+export function normalizeBlocks(blocks, total) {
+  const last = Math.max(0, (Number(total) || 1) - 1);
+  const seen = new Set();
+  for (const b of Array.isArray(blocks) ? blocks : [blocks]) {
+    const i = Math.round(Number(b));
+    if (!Number.isFinite(i) || i < 0 || i > last) continue;
+    seen.add(i);
+  }
+  return [...seen].sort((x, y) => x - y);
+}
+
+/* ★ 구간을 여러 개 고를 수 있다 ★
+ *
+ * 한 구간은 스무 개다. 그게 한 덩어리를 귀에 붙이기에 좋은 크기인데, 어떤
+ * 날은 그 묶음 셋을 한 번에 돌고 싶다 — 시험이 가깝거나, 이미 뗀 구간을
+ * 같이 섞어 다시 다지고 싶을 때다.
+ *
+ * 그렇다고 「전체」로 가면 안 된다. 그건 구간을 안 쓰는 것이고, 들을 때마다
+ * 딴 것이 나오는 자리로 돌아간다. 고른 구간만 이어 붙이면 덩어리는 그대로
+ * 두면서 길이만 늘릴 수 있다.
+ *
+ * 하나도 안 고르면 첫 구간. 빈손으로 두면 「들을 게 없어요」가 뜨는데,
+ * 고르는 칸을 잘못 눌러서 그렇게 되는 건 설정이 아니라 사고다. */
+export function pickBlocks(list, { count = 20, blocks = [0] } = {}) {
+  const size = Math.max(1, count);
+  const total = blockCount(list.length, size);
+  const want = normalizeBlocks(blocks, total);
+  const use = want.length ? want : [0];
+  return use.flatMap((i) => list.slice(i * size, i * size + size));
+}
+
+/* 한 구간만. 옛 설정(listenBlock 하나)이 쓴다.
+ *
+ * 여기서는 범위를 넘긴 번호를 버리지 않고 마지막 구간으로 당긴다. 하나뿐일
+ * 때는 버리면 들을 게 없어지는데, 개수를 늘려 구간 수가 줄면 저장해 둔
+ * 번호가 바로 범위 밖이 된다 — 그때 첫 구간으로 튕기는 것보다 끝에 머무는
+ * 쪽이 덜 놀란다. 여럿일 때는 반대로 버린다(위 normalizeBlocks). */
 export function pickBlock(list, { count = 20, block = 0 } = {}) {
   const size = Math.max(1, count);
   const last = blockCount(list.length, size) - 1;
   const i = Math.min(Math.max(0, Math.round(block) || 0), last);
-  return list.slice(i * size, i * size + size);
+  return pickBlocks(list, { count, blocks: [i] });
 }
 
 /* 범위 안에 구간이 몇 개인가. 화면이 「3 / 11구간」을 적는 데 쓴다. */
@@ -166,7 +209,7 @@ function keepFor(review, skipDone) {
 
 export function pickListen(pool, review, {
   scope = 'today', count = 20, shuffle = true, today = todayKey(), kiju = null, trip = null,
-  order = 'shuffle', block = 0, skipDone = false, ledger = null,
+  order = 'shuffle', block = 0, blocks = null, skipDone = false, ledger = null,
 } = {}) {
   const src = poolFor(scope, pool, kiju, trip);
   const keep = keepFor(review, skipDone);
@@ -175,7 +218,13 @@ export function pickListen(pool, review, {
   ));
   /* 구간은 안 섞는다. 섞으면 같은 구간을 다시 틀어도 차례가 달라지는데,
      그러면 「세 번째에 나오는 그 낱말」이라는 기억의 손잡이가 없어진다. */
-  if (order === 'block') return pickBlock(picked, { count, block });
+  /* 구간은 안 섞는다(위 설명). 여러 개를 골랐으면 고른 차례대로 이어 붙인다 —
+     옛 설정은 하나뿐이라 그때는 그 하나만 본다. */
+  if (order === 'block') {
+    return blocks?.length
+      ? pickBlocks(picked, { count, blocks })
+      : pickBlock(picked, { count, block });
+  }
   const ordered = shuffle ? shuffled(picked) : picked;
   return ordered.slice(0, Math.max(0, count));
 }
