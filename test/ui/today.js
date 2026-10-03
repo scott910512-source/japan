@@ -405,8 +405,19 @@ async function boot(browser, patch = {}, init = null) {
       s.queue = ['없는카드-xyz'];
       localStorage.setItem('jp_manabu_session_v1', JSON.stringify(s));
     });
+    /* ★ 켠 채로 다시 부르고 나서 끊는다 ★
+     *
+     * 끊긴 채로 다시 부르면 로그인 문이 뜨는데 「이 기기 기록으로
+     * 계속하기」가 같이 안 나왔다 — 진단을 넣어 보니 CI에서 gate:1,
+     * off:0 이었다. 그러면 지날 길이 없어서 거기 갇힌다.
+     *
+     * boot과 weak-ui가 쓰는 순서가 답이다. 켠 채로 부르고, 자리를 잡은
+     * 뒤에 끊고, 그때 뜨는 버튼으로 지나간다. 로컬에서는 어쩌다 되고
+     * CI에서는 안 되던 자리가 이것이었다. */
+    await p3.context().setOffline(false);
     await p3.reload({ waitUntil: 'domcontentloaded' });
     await p3.waitForTimeout(1200);
+    await p3.context().setOffline(true);
     const off3 = p3.locator('.gate-offline');
     await off3.waitFor({ timeout: 8000 }).catch(() => {});
     if (await off3.count()) { await off3.click(); await p3.waitForTimeout(800); }
