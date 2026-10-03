@@ -260,6 +260,76 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
       (await busy()).join() || '없음');
   }
 
+  console.log('\n[ ★ 듣다가 안 뗀 낱말이 장부에 쌓인다 ★ ]');
+  {
+    /* 여태 듣기만 해서는 약점이 0이었다. 들은 횟수는 「얼마나 만났나」지
+       「되나 안 되나」가 아니라서 신호로 안 셌다 — 그래서 달리면서 한
+       시간을 들어도 아무것도 안 남았다.
+       세 바퀴째에도 「다 외웠어요」에 손이 안 간 낱말은 다르다. 그건 사람이
+       직접 낸 신호다. 첫 바퀴와 둘째 바퀴는 넘긴다. */
+    await page.evaluate(() => {
+      const s2 = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
+      s2.listenGap = 0; s2.listenCount = 10; s2.listenScope = 'kiju';
+      s2.listenOrder = 'block'; s2.listenLoop = true; s2.listenSayKo = false;
+      s2.listenDropped = []; s2.listenBeat = false;
+      localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s2));
+      const p2 = JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}');
+      p2.weak = {};
+      localStorage.setItem('jp_manabu_progress_v1', JSON.stringify(p2));
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1100);
+    const off3 = page.locator('.gate-offline');
+    await off3.waitFor({ timeout: 8000 }).catch(() => {});
+    if (await off3.count()) { await off3.click(); await page.waitForTimeout(700); }
+    await openListen(page, 'auto');
+    await page.waitForTimeout(800);
+    await page.locator('.ls-go').click();
+    await page.waitForTimeout(400);
+    await page.locator('.ls-ask .submit-btn').click();
+    await page.waitForTimeout(900);
+
+    const book = () => page.evaluate(() => {
+      const w = (JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}')).weak || {};
+      const v = Object.values(w);
+      return {
+        withStuck: v.filter((r) => (r.stuck || 0) > 0).length,
+        maxStuck: Math.max(0, ...v.map((r) => r.stuck || 0)),
+        maxListen: Math.max(0, ...v.map((r) => r.listen || 0)),
+      };
+    });
+
+    /* 판을 세 장으로 줄인다 — 바퀴가 빨리 돈다. 검사가 1분을 기다리면
+       아무도 안 돌린다. */
+    for (let i = 0; i < 7; i++) {
+      await page.locator('.ls-know').click();
+      await page.waitForTimeout(320);
+    }
+
+    const first = await book();
+    ok('★ 첫 바퀴에는 아직 안 쌓인다 ★', first.withStuck === 0, JSON.stringify(first));
+    ok('그래도 들은 횟수는 세어진다', first.maxListen > 0, `${first.maxListen}번`);
+
+    let bk = first;
+    for (let i = 0; i < 24 && bk.maxStuck < 2; i++) {
+      await page.waitForTimeout(2500);
+      bk = await book();
+    }
+    ok('★ 세 바퀴째부터 쌓인다 ★', bk.maxStuck >= 1, JSON.stringify(bk));
+    ok('남은 낱말에 다 쌓인다', bk.withStuck >= 2, `${bk.withStuck}개`);
+    ok('바퀴 수가 들은 횟수보다 적다 — 앞 두 바퀴를 넘겼으니까',
+      bk.maxStuck < bk.maxListen, `바퀴 ${bk.maxStuck} · 들은 ${bk.maxListen}`);
+
+    /* 「다 외웠어요」를 누르면 그 낱말의 바퀴 수가 0이 된다. 안 그러면
+       방금 외운 낱말이 약점 목록 맨 위에 그대로 남는다. */
+    const was = bk.withStuck;
+    await page.locator('.ls-know').click();
+    await page.waitForTimeout(700);
+    const now = await book();
+    ok('★ 「다 외웠어요」를 누르면 그 낱말은 0으로 ★', now.withStuck === was - 1,
+      `${was} → ${now.withStuck}`);
+  }
+
   console.log('\n[ 달리기 박자 ]');
   {
     /* ★ 달릴 때 귀는 두 가지를 받는다 ★

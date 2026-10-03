@@ -17,9 +17,10 @@
  *   · 잊어버림은 「외웠던 것이 무너진 것」만 센다 (새 낱말의 몰라요가 아니다)
  *   · 기기를 합쳐도 숫자가 불어나지 않는다 */
 import {
-  WEAK_KIND, emptyWeak, errorSignals, forgetSpeed, isWeakNow, mergeWeak, noteWeak,
-  relapseNotes, relapseOf, weakEntry, weakRank, weakReasons, weakScore, weakSummary,
+  STUCK_PER_SIGNAL, WEAK_KIND, emptyWeak, errorSignals, forgetSpeed, isWeakNow, mergeWeak,
+  noteWeak, relapseNotes, relapseOf, weakEntry, weakRank, weakReasons, weakScore, weakSummary,
 } from '../../src/lib/weak.js';
+import { STUCK_FROM_LAP, countsAsStuck } from '../../src/lib/listen.js';
 import {
   VERDICT, WEAK_THRESHOLD, applyVerdict, emptyState, isWeak, stateOf,
 } from '../../src/lib/review.js';
@@ -202,6 +203,70 @@ console.log('\n[ 장부를 안 주면 예전과 똑같다 ]');
   ok('그래서 약점 판정도 같다', isWeakNow(st, null) === isWeak(st));
 }
 
+console.log('\n[ ★ 듣다가 안 뗀 것도 쌓인다 ★ ]');
+{
+  /* 여태 듣기만 해서는 약점이 0이었다. 들은 횟수는 「얼마나 만났나」지
+     「되나 안 되나」가 아니라서 신호로 안 셌다 — 쉰 번 들은 멀쩡한 낱말까지
+     약점이 되면 안 되니까. 그래서 달리면서 한 시간을 들어도 아무것도 안
+     남았다.
+     세 바퀴째에도 「다 외웠어요」에 손이 안 간 낱말은 다르다. 그건 사람이
+     직접 낸 신호다. */
+  ok('첫 바퀴는 안 센다 — 처음 만난 것이다', countsAsStuck(0) === false);
+  ok('둘째 바퀴도 넘긴다 — 한 번 더 들어 보는 중일 수 있다', countsAsStuck(1) === false);
+  ok('★ 셋째 바퀴부터 센다 ★', countsAsStuck(2) === true, `바퀴 ${STUCK_FROM_LAP}부터`);
+  ok('그 뒤로는 계속 센다', countsAsStuck(9) === true);
+  ok('빈손이 와도 안 죽는다', countsAsStuck() === false && countsAsStuck(null) === false);
+
+  let L = {};
+  for (let i = 0; i < 4; i++) L = noteWeak(L, [{ id: 'w1', kind: WEAK_KIND.STUCK }]);
+  ok('바퀴가 쌓인다', weakEntry(L, 'w1').stuck === 4, `${weakEntry(L, 'w1').stuck}바퀴`);
+
+  /* ★ 한 바퀴를 한 신호로 세면 안 된다 ★
+     스무 개짜리 구간을 열 바퀴 돌면 안 뗀 낱말이 전부 약점이 되고, 그러면
+     약점 목록이 그냥 「안 뗀 것 목록」이라 무엇부터 볼지를 다시 못 정한다. */
+  const base = { ...emptyState(), lastSeen: '2026-01-01' };
+  const after = (n) => {
+    let m = {};
+    for (let i = 0; i < n; i++) m = noteWeak(m, [{ id: 'w', kind: WEAK_KIND.STUCK }]);
+    return weakEntry(m, 'w');
+  };
+  ok(`${STUCK_PER_SIGNAL}바퀴에 신호 하나`, errorSignals(base, after(STUCK_PER_SIGNAL)) === 1);
+  ok('세 바퀴로는 아직 약점이 아니다', isWeakNow(base, after(3)) === false);
+  ok('여덟 바퀴도 아직', isWeakNow(base, after(8)) === false, `신호 ${errorSignals(base, after(8))}`);
+  ok('★ 아홉 바퀴를 못 떼면 약점 ★', isWeakNow(base, after(9)) === true,
+    `신호 ${errorSignals(base, after(9))}`);
+
+  ok('점수도 바퀴만큼 오른다', weakScore(base, after(4)) > weakScore(base, after(1)));
+  ok('바퀴 수로만 줄 세워지지 않게 열 점에서 멈춘다',
+    weakScore(base, after(50)) === weakScore(base, after(10)), `${weakScore(base, after(50))}점`);
+
+  ok('왜 약한지에 적힌다', weakReasons(base, after(5)).some((t) => t === '안 뗀 채로 5바퀴'),
+    weakReasons(base, after(5)).join(' · '));
+}
+
+console.log('\n[ 「다 외웠어요」를 누르면 바퀴 수가 0으로 ]');
+{
+  /* 그 수의 뜻이 「아직 안 뗀 채로」라서, 뗀 순간 더는 참이 아니다.
+     안 되돌리면 방금 외운 낱말이 약점 목록 맨 위에 그대로 남는다. */
+  let L = {};
+  for (let i = 0; i < 9; i++) L = noteWeak(L, [{ id: 'w1', kind: WEAK_KIND.STUCK }]);
+  const base = { ...emptyState(), lastSeen: '2026-01-01' };
+  ok('떼기 전에는 약점', isWeakNow(base, weakEntry(L, 'w1')) === true);
+
+  L = noteWeak(L, [{ id: 'w1', kind: WEAK_KIND.CLEARED }]);
+  ok('★ 바퀴 수가 0이 된다 ★', weakEntry(L, 'w1').stuck === 0);
+  ok('그래서 약점에서 빠진다', isWeakNow(base, weakEntry(L, 'w1')) === false);
+  ok('들은 횟수는 그대로다 — 들은 건 들은 것이다',
+    weakEntry(noteWeak(L, [{ id: 'w1', kind: WEAK_KIND.LISTEN }]), 'w1').listen === 1);
+
+  /* 틀린 적이 있던 낱말은 떼었다고 약점에서 안 빠진다 — 그건 다른 신호다 */
+  const wrong = { ...emptyState(), lastSeen: '2026-01-01', wrongCount: 3 };
+  ok('회독에서 틀린 적이 있으면 떼어도 약점', isWeakNow(wrong, weakEntry(L, 'w1')) === true);
+
+  ok('되돌릴 게 없으면 장부를 안 건드린다',
+    noteWeak(L, [{ id: '새낱말', kind: WEAK_KIND.CLEARED }]) === L);
+}
+
 console.log('\n[ 점수 — 제일 약한 것부터 ]');
 {
   const base = { ...emptyState(), lastSeen: '2026-01-01' };
@@ -303,13 +368,16 @@ console.log('\n[ 기기 합치기 ]');
 {
   /* 더하면 같은 기기에서 동기화를 두 번 눌러도 숫자가 두 배가 된다 —
      활용 성적(mergeConj)에서 겪은 자리라 같은 방식으로 둔다. */
-  const phone = { w1: { quizWrong: 3, quizRight: 1, listen: 10, forgot: 1, fastDays: 7, at: 100 } };
-  const tab = { w1: { quizWrong: 2, quizRight: 5, listen: 40, forgot: 2, fastDays: 2, at: 200 } };
+  const phone = { w1: { quizWrong: 3, quizRight: 1, listen: 10, stuck: 6, forgot: 1, fastDays: 7, at: 100 } };
+  const tab = { w1: { quizWrong: 2, quizRight: 5, listen: 40, stuck: 0, forgot: 2, fastDays: 2, at: 200 } };
 
   const m = mergeWeak(phone, tab);
   ok('횟수는 큰 쪽', weakEntry(m, 'w1').quizWrong === 3 && weakEntry(m, 'w1').listen === 40);
   ok('맞힌 것도 큰 쪽', weakEntry(m, 'w1').quizRight === 5);
   ok('잊어버린 횟수도 큰 쪽', weakEntry(m, 'w1').forgot === 2);
+  /* 한쪽에서 「다 외웠어요」로 0이 됐어도 큰 쪽이 남는다 — 다른 기기에서
+     아직 안 뗐으면 안 뗀 것이다. 뗀 쪽에서 한 번 더 누르면 그때 0이 된다. */
+  ok('안 뗀 바퀴도 큰 쪽', weakEntry(m, 'w1').stuck === 6, `${weakEntry(m, 'w1').stuck}바퀴`);
   ok('간격만 작은 쪽 — 제일 빨리 무너진 때가 그 낱말의 실력이다', weakEntry(m, 'w1').fastDays === 2);
   ok('시각은 나중 쪽', weakEntry(m, 'w1').at === 200);
 

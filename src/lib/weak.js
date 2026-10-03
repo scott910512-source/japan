@@ -34,11 +34,12 @@ import {
  *   quizWrong   시험에서 틀린 횟수
  *   quizRight   시험에서 맞힌 횟수 — 회복한 것을 목록 위에 안 남겨 두려고 센다
  *   listen      자동듣기에서 들은 횟수
+ *   stuck       「다 외웠어요」를 안 누른 채로 돈 바퀴 수 (세 바퀴째부터)
  *   forgot      외웠다가 다시 틀린 횟수
  *   fastDays    그중 제일 짧은 간격(일) — 「며칠 만에 잊었나」
  *   at          마지막으로 적힌 시각 */
 export function emptyWeak() {
-  return { quizWrong: 0, quizRight: 0, listen: 0, forgot: 0, fastDays: null, at: 0 };
+  return { quizWrong: 0, quizRight: 0, listen: 0, stuck: 0, forgot: 0, fastDays: null, at: 0 };
 }
 
 export function weakEntry(ledger, id) {
@@ -49,6 +50,7 @@ export function weakEntry(ledger, id) {
     quizWrong: num(raw.quizWrong),
     quizRight: num(raw.quizRight),
     listen: num(raw.listen),
+    stuck: num(raw.stuck),
     forgot: num(raw.forgot),
     fastDays: fd,
     at: num(raw.at),
@@ -71,6 +73,17 @@ export const WEAK_KIND = {
   QUIZ_WRONG: 'quiz-wrong',
   QUIZ_RIGHT: 'quiz-right',
   LISTEN: 'listen',
+  /* ★ 안 뗀 채로 또 한 바퀴 ★
+     듣기만 해서는 약점이 안 쌓이던 구멍을 메운다. 들은 횟수는 「얼마나
+     만났나」지 「되나 안 되나」가 아니라서, 쉰 번 들은 멀쩡한 낱말까지
+     약점이 될까 봐 신호로 안 세고 있었다.
+     그런데 세 바퀴째에도 「다 외웠어요」를 못 누른 낱말은 다르다. 같은
+     스무 개를 세 번 돌았는데 아직 안 떨어졌다는 뜻이고, 그건 사람이
+     직접 낸 신호다. */
+  STUCK: 'stuck',
+  /* 「다 외웠어요」를 눌렀다. 쌓아 둔 바퀴 수를 0으로 되돌린다 —
+     그 수의 뜻이 「아직 안 뗀 채로」라서, 뗀 순간 더는 참이 아니다. */
+  CLEARED: 'cleared',
   FORGOT: 'forgot',
 };
 
@@ -87,6 +100,11 @@ export function noteWeak(ledger = {}, notes = [], at = Date.now()) {
     if (n.kind === WEAK_KIND.QUIZ_WRONG) next.quizWrong = cur.quizWrong + 1;
     else if (n.kind === WEAK_KIND.QUIZ_RIGHT) next.quizRight = cur.quizRight + 1;
     else if (n.kind === WEAK_KIND.LISTEN) next.listen = cur.listen + 1;
+    else if (n.kind === WEAK_KIND.STUCK) next.stuck = cur.stuck + 1;
+    else if (n.kind === WEAK_KIND.CLEARED) {
+      if (!cur.stuck) continue;      // 되돌릴 게 없으면 장부를 안 건드린다
+      next.stuck = 0;
+    }
     else if (n.kind === WEAK_KIND.FORGOT) {
       next.forgot = cur.forgot + 1;
       /* 간격은 제일 짧은 것을 남긴다. 평균을 내면 한 번 금방 잊은 사실이
@@ -148,6 +166,7 @@ export function relapseNotes(review, map, today = todayKey()) {
  *
  * 무게는 「시험장에서 터질 확률」순이다.
  *
+ *   안 뗀 바퀴      1씩     세 바퀴째에도 못 뗀 것 — 쌓이면 무겁다
  *   금방 잊어버림   5 + 5   어제 외운 게 오늘 무너진 것. 제일 위험하다
  *   잊어버림        5       날짜를 두고 확인된 게 무너졌다
  *   회독 몰라요     3       떠올리지 못했다
@@ -159,7 +178,20 @@ export function relapseNotes(review, map, today = todayKey()) {
  * 듣기를 점수에만 넣고 약점 판정에는 안 넣는다. 많이 들은 것은 약점의
  * 「정도」지 「여부」가 아니다 — 안 그러면 쉰 번 들은 멀쩡한 낱말이 약점
  * 목록에 올라온다. */
-const W = { fast: 5, forgot: 5, unknown: 3, quizWrong: 3, vague: 1, quizRight: 1 };
+const W = {
+  fast: 5, forgot: 5, unknown: 3, quizWrong: 3, vague: 1, quizRight: 1, stuck: 1,
+};
+
+/* ★ 몇 바퀴를 못 떼야 「틀린 것 한 번」만큼인가 ★
+ *
+ * 한 바퀴를 한 신호로 세면 안 된다. 스무 개짜리 구간을 열 바퀴 돌면 안 뗀
+ * 낱말이 전부 약점이 되고, 그러면 약점 목록이 그냥 「안 뗀 것 목록」이라
+ * 무엇부터 볼지를 다시 못 정한다.
+ *
+ * 세 바퀴에 한 신호. 아홉 바퀴를 못 떼면 그제야 약점이 된다(문턱이 3). 같은
+ * 스무 개를 아홉 번 들었는데 아직 손이 안 간 낱말이면, 그건 실제로 안 되는
+ * 낱말이다. */
+export const STUCK_PER_SIGNAL = 3;
 
 export function weakScore(st, rec) {
   const s = st || {};
@@ -172,6 +204,9 @@ export function weakScore(st, rec) {
   if (r.fastDays != null && r.fastDays <= 3) score += W.fast;
   // 많이 들어도 아직 틀리는 낱말 — 귀로는 익었는데 떠올리지 못하는 쪽이다
   score += Math.min(3, Math.floor(r.listen / 5));
+  // 안 뗀 채로 돈 바퀴. 한 바퀴에 1점이되 열 점에서 멈춘다 — 밤새 틀어 둔
+  // 사람의 목록이 바퀴 수로만 줄 세워지면 안 된다
+  score += Math.min(10, r.stuck * W.stuck);
   // 맞히기 시작한 것은 조금씩 내려간다. 0 밑으로는 안 간다
   score = Math.max(0, score - r.quizRight * W.quizRight);
   return score;
@@ -188,6 +223,7 @@ export function errorSignals(st, rec) {
   return (s.wrongCount || 0) + (s.vagueCount || 0)
     + r.quizWrong
     + r.forgot * 2
+    + Math.floor(r.stuck / STUCK_PER_SIGNAL)
     + (r.fastDays != null && r.fastDays <= 3 ? 1 : 0);
 }
 
@@ -211,6 +247,7 @@ export function weakReasons(st, rec) {
   if (s.wrongCount > 0) out.push(`회독 몰라요 ${s.wrongCount}번`);
   if (r.quizWrong > 0) out.push(`시험 오답 ${r.quizWrong}번`);
   if (s.vagueCount > 0) out.push(`애매해요 ${s.vagueCount}번`);
+  if (r.stuck > 0) out.push(`안 뗀 채로 ${r.stuck}바퀴`);
   if (r.listen > 0) out.push(`${r.listen}번 들었어요`);
   if (r.quizRight > 0) out.push(`시험 정답 ${r.quizRight}번`);
   return out;
@@ -250,14 +287,15 @@ export function weakIds(ids = [], review = {}, ledger = {}, opts = {}) {
 /* 장부 전체를 한 줄로 — 복습 탭이 「시험 오답 12 · 금방 잊는 것 3」을 적는다. */
 export function weakSummary(ids = [], review = {}, ledger = {}, opts = {}) {
   const rank = weakRank(ids, review, ledger, opts);
-  let quizWrong = 0; let forgot = 0; let fast = 0; let listen = 0;
+  let quizWrong = 0; let forgot = 0; let fast = 0; let listen = 0; let stuck = 0;
   for (const { rec } of rank) {
     quizWrong += rec.quizWrong;
     forgot += rec.forgot;
     if (rec.forgot > 0 && rec.fastDays != null && rec.fastDays <= 3) fast += 1;
     listen += rec.listen;
+    if (rec.stuck > 0) stuck += 1;
   }
-  return { total: rank.length, quizWrong, forgot, fast, listen, top: rank.slice(0, 5) };
+  return { total: rank.length, quizWrong, forgot, fast, listen, stuck, top: rank.slice(0, 5) };
 }
 
 /* ── 기기 합치기 ──
@@ -277,6 +315,10 @@ export function mergeWeak(local = {}, remote = {}) {
       quizWrong: Math.max(a.quizWrong, b.quizWrong),
       quizRight: Math.max(a.quizRight, b.quizRight),
       listen: Math.max(a.listen, b.listen),
+      /* 바퀴 수도 큰 쪽. 「다 외웠어요」로 0이 된 기기와 아직 도는 기기를
+         합치면 큰 쪽이 남는데, 그게 맞다 — 한쪽에서 아직 안 뗐으면 안 뗀
+         것이다. 뗀 쪽에서 한 번 더 누르면 그때 0이 된다. */
+      stuck: Math.max(a.stuck, b.stuck),
       forgot: Math.max(a.forgot, b.forgot),
       fastDays: fd.length ? Math.min(...fd) : null,
       at: Math.max(a.at, b.at),

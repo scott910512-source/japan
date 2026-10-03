@@ -5,7 +5,9 @@ import { koreanVoiceListed, speechReady, speakJapanese, speakKorean, stopSpeakin
 import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
-import { DIRECTIONS, SCOPES, blocksIn, dirOf, nextAt, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
+import {
+  DIRECTIONS, SCOPES, blocksIn, countsAsStuck, dirOf, nextAt, pickListen, scopeCounts, stepsOf,
+} from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
 import { BPMS, DEFAULT_BPM, nextBpm, startBeat, stopBeat } from '../lib/metronome.js';
@@ -168,7 +170,16 @@ export default function Listen({
     countedLap.current = lap;
     onActivity?.({ listened: 1 });
     const id = run.cards[run.at]?.id;
-    if (id) onWeakness?.([{ id, kind: WEAK_KIND.LISTEN }]);
+    if (!id) return;
+    const notes = [{ id, kind: WEAK_KIND.LISTEN }];
+    /* ★ 세 바퀴째에도 안 뗀 낱말을 센다 ★
+       들은 횟수만으로는 약점이 안 쌓인다 — 「얼마나 만났나」지 「되나
+       안 되나」가 아니라서, 쉰 번 들은 멀쩡한 낱말까지 약점이 될까 봐
+       신호로 안 세고 있었다. 그래서 달리면서 듣기만 하면 약점이 0이었다.
+       세 바퀴째까지 「다 외웠어요」에 손이 안 간 낱말은 다르다. 그건
+       사람이 직접 낸 신호다. 뺀 낱말은 판에서 아예 빠지니 저절로 안 센다. */
+    if (countsAsStuck(lap)) notes.push({ id, kind: WEAK_KIND.STUCK });
+    onWeakness?.(notes);
   }, [run, onActivity, onWeakness]);
 
   /* 뜻도 소리로 낼지. 화면을 못 보는 동안 쓰라고 만든 자리인데 뜻이 눈으로만
@@ -298,6 +309,10 @@ export default function Listen({
     if (!run || !card) return;
     const id = card.id;
     dropSave(new Set(dropped).add(id));
+    /* 쌓아 둔 바퀴 수를 되돌린다. 그 수의 뜻이 「아직 안 뗀 채로」라서,
+       뗀 순간 더는 참이 아니다 — 안 되돌리면 방금 외운 낱말이 약점 목록
+       맨 위에 그대로 남는다. */
+    onWeakness?.([{ id, kind: WEAK_KIND.CLEARED }]);
     setStep(0);
     setRun((r) => {
       if (!r) return r;

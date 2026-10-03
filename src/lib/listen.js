@@ -218,6 +218,20 @@ export function scopeCounts(pool, review, today = todayKey(), kiju = null, skipD
  * 되면 켠 보람이 없다.
  *
  * null이면 끝났다는 뜻 — 화면은 판을 접고 설정으로 돌아간다. */
+/* ★ 몇 바퀴째부터 「아직 안 뗀 것」으로 세나 ★
+ *
+ * 첫 바퀴는 그냥 처음 만난 것이다. 못 떼는 게 당연해서 셀 것이 없다.
+ * 둘째 바퀴도 넘긴다 — 한 번 더 들어 보는 중일 수 있다.
+ * 셋째 바퀴부터가 신호다. 같은 스무 개를 세 번 돌았는데 아직 「다
+ * 외웠어요」에 손이 안 갔다면, 그건 안 붙고 있다는 뜻이다.
+ *
+ * 바퀴 번호는 0부터다(첫 바퀴가 0). 그래서 2부터 센다. */
+export const STUCK_FROM_LAP = 2;
+
+export function countsAsStuck(lap) {
+  return (Number(lap) || 0) >= STUCK_FROM_LAP;
+}
+
 export function reorderLap(cards = []) {
   if (cards.length < 2) return cards;
   const next = shuffled(cards);
