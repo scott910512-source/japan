@@ -366,13 +366,22 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
     });
     ok('기기에 남는다', saved === 'true/180', saved);
 
-    /* ★ 실제로 소리를 거는지 ★
-       화면에 칸만 있고 안 울리면 달리다가 알게 된다. 오실레이터를 세어 본다. */
+    /* ★ 실제로 소리를 거는지, 그리고 고른 간격으로 거는지 ★
+       화면에 칸만 있고 안 울리면 달리다가 알게 된다. 세는 것만으로는
+       모자라서 예약한 시각을 그대로 적어 둔다 — 「멈췄다가 와다다다」는
+       수가 아니라 간격이 말해 준다. */
     await page.evaluate(() => {
       window.__ticks = 0;
-      const C = window.AudioContext || window.webkitAudioContext;
-      const orig = C.prototype.createOscillator;
-      C.prototype.createOscillator = function (...a) { window.__ticks += 1; return orig.apply(this, a); };
+      window.__when = [];
+      const P = (window.AudioContext || window.webkitAudioContext).prototype;
+      const orig = P.createOscillator;
+      P.createOscillator = function (...a) {
+        window.__ticks += 1;
+        const o = orig.apply(this, a);
+        const st = o.start.bind(o);
+        o.start = (t) => { window.__when.push(t); return st(t); };
+        return o;
+      };
     });
     await page.locator('.ls-go').click();
     await page.waitForTimeout(500);
@@ -381,14 +390,64 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
     const ticks = await page.evaluate(() => window.__ticks);
     ok('★ 재생하면 박자가 울린다 ★', ticks > 5, `${ticks}번`);
 
+    /* ★ 박자가 고른가 ★
+     *
+     * 「좀 엇나가고, 멈췄다가 와다다다 나온다」 — 두 가지가 겹쳐 있었다.
+     *
+     *   · 듣기 화면이 박자 효과의 의존성에 run을 두고 있었다. run은 장이
+     *     넘어갈 때마다 새 객체라, 몇 초마다 박자를 멈췄다 다시 켜는 셈이었다.
+     *     그때마다 첫 박이 지금으로 당겨져서 박자가 통째로 어긋난다.
+     *   · 멈출 때 타이머만 끄고 이미 예약해 둔 소리는 그대로 뒀다. 큐에
+     *     1.5초치가 남아 있는데 다시 시작하면 새 예약이 겹쳐 쏟아진다.
+     *
+     * 수를 세는 것으로는 둘 다 못 잡는다. 간격을 재야 보인다. */
+    const spacing = async () => page.evaluate(() => {
+      const w = [...(window.__when || [])].sort((a, b) => a - b);
+      const gaps = w.slice(1).map((t, i) => t - w[i]);
+      return { n: w.length, gaps };
+    });
+    const sp = await spacing();
+    const want = 60 / 180;
+    const off2 = sp.gaps.filter((g) => Math.abs(g - want) > 0.005);
+    ok('★ 간격이 고르다 — 엇나가지 않는다 ★', off2.length === 0,
+      `${sp.n}박 · 어긋난 간격 ${off2.length}개 (있어야 할 간격 ${want.toFixed(4)}초)`);
+    ok('겹쳐서 쏟아지지 않는다 — 아주 짧은 간격이 없다',
+      sp.gaps.every((g) => g > want * 0.5),
+      `제일 짧은 간격 ${Math.min(...sp.gaps).toFixed(4)}초`);
+
+    /* 빠르기를 바꿔도 두 빠르기가 같이 나면 안 된다. 바꾸는 순간 걸어 둔
+       옛 빠르기의 소리를 거둬들여야 한다. */
+    await page.evaluate(() => { window.__when = []; });
+    await page.locator('.ls-beat').click();   // 180 → 끄기
+    await page.waitForTimeout(200);
+    await page.locator('.ls-beat').click();   // 끄기 → 160
+    await page.waitForTimeout(3000);
+    const sp2 = await spacing();
+    const want2 = 60 / 160;
+    const off3 = sp2.gaps.filter((g) => Math.abs(g - want2) > 0.005);
+    ok('★ 빠르기를 바꿔도 고르다 ★', sp2.n > 3 && off3.length === 0,
+      `${sp2.n}박 · 어긋난 간격 ${off3.length}개 (160이면 ${want2.toFixed(4)}초)`);
+
     /* 달리는 중에는 화면을 못 본다 — 한 자리를 눌러 160 → 170 → 180 → 끄기 */
     const live = page.locator('.ls-beat');
     ok('재생 화면에 큰 버튼이 있다', await live.count() === 1,
       (await live.innerText()).trim());
-    ok('지금 빠르기가 적혀 있다', (await live.innerText()).includes('180'));
+    ok('지금 빠르기가 적혀 있다', /\d{3}/.test(await live.innerText()),
+      (await live.innerText()).trim());
     const box = await live.boundingBox();
     ok('안 보고 눌러도 맞게 크다', box && box.height >= 44 && box.width > 200,
       box ? `${Math.round(box.width)}x${Math.round(box.height)}` : 'none');
+    /* 위에서 빠르기를 돌려 봤으니 지금 자리가 어디인지 모른다. 180으로
+       맞춰 두고 이어 본다 — 검사가 앞 묶음의 끝 상태에 기대면, 앞을 한 줄
+       고칠 때마다 뒤가 같이 깨진다. */
+    for (let i = 0; i < 4; i++) {
+      if ((await live.innerText()).includes('180')) break;
+      await live.click();
+      await page.waitForTimeout(250);
+    }
+    ok('180으로 맞춰 둔다', (await live.innerText()).includes('180'),
+      (await live.innerText()).trim());
+
     await live.click();
     await page.waitForTimeout(300);
     ok('★ 눌러서 끌 수 있다 ★', (await live.innerText()).includes('꺼짐'),

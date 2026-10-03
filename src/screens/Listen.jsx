@@ -230,11 +230,26 @@ export default function Listen({
      멈춘다 — 신발 끈 묶는 동안 박자만 계속 가면 그게 더 급하다.
      켜고 끄는 일은 여기 한 군데서 한다(화면 여러 곳에서 start/stop을 부르면
      어느 쪽이 마지막인지가 렌더 차례에 달리게 된다). */
+  /* ★ run을 의존성에 두면 안 된다 ★
+     run은 장이 넘어갈 때마다 새 객체다. 그걸 그대로 보면 몇 초마다 박자를
+     멈췄다 다시 켜는 셈이고, 그때마다 첫 박이 지금으로 당겨져 박자가 통째로
+     어긋난다 — 거기에 걸어 둔 옛 소리까지 겹쳐서 쏟아졌다.
+     보는 것은 「지금 박자가 나야 하나」 하나다. */
+  const beatOn = Boolean(run) && !paused && bpm != null;
   useEffect(() => {
-    if (!run || paused || bpm == null) { stopBeat(); return undefined; }
+    if (!beatOn) { stopBeat(); return undefined; }
     startBeat(bpm);
     return () => stopBeat();
-  }, [run, paused, bpm]);
+    // bpm은 아래가 맡는다 — 여기서 받으면 빠르기를 바꿀 때 판이 끊긴다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beatOn]);
+
+  /* 빠르기만 바꿀 때는 끊지 않는다. startBeat이 돌고 있는 판의 빠르기만
+     갈아 끼우고, 걸어 둔 옛 빠르기의 소리는 거둬들인다. */
+  useEffect(() => {
+    if (beatOn) startBeat(bpm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bpm]);
 
   /* 화면이 꺼져도 소리는 이어지는 게 이 화면의 존재 이유다. 다만 브라우저는
      화면이 잠기면 타이머를 늦추거나 멈춘다 — 어디까지 되는지는 기기마다
