@@ -407,6 +407,10 @@ async function boot(browser, patch = {}, init = null) {
     await off3.waitFor({ timeout: 8000 }).catch(() => {});
     if (await off3.count()) { await off3.click(); await p3.waitForTimeout(800); }
     const resume = p3.locator('.bigcta');
+    /* ★ 여기가 CI에서 95개 대신 93개를 찍은 자리다 ★
+       이 버튼이 없으면 아래 검사 둘이 조용히 사라지고, 그래도 통과로
+       찍힌다. 전제를 적어 두면 어긋나는 순간 소리가 난다. */
+    ok('이어하기 버튼이 있다', await resume.count() > 0);
     if (await resume.count()) {
       await resume.click();
       await p3.waitForTimeout(900);

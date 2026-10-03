@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab } from './_nav.js';
+import { goTab, openMenu } from './_nav.js';
 import { ALL_WORDS } from '../../src/data/allWords.js';
 
 /* N3 단어 수는 자료가 늘면 같이 는다 — 숫자를 못 박지 않고 자료에서 센다 */
@@ -98,19 +98,27 @@ const ok = (label, cond, extra) => {
   ok('세트 시작 시 학습 화면 진입', /N3 1세트/.test(body), body.slice(0, 80).replace(/\s+/g, ' '));
 
   // 뒤로 → 레벨 재선택
-  await goTab(page, '학습');
-  const card2 = page.locator('.mbig').filter({ hasText: '단어' }).first();
-  if (await card2.count()) {
-    await card2.first().click();
-    await page.waitForTimeout(500);
-    await page.locator('.wd-how button', { hasText: '세트로' }).click();
-    await page.waitForTimeout(400);
-    await page.locator('.jl-level').first().click();
-    await page.waitForTimeout(400);
-    await page.locator('.inner-back').first().click();
-    await page.waitForTimeout(400);
-    ok('레벨 다시 고르기 동작', (await page.locator('.jl-level').count()) === 5);
-  }
+  /* ★ 이 묶음은 줄곧 안 돌고 있었다 ★
+   *
+   * 단어 메뉴를 .mbig(큰 칸)로 찾고 있었는데, 메뉴를 개편하면서 큰 칸은
+   * 코스 하나만 남았다(lib/menu.js의 big은 n3뿐). 그래서 조건이 늘 거짓이었고
+   * 아래 검사가 한 번도 실행되지 않았다 — 그런데도 통과로 찍혔다.
+   * 조건 안에 검사를 숨겨 두면 이런 일이 조용히 생긴다.
+   *
+   * 조건을 없앤다. 길은 _nav.js가 알고 있으니 그걸 쓴다 — 메뉴 생김새가
+   * 또 바뀌어도 한 군데만 고치면 된다. */
+  await openMenu(page, '단어');
+  ok('단어 화면이 열린다', await page.locator('.wd-how').count() > 0);
+  await page.locator('.wd-how button', { hasText: '세트로' }).click();
+  await page.waitForTimeout(400);
+  ok('세트로 고르면 레벨 다섯이 나온다', (await page.locator('.jl-level').count()) === 5,
+    `${await page.locator('.jl-level').count()}개`);
+  await page.locator('.jl-level').first().click();
+  await page.waitForTimeout(400);
+  await page.locator('.inner-back').first().click();
+  await page.waitForTimeout(400);
+  ok('★ 레벨 다시 고르기 동작 ★', (await page.locator('.jl-level').count()) === 5,
+    `${await page.locator('.jl-level').count()}개`);
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();

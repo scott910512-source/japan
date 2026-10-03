@@ -116,6 +116,8 @@ const OLD = {
   await page.waitForTimeout(800);
   ok('낡은 설명이 있어도 영상이 열림', (await page.textContent('body')).includes('자막'));
   const lesson = page.locator('button', { hasText: '설명 보기' });
+  /* 전제를 검사로 — 없으면 아래 「모자란 설명으로도 열림」이 조용히 사라진다 */
+  ok('설명 보기 버튼이 있다', await lesson.count() > 0);
   if (await lesson.count()) {
     await lesson.first().click();
     await page.waitForTimeout(800);

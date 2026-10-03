@@ -116,6 +116,9 @@ async function judgeAll(page, max = 60, label = '알아요') {
   await page.locator('.rv-start').click();
   await page.waitForTimeout(900);
   const intro = page.locator('.study.intro .bigstart');
+  /* 전제를 검사로 적어 둔다. 안 적으면 소개 화면이 안 떴을 때 아래 검사가
+     조용히 사라지고, 통과 수만 줄어든 채로 녹색이 된다. */
+  ok('복습 판에 소개 화면이 뜬다', await intro.count() > 0);
   if (await intro.count()) {
     const introText = await page.locator('.study.intro').innerText();
     ok('판을 열기 전에 몇 장인지 말한다 — 복습 탭의 수와 같다', introText.includes(String(rvLeft)), introText.replace(/\s+/g, ' ').slice(0, 60));

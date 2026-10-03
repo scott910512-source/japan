@@ -86,6 +86,8 @@ const savedToday = (page) => page.evaluate(() => {
   // 되돌리기
   const at2 = await head();
   const undo = page.locator('button', { hasText: '되돌리기' });
+  /* 전제를 검사로 — 없으면 되돌리기 검사 둘이 조용히 사라진다 */
+  ok('판정한 뒤에 되돌리기가 있다', await undo.count() > 0);
   if (await undo.count()) {
     await undo.first().click();
     await page.waitForTimeout(500);
@@ -177,6 +179,8 @@ const savedToday = (page) => page.evaluate(() => {
   await startStudy(page);
   await page.waitForTimeout(700);
 
+  /* 전제를 검사로 — 카드가 안 떴으면 뒤집기 검사 둘이 조용히 사라진다 */
+  ok('카드가 떠 있다', await page.locator('.studycard').count() > 0);
   if (await page.locator('.studycard').count()) {
     ok('뒤집기 전에는 뜻이 안 보인다', await page.locator('.sc-back').count() === 0);
     await page.keyboard.press('4');
