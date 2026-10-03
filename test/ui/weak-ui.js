@@ -260,6 +260,83 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
       (await busy()).join() || '없음');
   }
 
+  console.log('\n[ 달리기 박자 ]');
+  {
+    /* ★ 달릴 때 귀는 두 가지를 받는다 ★
+       외우려는 일본어와 발을 맞출 박자다. 둘을 다른 앱으로 틀면 한쪽이
+       다른 쪽을 끊는다(iOS가 특히 그렇다). 그래서 한 화면에서 같이 낸다. */
+    /* 앞 묶음이 탭을 돌다 홈에서 끝난다 — 듣기 화면을 다시 연다 */
+    await openListen(page, 'auto');
+    await page.waitForTimeout(800);
+
+    const beat = page.locator('.ls-beattoggle');
+    ok('박자 칸이 있다', await beat.count() === 1);
+    ok('기본은 꺼져 있다 — 달리는 사람만 쓰는 자리다',
+      await beat.getAttribute('aria-pressed') === 'false');
+    ok('꺼져 있으면 빠르기 칸도 없다', await page.locator('.ls-bpms').count() === 0);
+
+    await beat.click();
+    await page.waitForTimeout(300);
+    ok('켜면 빠르기를 고를 수 있다', await page.locator('.ls-bpms button').count() === 3,
+      (await page.locator('.ls-bpms button').allTextContents()).join(' · '));
+    ok('달리기 피치 셋', (await page.locator('.ls-bpms button').allTextContents()).join(',') === '160,170,180');
+
+    await page.locator('.ls-bpms button[data-bpm="180"]').click();
+    await page.waitForTimeout(300);
+    const saved = await page.evaluate(() => {
+      const s2 = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
+      return `${s2.listenBeat}/${s2.listenBpm}`;
+    });
+    ok('기기에 남는다', saved === 'true/180', saved);
+
+    /* ★ 실제로 소리를 거는지 ★
+       화면에 칸만 있고 안 울리면 달리다가 알게 된다. 오실레이터를 세어 본다. */
+    await page.evaluate(() => {
+      window.__ticks = 0;
+      const C = window.AudioContext || window.webkitAudioContext;
+      const orig = C.prototype.createOscillator;
+      C.prototype.createOscillator = function (...a) { window.__ticks += 1; return orig.apply(this, a); };
+    });
+    await page.locator('.ls-go').click();
+    await page.waitForTimeout(500);
+    await page.locator('.ls-ask .submit-btn').click();
+    await page.waitForTimeout(3000);
+    const ticks = await page.evaluate(() => window.__ticks);
+    ok('★ 재생하면 박자가 울린다 ★', ticks > 5, `${ticks}번`);
+
+    /* 달리는 중에는 화면을 못 본다 — 한 자리를 눌러 160 → 170 → 180 → 끄기 */
+    const live = page.locator('.ls-beat');
+    ok('재생 화면에 큰 버튼이 있다', await live.count() === 1,
+      (await live.innerText()).trim());
+    ok('지금 빠르기가 적혀 있다', (await live.innerText()).includes('180'));
+    const box = await live.boundingBox();
+    ok('안 보고 눌러도 맞게 크다', box && box.height >= 44 && box.width > 200,
+      box ? `${Math.round(box.width)}x${Math.round(box.height)}` : 'none');
+    await live.click();
+    await page.waitForTimeout(300);
+    ok('★ 눌러서 끌 수 있다 ★', (await live.innerText()).includes('꺼짐'),
+      (await live.innerText()).trim());
+
+    const before = await page.evaluate(() => window.__ticks);
+    await page.waitForTimeout(2000);
+    const after = await page.evaluate(() => window.__ticks);
+    ok('끄면 더 안 울린다', after === before, `${after - before}번 더`);
+
+    await live.click();
+    await page.waitForTimeout(300);
+    ok('다시 켜면 160부터', (await live.innerText()).includes('160'),
+      (await live.innerText()).trim());
+
+    /* 멈춤을 누르면 박자도 멈춘다 — 신발 끈 묶는 동안 박자만 계속 가면
+       그게 더 급하다. */
+    await page.locator('.ls-pause').click();
+    await page.waitForTimeout(400);
+    const p1 = await page.evaluate(() => window.__ticks);
+    await page.waitForTimeout(1800);
+    const p2 = await page.evaluate(() => window.__ticks);
+    ok('★ 잠깐 멈춤에 박자도 멈춘다 ★', p2 === p1, `${p2 - p1}번 더`);
+  }
+
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

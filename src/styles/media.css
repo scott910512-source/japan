@@ -392,6 +392,17 @@
   .ls-opts { grid-template-columns: 1fr; }
 }
 
+/* 달리기 박자 — 달리는 중에는 화면을 못 본다. 한 자리를 눌러 돌리게 하고,
+   손가락이 안 보고도 맞게 넓고 두껍게 잡는다. 켜져 있으면 색으로 알린다. */
+.ls-beat {
+  width: calc(100% - 32px); margin: 10px 16px 0;
+  justify-content: center; min-height: 52px; font-size: 15px; font-weight: 700;
+}
+.ls-beat.on { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
+.ls-beatcard { display: flex; flex-direction: column; gap: 12px; }
+.ls-beatcard .toggle-pill { min-height: 56px; }
+.ls-bpms button { font-variant-numeric: tabular-nums; }
+
 /* ── 듣기: 구간 · 바퀴 · 시험으로 ── */
 .ls-lap { display: block; font-size: 11px; font-weight: 700; color: var(--ink-soft); }
 .ls-order { margin-bottom: 10px; }

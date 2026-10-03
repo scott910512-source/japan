@@ -8,6 +8,7 @@ import { cardsForQueue } from '../lib/cards.js';
 import { DIRECTIONS, SCOPES, blocksIn, dirOf, nextAt, pickListen, scopeCounts, stepsOf } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
+import { BPMS, DEFAULT_BPM, nextBpm, startBeat, stopBeat } from '../lib/metronome.js';
 import { markBusy } from '../lib/busy.js';
 import { WEAK_KIND } from '../lib/weak.js';
 
@@ -82,6 +83,17 @@ export default function Listen({
      떠오르는 건 차례를 외운 것이고, 시험장에는 그 차례가 없다. 세트는 안
      바뀐다(구간 고정은 그대로). */
   const [reshuffle, setReshuffle] = useState(settings.listenReshuffle !== false);
+  /* ★ 달리기 박자 ★
+     달릴 때 귀는 두 가지를 받는다 — 외우려는 일본어와 발을 맞출 박자다.
+     둘을 다른 앱으로 틀면 한쪽이 다른 쪽을 끊는다(iOS가 특히 그렇다).
+     null이면 꺼짐. 켜면 160·170·180 중 하나다(달리기 피치). */
+  const [bpm, setBpm] = useState(
+    () => (settings.listenBeat ? (settings.listenBpm || DEFAULT_BPM) : null),
+  );
+  const saveBpm = (v) => {
+    setBpm(v);
+    onSettingsChange?.({ listenBeat: v != null, ...(v != null ? { listenBpm: v } : {}) });
+  };
   const [run, setRun] = useState(null);   // { cards, at, lap }
   /* 방금 들은 세트. 다 듣고 나서 「그대로 시험」으로 넘어가는 자리다 —
      귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다. */
@@ -194,6 +206,17 @@ export default function Listen({
     clearTimeout(timer.current);
     stopSpeaking();
   }, []);
+
+  /* ★ 박자는 판이 돌 때만 ★
+     설정 화면에서 울리면 고르는 동안 계속 딱딱거린다. 멈춤을 누르면 같이
+     멈춘다 — 신발 끈 묶는 동안 박자만 계속 가면 그게 더 급하다.
+     켜고 끄는 일은 여기 한 군데서 한다(화면 여러 곳에서 start/stop을 부르면
+     어느 쪽이 마지막인지가 렌더 차례에 달리게 된다). */
+  useEffect(() => {
+    if (!run || paused || bpm == null) { stopBeat(); return undefined; }
+    startBeat(bpm);
+    return () => stopBeat();
+  }, [run, paused, bpm]);
 
   /* 화면이 꺼져도 소리는 이어지는 게 이 화면의 존재 이유다. 다만 브라우저는
      화면이 잠기면 타이머를 늦추거나 멈춘다 — 어디까지 되는지는 기기마다
@@ -510,6 +533,18 @@ export default function Listen({
           <button className="ghost-btn" onClick={() => skip(1)}>다음</button>
         </div>
 
+        {/* ★ 달리면서 누르는 자리 ★
+            달리는 중에는 화면을 못 본다. 그래서 고르는 칸을 여럿 두지 않고
+            한 자리를 눌러 돌린다 — 160 → 170 → 180 → 끄기 → 160.
+            넓게 잡아 둬서 안 보고 눌러도 맞는다. */}
+        <button
+          className={`ghost-btn ls-beat${bpm != null ? ' on' : ''}`}
+          onClick={() => saveBpm(nextBpm(bpm))}
+          aria-pressed={bpm != null}
+        >
+          {bpm != null ? `달리기 박자 ${bpm}` : '달리기 박자 — 꺼짐'}
+        </button>
+
         {/* ★ 익은 것은 이번 판에서 뺀다 ★
             한 구간을 몇 바퀴 돌다 보면 먼저 익는 낱말이 생긴다. 그것까지
             계속 들으면 남은 것을 만나는 틈이 그만큼 줄어든다. 회독 기록은
@@ -820,6 +855,42 @@ export default function Listen({
             </span>
             <span className={`toggle${reshuffle ? ' on' : ''}`} aria-hidden="true" />
           </button>
+        )}
+      </div>
+
+      {/* ★ 달리기 박자 ★
+          달릴 때 귀는 두 가지를 받는다 — 외우려는 일본어와 발을 맞출 박자다.
+          둘을 다른 앱으로 틀면 한쪽이 다른 쪽을 끊는다.
+          160·170·180은 달리기 피치(분당 걸음 수)다. 170~180은 발이 땅에 닿는
+          시간을 줄여 주고, 160은 몸을 푸는 쪽이다. 1씩 고르게 하면 달리면서
+          못 맞추니 세 칸만 둔다. */}
+      <div className="section-label">달리기 박자</div>
+      <div className="card ls-beatcard">
+        <button
+          className={`toggle-pill ls-beattoggle${bpm != null ? ' on' : ''}`}
+          onClick={() => saveBpm(bpm == null ? DEFAULT_BPM : null)}
+          aria-pressed={bpm != null}
+        >
+          <span className="tp-text">
+            <b>박자 같이 듣기</b>
+            <span>{bpm != null ? `${bpm} 걸음 / 분` : '소리만 — 박자 없음'}</span>
+          </span>
+          <span className={`toggle${bpm != null ? ' on' : ''}`} aria-hidden="true" />
+        </button>
+        {bpm != null && (
+          <div className="setrow col">
+            <div className="set-title">분당 걸음 <span className="set-val">{bpm}</span></div>
+            <div className="grouppick ls-bpms">
+              {BPMS.map((n) => (
+                <button key={n} className={bpm === n ? 'active' : ''} data-bpm={n}
+                  onClick={() => saveBpm(n)}>{n}</button>
+              ))}
+            </div>
+            <div className="set-sub">
+              재생 중에도 화면 가운데 버튼을 눌러 160 → 170 → 180 → 끄기로 돌릴 수 있어요.
+              말소리를 안 덮게 작게 나와요.
+            </div>
+          </div>
         )}
       </div>
 
