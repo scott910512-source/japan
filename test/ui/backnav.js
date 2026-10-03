@@ -99,27 +99,47 @@ function seeded() {
   ok('이어하기로 돌아갈 수 있다', cta.includes('이어하기'), cta.replace(/\s+/g, ' '));
 
   console.log('\n── 화면 버튼으로 닫은 뒤');
-  /* ★ 여기서 한 번은 헛돈다 — 일부러 그렇게 뒀다 ★
+  /* ★ 헛도는 한 번이 없어야 한다 ★
    *
-   * 화면 버튼으로 닫을 때 넣어 둔 history 자리도 같이 빼면 뒤로가기가 안
-   * 헛돌지만, 그러려면 history.back()을 우리가 불러야 한다. back()은 비동기라서
-   * 닫고 바로 다시 여는 흐름에서 엉뚱한 자리를 뺐고, 앱 밖으로 튕겼다.
-   * 헛도는 한 번보다 앱에서 튕기는 게 훨씬 나쁘다. 그래서 우리가 되돌리지
-   * 않는다 — 남은 자리를 다음 뒤로가기가 쓰고, 그다음 것이 앱을 벗어난다. */
+   * 여태 여기서 한 번은 헛돌았다. 화면 버튼으로 닫을 때 밀어 둔 history
+   * 자리가 남아서, 그다음 뒤로가기가 그걸 쓰면서 아무 일도 안 일어났다.
+   * 눌렀는데 아무것도 안 나는 그 한 번이 「뒤로가기가 안 먹는다」다.
+   *
+   * 전에 한 번 고치려다 되돌렸다. 우리가 history.back()을 부르는데 그게
+   * 비동기라서, 닫고 바로 다시 여는 흐름에서 엉뚱한 자리를 뺐고 앱 밖으로
+   * 튕겼다. 지금은 「부른 back이 도착했다」를 표시로 들고 있고, 도착했을 때
+   * 층이 다시 열려 있으면 자리를 새로 세운다(lib/navhistory.js).
+   *
+   * 그래서 닫은 뒤에는 우리 자리가 남아 있지 않다 — 뒤로가기 한 번이 바로
+   * 앱을 벗어난다. 덮인 게 없을 때 붙잡지 않는 것이 맞는 동작이다. */
   await openMenu(page, '완전기초');
   await page.waitForTimeout(600);
   ok('다시 열림', await page.locator('.subscreen.open').count() === 1);
   await page.locator('.subscreen.open .sub-back').first().click();
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(900);
   ok('화면 버튼으로 닫힘', await page.locator('.subscreen.open').count() === 0);
+  ok('★ 닫으면 밀어 둔 자리도 치운다 ★',
+    await page.evaluate(() => window.history.state?.jp !== 'layer'),
+    JSON.stringify(await page.evaluate(() => window.history.state)));
 
+  /* ★ 닫고 바로 다시 열기 — 전에 앱 밖으로 튕긴 자리 ★
+     부른 back이 도착하기 전에 다시 열린다. 그때 자리를 새로 안 세우면
+     열린 화면을 두고 다음 뒤로가기가 앱을 벗어난다. */
+  await openMenu(page, '완전기초');
+  await page.locator('.subscreen.open .sub-back').first().click();
+  await openMenu(page, '완전기초');
+  await page.waitForTimeout(900);
+  ok('빠르게 닫고 열어도 열려 있다', await page.locator('.subscreen.open').count() === 1);
+  ok('★ 그 화면에도 자리가 붙어 있다 ★',
+    await page.evaluate(() => window.history.state?.jp === 'layer'),
+    JSON.stringify(await page.evaluate(() => window.history.state)));
   await page.goBack();
   await page.waitForTimeout(800);
-  /* 남은 자리를 쓴 것뿐이라 앱은 그대로 있고, 아무것도 열리지 않는다 */
-  ok('★ 남은 자리를 써도 앱이 멀쩡하다 ★',
-    await page.locator('.tabbar').isVisible() && await page.locator('.subscreen.open').count() === 0);
+  ok('★ 뒤로가기가 앱을 벗어나지 않고 그 화면만 닫는다 ★',
+    await page.locator('.tabbar').isVisible()
+    && await page.locator('.subscreen.open').count() === 0);
 
-  /* 한 번 더 누르면 앱을 벗어난다 — 붙잡지 않는다는 뜻이다 */
+  /* 덮인 게 없으면 붙잡지 않는다 — 거기서 막으면 앱에서 나갈 길이 없어진다 */
   await page.goBack();
   await page.waitForTimeout(800);
   const left = await page.evaluate(() => location.href);

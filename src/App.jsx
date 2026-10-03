@@ -29,6 +29,7 @@ import { applyVerdict, dueCards, isSessionClear, stateOf, summarize, todayKey } 
 import { forgetSpeed, noteWeak, relapseNotes, weakReasons, weakSummary } from './lib/weak.js';
 import { roundSummary } from './lib/rounds.js';
 import { supabaseConfigured } from './lib/supabase.js';
+import { authGate } from './lib/authboot.js';
 import { useToday } from './lib/useToday.js';
 import { GRAMMAR_MODULES } from './data/grammar.js';
 
@@ -579,8 +580,17 @@ export default function App() {
 
   /* 로그인해야 들어올 수 있다. 학습 기록을 계정에 남기는 게 목적이므로
    * 익명 사용은 열어 두지 않는다. 세션은 기기에 남아 다음부터는 이 화면을 건너뛴다. */
-  if (supabaseConfigured && !authSession && !offlinePass) {
-    if (!authReady) return <div className="app-shell"><ScreenLoading label="학습 기록을 확인하고 있어요" /></div>;
+  /* 로그인 문을 보여 줄지, 확인 중 화면을 둘지, 그냥 들어갈지.
+     판단은 lib/authboot.js 한 곳에 있다 — 서버 확인이 깨지거나 끝내 안
+     오더라도 사람이 고를 수 있는 자리까지는 가야 한다. 거기 갇힌 화면이
+     한 번 있었다. */
+  const gate = authGate({
+    configured: supabaseConfigured, ready: authReady, session: authSession, offlinePass,
+  });
+  if (gate === 'loading') {
+    return <div className="app-shell"><ScreenLoading label="학습 기록을 확인하고 있어요" /></div>;
+  }
+  if (gate === 'gate') {
     return (
       <div className="app-shell">
         <div className="screens">
