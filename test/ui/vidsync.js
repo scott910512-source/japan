@@ -30,6 +30,10 @@ const boot = async (page) => {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
 };
 
 const ls = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key);
@@ -64,6 +68,10 @@ const ls = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   await openVideos(page);
   ok('새로고침해도 영상이 있음', await page.locator('.vd-item').count() === 1);
   ok('자막 진행 상태가 보임', (await page.textContent('.vd-item')).includes('2줄'), (await page.textContent('.vd-item')).replace(/\s+/g, ' '));
@@ -104,6 +112,10 @@ const ls = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k
   await page.context().setOffline(true);
   const off2 = page.locator('.gate-offline');
   if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   await openVideos(page);
   ok('새로고침해도 기본 영상이 안 돌아옴', await page.locator('.vd-item').count() === 0, String(await page.locator('.vd-item').count()));
 

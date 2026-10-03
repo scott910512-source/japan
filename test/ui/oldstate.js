@@ -74,6 +74,10 @@ const OLD = {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
 
   ok('낡은 기록으로도 앱이 켜짐', await page.locator('.tabbar').count() === 1);
 
@@ -116,6 +120,8 @@ const OLD = {
   await page.waitForTimeout(800);
   ok('낡은 설명이 있어도 영상이 열림', (await page.textContent('body')).includes('자막'));
   const lesson = page.locator('button', { hasText: '설명 보기' });
+  /* 전제를 검사로 — 없으면 아래 「모자란 설명으로도 열림」이 조용히 사라진다 */
+  ok('설명 보기 버튼이 있다', await lesson.count() > 0);
   if (await lesson.count()) {
     await lesson.first().click();
     await page.waitForTimeout(800);

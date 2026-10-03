@@ -37,6 +37,10 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   ok('인터넷이 끊겨도 쓸 수 있음', await off.count() > 0 || await p.locator('.tabbar').count() > 0);
   if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await p.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   ok('끊긴 채로 시작이 3초 안', Date.now() - t1 < 3000, `${Date.now() - t1}ms`);
 
   // 모든 탭을 돌며 깨지는 곳이 없는지

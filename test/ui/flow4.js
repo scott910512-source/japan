@@ -47,6 +47,10 @@ async function boot(browser, patch = {}) {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   return page;
 }
 
@@ -59,6 +63,10 @@ async function reboot(page) {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
 }
 
 const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
@@ -116,6 +124,9 @@ async function judgeAll(page, max = 60, label = '알아요') {
   await page.locator('.rv-start').click();
   await page.waitForTimeout(900);
   const intro = page.locator('.study.intro .bigstart');
+  /* 전제를 검사로 적어 둔다. 안 적으면 소개 화면이 안 떴을 때 아래 검사가
+     조용히 사라지고, 통과 수만 줄어든 채로 녹색이 된다. */
+  ok('복습 판에 소개 화면이 뜬다', await intro.count() > 0);
   if (await intro.count()) {
     const introText = await page.locator('.study.intro').innerText();
     ok('판을 열기 전에 몇 장인지 말한다 — 복습 탭의 수와 같다', introText.includes(String(rvLeft)), introText.replace(/\s+/g, ' ').slice(0, 60));

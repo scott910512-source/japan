@@ -93,6 +93,10 @@ async function boot(browser, patch = {}, init = null) {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   return page;
 }
 
@@ -401,12 +405,53 @@ async function boot(browser, patch = {}, init = null) {
       s.queue = ['없는카드-xyz'];
       localStorage.setItem('jp_manabu_session_v1', JSON.stringify(s));
     });
+    /* ★ 켠 채로 다시 부르고 나서 끊는다 ★
+     *
+     * 끊긴 채로 다시 부르면 로그인 문이 뜨는데 「이 기기 기록으로
+     * 계속하기」가 같이 안 나왔다 — 진단을 넣어 보니 CI에서 gate:1,
+     * off:0 이었다. 그러면 지날 길이 없어서 거기 갇힌다.
+     *
+     * boot과 weak-ui가 쓰는 순서가 답이다. 켠 채로 부르고, 자리를 잡은
+     * 뒤에 끊고, 그때 뜨는 버튼으로 지나간다. 로컬에서는 어쩌다 되고
+     * CI에서는 안 되던 자리가 이것이었다. */
+    await p3.context().setOffline(false);
     await p3.reload({ waitUntil: 'domcontentloaded' });
     await p3.waitForTimeout(1200);
+    await p3.context().setOffline(true);
     const off3 = p3.locator('.gate-offline');
     await off3.waitFor({ timeout: 8000 }).catch(() => {});
     if (await off3.count()) { await off3.click(); await p3.waitForTimeout(800); }
+    /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+       안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+       제 말로 실패하는 쪽이 읽기 쉽다. */
+    await p3.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
     const resume = p3.locator('.bigcta');
+    /* ★ 여기가 CI에서 95개 대신 93개를 찍은 자리다 ★
+       이 버튼이 없으면 아래 검사 둘이 조용히 사라지고, 그래도 통과로
+       찍힌다. 전제를 적어 두면 어긋나는 순간 소리가 난다. */
+    /* 세는 시간을 늘리는 게 아니라 뜰 때까지 기다린다. CI에서 이 검사가
+       바로 소리를 냈다 — 끊긴 채로 다시 부른 뒤 홈이 다 그려지기 전에
+       버튼을 찾고 있었다. 끝내 안 뜨면 그건 진짜 문제이고, 그때는
+       이 검사가 그렇게 말한다. */
+    await resume.waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+    /* ★ 없으면 무엇이 보이는지 적는다 ★
+     * 로컬에서는 뜨고 CI에서는 안 떴다. 두 번 고쳐 봤는데(기다리기 ·
+     * 세는 시간) 둘 다 아니었다 — 그러면 추측을 멈추고 화면을 봐야 한다.
+     * 이 한 줄이 있으면 다음 CI 로그가 바로 답을 준다. */
+    const seen = await p3.evaluate(async () => {
+      const rs = navigator.serviceWorker
+        ? await navigator.serviceWorker.getRegistrations() : null;
+      return {
+        gate: document.querySelectorAll('.gate').length,
+        off: document.querySelectorAll('.gate-offline').length,
+        loading: document.querySelectorAll('.screen-loading').length,
+        tabbar: document.querySelectorAll('.tabbar').length,
+        cta: document.querySelectorAll('.bigcta').length,
+        sw: rs ? (rs.map((r) => (r.active ? 'active' : 'pending')).join(',') || '없음') : 'API없음',
+        body: (document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 100),
+      };
+    });
+    ok('이어하기 버튼이 있다', await resume.count() > 0, JSON.stringify(seen));
     if (await resume.count()) {
       await resume.click();
       await p3.waitForTimeout(900);

@@ -33,6 +33,10 @@ const boot = async (page) => {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
 };
 
 const review = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'));
@@ -86,6 +90,8 @@ const savedToday = (page) => page.evaluate(() => {
   // 되돌리기
   const at2 = await head();
   const undo = page.locator('button', { hasText: '되돌리기' });
+  /* 전제를 검사로 — 없으면 되돌리기 검사 둘이 조용히 사라진다 */
+  ok('판정한 뒤에 되돌리기가 있다', await undo.count() > 0);
   if (await undo.count()) {
     await undo.first().click();
     await page.waitForTimeout(500);
@@ -161,6 +167,10 @@ const savedToday = (page) => page.evaluate(() => {
   await page.context().setOffline(true);
   const off2 = page.locator('.gate-offline');
   if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   ok('새로고침해도 기록이 남음', Object.keys(await review(page)).length === beforeReload, `${beforeReload}개`);
 
   // 복습 탭이 기록을 읽는다
@@ -177,6 +187,8 @@ const savedToday = (page) => page.evaluate(() => {
   await startStudy(page);
   await page.waitForTimeout(700);
 
+  /* 전제를 검사로 — 카드가 안 떴으면 뒤집기 검사 둘이 조용히 사라진다 */
+  ok('카드가 떠 있다', await page.locator('.studycard').count() > 0);
   if (await page.locator('.studycard').count()) {
     ok('뒤집기 전에는 뜻이 안 보인다', await page.locator('.sc-back').count() === 0);
     await page.keyboard.press('4');
