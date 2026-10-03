@@ -17,7 +17,7 @@
  * 둘 다 시간 계산이라, 소리와 떼어 두고 여기서 지킨다. */
 import {
   ACCENT_EVERY, BPMS, DEFAULT_BPM, LOOKAHEAD, TICK,
-  beatInterval, clampBpm, dueBeats, nextBpm,
+  beatInterval, beatShouldRun, clampBpm, dueBeats, nextBpm,
 } from '../../src/lib/metronome.js';
 
 let pass = 0; let fail = 0;
@@ -125,6 +125,41 @@ console.log('\n[ 한 손가락으로 돌리기 ]');
   ok('한 바퀴가 네 번이다',
     [null, 160, 170, 180].map((v) => nextBpm(v)).join(',') === '160,170,180,');
   ok('모르는 값이 들어오면 처음으로', nextBpm(123) === 160);
+}
+
+console.log('\n[ ★ 지금 박자가 나야 하나 ★ ]');
+{
+  /* 「엇나가고 멈췄다 쏟아진다」의 뿌리가 이 판단이었다. 듣기 화면이 판(run)
+     객체를 그대로 보고 켜고 끄다가, 장이 넘어갈 때마다 박자를 다시 시작했다.
+     보아야 할 것은 세 가지의 참거짓뿐이라는 것을 여기서 표로 지킨다. */
+  const R = (running, paused, bpm) => beatShouldRun({ running, paused, bpm });
+
+  ok('판이 돌고 빠르기가 정해졌으면 난다', R(true, false, 170) === true);
+  ok('★ 멈춰 있으면 안 난다 ★', R(true, true, 170) === false);
+  ok('★ 꺼 두었으면 안 난다 ★', R(true, false, null) === false);
+  ok('판이 없으면 안 난다 — 설정 화면에서 딱딱거리면 안 된다',
+    R(false, false, 170) === false);
+  ok('빈손으로 불러도 안 죽는다', beatShouldRun() === false);
+
+  /* ★ 장이 넘어가도 답이 안 바뀐다 ★
+     판 객체가 새것이 되는 것은 이 판단에 들어오지 않는다 — 그래서 넘겨도
+     박자가 끊기지 않는다. 같은 세 값이면 몇 번 물어도 같은 답이다. */
+  const cardA = { cards: [1, 2], at: 0, lap: 0 };
+  const cardB = { cards: [1, 2], at: 1, lap: 0 };
+  ok('★ 다음 장으로 넘어가도 같은 답 ★',
+    R(Boolean(cardA), false, 170) === R(Boolean(cardB), false, 170));
+  ok('빼서 판이 바뀌어도 같은 답',
+    R(Boolean({ cards: [1], at: 0 }), false, 170) === true);
+
+  /* 멈췄다 이어서 — 둘 다 뒤집힌다. 박자만 계속 가면 서 있는 사람 귀에
+     뛰라고 재촉하는 소리가 남는다. */
+  ok('멈추면 꺼지고 이어서 누르면 다시 켜진다',
+    R(true, true, 180) === false && R(true, false, 180) === true);
+
+  /* 그만(판 접기)은 빠르기를 안 건드린다 — 고른 180은 그대로 남고, 다시
+     시작하면 180으로 난다. 그 값을 지우는 자리는 끄기 버튼뿐이다. */
+  ok('판을 접어도 고른 빠르기는 살아 있다',
+    R(false, false, 180) === false && R(true, false, 180) === true);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

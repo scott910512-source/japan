@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTimeouts } from '../hooks/useTimeouts.js';
 import { IconSpeaker, IconCheck, IconPlay } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
@@ -18,6 +19,9 @@ import {
 const ROUNDS = 4;   // 한 게임에 네 판. 다섯 쌍씩이니 스무 개쯤 스친다.
 
 export default function Match({ cards, review, settings, onToast }) {
+  /* 화면을 나가면 걸려 있던 타이머도 같이 꺼진다 — 안 그러면 나간 뒤에
+     한 판이 적히거나 한 문제가 넘어간다(hooks/useTimeouts.js) */
+  const { after } = useTimeouts();
   const [mode, setMode] = useState(null);        // null이면 무엇을 할지 고르는 화면
   const [board, setBoard] = useState(null);
   const [round, setRound] = useState(1);
@@ -80,11 +84,11 @@ export default function Match({ cards, review, settings, onToast }) {
     }
     setMisses((n) => n + 1);
     setWrong(id);
-    setTimeout(() => setWrong(null), 420);
+    after(() => setWrong(null), 420);
   };
 
   const finishRound = () => {
-    setTimeout(() => {
+    after(() => {
       if (round >= ROUNDS) {
         const seconds = Math.round((Date.now() - startedAt.current) / 1000);
         const pairs = seen.current.length;

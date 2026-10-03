@@ -430,10 +430,19 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
 
     /* 달리는 중에는 화면을 못 본다 — 한 자리를 눌러 160 → 170 → 180 → 끄기 */
     const live = page.locator('.ls-beat');
+    /* ★ 지금 값만 읽는다 ★
+       버튼에는 「누르면 180」처럼 다음에 무엇이 되는지도 적혀 있다. 버튼
+       전체를 읽으면 170인데 180이 보이니, 지금 값이 적힌 자리(.lb-now)만
+       본다 — 안 그러면 「170이면서 180」인 검사가 된다. */
+    const now = () => page.locator('.ls-beat .lb-now').innerText();
     ok('재생 화면에 큰 버튼이 있다', await live.count() === 1,
-      (await live.innerText()).trim());
-    ok('지금 빠르기가 적혀 있다', /\d{3}/.test(await live.innerText()),
-      (await live.innerText()).trim());
+      (await live.innerText()).trim().replace(/\n/g, ' · '));
+    ok('지금 빠르기가 적혀 있다', /\d{3}/.test(await now()), (await now()).trim());
+    ok('달리는 사람 표시로 켜진 걸 바로 안다', (await now()).includes('\u{1F3C3}'),
+      (await now()).trim());
+    ok('누르면 어디로 가는지도 적혀 있다',
+      (await page.locator('.ls-beat .lb-hint').innerText()).includes('누르면'),
+      (await page.locator('.ls-beat .lb-hint').innerText()).trim());
     const box = await live.boundingBox();
     ok('안 보고 눌러도 맞게 크다', box && box.height >= 44 && box.width > 200,
       box ? `${Math.round(box.width)}x${Math.round(box.height)}` : 'none');
@@ -441,17 +450,15 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
        맞춰 두고 이어 본다 — 검사가 앞 묶음의 끝 상태에 기대면, 앞을 한 줄
        고칠 때마다 뒤가 같이 깨진다. */
     for (let i = 0; i < 4; i++) {
-      if ((await live.innerText()).includes('180')) break;
+      if ((await now()).includes('180')) break;
       await live.click();
       await page.waitForTimeout(250);
     }
-    ok('180으로 맞춰 둔다', (await live.innerText()).includes('180'),
-      (await live.innerText()).trim());
+    ok('180으로 맞춰 둔다', (await now()).includes('180'), (await now()).trim());
 
     await live.click();
     await page.waitForTimeout(300);
-    ok('★ 눌러서 끌 수 있다 ★', (await live.innerText()).includes('꺼짐'),
-      (await live.innerText()).trim());
+    ok('★ 눌러서 끌 수 있다 ★', (await now()).includes('꺼짐'), (await now()).trim());
 
     const before = await page.evaluate(() => window.__ticks);
     await page.waitForTimeout(2000);
@@ -460,8 +467,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
 
     await live.click();
     await page.waitForTimeout(300);
-    ok('다시 켜면 160부터', (await live.innerText()).includes('160'),
-      (await live.innerText()).trim());
+    ok('다시 켜면 160부터', (await now()).includes('160'), (await now()).trim());
 
     /* ★ 멈춤과 넘김은 다르다 ★
      *

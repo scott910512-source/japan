@@ -22,6 +22,10 @@ const PORT = Number(process.env.PORT || 8932);
 const APP_URL = `http://localhost:${PORT}/japan/`;
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
 const CHROME = process.env.CHROMIUM || (existsSync(LOCAL_CHROME) ? LOCAL_CHROME : '');
+/* 검사 하나에 줄 시간. 제일 긴 묶음(listen-ui)이 160초쯤이라 두 배를 둔다 —
+   느린 러너에서 한 번 길어졌다고 통째로 죽이면 고칠 것도 못 찾는다. */
+const TIMEOUT_MS = 300_000;
+
 const only = process.argv.includes('--logic') ? 'logic' : process.argv.includes('--ui') ? 'ui' : 'all';
 
 const list = (dir, ext) => (existsSync(join(HERE, dir))
@@ -38,13 +42,19 @@ function runOne(cmd, args, label) {
     encoding: 'utf8',
     // CHROMIUM이 빈 값이면 넘기지 않는다 — 검사가 알아서 찾게 둔다
     env: { ...process.env, APP_URL, ...(CHROME ? { CHROMIUM: CHROME } : {}) },
-    timeout: 180_000,
+    timeout: TIMEOUT_MS,
   });
   const out = `${r.stdout || ''}${r.stderr || ''}`;
   const m = out.match(/통과\s+(\d+)\s*\/\s*실패\s+(\d+)/);
   const passed = m ? Number(m[1]) : 0;
   // 성공 요약을 찍은 뒤 프로세스가 죽어도 통과로 처리하지 않는다.
   const crashed = !m || r.status !== 0 || Boolean(r.error);
+  /* ★ 시간초과와 죽음을 가려 적는다 ★
+     둘 다 「멈춤」으로 적었더니, 깨진 이름만 보고는 어디를 봐야 할지
+     알 수 없었다 — 검사가 느려진 것과 코드가 터진 것은 고칠 데가 다르다.
+     시간초과면 마지막으로 찍힌 줄이 「거기서 기다리다 끊겼다」는 뜻이고,
+     죽은 것이면 그 아래에 이유가 적혀 있다. */
+  const timedOut = r.error?.code === 'ETIMEDOUT' || (!m && r.signal === 'SIGTERM');
   const failed = Math.max(m ? Number(m[2]) : 1, crashed ? 1 : 0);
   console.log(`\n── ${label}`);
   if (failed > 0 || crashed) {
@@ -64,7 +74,7 @@ function runOne(cmd, args, label) {
   } else {
     console.log(`   통과 ${passed}`);
   }
-  return { label, passed, failed, crashed };
+  return { label, passed, failed, crashed, timedOut };
 }
 
 /* preview 서버가 뜰 때까지 기다린다. 바로 붙으면 아직 안 올라와 있어서
@@ -118,7 +128,11 @@ const broken = results.filter((r) => r.failed > 0 || r.crashed);
 console.log(`\n${'─'.repeat(46)}`);
 console.log(`검사 ${results.length}묶음 · 통과 ${passed} · 실패 ${failed}`);
 if (broken.length) {
-  const list = broken.map((r) => r.label + (r.crashed ? '(멈춤)' : '')).join(', ');
+  const list = broken.map((r) => {
+    if (r.timedOut) return `${r.label}(${TIMEOUT_MS / 1000}초 넘겨 끊음 — 위 출력의 마지막 줄에서 기다리다 끊겼다)`;
+    if (r.crashed) return `${r.label}(멈춤)`;
+    return r.label;
+  }).join(', ');
   console.log(`\n깨진 곳: ${list}`);
   if (process.env.GITHUB_ACTIONS) console.log(`::error title=깨진 곳::${list}`);
   process.exit(1);

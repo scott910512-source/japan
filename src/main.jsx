@@ -72,6 +72,11 @@ const updateSW = registerSW({
       if (document.visibilityState !== 'visible') return;
       registration.update().catch(() => {});
     };
+    /* ★ 여기는 정리하지 않는다 ★
+       이 셋은 서비스워커가 등록될 때 한 번 붙고 탭이 사는 동안 살아 있어야
+       한다 — 앱 전체가 곧 이 생애다. 떼어 낼 자리가 없고(이 콜백은 한 번만
+       불린다), 떼면 그때부터 새 버전을 영영 안 확인한다. 화면 안의 타이머와
+       다른 종류라, 「정리가 없다」는 이유로 지우면 안 된다. */
     document.addEventListener('visibilitychange', check);
     window.addEventListener('focus', check);
     setInterval(check, 30 * 60 * 1000);

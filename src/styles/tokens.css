@@ -22,6 +22,15 @@
      변수로 둔다 — 한 값으로 쓰면 흰 배경에서 2.2:1까지 떨어져 안 읽힌다. */
   --amber: #E9A23B;
   --badge-ink: #240A10;
+  /* ★ 손가락이 닿는 최소 크기 ★
+     44px은 애플이 정한 값이고 구글은 48px을 쓴다. 둘 중 작은 쪽을 아래
+     한계로 둔다 — 이보다 작으면 걷거나 달리면서 누를 때 빗나간다.
+     --touch-lg는 「안 보고 누르는 자리」다. 달리기 박자처럼 화면을 못 보고
+     누르는 버튼은 넉넉해야 맞는다.
+     리터럴로 서른 군데 흩어져 있던 값이다. 숫자로 적혀 있으면 한 군데를
+     40px로 줄여도 아무도 모른다. */
+  --touch: 44px;
+  --touch-lg: 56px;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
 }
 @media (prefers-color-scheme: light) {

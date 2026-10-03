@@ -4,6 +4,7 @@ import { supabase, supabaseConfigured } from '../lib/supabase.js';
 import { syncNow, pushMerged } from '../lib/sync.js';
 import { mergeSyncedSettings, pickSyncedSettings } from '../lib/merge.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from '../lib/crypto.js';
+import { AUTH_READY_TIMEOUT, sessionFrom } from '../lib/authboot.js';
 
 // 기존 서버 왕복과 병합 규칙을 보존한 계정 어댑터. 학습 화면은 서버에 직접 접근하지 않는다.
 export function useAccountSync({ data, streak, setStreak, showToast }) {
@@ -14,22 +15,66 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
   const [vaultKey, setVaultKey] = useState(() => loadVaultKey());
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
   const [recovering, setRecovering] = useState(false);
+  /* 로그인 확인이 시간초과로 끝났나. 「서버에 닿지 못했다」는 뜻이라,
+     로그인 문이 「이 기기 기록으로 계속하기」를 띄울지 정하는 데 쓴다 —
+     와이파이는 잡혔는데 서버가 죽은 자리에서 갇히지 않게. */
+  const [authTimedOut, setAuthTimedOut] = useState(false);
 
   const patchSettings = useCallback((patch) => setSettings((s) => ({ ...s, ...patch })), []);
   /* ── 계정 · 기기 간 동기화 ── */
 
+  /* ★ 로그인 확인은 어떤 경우에도 끝난다 ★
+   *
+   * 여기가 영영 멈추는 화면이었다. getSession()에 catch가 없어서, 그 약속이
+   * 깨지면(인터넷이 끊겼거나, 서버가 안 받거나, 응답 모양이 달라서 안에서
+   * 뭔가 던지면) setAuthReady(true)가 영영 안 불렸다 — 「학습 기록을
+   * 확인하고 있어요」에 갇히고, 새로고침해도 같은 자리다.
+   *
+   * 깨지지 않고 그냥 안 오는 경우도 있다. 끝내 도착하지 않는 연결은 거절도
+   * 안 되니 catch로도 안 잡힌다. 그래서 시간초과를 같이 둔다.
+   *
+   * 성공·실패·예외·시간초과 넷 다 사람이 고를 수 있는 자리까지 간다.
+   * 규칙과 그 이유는 lib/authboot.js에 적어 두었다. */
   useEffect(() => {
-    if (!supabaseConfigured) return;
-    supabase.auth.getSession().then(({ data }) => {
-      setAuthSession(data.session);
+    if (!supabaseConfigured) return undefined;
+    let settled = false;
+    /* 기다리기를 그만둔다. 「세션이 없다」고 적지는 않는다 — 늦게 도착한
+       세션은 아래 onAuthStateChange로 들어오고, 그때 앱이 열린다. */
+    const giveUp = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setAuthTimedOut(true);
       setAuthReady(true);
-    });
+    }, AUTH_READY_TIMEOUT);
+    const done = (session) => {
+      if (settled) { if (session) setAuthSession(session); return; }
+      settled = true;
+      clearTimeout(giveUp);
+      setAuthSession(session);
+      setAuthReady(true);
+    };
+    /* 거절로 끝난 경우도 「서버에 닿지 못했다」다 — 시간초과와 같게 다룬다 */
+    const failed = () => { if (!settled) setAuthTimedOut(true); done(null); };
+    try {
+      supabase.auth.getSession()
+        .then((res) => done(sessionFrom(res)))
+        .catch(failed);
+    } catch {
+      /* 부르는 그 자리에서 던지는 경우도 있다 — 설정이 깨졌을 때가 그렇다 */
+      failed();
+    }
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setAuthSession(next);
+      /* 상태 변화가 왔다는 것은 로그인 쪽이 살아 있다는 뜻이다 — 아직
+         기다리는 중이면 여기서 끝낸다. */
+      if (!settled) { settled = true; clearTimeout(giveUp); setAuthTimedOut(false); setAuthReady(true); }
       // 재설정 메일 링크로 돌아온 경우다. 세션만 열고 끝내면 비밀번호는 안 바뀐다.
       if (event === 'PASSWORD_RECOVERY') setRecovering(true);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      clearTimeout(giveUp);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const runSync = useCallback(async (silent = false) => {
@@ -176,6 +221,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     setRemoteKeyEnvelope,
     vaultKey,
     authReady,
+    authTimedOut,
     recovering,
     setRecovering,
     rememberVaultKey,

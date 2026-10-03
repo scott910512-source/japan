@@ -1,19 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { IconPlay, IconSpeaker, IconRepeat, IconArrowLeft } from '../components/Icons.jsx';
 import BottomSheet from '../components/BottomSheet.jsx';
-import { koreanVoiceListed, speechReady, speakJapanese, speakKorean, stopSpeaking } from '../lib/tts.js';
+import { koreanVoiceListed, speechReady } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
 import { cardsForQueue } from '../lib/cards.js';
 import {
-  DIRECTIONS, SCOPES, blocksIn, countsAsStuck, dirOf, nextAt, normalizeBlocks, pickListen,
-  scopeCounts, stepsOf,
+  DIRECTIONS, SCOPES, blocksIn, dirOf, normalizeBlocks, pickListen, scopeCounts, stepsOf,
 } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
-import { BPMS, DEFAULT_BPM, nextBpm, startBeat, stopBeat } from '../lib/metronome.js';
-import { markBusy } from '../lib/busy.js';
-import { WEAK_KIND } from '../lib/weak.js';
+import { BPMS, nextBpmLabel } from '../lib/metronome.js';
+import { useListenBeat } from '../hooks/useListenBeat.js';
+import { useWakeLock } from '../hooks/useWakeLock.js';
+import { useListenSettings } from '../hooks/useListenSettings.js';
+import { useListenSession } from '../hooks/useListenSession.js';
+import { useListenSpeech } from '../hooks/useListenSpeech.js';
 
 /* 듣기 · 따라 말하기 — 화면을 못 보는 동안의 학습.
  *
@@ -61,148 +63,57 @@ export default function Listen({
   onActivity, onWeakness, onQuiz, ledger = null, initialMode = 'listen',
 }) {
   const [mode, setMode] = useState(initialMode);
-  /* 어느 쪽을 먼저 들려줄까. 「뜻 → 일본어」가 있어야 입이 열린다 —
-     듣고 알아듣는 것과 듣고 말해 보는 것은 다른 연습이다. */
-  const [direction, setDirection] = useState(settings.listenDir || 'jp-ko');
-  const [scope, setScope] = useState(settings.listenScope || 'today');
-  /* 뜻을 듣고 말해 보는 판에서 답을 안 읽어 줄 수 있어야 한다. 읽어 주면
-     떠올리기 전에 답이 들려서, 말하는 연습이 아니라 따라 하기가 된다. */
-  const [sayAnswer, setSayAnswer] = useState(settings.listenSayAnswer !== false);
-  const [step, setStep] = useState(0);
-  /* 손으로 건너뛴 횟수. 마지막 장에서 「다음」을 누르면 장도 걸음도 그대로라
-     흐름이 다시 안 걸리고 조용히 멈춘다 — 이 숫자를 올려서 다시 걸어 준다. */
-  const [nudge, setNudge] = useState(0);
-  const [gap, setGap] = useState(settings.listenGap || 2);
 
-  const [count, setCount] = useState(settings.listenCount || 20);
-  /* 구간별로 끊어 듣기. 섞어 뽑으면 들을 때마다 딴 것이 나와서 한 덩어리를
-     귀에 붙일 수가 없다 — 매번 처음 듣는 낱말이 섞인다. */
-  const [order, setOrder] = useState(settings.listenOrder || 'block');
-  /* 고른 구간들. 옛 설정은 하나뿐이라(listenBlock) 그걸 한 칸짜리로 읽는다 —
-     쓰던 사람이 업데이트하는 순간 고른 자리가 사라지면 안 된다. */
-  const [picked, setPicked] = useState(() => {
-    const saved = settings.listenBlocks;
-    if (Array.isArray(saved) && saved.length) return saved;
-    return [settings.listenBlock || 0];
+  /* ★ 설정은 표 하나로 ★
+   *
+   * 열두 개가 각자 `settings.listenLoop !== false` 꼴로 적혀 있었다. 읽는
+   * 규칙이 셋이라(기본 켬 · 기본 끔 · 숫자) 새 칸을 더할 때마다 어느 쪽인지
+   * 다시 생각해야 했고, 한 번 틀리면 기본값이 뒤집힌다. 바뀔 때마다 화면과
+   * 기기 두 곳에 써야 하는 것도 칸마다 되풀이였다 — 한쪽을 빼먹으면 켠 것이
+   * 다음에 들어올 때 꺼져 있었다.
+   *
+   * 무엇이 어느 키에 어떤 기본값으로 붙는지는 lib/listenSettings.js의 표에
+   * 있고, 저장 키는 그대로다(바꾸면 쓰던 사람이 고른 것이 전부 날아간다). */
+  const ls = useListenSettings({ settings, onSettingsChange });
+  const {
+    direction, scope, order, count, gap,
+    sayKo, sayAnswer, recap, showYomi, skipDone, loop, reshuffle,
+  } = ls.values;
+  const picked = ls.blocks;
+  const dropped = ls.dropped;
+
+  /* ★ 듣는 판 ★
+     어디까지 들었나 · 멈춰 있나 · 무엇을 뺐나, 그리고 「들었다」를 기록에
+     적는 일까지 hooks/useListenSession.js가 쥔다. 무엇을 들을지 뽑는 것은
+     여기가 한다 — 단어 자료를 아는 쪽이 정해야 하는 일이다. */
+  const session = useListenSession({
+    onToast,
+    onActivity,
+    onWeakness,
+    onDrop: (id) => ls.saveDropped(new Set(dropped).add(id)),
   });
-  /* 정지할 때까지 한 세트를 돈다. 소리를 외우는 일은 같은 것을 여러 번
-     마주쳐야 되는 일이라, 한 바퀴 돌고 끝나면 남는 게 없다. */
-  const [loop, setLoop] = useState(settings.listenLoop !== false);
-  /* 바퀴마다 순서를 다시 섞을지. 기본은 켬 — 세 바퀴째부터 다음 낱말이 먼저
-     떠오르는 건 차례를 외운 것이고, 시험장에는 그 차례가 없다. 세트는 안
-     바뀐다(구간 고정은 그대로). */
-  const [reshuffle, setReshuffle] = useState(settings.listenReshuffle !== false);
+  const { run, card, step, nudge, paused, lastSet } = session;
+
   /* ★ 달리기 박자 ★
      달릴 때 귀는 두 가지를 받는다 — 외우려는 일본어와 발을 맞출 박자다.
      둘을 다른 앱으로 틀면 한쪽이 다른 쪽을 끊는다(iOS가 특히 그렇다).
-     null이면 꺼짐. 켜면 160·170·180 중 하나다(달리기 피치). */
-  const [bpm, setBpm] = useState(
-    () => (settings.listenBeat ? (settings.listenBpm || DEFAULT_BPM) : null),
-  );
-  const saveBpm = (v) => {
-    setBpm(v);
-    onSettingsChange?.({ listenBeat: v != null, ...(v != null ? { listenBpm: v } : {}) });
-  };
-  const [run, setRun] = useState(null);   // { cards, at, lap }
-  /* 방금 들은 세트. 다 듣고 나서 「그대로 시험」으로 넘어가는 자리다 —
-     귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다. */
-  const [lastSet, setLastSet] = useState(null);
-  /* 다 외운 것을 뺄지. 기본은 안 빼는 쪽이다 — 눈으로 아는 낱말이 귀로는
-     낯선 일이 흔하고, 듣기는 그 낯섦을 없애는 자리라서. */
-  const [skipDone, setSkipDone] = useState(settings.listenSkipDone === true);
-  /* 일시중지. 「그만」은 판을 접지만 이건 자리를 지킨다 — 말 한마디 하려고
-     끊었다가 처음부터 다시 듣는 건 이 화면을 쓰는 이유를 없앤다. */
-  const [paused, setPaused] = useState(false);
-  /* 읽는 법을 화면에 띄울지.
-     기본은 안 띄운다 — 듣고 떠올리는 자리인데 읽는 법이 같이 떠 있으면
-     소리를 듣는 게 아니라 글자를 읽게 된다. 답을 보면서 푸는 시험과 같다.
-     확인하고 싶을 때만 켠다. */
-  const [showYomi, setShowYomi] = useState(settings.listenShowYomi === true);
-  /* 이번 듣기에서 뺀 낱말.
-     회독 기록은 안 건드린다 — 듣고 흘려보낸 것과 떠올려서 맞힌 것은 다른
-     일이라, 듣기 화면에서 「외웠다」를 적으면 복습 간격이 귀로 흔들린다.
-     그래서 이 화면이 열려 있는 동안만 기억한다. 나갔다 오면 다시 들어온다 —
-     「잠시」가 그 뜻이다. 아주 빼고 싶으면 설정의 「다 외운 단어는 빼기」가
-     회독 기록을 보고 골라 준다. */
-  /* 「다 외웠어요」로 뺀 낱말.
-   *
-   * ★ 기기에 남긴다 ★
-   *
-   * 처음에는 화면이 열려 있는 동안만 기억했다. 나갔다 오면 다시 들어오니
-   * 「잠시」였는데, 그러면 어제 뺀 서른 개가 오늘 그대로 다시 나온다 — 뺀
-   * 보람이 하루도 안 간다.
-   *
-   * 대신 되돌리는 길을 같이 둔다. 안 두면 왜 안 나오는지 모르는 낱말이
-   * 쌓이고, 그건 목록이 줄어드는 것보다 나쁘다. */
-  const [dropped, setDropped] = useState(
-    () => new Set(Array.isArray(settings.listenDropped) ? settings.listenDropped : []),
-  );
-  const dropSave = (next) => {
-    setDropped(next);
-    onSettingsChange?.({ listenDropped: [...next] });
-  };
+     bpm이 null이면 꺼짐. 켜면 160·170·180 중 하나다(달리기 피치).
+     언제 울릴지·언제 끊을지는 hooks/useListenBeat.js가 정한다 — 이 화면은
+     「판이 도는가 · 멈췄는가」만 넘기고 WebAudio는 모른다. */
+  const beat = useListenBeat({
+    running: Boolean(run), paused, settings, onSettingsChange,
+  });
+  const bpm = beat.bpm;
+  /* 화면이 꺼져도 소리는 이어지는 게 이 화면의 존재 이유다. 걸쇠를 못 잡는
+     기기(아이폰 사파리)에서도 듣기는 그대로 돈다 — hooks/useWakeLock.js. */
+  useWakeLock(Boolean(run));
+  const dropSave = ls.saveDropped;
 
-  /* ★ 들은 것도 기록에 남는다 ★
-   *
-   * 듣기는 회독 진도를 올리지 않는다. 들으면서 흘려보낸 것과 떠올려서 맞힌
-   * 것은 다른 일이라 그 판단은 그대로 둔다. 그런데 아무 데도 안 남으니
-   * 한 시간 듣고도 기록이 그대로였다 — 노력한 내역은 보여야 한다.
-   *
-   * 장이 넘어갈 때마다 한 문장으로 센다. 넘어가는 곳(setRun 갱신 안)에서
-   * 부르면 갱신 함수 안에서 부모 상태를 건드리게 되니, 바뀐 뒤에 여기서 센다.
-   *
-   * ★ run 선언보다 아래에 있어야 한다 ★
-   * 처음엔 이 블록을 위쪽에 뒀는데, 의존성 배열의 run이 그릴 때 평가되면서
-   * 선언 전 접근(TDZ)이 됐다 — 듣기 화면이 그려질 때마다 죽었고 듣기·디자인
-   * 검사가 통째로 멈췄다. 효과 본문은 나중에 돌지만 배열은 지금 읽힌다. */
-  /* ★ 낱말마다도 센다 ★
-   *
-   * 일별 활동(listened)은 「오늘 몇 장 들었나」라서, 쉰 번 들은 낱말과 한 번도
-   * 안 들은 낱말을 구별하지 못한다. 그런데 「쉰 번 들었는데 아직 틀린다」는
-   * 약점의 정도를 말해 주는 몇 안 되는 신호다 — 그래서 약점 장부에도 한 줄
-   * 적는다(lib/weak.js).
-   *
-   * 회독 저장소에는 여전히 안 쓴다. 들으면서 흘려보낸 것과 떠올려서 맞힌
-   * 것은 다른 일이고, 그 둘을 한 칸에 담으면 복습일이 거짓이 된다.
-   *
-   * 자리(at)가 앞으로 갈 때만 센다 — 바퀴를 넘기면 0으로 돌아오니 바퀴
-   * 번호까지 같이 보고 판단한다. 안 그러면 두 바퀴째 첫 장이 안 세어진다. */
-  const countedAt = useRef(-1);
-  const countedLap = useRef(-1);
-  useEffect(() => {
-    if (!run) { countedAt.current = -1; countedLap.current = -1; return; }
-    const lap = run.lap || 0;
-    if (lap === countedLap.current && run.at <= countedAt.current) return;
-    countedAt.current = run.at;
-    countedLap.current = lap;
-    onActivity?.({ listened: 1 });
-    const id = run.cards[run.at]?.id;
-    if (!id) return;
-    const notes = [{ id, kind: WEAK_KIND.LISTEN }];
-    /* ★ 세 바퀴째에도 안 뗀 낱말을 센다 ★
-       들은 횟수만으로는 약점이 안 쌓인다 — 「얼마나 만났나」지 「되나
-       안 되나」가 아니라서, 쉰 번 들은 멀쩡한 낱말까지 약점이 될까 봐
-       신호로 안 세고 있었다. 그래서 달리면서 듣기만 하면 약점이 0이었다.
-       세 바퀴째까지 「다 외웠어요」에 손이 안 간 낱말은 다르다. 그건
-       사람이 직접 낸 신호다. 뺀 낱말은 판에서 아예 빠지니 저절로 안 센다. */
-    if (countsAsStuck(lap)) notes.push({ id, kind: WEAK_KIND.STUCK });
-    onWeakness?.(notes);
-  }, [run, onActivity, onWeakness]);
-
-  /* 뜻도 소리로 낼지. 화면을 못 보는 동안 쓰라고 만든 자리인데 뜻이 눈으로만
-     나오면 절반이 안 들린다. 기본은 켬 — 끄고 싶은 사람은 여기서 끈다. */
-  const [sayKo, setSayKo] = useState(settings.listenSayKo !== false);
-  /* 뜻까지 듣고 나서 일본어를 한 번 더 들려줄지. 처음 듣는 일본어는 그냥
-     소리인데, 뜻을 알고 다시 들으면 소리와 뜻이 붙는다. 기본은 끔 — 한 장에
-     드는 시간이 늘어나니 원하는 사람만 켠다. */
-  const [recap, setRecap] = useState(settings.listenRecap === true);
   /* 한국어 음성이 목록에 잡혔는가. 「안 잡혔으니 못 읽는다」로는 쓰지 않는다 —
      목록이 비었는데 소리는 나는 기기가 있어서, 그걸로 껐다가 「한국어가 안
      나온다」는 말을 들었다. 안내 문구를 고르는 데만 쓴다. */
   const [koListed, setKoListed] = useState(() => koreanVoiceListed());
   const [ask, setAsk] = useState(false);   // 시작 전에 한 번 확인
-  const timer = useRef(null);
-  const alive = useRef(true);
 
   const rate = settings.speechRate || 1;
 
@@ -218,56 +129,6 @@ export default function Listen({
       window.speechSynthesis.removeEventListener?.('voiceschanged', check);
     };
   }, [koListed]);
-
-  useEffect(() => () => {
-    alive.current = false;
-    clearTimeout(timer.current);
-    stopSpeaking();
-  }, []);
-
-  /* ★ 박자는 판이 돌 때만 ★
-     설정 화면에서 울리면 고르는 동안 계속 딱딱거린다. 멈춤을 누르면 같이
-     멈춘다 — 신발 끈 묶는 동안 박자만 계속 가면 그게 더 급하다.
-     켜고 끄는 일은 여기 한 군데서 한다(화면 여러 곳에서 start/stop을 부르면
-     어느 쪽이 마지막인지가 렌더 차례에 달리게 된다). */
-  /* ★ run을 의존성에 두면 안 된다 ★
-     run은 장이 넘어갈 때마다 새 객체다. 그걸 그대로 보면 몇 초마다 박자를
-     멈췄다 다시 켜는 셈이고, 그때마다 첫 박이 지금으로 당겨져 박자가 통째로
-     어긋난다 — 거기에 걸어 둔 옛 소리까지 겹쳐서 쏟아졌다.
-     보는 것은 「지금 박자가 나야 하나」 하나다. */
-  const beatOn = Boolean(run) && !paused && bpm != null;
-  useEffect(() => {
-    if (!beatOn) { stopBeat(); return undefined; }
-    startBeat(bpm);
-    return () => stopBeat();
-    // bpm은 아래가 맡는다 — 여기서 받으면 빠르기를 바꿀 때 판이 끊긴다
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [beatOn]);
-
-  /* 빠르기만 바꿀 때는 끊지 않는다. startBeat이 돌고 있는 판의 빠르기만
-     갈아 끼우고, 걸어 둔 옛 빠르기의 소리는 거둬들인다. */
-  useEffect(() => {
-    if (beatOn) startBeat(bpm);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bpm]);
-
-  /* 화면이 꺼져도 소리는 이어지는 게 이 화면의 존재 이유다. 다만 브라우저는
-     화면이 잠기면 타이머를 늦추거나 멈춘다 — 어디까지 되는지는 기기마다
-     다르다. 그래서 "됩니다"라고 적지 않고, 안 되면 안 된다고만 적는다. */
-  const wake = useRef(null);
-  useEffect(() => {
-    if (!run) return undefined;
-    let released = false;
-    navigator.wakeLock?.request('screen').then((s) => {
-      if (released) { s.release(); return; }
-      wake.current = s;
-    }).catch(() => { /* 못 잡아도 그냥 진행한다 */ });
-    return () => {
-      released = true;
-      wake.current?.release().catch(() => {});
-      wake.current = null;
-    };
-  }, [run]);
 
   /* 기출 후보는 화면이 만들어 넘긴다 — lib/listen.js는 단어 자료를 모른 채로 둔다.
      레벨로 거르지 않는다. 기출은 시험에 나온 것이라 「내가 고른 레벨」과 상관이
@@ -295,56 +156,16 @@ export default function Listen({
   const start = () => {
     const queue = pickListen(pool, review, {
       scope, count, today: todayKey(), kiju: kijuPool, trip: tripList,
-      order, blocks: at, skipDone, ledger,
+      order, blocks: selectedBlocks, skipDone, ledger,
     });
     const cards = cardsForQueue(queue, words, sentences).filter((c) => !dropped.has(c.id));
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
-    /* 씨앗은 판마다 새로 뽑는다. 「랜덤」 방향이 이것과 자리·바퀴로 정해져서,
-       같은 자리는 한 판 안에서 늘 같은 방향이고 판이 바뀌면 패턴도 바뀐다. */
-    setRun({ cards, at: 0, lap: 0, seed: Math.floor(Math.random() * 2 ** 31) });
-    setLastSet(cards);
-    setStep(0);
-    setPaused(false);
+    session.begin(cards);
   };
 
-  const stop = useCallback(() => {
-    clearTimeout(timer.current);
-    stopSpeaking();
-    setRun(null);
-    setPaused(false);
-  }, []);
+  const stop = session.stop;
 
-  const card = run?.cards[run.at];
-
-  /* ★ 듣는 중에는 새 버전으로 안 갈아끼운다 ★
-     어디까지 들었는지는 화면 안에만 있어서, 배포가 올라온 뒤 앱을 다시 앞으로
-     꺼내는 순간 판이 통째로 사라졌다. 판을 닫으면 표시를 내린다. */
-  useEffect(() => {
-    markBusy('listen', Boolean(run));
-    return () => markBusy('listen', false);
-  }, [run]);
-
-  /* 「다 외웠어요」 — 이번 판에서 이 낱말을 뺀다.
-     빼고 나면 그 자리에 다음 낱말이 온다. 자리(at)는 그대로 두는 게 맞다 —
-     한 칸 물러나면 방금 들은 것을 다시 듣게 된다. */
-  const dropCurrent = () => {
-    if (!run || !card) return;
-    const id = card.id;
-    dropSave(new Set(dropped).add(id));
-    /* 쌓아 둔 바퀴 수를 되돌린다. 그 수의 뜻이 「아직 안 뗀 채로」라서,
-       뗀 순간 더는 참이 아니다 — 안 되돌리면 방금 외운 낱말이 약점 목록
-       맨 위에 그대로 남는다. */
-    onWeakness?.([{ id, kind: WEAK_KIND.CLEARED }]);
-    setStep(0);
-    setRun((r) => {
-      if (!r) return r;
-      const cards = r.cards.filter((c) => c.id !== id);
-      if (!cards.length) { onToast('다 뺐어요 — 이 구간은 끝'); return null; }
-      return { ...r, cards, at: Math.min(r.at, cards.length - 1) };
-    });
-    setNudge((v) => v + 1);
-    onToast(`${card.kanji} 빼요 — 설정에서 되돌릴 수 있어요`);
-  };
+  const dropCurrent = session.dropCurrent;
 
   /* ★ 이 장은 어느 방향인가 ★
      「랜덤」을 고르면 장마다 달라진다. 그릴 때마다 뽑으면 한 장이 흘러가는
@@ -365,107 +186,20 @@ export default function Listen({
        뜻 → 일본어  이면 답은 일본어      (sayAnswer) */
   const answerAloud = cardDir === 'ko-jp' ? sayAnswer : sayKo;
 
-  /* 한 장의 흐름을 여기서 돌린다. 걸음이 바뀔 때마다 다음 걸음을 예약한다.
-     말이 끝나는 시각을 알 수 없는 기기가 있어서, 끝났다는 신호가 아니라
-     시간으로 넘긴다 — 늦게 끝나면 조금 겹치지만 멈추는 것보다 낫다. */
-  useEffect(() => {
-    if (!card) return undefined;
-    clearTimeout(timer.current);
-    /* 멈춰 둔 동안에는 다음을 예약하지 않는다. 풀면 이 효과가 다시 돌면서
-       그 걸음부터 이어진다 — 끊긴 자리를 한 번 더 들려주는 셈이라,
-       무슨 말을 듣다 말았는지 떠올릴 틈이 된다. */
-    if (paused) { stopSpeaking(); return undefined; }
-    const wait = gap * 1000;
-    // 문장은 읽는 데 더 걸린다. 글자 수로 어림잡아 기다린다.
-    const spoken = Math.min(6000, 900 + (card.kana?.length || 4) * 130);
-    const koText = String(card.mean || '').split(';')[0].trim();
-    const say = card.kana || card.kanji;
+  /* ★ 한 장이 흘러가는 동안 무슨 소리가 나는가 ★
+     걸음마다 무엇을 읽어 주고 얼마를 기다릴지는 hooks/useListenSpeech.js가
+     쥔다. 안의 타이밍은 하나하나 겪고 고친 값이라(답은 두 번, 최소 1.6초,
+     클라우드 음성 지연) 자리만 옮기고 한 글자도 안 바꿨다. */
+  useListenSpeech({
+    card, phase, last, nudge, cardDir, paused,
+    gap, rate, sayKo, sayAnswer, loop, reshuffle,
+    timer: session.timer,
+    alive: session.alive,
+    onNextStep: session.nextStep,
+    onAdvance: session.advance,
+  });
 
-    /* 다음 걸음으로. 마지막 걸음이면 다음 장으로 넘어간다. */
-    const go = (after) => {
-      timer.current = setTimeout(() => {
-        if (!alive.current) return;
-        if (!last) { setStep((s) => s + 1); return; }
-        setStep(0);
-        setRun((r) => {
-          if (!r) return r;
-          const next = nextAt(r, loop, { reshuffle });
-          if (!next) { onToast('다 들었어요 — 시험으로 확인해 볼까요'); return null; }
-          // 한 바퀴를 넘겼으면 알린다. 화면을 안 보고 있어도 어디쯤인지는 알아야 한다
-          if (next.lap > r.lap) onToast(`${next.lap}바퀴 돌았어요${reshuffle ? ' — 순서를 섞었어요' : ''}`);
-          return { ...r, ...next };
-        });
-      }, after);
-    };
-
-    if (phase === 'jp') {
-      /* 「뜻 → 일본어」에서 이 걸음은 답이다. 안 읽어 주기로 했으면 소리 없이
-         화면에만 띄운다 — 눈으로 확인할 길까지 막을 이유는 없다. */
-      const mute = cardDir === 'ko-jp' && !sayAnswer;
-      if (mute) { go(300 + wait); return () => clearTimeout(timer.current); }
-
-      speakJapanese(say, rate);
-      if (cardDir !== 'ko-jp') { go(spoken + wait); return () => clearTimeout(timer.current); }
-
-      /* ★ 답은 두 번 읽어 준다 ★
-         뒤집은 판에서 답은 긴 침묵 뒤에 딱 한 번 스치듯 지나갔다. 「나무」를
-         듣고 3초를 말해 본 다음 「き」가 0.3초 나오고 끝이니, 안 읽어 준 것과
-         구별이 안 됐다. 한 번은 확인하려고, 한 번은 내가 말한 것과 견주려고
-         듣는다 — 「따라 말하기」가 반대 방향에서 하는 것과 같은 이치다.
-
-         그리고 최소 시간을 둔다. 클라우드 음성은 「부르고 → 받고 → 튼다」라
-         짧은 낱말은 어림잡은 시간보다 응답이 늦게 올 수 있는데, 그 사이에
-         다음 장이 시작되면 그 소리는 취소된다 — 안 읽어 준 것처럼 보인다. */
-      const heard = Math.max(1600, spoken);
-      timer.current = setTimeout(() => {
-        if (!alive.current) return;
-        speakJapanese(say, rate);
-        go(heard + wait);
-      }, heard + 400);
-    } else if (phase === 'jp2') {
-      /* ★ 뜻까지 듣고 나서 한 번 더 ★
-         처음 듣는 일본어는 그냥 소리다. 뜻을 알고 다시 들으면 소리와 뜻이
-         붙는다. 마지막 걸음이라 이게 끝나면 다음 장으로 넘어간다. */
-      speakJapanese(say, rate);
-      go(spoken + wait);
-    } else if (phase === 'say') {
-      if (cardDir === 'ko-jp') {
-        // 입으로 말해 볼 시간. 여기서는 아무 소리도 안 낸다 — 내가 말할 차례다
-        go(spoken + wait);
-      } else {
-        // 따라 말할 시간을 준 뒤 한 번 더 들려준다
-        timer.current = setTimeout(() => {
-          if (!alive.current) return;
-          speakJapanese(say, rate);
-          go(spoken + 400);
-        }, spoken + wait);
-      }
-    } else {
-      /* 뜻을 읽어 준다.
-         「뜻 → 일본어」에서는 이게 문제다 — 안 읽으면 물어보는 게 없다.
-         「일본어 → 뜻」에서는 답이라, 끄고 싶으면 끌 수 있다. */
-      const speak = cardDir === 'ko-jp' || sayKo;
-      let koWait = 0;
-      if (speak && koText) {
-        speakKorean(koText, rate);
-        koWait = Math.min(4000, 600 + koText.length * 120);
-      }
-      go(koWait + Math.max(600, wait));
-    }
-    return () => clearTimeout(timer.current);
-  }, [card, phase, last, nudge, cardDir, gap, rate, sayKo, sayAnswer, loop, reshuffle, paused, onToast]);
-
-  const skip = (n) => {
-    clearTimeout(timer.current);
-    stopSpeaking();
-    setRun((r) => {
-      if (!r) return r;
-      const at = Math.min(r.cards.length - 1, Math.max(0, r.at + n));
-      return { ...r, at };
-    });
-    setStep(0);
-    setNudge((v) => v + 1);
-  };
+  const skip = session.skip;
 
   const poolSize = useMemo(() => pool.length, [pool]);
   const counts = useMemo(
@@ -473,7 +207,7 @@ export default function Listen({
     [pool, review, kijuPool, skipDone, ledger, tripList],
   );
   /* 고른 범위에 구간이 몇 개인가. 개수를 바꾸면 구간 수도 따라 바뀐다. */
-  const blocks = useMemo(
+  const blockCount = useMemo(
     () => blocksIn(pool, review, {
       scope, count, today: todayKey(), kiju: kijuPool, trip: tripList, skipDone, ledger,
     }),
@@ -484,19 +218,18 @@ export default function Listen({
      화면에 거짓말이 뜨는 것은 그것대로 문제다). */
   /* 범위 밖 번호는 버린다. 하나도 안 남으면 첫 구간 — 빈손이면 「들을 게
      없어요」가 뜨는데, 설정이 낡아서 그렇게 되는 건 사고다. */
-  const at = useMemo(() => {
-    const ok = normalizeBlocks(picked, blocks);
+  const selectedBlocks = useMemo(() => {
+    const ok = normalizeBlocks(picked, blockCount);
     return ok.length ? ok : [0];
-  }, [picked, blocks]);
+  }, [picked, blockCount]);
 
   const pickBlockAt = (i) => {
     /* 마지막 하나는 못 끈다. 전부 끄면 들을 게 없어진다 — 그건 고르는 게
        아니라 꺼 버리는 것이고, 끄는 자리는 「순서」 쪽에 따로 있다. */
-    const next = at.includes(i)
-      ? (at.length > 1 ? at.filter((x) => x !== i) : at)
-      : [...at, i].sort((x, y) => x - y);
-    setPicked(next);
-    onSettingsChange?.({ listenBlocks: next, listenBlock: next[0] });
+    const next = selectedBlocks.includes(i)
+      ? (selectedBlocks.length > 1 ? selectedBlocks.filter((x) => x !== i) : selectedBlocks)
+      : [...selectedBlocks, i].sort((x, y) => x - y);
+    ls.saveBlocks(next);
   };
 
   // ── 재생 중 ──
@@ -577,7 +310,7 @@ export default function Listen({
               이유를 없앤다. */}
           <button
             className={`ghost-btn ls-pause${paused ? ' on' : ''}`}
-            onClick={() => setPaused((v) => !v)}
+            onClick={session.togglePause}
             aria-pressed={paused}
           >
             {paused ? '이어서' : '잠깐 멈춤'}
@@ -591,10 +324,26 @@ export default function Listen({
             넓게 잡아 둬서 안 보고 눌러도 맞는다. */}
         <button
           className={`ghost-btn ls-beat${bpm != null ? ' on' : ''}`}
-          onClick={() => saveBpm(nextBpm(bpm))}
+          onClick={beat.cycle}
           aria-pressed={bpm != null}
         >
-          {bpm != null ? `달리기 박자 ${bpm}` : '달리기 박자 — 꺼짐'}
+          {/* ★ 달리면서 한눈에 ★
+              여태 「달리기 박자 170」이라고만 적혀 있었다. 숨이 차서 눈이
+              흔들리는 상태로 보면 글자 넷이 다 비슷하게 생겼다 — 켜져 있는지
+              아닌지가 바로 안 읽힌다. 달리는 사람 그림과 단위를 붙이면 「지금
+              박자가 돌고 있다」가 글자를 읽기 전에 보인다.
+              보조 설명은 한 줄로 짧게 둔다. 길면 달리면서 안 읽는다. */}
+          {bpm != null ? (
+            <>
+              <b className="lb-now">🏃 {bpm} BPM</b>
+              <small className="lb-hint">누르면 {nextBpmLabel(bpm)}</small>
+            </>
+          ) : (
+            <>
+              <b className="lb-now">달리기 박자 — 꺼짐</b>
+              <small className="lb-hint">누르면 160</small>
+            </>
+          )}
         </button>
 
         {/* ★ 익은 것은 이번 판에서 뺀다 ★
@@ -657,7 +406,7 @@ export default function Listen({
             key={d.id}
             className={`ls-pill ls-dir${direction === d.id ? ' active' : ''}`}
             data-dir={d.id}
-            onClick={() => { setDirection(d.id); onSettingsChange?.({ listenDir: d.id }); }}
+            onClick={() => ls.set('direction', d.id)}
           >
             {d.id === 'ko-jp' ? '뜻 → 일본어' : d.id === 'mix' ? '랜덤' : '일본어 → 뜻'}
           </button>
@@ -686,7 +435,7 @@ export default function Listen({
             className={`ls-pill ls-scope${scope === s.id ? ' active' : ''}`}
             data-scope={s.id}
             disabled={counts[s.id] === 0}
-            onClick={() => { setScope(s.id); onSettingsChange?.({ listenScope: s.id }); }}
+            onClick={() => ls.set('scope', s.id)}
           >
             {s.label}
             <span className="pk-count">{counts[s.id]}개</span>
@@ -727,7 +476,7 @@ export default function Listen({
           <div className="set-title">한 번에 <span className="set-val">{count}개</span></div>
           <div className="grouppick">
             {COUNTS.map((n) => (
-              <button key={n} className={count === n ? 'active' : ''} onClick={() => { setCount(n); onSettingsChange?.({ listenCount: n }); }}>{n}</button>
+              <button key={n} className={count === n ? 'active' : ''} onClick={() => ls.set('count', n)}>{n}</button>
             ))}
           </div>
         </div>
@@ -735,7 +484,7 @@ export default function Listen({
           <div className="set-title">문장 사이 <span className="set-val">{gap}초</span></div>
           <div className="grouppick">
             {GAPS.map((g) => (
-              <button key={g} className={gap === g ? 'active' : ''} onClick={() => { setGap(g); onSettingsChange?.({ listenGap: g }); }}>{g}초</button>
+              <button key={g} className={gap === g ? 'active' : ''} onClick={() => ls.set('gap', g)}>{g}초</button>
             ))}
           </div>
         </div>
@@ -750,14 +499,14 @@ export default function Listen({
         <button
           className={order === 'block' ? 'active' : ''}
           data-order="block"
-          onClick={() => { setOrder('block'); onSettingsChange?.({ listenOrder: 'block' }); }}
+          onClick={() => ls.set('order', 'block')}
         >
           구간별
         </button>
         <button
           className={order === 'shuffle' ? 'active' : ''}
           data-order="shuffle"
-          onClick={() => { setOrder('shuffle'); onSettingsChange?.({ listenOrder: 'shuffle' }); }}
+          onClick={() => ls.set('order', 'shuffle')}
         >
           섞어서
         </button>
@@ -774,23 +523,23 @@ export default function Listen({
                 들을 때마다 딴 것이 나오는 자리로 돌아간다. 고른 것만 이어
                 붙이면 덩어리는 그대로 두고 길이만 늘릴 수 있다. */}
             <div className="set-title">
-              <span className="set-val">{at.map((i) => i + 1).join(' · ')}</span>
-              {' / '}{blocks}구간
+              <span className="set-val">{selectedBlocks.map((i) => i + 1).join(' · ')}</span>
+              {' / '}{blockCount}구간
               <small className="ls-range">
                 {' · '}
-                {at.length === 1
-                  ? `${at[0] * count + 1}~${Math.min((at[0] + 1) * count, counts[scope] || 0)}번째`
-                  : `${at.reduce((n, i) => n + Math.max(0, Math.min((i + 1) * count, counts[scope] || 0) - i * count), 0)}개`}
+                {selectedBlocks.length === 1
+                  ? `${selectedBlocks[0] * count + 1}~${Math.min((selectedBlocks[0] + 1) * count, counts[scope] || 0)}번째`
+                  : `${selectedBlocks.reduce((n, i) => n + Math.max(0, Math.min((i + 1) * count, counts[scope] || 0) - i * count), 0)}개`}
               </small>
             </div>
             <div className="ls-blockpick" role="group" aria-label="구간 고르기">
-              {Array.from({ length: blocks }, (_, i) => (
+              {Array.from({ length: blockCount }, (_, i) => (
                 <button
                   key={i}
                   type="button"
-                  className={`ls-blk${at.includes(i) ? ' active' : ''}`}
+                  className={`ls-blk${selectedBlocks.includes(i) ? ' active' : ''}`}
                   data-block={i + 1}
-                  aria-pressed={at.includes(i)}
+                  aria-pressed={selectedBlocks.includes(i)}
                   aria-label={`${i + 1}구간 · ${i * count + 1}~${Math.min((i + 1) * count, counts[scope] || 0)}번째`}
                   onClick={() => pickBlockAt(i)}
                 >
@@ -801,22 +550,20 @@ export default function Listen({
             <div className="ls-blocknav">
               <button
                 className="ghost-btn ls-prev"
-                disabled={at.length === 1 && at[0] === 0}
+                disabled={selectedBlocks.length === 1 && selectedBlocks[0] === 0}
                 onClick={() => {
-                  const b = Math.max(0, at[0] - 1);
-                  setPicked([b]);
-                  onSettingsChange?.({ listenBlocks: [b], listenBlock: b });
+                  const b = Math.max(0, selectedBlocks[0] - 1);
+                  ls.saveBlocks([b]);
                 }}
               >
                 <IconArrowLeft /> 앞 구간
               </button>
               <button
                 className="ghost-btn ls-next"
-                disabled={at.length === 1 && at[at.length - 1] >= blocks - 1}
+                disabled={selectedBlocks.length === 1 && selectedBlocks[selectedBlocks.length - 1] >= blockCount - 1}
                 onClick={() => {
-                  const b = Math.min(blocks - 1, at[at.length - 1] + 1);
-                  setPicked([b]);
-                  onSettingsChange?.({ listenBlocks: [b], listenBlock: b });
+                  const b = Math.min(blockCount - 1, selectedBlocks[selectedBlocks.length - 1] + 1);
+                  ls.saveBlocks([b]);
                 }}
               >
                 다음 구간
@@ -848,7 +595,7 @@ export default function Listen({
         {direction !== 'jp-ko' && (
           <button
             className="toggle-pill ls-sayans"
-            onClick={() => { setSayAnswer(!sayAnswer); onSettingsChange?.({ listenSayAnswer: !sayAnswer }); }}
+            onClick={() => ls.flip('sayAnswer')}
             aria-pressed={sayAnswer}
           >
             <span className="tp-text">
@@ -861,7 +608,7 @@ export default function Listen({
         {direction !== 'ko-jp' && (
           <button
             className="toggle-pill ls-sayko"
-            onClick={() => { setSayKo(!sayKo); onSettingsChange?.({ listenSayKo: !sayKo }); }}
+            onClick={() => ls.flip('sayKo')}
             aria-pressed={sayKo}
           >
             <span className="tp-text">
@@ -879,7 +626,7 @@ export default function Listen({
         {direction !== 'ko-jp' && (
           <button
             className="toggle-pill ls-recap"
-            onClick={() => { setRecap(!recap); onSettingsChange?.({ listenRecap: !recap }); }}
+            onClick={() => ls.flip('recap')}
             aria-pressed={recap}
           >
             <span className="tp-text">
@@ -893,7 +640,7 @@ export default function Listen({
         {/* 읽는 법을 띄울지. 켜면 가나와 한글 발음이 낱말 밑에 뜬다. */}
         <button
           className="toggle-pill ls-yomitoggle"
-          onClick={() => { setShowYomi(!showYomi); onSettingsChange?.({ listenShowYomi: !showYomi }); }}
+          onClick={() => ls.flip('showYomi')}
           aria-pressed={showYomi}
         >
           <span className="tp-text">
@@ -907,7 +654,7 @@ export default function Listen({
             들려주면 남은 55개를 만나는 데 세 배가 걸린다. */}
         <button
           className="toggle-pill ls-skipdone"
-          onClick={() => { setSkipDone(!skipDone); onSettingsChange?.({ listenSkipDone: !skipDone }); }}
+          onClick={() => ls.flip('skipDone')}
           aria-pressed={skipDone}
         >
           <span className="tp-text">
@@ -921,7 +668,7 @@ export default function Listen({
             여러 번 마주쳐야 되는 일이다. */}
         <button
           className="toggle-pill ls-loop"
-          onClick={() => { setLoop(!loop); onSettingsChange?.({ listenLoop: !loop }); }}
+          onClick={() => ls.flip('loop')}
           aria-pressed={loop}
         >
           <span className="tp-text">
@@ -938,7 +685,7 @@ export default function Listen({
         {loop && (
           <button
             className="toggle-pill ls-reshuffle"
-            onClick={() => { setReshuffle(!reshuffle); onSettingsChange?.({ listenReshuffle: !reshuffle }); }}
+            onClick={() => ls.flip('reshuffle')}
             aria-pressed={reshuffle}
           >
             <span className="tp-text">
@@ -960,7 +707,7 @@ export default function Listen({
       <div className="card ls-beatcard">
         <button
           className={`toggle-pill ls-beattoggle${bpm != null ? ' on' : ''}`}
-          onClick={() => saveBpm(bpm == null ? DEFAULT_BPM : null)}
+          onClick={beat.toggle}
           aria-pressed={bpm != null}
         >
           <span className="tp-text">
@@ -975,7 +722,7 @@ export default function Listen({
             <div className="grouppick ls-bpms">
               {BPMS.map((n) => (
                 <button key={n} className={bpm === n ? 'active' : ''} data-bpm={n}
-                  onClick={() => saveBpm(n)}>{n}</button>
+                  onClick={() => beat.pick(n)}>{n}</button>
               ))}
             </div>
             <div className="set-sub">

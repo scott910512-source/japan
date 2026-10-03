@@ -48,7 +48,7 @@
 .n3-chhead .chev.up { transform: rotate(-90deg); }
 .n3-chbody2 { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .n3-group { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.n3-ghead { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 11px 12px; background: var(--surface-2); border: none; color: var(--ink); cursor: pointer; min-height: 44px; }
+.n3-ghead { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 11px 12px; background: var(--surface-2); border: none; color: var(--ink); cursor: pointer; min-height: var(--touch); }
 .n3-ghead b { font-size: 13.5px; font-weight: 800; }
 .n3-ghead span { font-size: 11px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .n3-ghead em { font-style: normal; font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
@@ -114,6 +114,8 @@
 .n3-qspk { margin-top: 4px; }
 .n3-order { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; font-size: 18px; font-weight: 700; }
 .n3-slot { display: inline-block; min-width: 40px; padding: 2px 6px; border-radius: 8px; border: 1.5px dashed var(--line); color: var(--ink-soft); }
+/* 고른 상태의 모양은 refinements.css와 같다. 여기 두는 이유는 그 파일에
+   적어 두었다 — n3.css는 코스 청크와 같이 받는다. */
 .n3-slot.star { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 .n3-hint { width: 100%; font-size: 12px; color: var(--ink-soft); margin-top: 6px; font-weight: 500; }
 .n3-opts { margin-top: 12px; }
@@ -199,7 +201,7 @@
 .n3-intro { padding: 12px 14px; font-size: 15px; line-height: 1.7; margin-bottom: 10px; }
 .n3-player { padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .n3-speeds { display: flex; gap: 8px; }
-.n3-playbtn { display: inline-flex; align-items: center; gap: 10px; padding: 16px 22px; border-radius: 999px; border: none; cursor: pointer; background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #fff; font-size: 16px; font-weight: 800; min-height: 56px; box-shadow: var(--glow-btn); }
+.n3-playbtn { display: inline-flex; align-items: center; gap: 10px; padding: 16px 22px; border-radius: 999px; border: none; cursor: pointer; background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #fff; font-size: 16px; font-weight: 800; min-height: var(--touch-lg); box-shadow: var(--glow-btn); }
 .n3-playbtn svg { width: 24px; height: 24px; }
 .n3-playbtn.on { animation: spk-pulse 1s ease-in-out infinite; }
 .n3-playline { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
@@ -215,7 +217,7 @@
 
 /* 오답노트 */
 .n3-patterns { padding: 6px 14px 12px; display: flex; flex-direction: column; }
-.n3-pattern { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 10px 0; border: none; border-top: 1px solid var(--line); background: none; color: var(--ink); cursor: pointer; min-height: 44px; }
+.n3-pattern { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 10px 0; border: none; border-top: 1px solid var(--line); background: none; color: var(--ink); cursor: pointer; min-height: var(--touch); }
 .n3-pattern:first-child { border-top: none; }
 .n3-pattern.static { cursor: default; grid-template-columns: 1fr auto; }
 .n3-pattern b { font-size: 14.5px; font-weight: 800; }

@@ -1,46 +1,78 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { NAV_SENTINEL, onLayerChange, onPopState } from '../lib/navhistory.js';
 
+/* 뒤로가기로 학습을 잃지 않는다.
+ *
+ * 회독 화면이나 메뉴가 덮여 있을 때 뒤로가기를 누르면 앱을 그냥 벗어났다.
+ * 안드로이드와 홈 화면 앱에서는 그게 제일 자연스러운 「닫기」 동작인데,
+ * 여기서는 앱이 닫히는 것으로 읽힌다. 덮인 게 있으면 그것만 닫는다 —
+ * 회독 화면을 닫아도 세션은 저장돼 있어서 오늘 화면의 이어하기로 돌아간다.
+ *
+ * 무엇을 세우고 쓸지 정하는 규칙은 lib/navhistory.js에 있다. 거기 있어야
+ * 하는 이유는 그게 타이밍 문제이기 때문이다 — 특히 「닫고 바로 다시 열기」는
+ * 눌러 봐서는 못 잡는다. 전에 그 자리에서 앱 밖으로 튕겨서 한 번 되돌렸다.
+ *
+ * ★ 표시는 ref에 둔다 ★
+ *
+ * 자리가 있는지(owned)와 부른 back이 도착했는지(pending)는 화면에 안 그린다.
+ * state로 두면 바뀔 때마다 앱 전체가 다시 그려지고, 더 나쁜 것은 popstate
+ * 처리 중에 묵은 값을 읽는다는 점이다 — 그 순간에는 지금 값이 필요하다. */
 export function useLayerNavigation({ deck, sub, setDeck, setSub }) {
-  /* ── ★ 뒤로가기로 학습을 잃지 않는다 ★ ──
-   *
-   * 회독 화면이나 메뉴가 덮여 있을 때 뒤로가기를 누르면 앱을 그냥 벗어났다.
-   * 안드로이드와 홈 화면 앱에서는 그게 제일 자연스러운 「닫기」 동작인데,
-   * 여기서는 앱이 닫히는 것으로 읽힌다.
-   *
-   * 덮인 게 있으면 그것만 닫는다. 회독 화면을 닫아도 세션은 저장돼 있어서
-   * 오늘 화면의 이어하기로 그 자리에 돌아간다 — 화면의 닫기 버튼과 같다.
-   *
-   * 덮인 게 없으면 막지 않는다. 거기서 붙잡으면 앱에서 나갈 길이 없어진다.
-   *
-   * ★ 자리는 딱 하나만, 그리고 우리가 되돌리지 않는다 ★
-   *
-   * 처음에는 화면에서 닫을 때 넣어 둔 자리도 history.back()으로 같이 뺐다.
-   * 뒤로가기가 한 번 헛도는 걸 막으려던 것인데, back()은 비동기라서 닫고 바로
-   * 다시 여는 흐름에서 엉뚱한 자리를 뺐다 — 앱 밖으로 나가 버렸고 듣기·디자인
-   * 검사가 통째로 멈췄다. 헛도는 한 번보다 앱에서 튕기는 게 훨씬 나쁘다.
-   *
-   * 그래서 우리가 history를 되돌리지 않는다. 자리가 있는지는 history.state로
-   * 보니 몇 개를 넣었는지 셀 필요도 없다 — 있으면 안 넣고, 없으면 하나 넣는다.
-   * 화면 버튼으로 닫은 뒤 뒤로가기를 누르면 그 자리를 쓰면서 아무 일도 안
-   * 일어나고, 한 번 더 누르면 앱을 벗어난다. */
-  const layerOpen = Boolean(deck || sub);
+  /* 몇 층이 덮여 있나. 회독 판과 밀어 넣은 메뉴는 따로 세는 게 맞다 —
+     판 위에 메뉴가 열릴 수 있고, 그때 뒤로가기는 한 번에 한 층만 닫는다. */
+  const depth = (deck ? 1 : 0) + (sub ? 1 : 0);
 
+  /* popstate 처리가 지금 층 수를 알아야 한다. 효과에 depth를 의존성으로
+     넣어 듣는 자리를 매번 다시 붙이면, 붙이는 사이에 온 pop을 놓친다. */
+  const depthRef = useRef(depth);
+  depthRef.current = depth;
+  const deckRef = useRef(deck);
+  deckRef.current = deck;
+
+  const owned = useRef(false);
+  const pending = useRef(false);
+
+  /* history.state가 우리 자리인지 본다. 다른 자리에 얹어 밀면 그 앱(또는
+     브라우저)의 자리를 덮는다. */
+  const pushSentinel = () => {
+    if (typeof window === 'undefined') return;
+    if (window.history.state?.jp === NAV_SENTINEL) { owned.current = true; return; }
+    window.history.pushState({ jp: NAV_SENTINEL }, '');
+  };
+
+  const apply = (r) => {
+    owned.current = r.owned;
+    pending.current = r.pending;
+    if (r.act === 'push') pushSentinel();
+    else if (r.act === 'back') window.history.back();
+  };
+
+  /* 층이 열리거나 닫혔다 */
   useEffect(() => {
-    if (!layerOpen) return;
-    if (window.history.state?.jp === 'layer') return;   // 이미 자리가 있다
-    window.history.pushState({ jp: 'layer' }, '');
-  }, [layerOpen]);
+    apply(onLayerChange({
+      depth, owned: owned.current, pending: pending.current,
+    }));
+    // apply는 ref만 건드린다 — 의존성에 넣을 것이 없다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depth]);
 
+  /* 뒤로가기가 눌렸다, 또는 우리가 부른 back이 도착했다 */
   useEffect(() => {
     const onPop = () => {
+      const r = onPopState({
+        depth: depthRef.current, owned: owned.current, pending: pending.current,
+      });
+      /* 자리를 다시 세우는 일을 먼저 한다. 닫으면 위의 효과가 돌면서 또
+         판단하는데, 그때는 이미 세워져 있어야 자리가 둘로 늘지 않는다. */
+      owned.current = r.owned;
+      pending.current = r.pending;
+      if (r.act === 'push') pushSentinel();
+      if (!r.close) return;
       // 위에 덮인 것부터 하나씩. 회독 → 메뉴 순이다.
-      if (deck) { setDeck(null); return; }
-      if (sub) { setSub(null); }
-      /* 덮인 게 없으면 아무것도 안 한다 — 브라우저가 하던 대로 나간다.
-         화면에서 닫아 둔 자리가 남아 있었다면 이 한 번이 그걸 쓴다. */
+      if (deckRef.current) { setDeck(null); return; }
+      setSub(null);
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [deck, sub]);
-
+  }, [setDeck, setSub]);
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTimeouts } from '../hooks/useTimeouts.js';
 import { IconSpeaker, IconChevron, IconArrowLeft } from '../components/Icons.jsx';
 import { readingText, speakJapanese } from '../lib/tts.js';
 import {
@@ -14,6 +15,9 @@ const SECTIONS = [
 ];
 
 export default function Basics({ settings, onToast }) {
+  /* 화면을 나가면 걸려 있던 타이머도 같이 꺼진다 — 안 그러면 나간 뒤에
+     한 판이 적히거나 한 문제가 넘어간다(hooks/useTimeouts.js) */
+  const { after } = useTimeouts();
   const [section, setSection] = useState('hira');
   const [quizRow, setQuizRow] = useState(null);
 
@@ -120,7 +124,7 @@ function KanaQuiz({ row, settings, onBack, onToast }) {
     setPicked(opt);
     if (opt === current.ko) setCorrect((c) => c + 1);
     speakJapanese(current.kana, settings.speechRate);
-    setTimeout(() => { setPicked(null); setIndex((i) => i + 1); }, 800);
+    after(() => { setPicked(null); setIndex((i) => i + 1); }, 800);
   };
 
   return (

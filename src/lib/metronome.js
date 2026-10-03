@@ -87,6 +87,23 @@ export function dueBeats(cursor, now, bpm, count = 0, lookahead = LOOKAHEAD) {
   return { beats, cursor: at, count: n };
 }
 
+/* ★ 지금 박자가 나야 하나 ★
+ *
+ * 이 한 줄이 「박자가 엇나가고 멈췄다 쏟아진다」의 핵심이었다.
+ *
+ * 부르는 쪽(듣기 화면)은 판(run)을 쥐고 있는데, 그 판은 장이 넘어갈 때마다
+ * 새 객체다. 그걸 그대로 보고 박자를 켜고 끄면 몇 초마다 멈췄다 다시 켜는
+ * 셈이 되고, 그때마다 첫 박이 지금으로 당겨져 박자가 통째로 어긋난다.
+ *
+ * 그래서 보는 것은 세 가지의 참거짓뿐이다 — 판이 있나, 멈춰 있나, 빠르기가
+ * 정해졌나. 장이 넘어가도 이 셋은 그대로라 박자는 끊기지 않는다.
+ *
+ * 함수로 꺼내 둔 이유는 이것이 검사로 지킬 수 있는 규칙이기 때문이다.
+ * 효과의 의존성 배열은 눌러 봐야 알지만, 이건 표로 확인된다. */
+export function beatShouldRun({ running, paused, bpm } = {}) {
+  return Boolean(running) && !paused && bpm != null;
+}
+
 /* 다음 박자 칸. 달리면서 한 손가락으로 돌리는 자리라 끄기까지 한 바퀴다.
    null이면 꺼짐. */
 export function nextBpm(cur) {
@@ -94,6 +111,13 @@ export function nextBpm(cur) {
   const i = BPMS.indexOf(clampBpm(cur));
   if (i < 0) return BPMS[0];
   return i + 1 < BPMS.length ? BPMS[i + 1] : null;
+}
+
+/* 다음에 무엇이 되는지 한 낱말로. 달리는 중에는 화면을 오래 못 보니, 누르면
+   어디로 가는지가 버튼에 적혀 있어야 한 번에 맞게 누른다. */
+export function nextBpmLabel(cur) {
+  const n = nextBpm(cur);
+  return n == null ? '끄기' : String(n);
 }
 
 /* ── 소리 ──
