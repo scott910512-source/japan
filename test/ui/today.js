@@ -93,6 +93,10 @@ async function boot(browser, patch = {}, init = null) {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   return page;
 }
 
@@ -406,10 +410,19 @@ async function boot(browser, patch = {}, init = null) {
     const off3 = p3.locator('.gate-offline');
     await off3.waitFor({ timeout: 8000 }).catch(() => {});
     if (await off3.count()) { await off3.click(); await p3.waitForTimeout(800); }
+    /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+       안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+       제 말로 실패하는 쪽이 읽기 쉽다. */
+    await p3.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
     const resume = p3.locator('.bigcta');
     /* ★ 여기가 CI에서 95개 대신 93개를 찍은 자리다 ★
        이 버튼이 없으면 아래 검사 둘이 조용히 사라지고, 그래도 통과로
        찍힌다. 전제를 적어 두면 어긋나는 순간 소리가 난다. */
+    /* 세는 시간을 늘리는 게 아니라 뜰 때까지 기다린다. CI에서 이 검사가
+       바로 소리를 냈다 — 끊긴 채로 다시 부른 뒤 홈이 다 그려지기 전에
+       버튼을 찾고 있었다. 끝내 안 뜨면 그건 진짜 문제이고, 그때는
+       이 검사가 그렇게 말한다. */
+    await resume.waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
     ok('이어하기 버튼이 있다', await resume.count() > 0);
     if (await resume.count()) {
       await resume.click();

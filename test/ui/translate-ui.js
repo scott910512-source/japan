@@ -49,6 +49,10 @@ const boot = async (page, patch = {}) => {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
 };
 
 const stub = (page, reply, status = 200) => page.evaluate(({ r, st }) => {
@@ -176,6 +180,10 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   await page.context().setOffline(true);
   const off2 = page.locator('.gate-offline');
   if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   await openTranslate(page);
   ok('앱을 다시 켜도 남아 있음', (await page.textContent('.tr-card')).includes('いくら'));
   ok('최근 목록에 있음', await page.locator('.tr-item').count() === 1);
@@ -281,6 +289,10 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   const off4 = p4.locator('.gate-offline');
   await off4.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off4.count()) { await off4.click(); await p4.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await p4.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   await openTranslate(p4);
   ok('옛 기록이 있어도 화면이 뜸', await p4.locator('.tr-input').count() === 1);
   ok('탭바도 살아 있음', await p4.locator('.tabbar').count() === 1);

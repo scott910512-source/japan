@@ -30,6 +30,9 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   await p.context().setOffline(true);
   await p.waitForTimeout(900);
   const off = p.locator('.gate-offline'); if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직 안 그려진
+     화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가 제 말로 실패한다. */
+  await p.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
 
   await openMore(p, 'voice');   // 음성 키 입력칸
   await p.waitForTimeout(700);

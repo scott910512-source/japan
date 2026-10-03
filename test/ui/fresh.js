@@ -40,6 +40,10 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   ok('인터넷이 없으면 그냥 쓸 길을 줌', await off.count() === 1);
   await off.click();
   await page.waitForTimeout(900);
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직 안 그려진
+     화면을 누르게 된다. 처음 켠 사람이라 온보딩이 덮고 있을 수 있어서
+     「보인다」가 아니라 「붙어 있다」로 본다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
 
   // ── 처음 켠 사람 안내 ──
   const onb = page.locator('.onboarding, .ob-slides');

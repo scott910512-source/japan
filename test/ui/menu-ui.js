@@ -39,6 +39,10 @@ async function boot(browser, settings = {}) {
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
   return page;
 }
 
