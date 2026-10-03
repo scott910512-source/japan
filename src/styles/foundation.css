@@ -399,6 +399,23 @@ button, input, select { font-family: inherit; }
 /* 학습 메뉴 — 두 칸 바둑판.
    일곱 개를 한 줄에 하나씩 놓으면 화면을 넘어가서 아래쪽은 있는 줄도 모른다. */
 .menugrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ── 바로가기 ──
+   사람이 고른 메뉴를 학습 탭 맨 앞에. 고치는 동안에만 별이 뜬다 —
+   평소에 칸마다 별이 있으면 누를 자리가 둘이 되고, 작은 칸에서는 열려던
+   메뉴 대신 별이 눌린다. */
+.sh-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.sh-edit { flex: 0 0 auto; min-height: 40px; font-size: 12.5px; padding: 0 12px; }
+.sh-edit[aria-pressed="true"] { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
+.sh-favnote { margin: 0; }
+.menutile { position: relative; }
+.mt-star {
+  position: absolute; top: 6px; right: 6px; width: 18px; height: 18px;
+  color: var(--ink-soft); opacity: .45; pointer-events: none;
+}
+.mt-star svg { width: 100%; height: 100%; }
+.mt-star.on { color: var(--kon); opacity: 1; }
+.menutile.faved { border-color: var(--kon); }
 .menutile {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   padding: 14px 13px; min-height: 104px; text-align: left; cursor: pointer;

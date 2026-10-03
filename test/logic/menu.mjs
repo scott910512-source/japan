@@ -7,7 +7,9 @@
  * 여기서 지키는 것은 하나다 — 목록이 한 곳에만 있어야 한다. 학습 탭과
  * 설정에 따로 적어 두면, 없앤 메뉴가 설정에는 남아서 켜도 아무 데도 안 뜨는
  * 칸이 생긴다. */
-import { MENUS, MENU_GROUPS, MENU_IDS, groupedMenus } from '../../src/lib/menu.js';
+import { MENUS, MENU_GROUPS, MENU_IDS, groupedMenus,
+  FAV_MAX, favMenus, isFav, toggleFav,
+} from '../../src/lib/menu.js';
 import { DEFAULT_SETTINGS } from '../../src/lib/storage.js';
 
 let pass = 0; let fail = 0;
@@ -74,6 +76,54 @@ ok('아무것도 안 켜면 빈손', groupedMenus({}).length === 0);
 /* 없어진 메뉴가 설정에 남아 있어도 안 뜬다 — 목록이 이 파일 하나로 정해진다 */
 ok('없는 메뉴는 켜져 있어도 안 뜬다',
   groupedMenus({ jlpt: true, repeat: true, weak: true }).length === 0);
+
+
+
+console.log('\n[ ★ 바로가기 ★ ]');
+{
+  /* 묶음(콘텐츠·연습·그 밖에)은 「처음 오는 사람이 무엇이 있는지 알아보는」
+     차례다. 그건 맞는데, 날마다 듣기와 기출만 쓰는 사람은 날마다 그 두 칸을
+     찾아 내려가야 한다.
+     자주 쓴 것이 저절로 올라오게 하면 눈 감고 누르던 자리가 매번 달라져서
+     더 나쁘다 — 사람이 고른 것만, 고른 차례 그대로 맨 앞에 둔다. */
+  const all = {};
+  for (const id of MENU_IDS) all[id] = true;
+
+  ok('여섯 개까지', FAV_MAX === 6);
+  ok('처음엔 빈손', favMenus([], all).length === 0);
+
+  const picked = favMenus(['listen', 'kiju', 'quiz'], all);
+  ok('고른 것만 나온다', picked.length === 3, picked.map((m) => m.label).join(' · '));
+  ok('★ 고른 차례 그대로 ★ — 앱이 다시 정렬하지 않는다',
+    picked.map((m) => m.id).join() === 'listen,kiju,quiz');
+
+  /* 설정에서 끈 메뉴는 바로가기에서도 안 보인다 — 껐는데 위에 남아 있으면
+     끈 게 아니다. 즐겨찾기 자체는 안 지운다(다시 켜면 돌아온다). */
+  const off = { ...all, kiju: false };
+  ok('★ 끈 메뉴는 안 뜬다 ★', favMenus(['listen', 'kiju', 'quiz'], off).map((m) => m.id).join() === 'listen,quiz');
+  ok('다시 켜면 돌아온다', favMenus(['listen', 'kiju', 'quiz'], all).length === 3);
+
+  ok('없는 id는 버린다', favMenus(['listen', '헛것'], all).length === 1);
+  ok('같은 걸 두 번 넣어도 한 번', favMenus(['listen', 'listen'], all).length === 1);
+  ok('빈손이 와도 안 죽는다', favMenus(null, all).length === 0 && favMenus(undefined, undefined).length === 0);
+
+  // 켜고 끄기
+  ok('넣는다', toggleFav([], 'listen').join() === 'listen');
+  ok('뒤에 붙는다 — 고른 차례가 곧 보이는 차례다',
+    toggleFav(['listen'], 'kiju').join() === 'listen,kiju');
+  ok('다시 누르면 뺀다', toggleFav(['listen', 'kiju'], 'listen').join() === 'kiju');
+  ok('없는 메뉴는 안 넣는다', toggleFav([], '헛것').length === 0);
+
+  /* 꽉 차면 받은 그대로 돌려준다 — 부르는 쪽이 「자리가 없다」로 읽고 알린다.
+     조용히 안 넣으면 눌렀는데 아무 일도 안 일어나는 것처럼 보인다. */
+  const full = MENU_IDS.slice(0, FAV_MAX);
+  const same = toggleFav(full, MENU_IDS[FAV_MAX]);
+  ok('★ 꽉 차면 그대로 돌려준다 ★', same === full, `${same.length}개`);
+  ok('꽉 차도 빼는 건 된다', toggleFav(full, full[0]).length === FAV_MAX - 1);
+
+  ok('isFav', isFav(['listen'], 'listen') === true && isFav(['listen'], 'kiju') === false);
+  ok('isFav는 빈손에도 답한다', isFav(null, 'listen') === false);
+}
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

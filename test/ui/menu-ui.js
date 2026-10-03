@@ -204,6 +204,53 @@ async function boot(browser, settings = {}) {
 
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | ') || '깨끗');
 
+  console.log('\n[ ★ 바로가기 ★ ]');
+  {
+    /* 묶음은 「처음 오는 사람이 무엇이 있는지 알아보는」 차례다. 그건 맞는데,
+       날마다 듣기와 기출만 쓰는 사람은 날마다 그 두 칸을 찾아 내려가야 한다.
+       자주 쓴 것이 저절로 올라오게 하면 눈 감고 누르던 자리가 매번 달라져서
+       더 나쁘다 — 사람이 고른 것만, 고른 차례 그대로 맨 앞에 둔다. */
+    await goTab(page, '학습');
+    await page.waitForTimeout(500);
+    ok('고치는 길이 늘 보인다', await page.locator('.sh-edit').count() === 1,
+      (await page.locator('.sh-edit').innerText()).trim());
+    ok('고르기 전에는 바로가기 줄이 없다', await page.locator('[data-group="fav"]').count() === 0);
+    ok('평소에는 별이 안 뜬다 — 누를 자리가 둘이 되면 안 된다',
+      await page.locator('.mt-star').count() === 0);
+
+    await page.locator('.sh-edit').click();
+    await page.waitForTimeout(350);
+    ok('고치는 중에는 칸마다 별', await page.locator('.mt-star').count() > 5,
+      `${await page.locator('.mt-star').count()}개`);
+
+    for (const id of ['listen', 'kiju', 'quiz']) {
+      await page.locator(`.menutile[data-menu="${id}"]`).first().click();
+      await page.waitForTimeout(250);
+    }
+    ok('★ 고른 것이 바로가기에 올라온다 ★',
+      (await page.locator('.mfavs .mt-title').allTextContents()).join(' · ') === '듣기 · 기출 단어 · 단어 시험',
+      (await page.locator('.mfavs .mt-title').allTextContents()).join(' · '));
+    ok('기기에 남는다',
+      await page.evaluate(() => JSON.stringify(
+        JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').favs,
+      )) === '["listen","kiju","quiz"]');
+
+    await page.locator('.sh-edit').click();
+    await page.waitForTimeout(350);
+    ok('끝내면 별이 사라진다', await page.locator('.mt-star').count() === 0);
+    ok('★ 맨 앞 묶음이 바로가기 ★',
+      await page.locator('.menugroup').first().getAttribute('data-group') === 'fav');
+
+    /* 화면에만 뜨고 안 열리면 고친 게 아니다 */
+    await page.locator('.mfavs .menutile[data-menu="listen"]').click();
+    await page.waitForTimeout(900);
+    ok('★ 눌러서 바로 열린다 ★',
+      (await page.locator('.subscreen.open .sub-title').innerText().catch(() => '')).trim() === '듣기',
+      (await page.locator('.subscreen.open .sub-title').innerText().catch(() => '못 열림')).trim());
+    await page.locator('.subscreen.open .sub-back').click();
+    await page.waitForTimeout(500);
+  }
+
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);
   process.exit(fail ? 1 : 0);
