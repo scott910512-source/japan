@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DEFAULT_BPM, beatShouldRun, nextBpm, startBeat, stopBeat } from '../lib/metronome.js';
+import { DEFAULT_BPM, beatShouldRun, nextBpm, startBeat, stopBeat, unlockBeat } from '../lib/metronome.js';
 
 /* 달리기 박자를 켜고 끄는 자리 — 딱 한 군데.
  *
@@ -33,6 +33,9 @@ export function useListenBeat({ running, paused, settings, onSettingsChange }) {
   );
 
   const save = (v) => {
+    /* 켜는 손길은 제스처다 — 여기서 오디오를 깨워 둬야 iOS에서 소리가 난다.
+       효과에서 켜는 startBeat은 제스처 밖이라 못 깨운다. */
+    if (v != null) unlockBeat();
     setBpm(v);
     onSettingsChange?.({ listenBeat: v != null, ...(v != null ? { listenBpm: v } : {}) });
   };
@@ -62,5 +65,8 @@ export function useListenBeat({ running, paused, settings, onSettingsChange }) {
        올린다 — 끈 뒤에 고른 값을 기억해 두면 「껐는데 왜 170이 뜨나」가 된다. */
     toggle: () => save(bpm == null ? DEFAULT_BPM : null),
     pick: (v) => save(v),
+    /* 제스처가 있는 자리(재생 시작·잠깐 멈춤)에서 부른다 — 박자가 켜진 채로
+       시작할 때 iOS가 소리를 내게. 꺼져 있으면 아무것도 안 한다. */
+    arm: () => { if (bpm != null) unlockBeat(); },
   };
 }

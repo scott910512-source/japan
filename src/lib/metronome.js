@@ -136,7 +136,81 @@ function audio() {
   const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
   if (!AC) return null;
   try { ctx = new AC(); } catch { ctx = null; }
+  if (ctx) {
+    /* 컨텍스트가 멈추면(iOS는 말소리가 끼어들 때 「interrupted」로 둔다)
+       박자가 도는 중이면 깨운다. 안 깨우면 버튼은 켜져 있는데 소리만 없다. */
+    try { ctx.addEventListener?.('statechange', () => { if (state) wake(); }); } catch { /* 무시 */ }
+    if (typeof window !== 'undefined') {
+      /* 검사용 창. 소리는 못 듣는 자리라 상태로 본다. */
+      window.__jpBeat = {
+        audio: () => (ctx ? ctx.state : null),
+        running: () => Boolean(state),
+        suspend: () => ctx?.suspend?.(),
+      };
+    }
+  }
   return ctx;
+}
+
+/* ★ iOS에서 소리가 나려면 ★
+ *
+ * AudioContext는 사용자 제스처 안에서 만들거나 깨워야(resume) 소리가 난다.
+ * 설정에 「달리기 박자」가 켜진 채로 재생을 시작하면, 박자는 화면의 효과에서
+ * 켜진다 — 제스처 밖이다. 그러면 버튼은 「170 BPM」이라고 켜져 있는데 소리는
+ * 없다. 삿포로를 들을 때는 됐고 기출을 고를 때는 안 됐던 것이 이것이다 —
+ * 처음엔 달리다가 손으로 켰고(제스처), 다음엔 켜진 채로 시작했다(효과).
+ *
+ * 그래서 제스처가 있는 자리(재생 시작·잠깐 멈춤·박자 버튼)에서 이걸 부른다.
+ * 깨우는 것과 함께 빈 소리를 한 번 낸다 — 옛 iOS는 그래야 풀린다. */
+let lastResume = 0;        // 틱마다 resume을 또 걸지 않게 — 시간으로 막는다
+let gestureArmed = false;  // 다음 터치에서 깨우기로 걸어 뒀나
+
+export function unlockBeat() {
+  const c = audio();
+  if (!c) return false;
+  try {
+    const b = c.createBuffer(1, 1, 22050);
+    const src = c.createBufferSource();
+    src.buffer = b;
+    src.connect(c.destination);
+    src.start(0);
+  } catch { /* 못 내도 resume은 한다 */ }
+  resumeCtx(c, true);
+  return true;
+}
+
+/* resume을 건다. 약속이 끝나기를 기다려 가드로 삼지 않는다 — iOS는 끼어든
+   동안 그 약속을 영영 안 돌려줄 때가 있어서, 그걸 기다리면 다시는 못 깨운다.
+   틱에서 부르는 것만 시간으로 막고(force=false), 제스처·켜기는 늘 건다. */
+function resumeCtx(c, force = false) {
+  if (!c?.resume) return;
+  const now = Date.now();
+  if (!force && now - lastResume < 200) return;
+  lastResume = now;
+  try { const p = c.resume(); p?.catch?.(() => {}); } catch { /* 무시 */ }
+}
+
+/* 멈춘 컨텍스트를 깨운다. 바로 깨우고, 안 깨어나면 다음 터치에서 다시 —
+   iOS는 제스처 밖의 resume을 못 들은 척할 때가 있다. */
+function wake() {
+  const c = ctx;
+  if (!c || !state) return;
+  if (c.state === 'running') return;
+  resumeCtx(c);
+  if (gestureArmed || typeof document === 'undefined') return;
+  gestureArmed = true;
+  const on = () => {
+    gestureArmed = false;
+    document.removeEventListener('pointerdown', on, true);
+    document.removeEventListener('keydown', on, true);
+    if (state) unlockBeat();
+  };
+  document.addEventListener('pointerdown', on, true);
+  document.addEventListener('keydown', on, true);
+}
+
+export function beatAudioState() {
+  return ctx ? ctx.state : null;
 }
 
 /* ★ 걸어 둔 소리를 거둬들인다 ★
@@ -183,6 +257,8 @@ function click(at, accent, volume) {
 
 function tick() {
   if (!state || !ctx) return;
+  /* 멈춰 있으면 깨운다 — 말소리가 끼어들며 iOS가 멈춰 둔 뒤에도 박자가 이어지게 */
+  if (ctx.state !== 'running') wake();
   const got = dueBeats(state.cursor, ctx.currentTime, state.bpm, state.count);
   for (const b of got.beats) click(b.at, b.accent, state.gain);
   state.cursor = got.cursor;
@@ -203,7 +279,7 @@ function tick() {
 export function startBeat(bpm, { volume = 0.1 } = {}) {
   const c = audio();
   if (!c) return false;
-  c.resume?.().catch(() => {});
+  resumeCtx(c, true);
   const want = clampBpm(bpm);
 
   if (state) {
