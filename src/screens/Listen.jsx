@@ -329,7 +329,7 @@ export default function Listen({
               이유를 없앤다. */}
           <button
             className={`ghost-btn ls-pause${paused ? ' on' : ''}`}
-            onClick={session.togglePause}
+            onClick={() => { beat.arm(); session.togglePause(); }}
             aria-pressed={paused}
           >
             {paused ? '이어서' : '잠깐 멈춤'}
@@ -855,7 +855,9 @@ export default function Listen({
                   : '일본어만 소리로 나와요. 뜻은 화면에 뜹니다.')}
             {' '}이어폰을 꽂았는지 한 번 보세요.
           </p>
-          <button className="submit-btn" onClick={() => { setAsk(false); start(); }}>
+          {/* ★ 박자는 여기서 깨운다 ★ 설정에 켜진 채로 시작하면 박자는 효과에서
+              켜지는데 그건 제스처 밖이라 iOS가 소리를 안 낸다. 이 버튼이 제스처다. */}
+          <button className="submit-btn" onClick={() => { beat.arm(); setAsk(false); start(); }}>
             <IconPlay /> 재생 시작
           </button>
           <button className="ghost-btn" onClick={() => setAsk(false)}>아니요</button>
