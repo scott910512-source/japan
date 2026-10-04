@@ -10,6 +10,7 @@ import {
 } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
+import { JLPT_LEVELS, jlptCounts, jlptSentences } from '../lib/jlptListen.js';
 import { BPMS, nextBpmLabel } from '../lib/metronome.js';
 import { useListenBeat } from '../hooks/useListenBeat.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
@@ -76,7 +77,7 @@ export default function Listen({
    * 있고, 저장 키는 그대로다(바꾸면 쓰던 사람이 고른 것이 전부 날아간다). */
   const ls = useListenSettings({ settings, onSettingsChange });
   const {
-    direction, scope, order, count, gap,
+    direction, scope, jlptLevel, order, count, gap,
     sayKo, sayAnswer, recap, showYomi, skipDone, loop, reshuffle,
   } = ls.values;
   const picked = ls.blocks;
@@ -150,15 +151,33 @@ export default function Listen({
      내놓는다(lib/trip.js). */
   const tripList = useMemo(() => tripPool(words || []), [words]);
 
+  /* ★ JLPT 문장 — 고른 급수의 문장만 ★
+     「오늘 볼 것」은 급수가 섞여 와서, 눈으로 N3을 보는 사람도 귀로는 몇몇
+     낱말밖에 못 잡았다. 급수를 골라 그 급수의 문장만 돈다 — 단어장 예문이
+     먼저, 상황별 회화가 뒤(lib/jlptListen.js). 예문은 단어장에 카드로 없어서
+     여기서 만든 카드를 큐를 푸는 쪽(cardsForQueue)에도 같이 넘긴다. */
+  const jlptCards = useMemo(
+    () => jlptSentences(jlptLevel, words || [], sentences || []),
+    [jlptLevel, words, sentences],
+  );
+  const jlptList = useMemo(
+    () => jlptCards.map((c) => ({ id: c.id, kind: 'sentence' })),
+    [jlptCards],
+  );
+  const levelCounts = useMemo(
+    () => jlptCounts(words || [], sentences || []),
+    [words, sentences],
+  );
+
   /* 회독 큐를 빌려 쓰지 않는다. 판정을 안 하는 화면이라 「복습으로 열고
      약점을 흩는다」는 순서를 지킬 이유가 없고, 그 큐에 얽히면 범위가 오늘
      몫으로 좁혀져서 늘 같은 것만 들린다. */
   const start = () => {
     const queue = pickListen(pool, review, {
-      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList,
+      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList, jlpt: jlptList,
       order, blocks: selectedBlocks, skipDone, ledger,
     });
-    const cards = cardsForQueue(queue, words, sentences).filter((c) => !dropped.has(c.id));
+    const cards = cardsForQueue(queue, words, sentences, jlptCards).filter((c) => !dropped.has(c.id));
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
     session.begin(cards);
   };
@@ -203,15 +222,15 @@ export default function Listen({
 
   const poolSize = useMemo(() => pool.length, [pool]);
   const counts = useMemo(
-    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone, ledger, tripList),
-    [pool, review, kijuPool, skipDone, ledger, tripList],
+    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone, ledger, tripList, jlptList),
+    [pool, review, kijuPool, skipDone, ledger, tripList, jlptList],
   );
   /* 고른 범위에 구간이 몇 개인가. 개수를 바꾸면 구간 수도 따라 바뀐다. */
   const blockCount = useMemo(
     () => blocksIn(pool, review, {
-      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList, skipDone, ledger,
+      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList, jlpt: jlptList, skipDone, ledger,
     }),
-    [pool, review, scope, count, kijuPool, tripList, skipDone, ledger],
+    [pool, review, scope, count, kijuPool, tripList, jlptList, skipDone, ledger],
   );
   /* 개수나 범위를 바꾸면 구간 수가 줄어든다. 저장된 번호를 그대로 쓰면
      「12 / 11구간」이 뜬다 — 고르는 쪽에서 미리 당겨 둔다(뽑는 쪽도 막지만,
@@ -371,7 +390,11 @@ export default function Listen({
       <div className="ls-top">
         <div className="ls-topbody">
           <b>{DIRECTIONS.find((d) => d.id === direction)?.label}</b>
-          <span>{SCOPES.find((s) => s.id === scope)?.label} · {count}개 · {gap}초 간격</span>
+          <span>
+            {SCOPES.find((s) => s.id === scope)?.label}
+            {scope === 'jlpt' && ` ${jlptLevel}`}
+            {' · '}{count}개 · {gap}초 간격
+          </span>
         </div>
         <button className="ls-go" onClick={() => setAsk(true)} disabled={poolSize === 0}>
           <IconPlay /> 시작
@@ -445,6 +468,34 @@ export default function Listen({
       <p className="set-note ls-scopenote">
         {SCOPES.find((s) => s.id === scope)?.sub}
       </p>
+
+      {/* ★ 급수 ★
+          JLPT 문장을 골랐을 때만 나온다. 귀는 눈보다 늦어서 기본은 N5다 —
+          N3을 읽는 사람도 귀로는 N5부터 쌓아야 들린다. 급수를 바꾸면 목록이
+          통째로 바뀌니 구간 번호도 처음으로 돌린다. 아니면 N5의 12구간이
+          N3의 12구간을 가리키게 된다. */}
+      {scope === 'jlpt' && (
+        <>
+          <div className="ls-pills ls-levels" role="group" aria-label="급수">
+            {JLPT_LEVELS.map((l) => (
+              <button
+                key={l}
+                className={`ls-pill ls-level${jlptLevel === l ? ' active' : ''}`}
+                data-level={l}
+                disabled={!levelCounts[l]}
+                onClick={() => { if (l !== jlptLevel) { ls.set('jlptLevel', l); ls.saveBlocks([0]); } }}
+              >
+                {l}
+                {/* 「문장」을 붙이면 1708이 두 줄로 꺾인다 — 단위는 밑 설명이 말한다 */}
+                <span className="pk-count">{levelCounts[l]}개</span>
+              </button>
+            ))}
+          </div>
+          <p className="set-note ls-levelnote">
+            낱말은 안 나와요. 단어장 예문이 먼저, 상황별 회화가 뒤에 돌아요.
+          </p>
+        </>
+      )}
 
       {/* 「따라 말하기」는 들려준 걸 따라 하는 거라 뒤집은 판에는 없다.
           거기서는 안 들려준 걸 내가 먼저 말하니까 — 그 자체가 말하기 연습이다.

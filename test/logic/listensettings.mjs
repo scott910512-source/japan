@@ -25,8 +25,8 @@ console.log('\n[ ★ 저장 키는 바뀌면 안 된다 ★ ]');
   /* 기기에 이 이름으로 적혀 있다. 하나라도 바뀌면 그 사람이 고른 것이
      기본값으로 돌아간다 — 방향도, 개수도, 켜 둔 것도 전부. */
   const want = {
-    direction: 'listenDir', scope: 'listenScope', order: 'listenOrder',
-    count: 'listenCount', gap: 'listenGap',
+    direction: 'listenDir', scope: 'listenScope', jlptLevel: 'listenJlptLevel',
+    order: 'listenOrder', count: 'listenCount', gap: 'listenGap',
     sayKo: 'listenSayKo', sayAnswer: 'listenSayAnswer', recap: 'listenRecap',
     showYomi: 'listenShowYomi', skipDone: 'listenSkipDone',
     loop: 'listenLoop', reshuffle: 'listenReshuffle',
@@ -34,7 +34,7 @@ console.log('\n[ ★ 저장 키는 바뀌면 안 된다 ★ ]');
   for (const [name, key] of Object.entries(want)) {
     ok(`${name} → ${key}`, LISTEN_SETTINGS[name]?.key === key, LISTEN_SETTINGS[name]?.key);
   }
-  ok('표에 그 열둘뿐 — 모르는 칸이 없다',
+  ok('표에 그 열셋뿐 — 모르는 칸이 없다',
     Object.keys(LISTEN_SETTINGS).length === Object.keys(want).length,
     Object.keys(LISTEN_SETTINGS).join(' · '));
 }

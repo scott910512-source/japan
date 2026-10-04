@@ -187,6 +187,12 @@
 }
 .ls-scope.active .pk-count { color: var(--kon); }
 .ls-scope:disabled { opacity: .45; cursor: default; }
+/* JLPT 문장의 급수 — 범위 밑에 한 줄 더. 셋뿐이라 나란히 둔다 */
+.ls-levels { margin-top: 10px; }
+.ls-level { flex: 1 1 0; justify-content: center; min-height: var(--touch); }
+.ls-level .pk-count { font-size: 12px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.ls-level.active .pk-count { color: var(--kon); }
+.ls-level:disabled { opacity: .45; cursor: default; }
 .ls-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .ls-controls .ghost-btn { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .ls-controls .ghost-btn svg { width: 16px; height: 16px; }

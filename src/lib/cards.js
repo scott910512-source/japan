@@ -116,9 +116,13 @@ export function dailyPool(words, sentences, {
 
 /* 큐(id 목록)를 실제 카드로 바꾼다. 없는 id는 조용히 버린다 —
  * 자료가 바뀌어 사라진 카드가 큐에 남아 있으면 화면이 빈 카드를 그린다. */
-export function cardsForQueue(queue, words, sentences) {
+/* extra: 단어장에도 상황 문장에도 없는 카드 — 지금은 JLPT 문장 듣기의 예문
+ * 카드(lib/jlptListen.js)다. 그 카드는 화면이 만들어 들고 있으니 여기로 같이
+ * 넘긴다. 안 넘기면 큐에 있는 id를 못 찾아 조용히 버려진다. */
+export function cardsForQueue(queue, words, sentences, extra = []) {
   const byId = new Map();
   for (const w of words) byId.set(w.id, w);
   for (const s of sentences) byId.set(s.id, s);
+  for (const x of extra) byId.set(x.id, x);
   return queue.map((q) => byId.get(q.id)).filter(Boolean);
 }

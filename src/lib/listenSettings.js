@@ -29,8 +29,10 @@
 export const LISTEN_SETTINGS = {
   /* 방향 — 듣고 알아듣기(jp-ko) · 듣고 말해 보기(ko-jp) · 랜덤(mix) */
   direction: { key: 'listenDir', def: 'jp-ko' },
-  /* 무엇을 들을까 — 오늘 · 기출 · 여행 · 배운 것 · 약점 · 전체 */
+  /* 무엇을 들을까 — 오늘 · 기출 · 여행 · JLPT 문장 · 배운 것 · 약점 · 전체 */
   scope: { key: 'listenScope', def: 'today' },
+  /* JLPT 문장의 급수 — 귀는 눈보다 늦으니 기본은 N5 */
+  jlptLevel: { key: 'listenJlptLevel', def: 'N5' },
   /* 구간별 / 섞어서 */
   order: { key: 'listenOrder', def: 'block' },
   /* 한 번에 몇 장 */
