@@ -129,7 +129,8 @@ function KanaQuiz({ row, settings, onBack, onToast }) {
 
   return (
     <>
-      <div className="sub-header" style={{ margin: '-16px -18px 14px' }}>
+      {/* 바깥 헤더(완전기초)가 이미 있다 — 안쪽 줄로 둔다(Situations와 같다) */}
+      <div className="sub-header inline">
         <button className="sub-back" onClick={onBack}><IconArrowLeft /> 뒤로</button>
         <div className="sub-title">{row.label} 퀴즈</div>
       </div>

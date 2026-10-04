@@ -89,7 +89,9 @@ export default function Situations({ review, settings, onReviewChange, onToast }
     return (
       <>
         {overlay}
-        <div className="sub-header" style={{ margin: '-16px -18px 14px' }}>
+        {/* 바깥 헤더(문장 · 상황별 회화)가 이미 있다. 같은 모양으로 한 줄 더
+            두면 「뒤로」가 위아래로 둘 보인다 — 듣기·N3처럼 안쪽 줄로 둔다. */}
+        <div className="sub-header inline">
           <button className="sub-back" onClick={() => setPart(null)}><IconArrowLeft /> 뒤로</button>
           <div className="sub-title">{part.label}</div>
         </div>
