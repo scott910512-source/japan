@@ -152,7 +152,8 @@
 .qc-prompt.ko { font-size: clamp(22px, 6.5vw, 32px); }
 .qc-sub { font-size: 14px; color: var(--ink-soft); font-weight: 600; }
 .qc-speak {
-  position: relative; margin-top: 4px; padding: 7px; cursor: pointer;
+  position: relative; margin-top: 4px; padding: 0; min-width: var(--touch); min-height: var(--touch); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; color: var(--ink-soft);
 }
 .qc-speak svg { width: 19px; height: 19px; display: block; }

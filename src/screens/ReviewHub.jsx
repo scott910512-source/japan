@@ -93,7 +93,13 @@ export default function ReviewHub({
                   </span>
                   <span className="wb-why">
                     {w.speed && <i className="wb-fast">{w.speed}</i>}
-                    <span>{w.reasons.join(' · ')}</span>
+                    {/* 까닭 하나는 한 덩어리다 — 「애매해요 1 / 번」처럼 숫자와
+                        단위 사이에서 줄이 꺾이면 읽다가 멈춘다 */}
+                    <span>
+                      {w.reasons.map((r, i) => (
+                        <span key={r} className="wb-reason">{i > 0 && ' · '}{r}</span>
+                      ))}
+                    </span>
                   </span>
                 </div>
               ))}
