@@ -126,11 +126,11 @@ button, input, select { font-family: inherit; }
 .ring::after { content: ""; width: 23px; height: 23px; border-radius: 50%; background: var(--surface); }
 
 .chiprow { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 4px; }
-.chip { flex: 0 0 auto; padding: 7px 14px; border-radius: 100px; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+.chip { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: var(--touch); padding: 0 14px; border-radius: 100px; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
 .chip.active { background: linear-gradient(135deg, var(--kon), var(--kon-deep)); border-color: transparent; color: #fff; box-shadow: var(--glow-btn); }
 
 .segment { display: flex; background: var(--surface-2); border-radius: 11px; padding: 3px; gap: 2px; }
-.segment button { flex: 1; border: none; background: none; padding: 9px 0; font-size: 13px; font-weight: 650; color: var(--ink-soft); border-radius: 9px; cursor: pointer; }
+.segment button { flex: 1; border: none; background: none; padding: 0; min-height: var(--touch); font-size: 13px; font-weight: 650; color: var(--ink-soft); border-radius: 9px; cursor: pointer; }
 .segment button.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px var(--shadow); }
 
 .cardstage { perspective: 1200px; margin: 16px 0; }
@@ -287,7 +287,7 @@ button, input, select { font-family: inherit; }
 .sub-back {
   display: flex; align-items: center; gap: 2px; background: none; border: none;
   color: var(--kon); font-size: 14px; font-weight: 600; padding: 6px 10px 6px 6px;
-  min-height: var(--touch); cursor: pointer;
+  min-height: var(--touch); min-width: var(--touch); cursor: pointer;
 }
 .sub-back svg { width: 18px; height: 18px; }
 .sub-title { font-size: 15px; font-weight: 700; margin-right: auto; margin-left: 2px; }

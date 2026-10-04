@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { NAV_SENTINEL, onLayerChange, onPopState } from '../lib/navhistory.js';
+import { closeTopSheet, sheetDepth, subscribeSheets } from '../lib/sheets.js';
 
 /* 뒤로가기로 학습을 잃지 않는다.
  *
@@ -20,7 +21,13 @@ import { NAV_SENTINEL, onLayerChange, onPopState } from '../lib/navhistory.js';
 export function useLayerNavigation({ deck, sub, setDeck, setSub }) {
   /* 몇 층이 덮여 있나. 회독 판과 밀어 넣은 메뉴는 따로 세는 게 맞다 —
      판 위에 메뉴가 열릴 수 있고, 그때 뒤로가기는 한 번에 한 층만 닫는다. */
-  const depth = (deck ? 1 : 0) + (sub ? 1 : 0);
+  /* ★ 시트도 한 층이다 ★
+     문법의 「시제」, 듣기의 「시작 전 묻기」 같은 시트는 화면 안의 지역
+     상태라 여기서 몰랐다. 그래서 시트가 떠 있을 때 뒤로가기를 누르면
+     시트가 아니라 화면이 통째로 닫혔다. 시트 장부(lib/sheets.js)를 구독해
+     떠 있는 수만큼 층으로 세고, 닫을 때는 시트부터 닫는다. */
+  const sheets = useSyncExternalStore(subscribeSheets, sheetDepth, () => 0);
+  const depth = (deck ? 1 : 0) + (sub ? 1 : 0) + sheets;
 
   /* popstate 처리가 지금 층 수를 알아야 한다. 효과에 depth를 의존성으로
      넣어 듣는 자리를 매번 다시 붙이면, 붙이는 사이에 온 pop을 놓친다. */
@@ -68,7 +75,8 @@ export function useLayerNavigation({ deck, sub, setDeck, setSub }) {
       pending.current = r.pending;
       if (r.act === 'push') pushSentinel();
       if (!r.close) return;
-      // 위에 덮인 것부터 하나씩. 회독 → 메뉴 순이다.
+      // 위에 덮인 것부터 하나씩. 시트 → 회독 → 메뉴 순이다.
+      if (closeTopSheet()) return;
       if (deckRef.current) { setDeck(null); return; }
       setSub(null);
     };

@@ -3,12 +3,13 @@
 
 .studyhead { flex: 0 0 auto; margin-bottom: 14px; }
 .sh-row { display: flex; align-items: center; gap: 8px; }
-.sh-close { background: none; border: none; color: var(--ink-soft); padding: 9px; cursor: pointer; display: flex; }
+/* 닫기·소리·눈 아이콘은 손가락만큼(44px). 그림은 그대로 두고 누르는 자리만 넓힌다. */
+.sh-close { background: none; border: none; color: var(--ink-soft); padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch); }
 .sh-close svg { width: 22px; height: 22px; }
 .sh-title { flex: 1; text-align: center; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .sh-undo {
   background: none; border: none; color: var(--kon); font-size: 12.5px; font-weight: 650;
-  cursor: pointer; padding: 10px 6px; /* 손가락으로 누를 만한 높이 */
+  cursor: pointer; padding: 0 6px; min-height: var(--touch); /* 손가락으로 누를 만한 높이 */
 }
 .sh-undo:disabled { color: var(--sumi); cursor: default; }
 .sh-bar { height: 6px; border-radius: 4px; background: var(--surface-2); margin: 10px 0 6px; overflow: hidden; }
@@ -27,7 +28,7 @@
 .sc-top { position: absolute; top: 12px; left: 14px; right: 14px; display: flex; align-items: center; }
 .sc-weak { font-size: 10.5px; font-weight: 800; color: var(--shu); background: var(--shu-soft); padding: 3px 9px; border-radius: 100px; }
 .sc-speak {
-  margin-left: auto; width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+  margin-left: auto; width: var(--touch); height: var(--touch); border-radius: 50%; cursor: pointer;
   background: var(--surface-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
 }
 .sc-speak svg { width: 18px; height: 18px; color: var(--kon); }
@@ -47,7 +48,7 @@
 .sc-main.ko.len-m { font-size: 24px; }
 .sc-main.ko.len-l { font-size: 19px; }
 .sc-peek {
-  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 100px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; min-height: var(--touch); border-radius: 100px; cursor: pointer;
   background: none; border: none; color: var(--ink-soft); font-size: 13px; font-weight: 600;
 }
 .sc-peek svg { width: 17px; height: 17px; }
@@ -57,11 +58,11 @@
 
 .sc-back { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
 .sc-answer { font-size: 24px; font-weight: 750; text-align: center; }
-.sc-example { position: relative; width: 100%; padding: 12px 40px 12px 14px; border-radius: 12px; background: var(--surface-2); text-align: center; }
+.sc-example { position: relative; width: 100%; padding: 12px 48px 12px 14px; border-radius: 12px; background: var(--surface-2); text-align: center; }
 .sc-example .ex-jp { font-size: 15px; font-weight: 650; }
 .ex-play {
-  position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
-  width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+  position: absolute; top: 50%; right: 2px; transform: translateY(-50%);
+  width: var(--touch); height: var(--touch); border-radius: 50%; cursor: pointer;
   background: var(--surface); border: 1px solid var(--line);
   display: flex; align-items: center; justify-content: center;
 }
@@ -94,8 +95,10 @@
 
 .studyfoot { flex: 0 0 auto; display: flex; gap: 6px; margin-top: 12px; }
 .studyfoot button {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 10px 4px; cursor: pointer;
-  background: none; border: none; color: var(--ink-soft); font-size: 11.5px; font-weight: 600;
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 10px 0; cursor: pointer;
+  background: none; border: none; color: var(--ink-soft); font-size: 11px; font-weight: 600;
+  /* 「천천히 듣/기」로 꺾이지 않게 — 넷이 한 줄에 다 들어가는 크기로 */
+  white-space: nowrap; min-width: 0; min-height: var(--touch);
 }
 .studyfoot button svg { width: 16px; height: 16px; }
 .studyfoot button.on { color: var(--kon); }
@@ -188,7 +191,7 @@
 .kanarow { padding: 12px 14px; }
 .kr-head { display: flex; align-items: center; margin-bottom: 10px; }
 .kr-label { font-size: 13px; font-weight: 700; }
-.kr-quiz { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--kon); font-size: 12px; font-weight: 700; cursor: pointer; }
+.kr-quiz { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--kon); font-size: 12px; font-weight: 700; cursor: pointer; min-height: var(--touch); padding: 0 6px; margin-right: -6px; }
 .kr-quiz svg { width: 7px; height: 12px; }
 .kr-chars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .kanacell { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 9px 2px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
@@ -207,7 +210,7 @@
 .lead { font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; margin: -4px 0 14px; }
 
 .starfilter {
-  width: 100%; margin-top: 12px; padding: 11px 14px; border-radius: 12px; cursor: pointer;
+  width: 100%; margin-top: 12px; padding: 11px 14px; min-height: var(--touch); border-radius: 12px; cursor: pointer;
   border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font-size: 12.5px; font-weight: 650;
 }
 .starfilter.on { border-color: var(--kon); background: var(--kon-soft); color: var(--kon); }
@@ -220,7 +223,7 @@
 .sr-jp .star { color: var(--kon); margin-right: 5px; }
 .sr-ko { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
 .iconbtn {
-  width: 34px; height: 34px; border-radius: 10px; flex: 0 0 auto; cursor: pointer;
+  width: var(--touch); height: var(--touch); border-radius: 12px; flex: 0 0 auto; cursor: pointer;
   background: var(--surface-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
 }
 .iconbtn svg { width: 16px; height: 16px; color: var(--kon); }
@@ -308,7 +311,7 @@
   background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); text-align: left;
 }
 .memo-add {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--touch);
   border-style: dashed; color: var(--ink-soft); font-size: 12.5px; font-weight: 600;
 }
 .memo-add svg { width: 15px; height: 15px; }

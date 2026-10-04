@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { pushSheet } from '../lib/sheets.js';
 
 /* 아래에서 올라오는 시트.
  *
@@ -20,6 +21,19 @@ import { useEffect, useRef } from 'react';
 export default function BottomSheet({ open, onClose, label = '시트', children }) {
   const box = useRef(null);
   const came = useRef(null);
+
+  /* ★ 뒤로가기가 시트부터 닫게 ★
+     열려 있는 동안 장부(lib/sheets.js)에 닫는 손잡이를 적어 둔다. 뒤로가기
+     층 세기가 그걸 한 층으로 세서, 폰 뒤로가기가 시트만 닫고 뒤쪽 화면은
+     둔다 — 전에는 시트째로 화면이 통째로 나갔다.
+     onClose는 그릴 때마다 새 함수일 수 있어서 ref로 든다. 안 그러면 그릴
+     때마다 지우고 다시 적느라 장부가 흔들린다. */
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!open) return undefined;
+    return pushSheet(() => closeRef.current?.());
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
