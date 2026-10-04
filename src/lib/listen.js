@@ -29,6 +29,11 @@ export const SCOPES = [
      고르는 범위다. 다만 고르는 기준이 시험이 아니라 나흘 뒤의 공항이다.
      낱말과 짧은 문장이 하루의 차례대로 섞여 돈다. */
   { id: 'trip', label: '여행 · 삿포로', sub: '공항부터 계산까지 — 벼락치기' },
+  /* 급수별 문장.
+     「오늘 볼 것」을 틀었더니 N3이 섞여 와서 몇몇 낱말 말고는 안 들렸다.
+     귀는 눈보다 늦다 — 급수를 골라 그 급수의 문장만 돈다. 낱말은 안 돈다.
+     목록은 급수마다 다르니 여기도 후보 목록을 통째로 바꿔 낀다(poolFor). */
+  { id: 'jlpt', label: 'JLPT 문장', sub: '급수를 골라 그 급수의 문장만 — 예문부터 회화까지' },
   { id: 'seen', label: '배운 것', sub: '한 번이라도 본 것 전체' },
   { id: 'weak', label: '약점만', sub: '회독·시험에서 세 번 넘게 틀린 것' },
   { id: 'all', label: '전체', sub: '아직 안 본 것까지 다' },
@@ -86,6 +91,8 @@ export function inScope(st, scope, today = todayKey(), rec = null) {
   /* 여행도 같다 — 「떠나기 전에 들을 것인가」는 카드의 내력이 아니라 목록이
      답한다. 후보 목록 자체를 바꿔 끼운다(poolFor). */
   if (scope === 'trip') return true;
+  /* JLPT 문장도 같다 — 급수는 카드의 내력이 아니라 목록이 답한다. */
+  if (scope === 'jlpt') return true;
   // 오늘 볼 것 — 복습일이 됐거나 아직 안 본 것
   return !st.lastSeen || isDue(st, today);
 }
@@ -104,9 +111,12 @@ export function inScope(st, scope, today = todayKey(), rec = null) {
  * 기출은 시험에 나온 것이라 레벨로 자를 이유가 없다. 卒業은 N4지만 N3 시험에
  * 나왔고, N5만 골랐다고 안 나오는 게 아니다. 그래서 목록을 통째로 바꿔 낀다.
  * 안 주면 기출 범위는 빈손이다 — 「다 들린다」보다 낫다. */
-function poolFor(scope, pool, kiju, trip) {
+function poolFor(scope, pool, kiju, trip, jlpt) {
   if (scope === 'kiju') return kiju || [];
   if (scope === 'trip') return trip || [];
+  /* 급수별 문장 — 화면이 고른 급수의 목록을 만들어 넘긴다(lib/jlptListen.js).
+     안 주면 빈손이다. 「다 들린다」보다 낫다. */
+  if (scope === 'jlpt') return jlpt || [];
   return pool;
 }
 
@@ -182,10 +192,10 @@ export function pickBlock(list, { count = 20, block = 0 } = {}) {
 
 /* 범위 안에 구간이 몇 개인가. 화면이 「3 / 11구간」을 적는 데 쓴다. */
 export function blocksIn(pool, review, {
-  scope = 'today', count = 20, today = todayKey(), kiju = null, trip = null,
+  scope = 'today', count = 20, today = todayKey(), kiju = null, trip = null, jlpt = null,
   skipDone = false, ledger = null,
 } = {}) {
-  const src = poolFor(scope, pool, kiju, trip);
+  const src = poolFor(scope, pool, kiju, trip, jlpt);
   const keep = keepFor(review, skipDone);
   const n = src.filter(({ id }) => (
     inScope(stateOf(review, id), scope, today, weakEntry(ledger, id)) && keep(id)
@@ -209,9 +219,9 @@ function keepFor(review, skipDone) {
 
 export function pickListen(pool, review, {
   scope = 'today', count = 20, shuffle = true, today = todayKey(), kiju = null, trip = null,
-  order = 'shuffle', block = 0, blocks = null, skipDone = false, ledger = null,
+  jlpt = null, order = 'shuffle', block = 0, blocks = null, skipDone = false, ledger = null,
 } = {}) {
-  const src = poolFor(scope, pool, kiju, trip);
+  const src = poolFor(scope, pool, kiju, trip, jlpt);
   const keep = keepFor(review, skipDone);
   const picked = src.filter(({ id }) => (
     inScope(stateOf(review, id), scope, today, weakEntry(ledger, id)) && keep(id)
@@ -231,11 +241,11 @@ export function pickListen(pool, review, {
 
 /* 범위마다 몇 개나 되는지. 골라 보고 나서야 「들을 게 없어요」를 만나면
    왜 없는지 모른다 — 고르기 전에 숫자를 보여 준다. */
-export function scopeCounts(pool, review, today = todayKey(), kiju = null, skipDone = false, ledger = null, trip = null) {
+export function scopeCounts(pool, review, today = todayKey(), kiju = null, skipDone = false, ledger = null, trip = null, jlpt = null) {
   const keep = keepFor(review, skipDone);
   const out = {};
   for (const s of SCOPES) {
-    out[s.id] = poolFor(s.id, pool, kiju, trip)
+    out[s.id] = poolFor(s.id, pool, kiju, trip, jlpt)
       .filter(({ id }) => inScope(stateOf(review, id), s.id, today, weakEntry(ledger, id)) && keep(id)).length;
   }
   return out;
