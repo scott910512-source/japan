@@ -10,7 +10,7 @@ import {
 } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
-import { JLPT_LEVELS, jlptCounts, jlptSentences } from '../lib/jlptListen.js';
+import { JLPT_LEVELS, jlptSentences, poolOf } from '../lib/jlptListen.js';
 import { BPMS, nextBpmLabel } from '../lib/metronome.js';
 import { useListenBeat } from '../hooks/useListenBeat.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
@@ -90,7 +90,12 @@ export default function Listen({
   const session = useListenSession({
     onToast,
     onActivity,
-    onWeakness,
+    /* 예문 카드(ex:…)는 단어장에 없는 카드라 약점 장부에 적지 않는다 — 적으면
+       아무도 안 읽는 id가 장부에 쌓이고 기기 사이로 번진다. 회화 문장은 그대로. */
+    onWeakness: (notes) => {
+      const keep = (notes || []).filter((n) => !String(n?.id || '').startsWith('ex:'));
+      if (keep.length) onWeakness?.(keep);
+    },
     onDrop: (id) => ls.saveDropped(new Set(dropped).add(id)),
   });
   const { run, card, step, nudge, paused, lastSet } = session;
@@ -156,17 +161,20 @@ export default function Listen({
      낱말밖에 못 잡았다. 급수를 골라 그 급수의 문장만 돈다 — 단어장 예문이
      먼저, 상황별 회화가 뒤(lib/jlptListen.js). 예문은 단어장에 카드로 없어서
      여기서 만든 카드를 큐를 푸는 쪽(cardsForQueue)에도 같이 넘긴다. */
-  const jlptCards = useMemo(
-    () => jlptSentences(jlptLevel, words || [], sentences || []),
-    [jlptLevel, words, sentences],
-  );
-  const jlptList = useMemo(
-    () => jlptCards.map((c) => ({ id: c.id, kind: 'sentence' })),
-    [jlptCards],
-  );
+  /* 세 급수를 한 번에 만든다 — 고른 급수의 목록과 급수 칸의 숫자가 같은
+     표에서 나오게. 따로 재면 예문 2,700개를 네 번 재고, 숫자와 목록이
+     어긋날 틈이 생긴다. 저장된 급수가 표에 없으면(N2 같은 낯선 값) N5로. */
+  const jlptAll = useMemo(() => {
+    const out = {};
+    for (const l of JLPT_LEVELS) out[l] = jlptSentences(l, words || [], sentences || []);
+    return out;
+  }, [words, sentences]);
+  const level = JLPT_LEVELS.includes(jlptLevel) ? jlptLevel : JLPT_LEVELS[0];
+  const jlptCards = jlptAll[level];
+  const jlptList = useMemo(() => poolOf(jlptCards), [jlptCards]);
   const levelCounts = useMemo(
-    () => jlptCounts(words || [], sentences || []),
-    [words, sentences],
+    () => Object.fromEntries(JLPT_LEVELS.map((l) => [l, jlptAll[l].length])),
+    [jlptAll],
   );
 
   /* 회독 큐를 빌려 쓰지 않는다. 판정을 안 하는 화면이라 「복습으로 열고
@@ -222,7 +230,7 @@ export default function Listen({
 
   const poolSize = useMemo(() => pool.length, [pool]);
   const counts = useMemo(
-    () => scopeCounts(pool, review, todayKey(), kijuPool, skipDone, ledger, tripList, jlptList),
+    () => scopeCounts(pool, review, { today: todayKey(), kiju: kijuPool, trip: tripList, jlpt: jlptList, skipDone, ledger }),
     [pool, review, kijuPool, skipDone, ledger, tripList, jlptList],
   );
   /* 고른 범위에 구간이 몇 개인가. 개수를 바꾸면 구간 수도 따라 바뀐다. */
@@ -276,7 +284,10 @@ export default function Listen({
         {/* ★ 한 바퀴 돌았으면 시험으로 ★
             귀로 들은 것과 답할 수 있는 것은 다르고, 그 차이는 물어봐야 안다.
             듣는 동안에는 안 띄운다 — 한 바퀴도 안 돌고 시험을 보면 그냥 모른다. */}
-        {run.lap > 0 && onQuiz && (
+        {/* 문장만 도는 판(JLPT 문장)에는 안 띄운다 — 시험은 낱말을 묻는
+            자리라, 문장 스무 장을 넘기면 「출제할 단어가 없어요」로 끝나고
+            듣던 자리만 잃는다. */}
+        {run.lap > 0 && onQuiz && run.cards.some((c) => c.kind !== 'sentence') && (
           <button
             className="ghost-btn ls-quiz"
             onClick={() => { stop(); onQuiz(run.cards); }}
@@ -392,7 +403,7 @@ export default function Listen({
           <b>{DIRECTIONS.find((d) => d.id === direction)?.label}</b>
           <span>
             {SCOPES.find((s) => s.id === scope)?.label}
-            {scope === 'jlpt' && ` ${jlptLevel}`}
+            {scope === 'jlpt' && ` ${level}`}
             {' · '}{count}개 · {gap}초 간격
           </span>
         </div>
@@ -480,10 +491,10 @@ export default function Listen({
             {JLPT_LEVELS.map((l) => (
               <button
                 key={l}
-                className={`ls-pill ls-level${jlptLevel === l ? ' active' : ''}`}
+                className={`ls-pill ls-level${level === l ? ' active' : ''}`}
                 data-level={l}
                 disabled={!levelCounts[l]}
-                onClick={() => { if (l !== jlptLevel) { ls.set('jlptLevel', l); ls.saveBlocks([0]); } }}
+                onClick={() => { if (l !== level) { ls.set('jlptLevel', l); ls.saveBlocks([0]); } }}
               >
                 {l}
                 {/* 「문장」을 붙이면 1708이 두 줄로 꺾인다 — 단위는 밑 설명이 말한다 */}
