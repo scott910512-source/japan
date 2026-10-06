@@ -14,7 +14,17 @@
  *     받아 둔 것을 확인하고 나서 끊는다
  *
  * 배포 뒤의 live-check는 「올라간 파일이 다 있나」를 본다. 여기는 「받아 둔
- * 파일만으로 돌아가나」를 본다. 둘이 짝이다. */
+ * 파일만으로 돌아가나」를 본다. 둘이 짝이다.
+ *
+ * ★ 밑줄 — npm test에서 뺐다 ★
+ * 이 컨테이너에서는 통과하는데 CI(GitHub 러너)에서는 「인터넷을 끊고 새로
+ * 열기」에서 앱이 안 떴다(사전 캐시는 44개로 똑같이 찼는데도). 원인을 아직
+ * 모른다 — 서비스워커가 그 탭을 아직 쥐지 못했거나, 러너의 오프라인 흉내가
+ * 서비스워커까지 막는 쪽일 수 있다. 모르는 채로 CI를 빨갛게 두면 다른 검사까지
+ * 안 믿게 되니, 원인을 잡을 때까지 손으로 돌리는 도구로 둔다. 아래에 실패하면
+ * 무엇이 보였는지 적게 해 두었다 — 다음에 CI에서 한 번 돌려 보면 답이 나온다.
+ *
+ *   APP_URL=http://localhost:8934/japan/ node test/ui/_offline-reload.js */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab, openListen, openMenu } from './_nav.js';
@@ -84,7 +94,19 @@ const passGate = async (page) => {
   await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
   await page.waitForTimeout(1200);
   await passGate(page);
-  ok('★ 오프라인에서 새로 열어도 앱이 뜬다 ★', await page.locator('.tabbar').count() === 1);
+  const booted = await page.locator('.tabbar').count() === 1;
+  ok('★ 오프라인에서 새로 열어도 앱이 뜬다 ★', booted);
+  if (!booted) {
+    /* 왜 안 떴나 — 다음 사람이 처음부터 뒤지지 않게 */
+    const why = await page.evaluate(() => ({
+      url: location.href,
+      ready: document.readyState,
+      controlled: Boolean(navigator.serviceWorker?.controller),
+      text: (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 200),
+    })).catch((e) => ({ error: e.message.split('\n')[0] }));
+    console.log('   보인 것:', JSON.stringify(why));
+    console.log('   에러:', errors.slice(0, 3).join(' | ') || '없음');
+  }
   ok('홈이 그려진다', (await page.locator('body').innerText()).includes('오늘'));
 
   console.log('\n[ 늦게 받는 화면도 받아 둔 것으로 열린다 ]');
