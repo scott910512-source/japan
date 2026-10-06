@@ -114,12 +114,21 @@ const readReview = (page) => page.evaluate(
   const left = () => FIND_BUDGET - (Date.now() - findStart);
   let wrongPicked = false;
   let rounds = 0;
-  for (let round = 0; round < 6 && !wrongPicked && left() > 8000; round += 1) {
+  /* 나갔다 들어오는 길을 눌러 보려고 — ADVERB_START_ROUND=1 이면 첫 바퀴를 건너뛴다 */
+  const startRound = Number(process.env.ADVERB_START_ROUND || 0);
+  for (let round = startRound; round < 6 && !wrongPicked && left() > 8000; round += 1) {
     rounds = round + 1;
     if (round > 0) {
-      // 나갔다 다시 들어온다 — 보기 차례가 다시 섞인다
-      await page.locator('.sub-back, .bl-quit').first().click({ timeout: 5000 }).catch(() => {});
-      await page.waitForTimeout(500);
+      /* 나갔다 다시 들어온다 — 보기 차례가 다시 섞인다.
+         ★ 전에는 .sub-back을 눌렀는데 그건 부사 연습 화면 전체의 「뒤로」라
+         화면이 통째로 닫혔고, 그 뒤 .av-set은 없으니 남은 바퀴가 전부
+         빈손으로 돌았다(CI에서 「6바퀴 · 57초 동안 못 찾았다」). 제대로
+         나가서 메뉴부터 다시 들어온다. */
+      const quit = page.locator('.inner-back:visible, .sh-close:visible').first();
+      if (await quit.count()) await quit.click({ timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      await goTab(page, '홈');
+      await openMenu(page, '부사 연습');
       await page.locator('.av-set').first().click({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(700);
     }
@@ -128,7 +137,8 @@ const readReview = (page) => page.evaluate(
       /* 문제마다 다른 자리를 눌러 본다. 늘 첫 보기만 누르면 그 묶음에서
          첫 보기가 계속 정답인 경우에 한 바퀴를 헛돈다. */
       const opts = await page.locator('.qopt').count();
-      const pickAt = q % Math.max(1, opts);
+      /* 바퀴마다 자리를 한 칸 밀어서, 같은 문제에 같은 보기를 또 누르지 않는다 */
+      const pickAt = (q + round) % Math.max(1, opts);
       /* 클릭 하나에 30초를 기다리지 않는다. 그 기본값이 쌓여서 검사가
          죽었다 — 안 눌리면 그 문제는 건너뛰는 게 맞다. */
       await page.locator('.qopt').nth(pickAt).click({ timeout: 6000 }).catch(() => {});
