@@ -98,7 +98,10 @@ export function jlptCounts(words = [], sentences = [], lex = defaultLexicon()) {
   return out;
 }
 
-/* 듣기가 받을 후보 — [{ id, kind }]. 카드 알맹이는 jlptSentences가 든다. */
+/* 카드 목록 → 듣기가 받을 후보 [{ id, kind }]. 모양을 정하는 곳은 여기 하나다. */
+export const poolOf = (cards = []) => cards.map((c) => ({ id: c.id, kind: 'sentence' }));
+
+/* 듣기가 받을 후보 — 카드 알맹이는 jlptSentences가 든다. */
 export function jlptPool(level, words = [], sentences = [], lex = defaultLexicon()) {
-  return jlptSentences(level, words, sentences, lex).map((c) => ({ id: c.id, kind: 'sentence' }));
+  return poolOf(jlptSentences(level, words, sentences, lex));
 }

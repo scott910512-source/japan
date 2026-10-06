@@ -37,6 +37,15 @@ console.log('\n[ 열고 닫기 ]');
   ok('두 번 지워도 안 깨진다', (offA(), sheetDepth() === 0));
 }
 
+console.log('\n[ 닫는 손잡이가 없는 시트 ]');
+{
+  resetSheets();
+  const rm = pushSheet(undefined);
+  ok('손잡이 없이도 층으로는 센다', sheetDepth() === 1);
+  ok('★ 닫았다고 하지 않는다 — 그래야 아래 층이 닫히지 않고 자리가 다시 선다 ★', closeTopSheet() === false);
+  rm();
+}
+
 console.log('\n[ 구독 ]');
 {
   resetSheets();

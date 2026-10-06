@@ -39,8 +39,10 @@ export function sheetDepth() {
 /* 맨 위 시트를 닫는다. 닫을 게 있었으면 true. */
 export function closeTopSheet() {
   const top = stack[stack.length - 1];
-  if (!top) return false;
-  top.close?.();
+  /* 닫는 손잡이가 없는 시트는 「닫았다」고 하지 않는다 — 그러면 뒤로가기
+     자리만 쓰이고 시트는 남아서, 다음 뒤로가기가 앱 밖으로 나간다. */
+  if (!top?.close) return false;
+  top.close();
   return true;
 }
 

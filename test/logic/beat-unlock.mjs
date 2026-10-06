@@ -95,6 +95,20 @@ console.log('\n[ 그래도 안 깨어나면 다음 터치에서 ]');
   ok('귀는 한 번 쓰고 뗀다', (docListeners.pointerdown || []).length === 0);
 }
 
+console.log('\n[ 터치를 기다리는 동안은 더 안 건다 ]');
+{
+  const ac = FakeAC.last;
+  ac.resume = function () { this.resumes += 1; return Promise.resolve(); };   // 안 먹는 iOS
+  ac.state = 'interrupted';
+  ac.fire('statechange');
+  const before = ac.resumes;
+  await tickWait(); await tickWait(); await tickWait();
+  ok('★ 긴 끼어듦에도 resume이 쌓이지 않는다 ★', ac.resumes - before <= 1, `${ac.resumes - before}번`);
+  ac.resume = function () { this.resumes += 1; this.state = 'running'; return Promise.resolve(); };
+  touch();
+  ok('터치로 깨어난다', ac.state === 'running');
+}
+
 console.log('\n[ 꺼지면 깨우지 않는다 ]');
 {
   const ac = FakeAC.last;

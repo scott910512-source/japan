@@ -15,7 +15,7 @@ import { ALL_WORDS } from '../../src/data/allWords.js';
 import { allSentenceCards } from '../../src/lib/content.js';
 import { cardsForQueue } from '../../src/lib/cards.js';
 import {
-  JLPT_LEVELS, exampleCard, exampleId, jlptCounts, jlptPool, jlptSentences,
+  JLPT_LEVELS, exampleCard, exampleId, jlptCounts, jlptPool, jlptSentences, poolOf,
 } from '../../src/lib/jlptListen.js';
 import { SCOPES, blocksIn, inScope, pickListen, scopeCounts } from '../../src/lib/listen.js';
 import { readListen } from '../../src/lib/listenSettings.js';
@@ -107,6 +107,11 @@ console.log('\n[ 듣기 범위에 꽂히는가 ]');
   ok('★ 큐의 문장이 전부 카드로 풀린다 ★', cards.length === first.length, `${cards.length} / ${first.length}`);
   ok('예문 카드를 안 주면 예문이 조용히 사라진다 — 그래서 줘야 한다',
     cardsForQueue(first, ALL_WORDS, SENT).length < first.length);
+
+  /* 셋째 자리에 객체로 줘도 같다 — 자리 여덟 개를 세다 밀리는 것을 막는다 */
+  const byOpts = scopeCounts(pool, {}, { today, jlpt: pool });
+  ok('객체로 준 범위 수가 자리로 준 것과 같다', byOpts.jlpt === counts.jlpt && byOpts.all === counts.all);
+  ok('후보 모양은 poolOf 한 곳이 정한다', poolOf(list).every((x, i) => x.id === pool[i].id && x.kind === 'sentence'));
 
   /* 다른 급수는 다른 목록이다 */
   const n4 = jlptPool('N4', ALL_WORDS, SENT, lex);

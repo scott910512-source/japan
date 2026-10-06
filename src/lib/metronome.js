@@ -139,7 +139,7 @@ function audio() {
   if (ctx) {
     /* 컨텍스트가 멈추면(iOS는 말소리가 끼어들 때 「interrupted」로 둔다)
        박자가 도는 중이면 깨운다. 안 깨우면 버튼은 켜져 있는데 소리만 없다. */
-    try { ctx.addEventListener?.('statechange', () => { if (state) wake(); }); } catch { /* 무시 */ }
+    try { ctx.addEventListener?.('statechange', () => { if (state) wake(true); }); } catch { /* 무시 */ }
     if (typeof window !== 'undefined') {
       /* 검사용 창. 소리는 못 듣는 자리라 상태로 본다. */
       window.__jpBeat = {
@@ -185,19 +185,23 @@ export function unlockBeat() {
 function resumeCtx(c, force = false) {
   if (!c?.resume) return;
   const now = Date.now();
-  if (!force && now - lastResume < 200) return;
+  if (!force && now - lastResume < 1000) return;
   lastResume = now;
   try { const p = c.resume(); p?.catch?.(() => {}); } catch { /* 무시 */ }
 }
 
 /* 멈춘 컨텍스트를 깨운다. 바로 깨우고, 안 깨어나면 다음 터치에서 다시 —
    iOS는 제스처 밖의 resume을 못 들은 척할 때가 있다. */
-function wake() {
+function wake(force = false) {
   const c = ctx;
   if (!c || !state) return;
   if (c.state === 'running') return;
-  resumeCtx(c);
-  if (gestureArmed || typeof document === 'undefined') return;
+  /* 터치를 기다리는 중이면 더 안 건다 — 끼어든 동안 iOS는 resume의 약속을
+     안 돌려주는데, 틱마다 걸면 긴 통화 한 번에 수천 개가 쌓인다. 깨우는
+     길은 그 터치다. */
+  if (gestureArmed) return;
+  resumeCtx(c, force);
+  if (typeof document === 'undefined') return;
   gestureArmed = true;
   const on = () => {
     gestureArmed = false;

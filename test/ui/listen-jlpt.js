@@ -102,6 +102,32 @@ const num = (s) => Number(String(s).replace(/[^\d]/g, '')) || 0;
     `${saved.listenScope} · ${saved.listenJlptLevel}`);
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
+
+  console.log('\n[ 낯선 급수가 저장돼 있어도 ]');
+  {
+    /* 다른 기기에서 온 값이 N2 같은 것일 수 있다 — 빈손으로 두지 않고 N5로 */
+    const p2 = await browser.newPage({ viewport: { width: 375, height: 812 } });
+    await p2.goto(BASE, { waitUntil: 'networkidle' });
+    await p2.evaluate(() => {
+      localStorage.setItem('jp_manabu_signed_in_v1', '1');
+      const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
+      s.onboarded = true; s.autoTTS = false; s.listenScope = 'jlpt'; s.listenJlptLevel = 'N2';
+      localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
+    });
+    await p2.waitForTimeout(800);
+    await p2.reload({ waitUntil: 'domcontentloaded' });
+    await p2.waitForTimeout(1200);
+    await p2.context().setOffline(true);
+    const off2 = p2.locator('.gate-offline');
+    await off2.waitFor({ timeout: 8000 }).catch(() => {});
+    if (await off2.count()) { await off2.click(); await p2.waitForTimeout(800); }
+    await p2.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
+    await openListen(p2, 'auto');
+    ok('N5로 받는다', await p2.locator('.ls-level.active').getAttribute('data-level') === 'N5');
+    ok('요약도 N5 · 시작할 수 있다', (await p2.locator('.ls-topbody').innerText()).includes('JLPT 문장 N5')
+      && !(await p2.locator('.ls-go').isDisabled()));
+    await p2.close();
+  }
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);
   process.exit(fail ? 1 : 0);
