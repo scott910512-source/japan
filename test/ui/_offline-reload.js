@@ -57,9 +57,21 @@ const waitCached = async (page, min = 40, ms = 40000) => {
   return last;
 };
 
+/* 로그인 관문을 지난다.
+ *
+ * ★ 크롬 151(CI 러너)은 오프라인 흉내가 navigator.onLine을 안 뒤집는다 ★
+ * 그래서 관문에 「이 기기 기록으로 계속」이 안 떴다 — 앱은 서비스워커로
+ * 멀쩡히 떴는데 버튼만 없었다(CI 로그로 확인). 실기기는 OS가 offline
+ * 이벤트를 주니, 안 오면 여기서 그 신호를 흉내 낸다. 앱 코드는 그대로다. */
 const passGate = async (page) => {
   const off = page.locator('.gate-offline');
-  await off.waitFor({ timeout: 8000 }).catch(() => {});
+  await off.waitFor({ timeout: 2500 }).catch(() => {});
+  if (!(await off.count()) && await page.locator('.gate').count()) {
+    const onLine = await page.evaluate(() => navigator.onLine);
+    console.log(`   관문에 오프라인 버튼이 없다 — navigator.onLine=${onLine}, OS의 offline 신호를 흉내 낸다`);
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+    await off.waitFor({ timeout: 6000 }).catch(() => {});
+  }
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
   await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
 };
@@ -104,6 +116,7 @@ const passGate = async (page) => {
       const regs = await navigator.serviceWorker?.getRegistrations?.().catch(() => []) || [];
       return {
         url: location.href,
+        onLine: navigator.onLine,
         ready: document.readyState,
         controlled: Boolean(navigator.serviceWorker?.controller),
         registrations: regs.map((r) => `${r.scope} active=${Boolean(r.active)} state=${r.active?.state || '-'}`),
