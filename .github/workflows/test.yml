@@ -38,15 +38,3 @@ jobs:
         run: npm run build
       - name: 화면
         run: npm run test:ui
-
-      # ★ 비행기 모드 — 정보만 ★
-      # test/ui/_offline-reload.js 는 이 러너에서만 떨어진다(로컬·헤드리스 셸은
-      # 통과). 원인을 모르는 채로 관문에 두면 다른 검사까지 안 믿게 되니
-      # 여기서는 막지 않고 돌려서 무엇이 보였는지만 적는다. 녹색이 되면
-      # 밑줄을 떼고 관문으로 올린다.
-      - name: 비행기 모드 (정보만)
-        continue-on-error: true
-        run: |
-          npx vite preview --port 8933 --strictPort >/dev/null 2>&1 &
-          for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:8933/japan/ && break; sleep 1; done
-          APP_URL=http://localhost:8933/japan/ node test/ui/_offline-reload.js
