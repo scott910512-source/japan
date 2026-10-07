@@ -115,7 +115,7 @@ console.log('\n[ ★ 레벨로 안 잘린다 ★ ]');
   ok('★ 그래도 듣기에서는 안 잘린다 ★', got.length === 100, `${got.length}개`);
 
   const counts = scopeCounts(
-    n5only.map((w) => ({ id: w.id, kind: 'word' })), review, todayKey(), null, false, null, POOL,
+    n5only.map((w) => ({ id: w.id, kind: 'word' })), review, { today: todayKey(), trip: POOL },
   );
   ok('★ 범위 숫자도 140 그대로 ★', counts.trip === 140, `${counts.trip}개`);
 }

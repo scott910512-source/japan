@@ -182,10 +182,10 @@ export function unlockBeat() {
 /* resume을 건다. 약속이 끝나기를 기다려 가드로 삼지 않는다 — iOS는 끼어든
    동안 그 약속을 영영 안 돌려줄 때가 있어서, 그걸 기다리면 다시는 못 깨운다.
    틱에서 부르는 것만 시간으로 막고(force=false), 제스처·켜기는 늘 건다. */
-function resumeCtx(c, force = false) {
+function resumeCtx(c, force = false, every = 1000) {
   if (!c?.resume) return;
   const now = Date.now();
-  if (!force && now - lastResume < 1000) return;
+  if (!force && now - lastResume < every) return;
   lastResume = now;
   try { const p = c.resume(); p?.catch?.(() => {}); } catch { /* 무시 */ }
 }
@@ -196,11 +196,12 @@ function wake(force = false) {
   const c = ctx;
   if (!c || !state) return;
   if (c.state === 'running') return;
-  /* 터치를 기다리는 중이면 더 안 건다 — 끼어든 동안 iOS는 resume의 약속을
-     안 돌려주는데, 틱마다 걸면 긴 통화 한 번에 수천 개가 쌓인다. 깨우는
-     길은 그 터치다. */
+  /* 터치를 기다리는 중에도 천천히는 건다 — 앱 자신의 말소리가 끼어들어
+     멈춘 경우는 말이 끝나면 resume이 먹는데, 아예 안 걸면 달리는 사람이
+     폰을 꺼내 만질 때까지 박자가 없다. 다만 틱마다는 아니다(끼어든 동안
+     iOS는 약속을 안 돌려줘서, 긴 통화 한 번에 수천 개가 쌓였다). */
+  resumeCtx(c, force, gestureArmed ? 3000 : 1000);
   if (gestureArmed) return;
-  resumeCtx(c, force);
   if (typeof document === 'undefined') return;
   gestureArmed = true;
   const on = () => {

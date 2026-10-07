@@ -22,6 +22,9 @@ const emit = () => { for (const fn of subs) fn(); };
 
 /* 시트가 열렸다. 닫는 손잡이를 적고, 지우는 함수를 돌려준다. */
 export function pushSheet(close) {
+  /* 닫는 손잡이가 없으면 적지 않는다 — 층으로는 세면서 닫지는 못하는 시트가
+     있으면 뒤로가기 자리 수와 닫을 수 있는 수가 어긋난다. */
+  if (typeof close !== 'function') return () => {};
   const entry = { close };
   stack.push(entry);
   emit();
@@ -39,9 +42,7 @@ export function sheetDepth() {
 /* 맨 위 시트를 닫는다. 닫을 게 있었으면 true. */
 export function closeTopSheet() {
   const top = stack[stack.length - 1];
-  /* 닫는 손잡이가 없는 시트는 「닫았다」고 하지 않는다 — 그러면 뒤로가기
-     자리만 쓰이고 시트는 남아서, 다음 뒤로가기가 앱 밖으로 나간다. */
-  if (!top?.close) return false;
+  if (!top) return false;
   top.close();
   return true;
 }

@@ -30,7 +30,7 @@ for (let i = 50; i < 60; i++) {
 }
 
 console.log('\n[ 범위 ]');
-const c = scopeCounts(pool, review, TODAY);
+const c = scopeCounts(pool, review, { today: TODAY });
 ok('전체는 전부', c.all === 60, `${c.all}`);
 ok('배운 것은 한 번이라도 본 것', c.seen === 30, `${c.seen}`);
 ok('오늘 볼 것 = 안 본 것 + 복습일이 된 것', c.today === 50, `${c.today}`);
@@ -52,7 +52,7 @@ ok('범위 목록에 설명이 다 붙어 있다',
    목록은 화면이 넘겨 준다 — lib/listen.js는 단어 자료를 모른 채로 둔다. */
 const kiju = [{ id: 'w0' }, { id: 'w1' }, { id: 'w35' }, { id: 'w55' }, { id: 'x9' }];
 const ids = new Set(kiju.map((x) => x.id));
-const ck = scopeCounts(pool, review, TODAY, kiju);
+const ck = scopeCounts(pool, review, { today: TODAY, kiju });
 ok('기출은 넘겨준 만큼', ck.kiju === 5, `${ck.kiju}`);
 ok('★ 외운 것도 뺀 게 아니다 ★ — w55는 복습일이 한참 남았는데도 들어온다',
   pickListen(pool, review, { scope: 'kiju', count: 20, today: TODAY, kiju }).some((x) => x.id === 'w55'));
@@ -68,7 +68,7 @@ ok('그래도 다른 범위에는 안 샌다',
   pickListen(pool, review, { scope: 'all', count: 99, today: TODAY, kiju }).every((x) => x.id !== 'x9'));
 
 ok('목록을 안 주면 기출 범위는 빈손 — 「다 들린다」보다 낫다',
-  scopeCounts(pool, review, TODAY).kiju === 0 && pickListen(pool, review, { scope: 'kiju', count: 20, today: TODAY }).length === 0);
+  scopeCounts(pool, review, { today: TODAY }).kiju === 0 && pickListen(pool, review, { scope: 'kiju', count: 20, today: TODAY }).length === 0);
 ok('기출 범위를 더해도 다른 범위는 그대로',
   ck.all === c.all && ck.seen === c.seen && ck.today === c.today && ck.weak === c.weak);
 
@@ -143,8 +143,8 @@ console.log('\n[ 다 외운 것 빼기 ]');
   for (let i = 50; i < 55; i++) {
     done[`w${i}`] = { box: 3, streak: 6, level: 6, lastSeen: '2026-08-29', wrongCount: 0, vagueCount: 0, seenCount: 9, promotedOn: '2026-08-29' };
   }
-  const before = scopeCounts(pool, done, TODAY);
-  const after = scopeCounts(pool, done, TODAY, null, true);
+  const before = scopeCounts(pool, done, { today: TODAY });
+  const after = scopeCounts(pool, done, { today: TODAY, skipDone: true });
   ok('★ 다 외운 것을 빼면 그만큼 줄어든다 ★', after.all === before.all - 5,
     `${before.all} → ${after.all}`);
   ok('안 빼면 그대로', before.all === 60);
@@ -158,7 +158,7 @@ console.log('\n[ 다 외운 것 빼기 ]');
     blocksIn(pool, done, { scope: 'all', count: 20, today: TODAY, skipDone: true }) === 3
     && blocksIn(pool, done, { scope: 'all', count: 55, today: TODAY, skipDone: true }) === 1);
   /* 외운 것만 빼는 것이지 약점까지 건드리지 않는다 */
-  ok('약점은 그대로', scopeCounts(pool, done, TODAY, null, true).weak === before.weak);
+  ok('약점은 그대로', scopeCounts(pool, done, { today: TODAY, skipDone: true }).weak === before.weak);
 }
 
 console.log('\n[ ★ 구간을 여러 개 ★ ]');

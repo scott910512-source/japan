@@ -144,10 +144,10 @@
 .n3-wkana { font-size: 13px; color: var(--ink-soft); }
 .n3-wmean { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .n3-wmean em { font-style: normal; font-size: 11.5px; color: var(--ink-soft); font-weight: 600; }
-.n3-wex { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); position: relative; font-size: 14px; line-height: 1.55; padding-right: 48px; }
+.n3-wex { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); position: relative; font-size: 14px; line-height: 1.55; padding-right: 52px; min-height: var(--touch); }
 .n3-wex small { font-size: 11.5px; color: var(--ink-soft); }
 .n3-wex small.ko { color: var(--ink); }
-.n3-wex .spk { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
+.n3-wex .spk { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
 .n3-spk-sm { min-width: var(--touch); min-height: var(--touch); padding: 0 6px; }
 .n3-spk-sm svg { width: 16px; height: 16px; }
 .n3-wextra { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
