@@ -241,16 +241,11 @@ export function pickListen(pool, review, {
 
 /* 범위마다 몇 개나 되는지. 골라 보고 나서야 「들을 게 없어요」를 만나면
    왜 없는지 모른다 — 고르기 전에 숫자를 보여 준다. */
-/* 셋째 자리에 객체를 주면 다른 둘(blocksIn·pickListen)과 같은 모양으로 읽는다 —
-   { today, kiju, trip, jlpt, skipDone, ledger }. 자리로 주는 옛 모양도 그대로 받는다.
-   여덟 자리를 세다 보면 다음 범위를 더할 때 자리를 하나 밀리는 것이 조용한
-   버그가 된다. */
-export function scopeCounts(pool, review, todayOrOpts = todayKey(), kiju = null, skipDone = false, ledger = null, trip = null, jlpt = null) {
-  if (todayOrOpts && typeof todayOrOpts === 'object') {
-    const o = todayOrOpts;
-    return scopeCounts(pool, review, o.today ?? todayKey(), o.kiju ?? null, o.skipDone ?? false, o.ledger ?? null, o.trip ?? null, o.jlpt ?? null);
-  }
-  const today = todayOrOpts;
+/* 다른 둘(blocksIn·pickListen)과 같은 모양으로 받는다 — 자리 여덟 개를 세다
+   보면 다음 범위를 더할 때 자리를 하나 밀리는 것이 조용한 버그가 된다. */
+export function scopeCounts(pool, review, {
+  today = todayKey(), kiju = null, trip = null, jlpt = null, skipDone = false, ledger = null,
+} = {}) {
   const keep = keepFor(review, skipDone);
   const out = {};
   for (const s of SCOPES) {

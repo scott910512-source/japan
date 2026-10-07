@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IconPlay, IconSpeaker, IconRepeat, IconArrowLeft } from '../components/Icons.jsx';
 import BottomSheet from '../components/BottomSheet.jsx';
 import { koreanVoiceListed, speechReady } from '../lib/tts.js';
@@ -10,7 +10,7 @@ import {
 } from '../lib/listen.js';
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
-import { JLPT_LEVELS, jlptSentences, poolOf } from '../lib/jlptListen.js';
+import { JLPT_LEVELS, isExampleId, jlptByLevel, poolOf } from '../lib/jlptListen.js';
 import { BPMS, nextBpmLabel } from '../lib/metronome.js';
 import { useListenBeat } from '../hooks/useListenBeat.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
@@ -59,6 +59,11 @@ export const GAPS = [1, 2, 3, 5];
  * 되고, 그건 들은 것으로 세면 안 되는 시간이다. */
 export const COUNTS = [10, 20, 30, 50, 100];
 
+/* 이 묶음으로 시험을 볼 수 있나 — 시험은 낱말을 묻는 자리라 문장만 있으면
+   「출제할 단어가 없어요」로 끝나고 듣던 자리만 잃는다. 재생 중 버튼과
+   끝난 뒤 버튼이 같은 규칙을 본다. */
+export const quizable = (cards = []) => cards.some((c) => c?.kind !== 'sentence');
+
 export default function Listen({
   pool, words, sentences, review, settings, onSettingsChange, onClose, onToast,
   onActivity, onWeakness, onQuiz, ledger = null, initialMode = 'listen',
@@ -87,15 +92,20 @@ export default function Listen({
      어디까지 들었나 · 멈춰 있나 · 무엇을 뺐나, 그리고 「들었다」를 기록에
      적는 일까지 hooks/useListenSession.js가 쥔다. 무엇을 들을지 뽑는 것은
      여기가 한다 — 단어 자료를 아는 쪽이 정해야 하는 일이다. */
+  /* 예문 카드(ex:…)는 단어장에 없는 카드라 약점 장부에 적지 않는다 — 적으면
+     아무도 안 읽는 id가 장부에 쌓이고 기기 사이로 번진다. 회화 문장은 그대로.
+     useCallback — 그릴 때마다 새 함수면 세션 쪽 효과가 장마다 수십 번 돈다. */
+  const noteWeakness = useCallback((notes) => {
+    const keep = (notes || []).filter((n) => !isExampleId(n?.id));
+    if (keep.length) onWeakness?.(keep);
+  }, [onWeakness]);
+
   const session = useListenSession({
     onToast,
     onActivity,
     /* 예문 카드(ex:…)는 단어장에 없는 카드라 약점 장부에 적지 않는다 — 적으면
        아무도 안 읽는 id가 장부에 쌓이고 기기 사이로 번진다. 회화 문장은 그대로. */
-    onWeakness: (notes) => {
-      const keep = (notes || []).filter((n) => !String(n?.id || '').startsWith('ex:'));
-      if (keep.length) onWeakness?.(keep);
-    },
+    onWeakness: noteWeakness,
     onDrop: (id) => ls.saveDropped(new Set(dropped).add(id)),
   });
   const { run, card, step, nudge, paused, lastSet } = session;
@@ -164,13 +174,10 @@ export default function Listen({
   /* 세 급수를 한 번에 만든다 — 고른 급수의 목록과 급수 칸의 숫자가 같은
      표에서 나오게. 따로 재면 예문 2,700개를 네 번 재고, 숫자와 목록이
      어긋날 틈이 생긴다. 저장된 급수가 표에 없으면(N2 같은 낯선 값) N5로. */
-  const jlptAll = useMemo(() => {
-    const out = {};
-    for (const l of JLPT_LEVELS) out[l] = jlptSentences(l, words || [], sentences || []);
-    return out;
-  }, [words, sentences]);
-  const level = JLPT_LEVELS.includes(jlptLevel) ? jlptLevel : JLPT_LEVELS[0];
-  const jlptCards = jlptAll[level];
+  const jlptAll = useMemo(() => jlptByLevel(words || [], sentences || []), [words, sentences]);
+  /* 저장된 급수는 읽을 때 이미 표로 걸러진다(listenSettings) — 여기서는 그대로 쓴다 */
+  const level = jlptLevel;
+  const jlptCards = jlptAll[level] || [];
   const jlptList = useMemo(() => poolOf(jlptCards), [jlptCards]);
   const levelCounts = useMemo(
     () => Object.fromEntries(JLPT_LEVELS.map((l) => [l, jlptAll[l].length])),
@@ -287,7 +294,7 @@ export default function Listen({
         {/* 문장만 도는 판(JLPT 문장)에는 안 띄운다 — 시험은 낱말을 묻는
             자리라, 문장 스무 장을 넘기면 「출제할 단어가 없어요」로 끝나고
             듣던 자리만 잃는다. */}
-        {run.lap > 0 && onQuiz && run.cards.some((c) => c.kind !== 'sentence') && (
+        {run.lap > 0 && onQuiz && quizable(run.cards) && (
           <button
             className="ghost-btn ls-quiz"
             onClick={() => { stop(); onQuiz(run.cards); }}
@@ -494,7 +501,10 @@ export default function Listen({
                 className={`ls-pill ls-level${level === l ? ' active' : ''}`}
                 data-level={l}
                 disabled={!levelCounts[l]}
-                onClick={() => { if (l !== level) { ls.set('jlptLevel', l); ls.saveBlocks([0]); } }}
+                /* 같은 급수를 눌러도 한 번 적는다 — 저장된 값이 표에 없는 것(N2)이면
+                   읽을 때 N5로 보이지만 기기에는 N2가 남아 다른 기기로 번진다.
+                   구간은 급수가 정말 바뀔 때만 처음으로. */
+                onClick={() => { ls.set('jlptLevel', l); if (l !== jlptLevel) ls.saveBlocks([0]); }}
               >
                 {l}
                 {/* 「문장」을 붙이면 1708이 두 줄로 꺾인다 — 단위는 밑 설명이 말한다 */}
@@ -828,7 +838,8 @@ export default function Listen({
 
       {/* 방금 들은 세트로 바로 시험. 듣기는 판정을 안 하니, 귀에 붙었는지는
           물어봐야 안다. */}
-      {lastSet?.length > 0 && onQuiz && (
+      {/* 문장만 들은 판(JLPT 문장)은 시험으로 못 넘긴다 — 시험은 낱말을 묻는다 */}
+      {lastSet?.length > 0 && onQuiz && quizable(lastSet) && (
         <button className="ghost-btn ls-quizlast" onClick={() => onQuiz(lastSet)}>
           방금 들은 {lastSet.length}개로 시험 보기
         </button>

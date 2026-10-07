@@ -31,8 +31,11 @@ export const LISTEN_SETTINGS = {
   direction: { key: 'listenDir', def: 'jp-ko' },
   /* 무엇을 들을까 — 오늘 · 기출 · 여행 · JLPT 문장 · 배운 것 · 약점 · 전체 */
   scope: { key: 'listenScope', def: 'today' },
-  /* JLPT 문장의 급수 — 귀는 눈보다 늦으니 기본은 N5 */
-  jlptLevel: { key: 'listenJlptLevel', def: 'N5' },
+  /* JLPT 문장의 급수 — 귀는 눈보다 늦으니 기본은 N5. 표에 없는 값(다른
+     기기에서 온 N2 같은 것)은 읽을 때 기본값으로 — 화면마다 따로 거르면
+     한 군데는 빠진다. 표는 lib/jlptListen.js의 JLPT_LEVELS와 같아야 한다
+     (검사가 지킨다). */
+  jlptLevel: { key: 'listenJlptLevel', def: 'N5', ok: ['N5', 'N4', 'N3'] },
   /* 구간별 / 섞어서 */
   order: { key: 'listenOrder', def: 'block' },
   /* 한 번에 몇 장 */
@@ -62,6 +65,7 @@ export function readListen(settings, name) {
   if (!spec) return undefined;
   const v = (settings || {})[spec.key];
   if (typeof spec.def === 'boolean') return spec.def ? v !== false : v === true;
+  if (spec.ok && !spec.ok.includes(v)) return spec.def;
   return v || spec.def;
 }
 

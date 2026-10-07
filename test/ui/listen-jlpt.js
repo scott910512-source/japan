@@ -19,15 +19,16 @@ const ok = (l, c, e) => {
   if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); }
 };
 
-async function boot(browser) {
+async function boot(browser, patch = {}) {
   const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(() => {
+  await page.evaluate((extra) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     s.onboarded = true; s.autoTTS = false;
+    Object.assign(s, extra);
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
-  });
+  }, patch);
   await page.waitForTimeout(1000);
   /* 켜진 채로 다시 부르고 나서 끊는다 — 끊고 부르면 서비스워커가 자리를 못 잡는다 */
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -106,26 +107,17 @@ const num = (s) => Number(String(s).replace(/[^\d]/g, '')) || 0;
   console.log('\n[ 낯선 급수가 저장돼 있어도 ]');
   {
     /* 다른 기기에서 온 값이 N2 같은 것일 수 있다 — 빈손으로 두지 않고 N5로 */
-    const p2 = await browser.newPage({ viewport: { width: 375, height: 812 } });
-    await p2.goto(BASE, { waitUntil: 'networkidle' });
-    await p2.evaluate(() => {
-      localStorage.setItem('jp_manabu_signed_in_v1', '1');
-      const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
-      s.onboarded = true; s.autoTTS = false; s.listenScope = 'jlpt'; s.listenJlptLevel = 'N2';
-      localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
-    });
-    await p2.waitForTimeout(800);
-    await p2.reload({ waitUntil: 'domcontentloaded' });
-    await p2.waitForTimeout(1200);
-    await p2.context().setOffline(true);
-    const off2 = p2.locator('.gate-offline');
-    await off2.waitFor({ timeout: 8000 }).catch(() => {});
-    if (await off2.count()) { await off2.click(); await p2.waitForTimeout(800); }
-    await p2.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
+    const p2 = await boot(browser, { listenScope: 'jlpt', listenJlptLevel: 'N2' });
     await openListen(p2, 'auto');
     ok('N5로 받는다', await p2.locator('.ls-level.active').getAttribute('data-level') === 'N5');
     ok('요약도 N5 · 시작할 수 있다', (await p2.locator('.ls-topbody').innerText()).includes('JLPT 문장 N5')
       && !(await p2.locator('.ls-go').isDisabled()));
+    /* 켜져 보이는 N5를 한 번 누르면 저장된 낯선 값도 고쳐진다 — 안 그러면
+       N2가 기기에 남아 다른 기기로 계속 번진다 */
+    await p2.locator('.ls-level[data-level="N5"]').click();
+    await p2.waitForTimeout(300);
+    const fixed = await p2.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').listenJlptLevel);
+    ok('★ N5를 누르면 저장된 값도 N5로 고쳐진다 ★', fixed === 'N5', fixed);
     await p2.close();
   }
   await browser.close();

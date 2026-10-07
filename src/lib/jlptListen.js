@@ -36,8 +36,10 @@ import { LEVELS, defaultLexicon, gradeSentence } from './sentlevel.js';
 export const JLPT_LEVELS = ['N5', 'N4', 'N3'];
 const RANK = Object.fromEntries(LEVELS.map((l, i) => [l, i]));
 
-/* 예문 id. 낱말 id와 겹치지 않게 앞에 표를 붙인다. */
-export const exampleId = (wordId) => `ex:${wordId}`;
+/* 예문 id. 낱말 id와 겹치지 않게 앞에 표를 붙인다. 표를 아는 곳은 여기뿐이다. */
+const EX = 'ex:';
+export const exampleId = (wordId) => `${EX}${wordId}`;
+export const isExampleId = (id) => String(id || '').startsWith(EX);
 
 /* 낱말 하나의 예문 → 문장 카드. 예문이 없으면 null. */
 export function exampleCard(w) {
@@ -91,11 +93,18 @@ export function jlptSentences(level, words = [], sentences = [], lex = defaultLe
   return out;
 }
 
-/* 급수마다 몇 개나 되는지 — 화면의 급수 칸에 숫자를 적는다 */
-export function jlptCounts(words = [], sentences = [], lex = defaultLexicon()) {
+/* 세 급수를 한 번에 — { N5: [...], N4: [...], N3: [...] }. 화면은 이 표 하나에서
+   고른 급수의 목록과 급수 칸의 숫자를 같이 꺼낸다. */
+export function jlptByLevel(words = [], sentences = [], lex = defaultLexicon()) {
   const out = {};
-  for (const l of JLPT_LEVELS) out[l] = jlptSentences(l, words, sentences, lex).length;
+  for (const l of JLPT_LEVELS) out[l] = jlptSentences(l, words, sentences, lex);
   return out;
+}
+
+/* 급수마다 몇 개나 되는지 */
+export function jlptCounts(words = [], sentences = [], lex = defaultLexicon()) {
+  const all = jlptByLevel(words, sentences, lex);
+  return Object.fromEntries(JLPT_LEVELS.map((l) => [l, all[l].length]));
 }
 
 /* 카드 목록 → 듣기가 받을 후보 [{ id, kind }]. 모양을 정하는 곳은 여기 하나다. */

@@ -15,10 +15,10 @@ import { ALL_WORDS } from '../../src/data/allWords.js';
 import { allSentenceCards } from '../../src/lib/content.js';
 import { cardsForQueue } from '../../src/lib/cards.js';
 import {
-  JLPT_LEVELS, exampleCard, exampleId, jlptCounts, jlptPool, jlptSentences, poolOf,
+  JLPT_LEVELS, exampleCard, exampleId, isExampleId, jlptByLevel, jlptCounts, jlptPool, jlptSentences, poolOf,
 } from '../../src/lib/jlptListen.js';
 import { SCOPES, blocksIn, inScope, pickListen, scopeCounts } from '../../src/lib/listen.js';
-import { readListen } from '../../src/lib/listenSettings.js';
+import { LISTEN_SETTINGS, readListen } from '../../src/lib/listenSettings.js';
 import { defaultLexicon, gradeSentence } from '../../src/lib/sentlevel.js';
 
 let pass = 0; let fail = 0;
@@ -91,10 +91,10 @@ console.log('\n[ 듣기 범위에 꽂히는가 ]');
   ok('급수는 내력이 아니라 목록이 정한다 — 안 본 카드도 범위 안',
     inScope({ box: 0, wrongCount: 0 }, 'jlpt', today));
 
-  const counts = scopeCounts(pool, {}, today, null, false, null, null, pool);
+  const counts = scopeCounts(pool, {}, { today, jlpt: pool });
   ok('★ 범위 수가 목록과 같다 ★', counts.jlpt === list.length, `${counts.jlpt}`);
   ok('목록을 안 주면 빈손 — 「다 들린다」보다 낫다',
-    scopeCounts(pool, {}, today).jlpt === 0
+    scopeCounts(pool, {}, { today }).jlpt === 0
     && pickListen(pool, {}, { scope: 'jlpt', count: 20, today }).length === 0);
   ok('다른 범위 수는 그대로다', counts.all === pool.length);
 
@@ -108,9 +108,12 @@ console.log('\n[ 듣기 범위에 꽂히는가 ]');
   ok('예문 카드를 안 주면 예문이 조용히 사라진다 — 그래서 줘야 한다',
     cardsForQueue(first, ALL_WORDS, SENT).length < first.length);
 
-  /* 셋째 자리에 객체로 줘도 같다 — 자리 여덟 개를 세다 밀리는 것을 막는다 */
-  const byOpts = scopeCounts(pool, {}, { today, jlpt: pool });
-  ok('객체로 준 범위 수가 자리로 준 것과 같다', byOpts.jlpt === counts.jlpt && byOpts.all === counts.all);
+  ok('급수 표가 설정 쪽 표와 같다 — 한쪽만 늘리면 저장된 값이 조용히 기본값으로 돌아간다',
+    JSON.stringify(LISTEN_SETTINGS.jlptLevel.ok) === JSON.stringify(JLPT_LEVELS));
+  ok('표에 없는 급수는 읽을 때 N5', readListen({ listenJlptLevel: 'N2' }, 'jlptLevel') === 'N5');
+  ok('예문 id를 알아본다', isExampleId(exampleId('n5-0001')) && !isExampleId('n5-0001') && !isExampleId(null));
+  const byLevel = jlptByLevel(ALL_WORDS, SENT, lex);
+  ok('세 급수 표의 수가 jlptCounts와 같다', JLPT_LEVELS.every((l) => byLevel[l].length === jlptCounts(ALL_WORDS, SENT, lex)[l]));
   ok('후보 모양은 poolOf 한 곳이 정한다', poolOf(list).every((x, i) => x.id === pool[i].id && x.kind === 'sentence'));
 
   /* 다른 급수는 다른 목록이다 */

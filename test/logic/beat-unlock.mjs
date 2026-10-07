@@ -104,6 +104,10 @@ console.log('\n[ 터치를 기다리는 동안은 더 안 건다 ]');
   const before = ac.resumes;
   await tickWait(); await tickWait(); await tickWait();
   ok('★ 긴 끼어듦에도 resume이 쌓이지 않는다 ★', ac.resumes - before <= 1, `${ac.resumes - before}번`);
+  /* 아예 안 거는 것도 아니다 — 앱 자신의 말소리 때문에 멈춘 것은 말이 끝나면
+     resume이 먹는데, 안 걸면 폰을 꺼내 만질 때까지 박자가 없다. 3초에 한 번. */
+  await new Promise((r) => setTimeout(r, 3300));
+  ok('터치를 기다리는 동안에도 천천히는 다시 건다', ac.resumes - before >= 1, `${ac.resumes - before}번`);
   ac.resume = function () { this.resumes += 1; this.state = 'running'; return Promise.resolve(); };
   touch();
   ok('터치로 깨어난다', ac.state === 'running');

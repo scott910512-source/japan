@@ -16,15 +16,12 @@
  * 배포 뒤의 live-check는 「올라간 파일이 다 있나」를 본다. 여기는 「받아 둔
  * 파일만으로 돌아가나」를 본다. 둘이 짝이다.
  *
- * ★ 밑줄 — npm test에서 뺐다 ★
- * 이 컨테이너에서는 통과하는데 CI(GitHub 러너)에서는 「인터넷을 끊고 새로
- * 열기」에서 앱이 안 떴다(사전 캐시는 44개로 똑같이 찼는데도). 원인을 아직
- * 모른다 — 서비스워커가 그 탭을 아직 쥐지 못했거나, 러너의 오프라인 흉내가
- * 서비스워커까지 막는 쪽일 수 있다. 모르는 채로 CI를 빨갛게 두면 다른 검사까지
- * 안 믿게 되니, 원인을 잡을 때까지 손으로 돌리는 도구로 둔다. 아래에 실패하면
- * 무엇이 보였는지 적게 해 두었다 — 다음에 CI에서 한 번 돌려 보면 답이 나온다.
- *
- *   APP_URL=http://localhost:8934/japan/ node test/ui/_offline-reload.js */
+ * ★ 한때 CI에서만 떨어졌다 ★
+ * 앱은 서비스워커로 멀쩡히 떴는데 로그인 관문에 「이 기기 기록으로 계속」만
+ * 없었다. 크롬 151의 오프라인 흉내가 navigator.onLine을 안 뒤집고, 검사
+ * 빌드에는 서버 키가 없어 「서버에 못 닿았다」도 안 섰기 때문이다. 실기기는
+ * OS가 offline 신호를 주니 passGate가 그 신호를 흉내 낸다. 실패하면 무엇이
+ * 보였는지(브라우저 판·서비스워커·받다 만 요청) 적는다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab, openListen, openMenu } from './_nav.js';
@@ -57,9 +54,21 @@ const waitCached = async (page, min = 40, ms = 40000) => {
   return last;
 };
 
+/* 로그인 관문을 지난다.
+ *
+ * ★ 크롬 151(CI 러너)은 오프라인 흉내가 navigator.onLine을 안 뒤집는다 ★
+ * 그래서 관문에 「이 기기 기록으로 계속」이 안 떴다 — 앱은 서비스워커로
+ * 멀쩡히 떴는데 버튼만 없었다(CI 로그로 확인). 실기기는 OS가 offline
+ * 이벤트를 주니, 안 오면 여기서 그 신호를 흉내 낸다. 앱 코드는 그대로다. */
 const passGate = async (page) => {
   const off = page.locator('.gate-offline');
-  await off.waitFor({ timeout: 8000 }).catch(() => {});
+  await off.waitFor({ timeout: 2500 }).catch(() => {});
+  if (!(await off.count()) && await page.locator('.gate').count()) {
+    const onLine = await page.evaluate(() => navigator.onLine);
+    console.log(`   관문에 오프라인 버튼이 없다 — navigator.onLine=${onLine}, OS의 offline 신호를 흉내 낸다`);
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+    await off.waitFor({ timeout: 6000 }).catch(() => {});
+  }
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
   await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
 };
@@ -68,7 +77,9 @@ const passGate = async (page) => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const errors = [];
+  const failed = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('requestfailed', (r) => failed.push(`${r.method()} ${r.url().replace(BASE, '')} ${r.failure()?.errorText || ''}`));
 
   console.log('\n[ 인터넷이 있을 때 받아 둔다 ]');
   await page.goto(BASE, { waitUntil: 'networkidle' });
@@ -98,14 +109,22 @@ const passGate = async (page) => {
   ok('★ 오프라인에서 새로 열어도 앱이 뜬다 ★', booted);
   if (!booted) {
     /* 왜 안 떴나 — 다음 사람이 처음부터 뒤지지 않게 */
-    const why = await page.evaluate(() => ({
-      url: location.href,
-      ready: document.readyState,
-      controlled: Boolean(navigator.serviceWorker?.controller),
-      text: (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 200),
-    })).catch((e) => ({ error: e.message.split('\n')[0] }));
+    const why = await page.evaluate(async () => {
+      const regs = await navigator.serviceWorker?.getRegistrations?.().catch(() => []) || [];
+      return {
+        url: location.href,
+        onLine: navigator.onLine,
+        ready: document.readyState,
+        controlled: Boolean(navigator.serviceWorker?.controller),
+        registrations: regs.map((r) => `${r.scope} active=${Boolean(r.active)} state=${r.active?.state || '-'}`),
+        html: (document.documentElement?.outerHTML || '').slice(0, 300),
+        text: (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 200),
+      };
+    }).catch((e) => ({ error: e.message.split('\n')[0] }));
+    console.log('   브라우저:', browser.version());
     console.log('   보인 것:', JSON.stringify(why));
     console.log('   에러:', errors.slice(0, 3).join(' | ') || '없음');
+    console.log('   받다 만 것:', failed.slice(0, 6).join(' | ') || '없음');
   }
   ok('홈이 그려진다', (await page.locator('body').innerText()).includes('오늘'));
 

@@ -41,9 +41,10 @@ console.log('\n[ 닫는 손잡이가 없는 시트 ]');
 {
   resetSheets();
   const rm = pushSheet(undefined);
-  ok('손잡이 없이도 층으로는 센다', sheetDepth() === 1);
-  ok('★ 닫았다고 하지 않는다 — 그래야 아래 층이 닫히지 않고 자리가 다시 선다 ★', closeTopSheet() === false);
+  ok('★ 손잡이가 없으면 층으로 세지 않는다 — 세는 수와 닫을 수 있는 수가 같아야 한다 ★', sheetDepth() === 0);
+  ok('닫을 것도 없다', closeTopSheet() === false);
   rm();
+  ok('지워도 안 깨진다', sheetDepth() === 0);
 }
 
 console.log('\n[ 구독 ]');
