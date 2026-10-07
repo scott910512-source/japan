@@ -68,7 +68,9 @@ const passGate = async (page) => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const errors = [];
+  const failed = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('requestfailed', (r) => failed.push(`${r.method()} ${r.url().replace(BASE, '')} ${r.failure()?.errorText || ''}`));
 
   console.log('\n[ 인터넷이 있을 때 받아 둔다 ]');
   await page.goto(BASE, { waitUntil: 'networkidle' });
@@ -98,14 +100,21 @@ const passGate = async (page) => {
   ok('★ 오프라인에서 새로 열어도 앱이 뜬다 ★', booted);
   if (!booted) {
     /* 왜 안 떴나 — 다음 사람이 처음부터 뒤지지 않게 */
-    const why = await page.evaluate(() => ({
-      url: location.href,
-      ready: document.readyState,
-      controlled: Boolean(navigator.serviceWorker?.controller),
-      text: (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 200),
-    })).catch((e) => ({ error: e.message.split('\n')[0] }));
+    const why = await page.evaluate(async () => {
+      const regs = await navigator.serviceWorker?.getRegistrations?.().catch(() => []) || [];
+      return {
+        url: location.href,
+        ready: document.readyState,
+        controlled: Boolean(navigator.serviceWorker?.controller),
+        registrations: regs.map((r) => `${r.scope} active=${Boolean(r.active)} state=${r.active?.state || '-'}`),
+        html: (document.documentElement?.outerHTML || '').slice(0, 300),
+        text: (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 200),
+      };
+    }).catch((e) => ({ error: e.message.split('\n')[0] }));
+    console.log('   브라우저:', browser.version());
     console.log('   보인 것:', JSON.stringify(why));
     console.log('   에러:', errors.slice(0, 3).join(' | ') || '없음');
+    console.log('   받다 만 것:', failed.slice(0, 6).join(' | ') || '없음');
   }
   ok('홈이 그려진다', (await page.locator('body').innerText()).includes('오늘'));
 
