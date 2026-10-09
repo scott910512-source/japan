@@ -11,6 +11,7 @@ import {
 import { kijuCards } from '../lib/kiju.js';
 import { tripPool } from '../lib/trip.js';
 import { JLPT_LEVELS, isExampleId, jlptByLevel, poolOf } from '../lib/jlptListen.js';
+import { travelListenCards } from '../lib/travelCourse.js';
 import { BPMS, nextBpmLabel } from '../lib/metronome.js';
 import { useListenBeat } from '../hooks/useListenBeat.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
@@ -179,6 +180,11 @@ export default function Listen({
   const level = jlptLevel;
   const jlptCards = jlptAll[level] || [];
   const jlptList = useMemo(() => poolOf(jlptCards), [jlptCards]);
+  /* 여행 일본어 코스 — 직원 말과 내 말 160줄, 공항부터 곤란할 때까지 차례대로.
+     단어장에 없는 카드라 예문처럼 큐를 푸는 쪽에도 같이 넘긴다. */
+  const tourCards = useMemo(() => travelListenCards(), []);
+  const tourList = useMemo(() => poolOf(tourCards), [tourCards]);
+
   const levelCounts = useMemo(
     () => Object.fromEntries(JLPT_LEVELS.map((l) => [l, jlptAll[l].length])),
     [jlptAll],
@@ -189,10 +195,10 @@ export default function Listen({
      몫으로 좁혀져서 늘 같은 것만 들린다. */
   const start = () => {
     const queue = pickListen(pool, review, {
-      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList, jlpt: jlptList,
+      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList, jlpt: jlptList, tour: tourList,
       order, blocks: selectedBlocks, skipDone, ledger,
     });
-    const cards = cardsForQueue(queue, words, sentences, jlptCards).filter((c) => !dropped.has(c.id));
+    const cards = cardsForQueue(queue, words, sentences, [...jlptCards, ...tourCards]).filter((c) => !dropped.has(c.id));
     if (!cards.length) { onToast('이 범위에는 들을 게 없어요'); return; }
     session.begin(cards);
   };
@@ -237,15 +243,15 @@ export default function Listen({
 
   const poolSize = useMemo(() => pool.length, [pool]);
   const counts = useMemo(
-    () => scopeCounts(pool, review, { today: todayKey(), kiju: kijuPool, trip: tripList, jlpt: jlptList, skipDone, ledger }),
-    [pool, review, kijuPool, skipDone, ledger, tripList, jlptList],
+    () => scopeCounts(pool, review, { today: todayKey(), kiju: kijuPool, trip: tripList, jlpt: jlptList, tour: tourList, skipDone, ledger }),
+    [pool, review, kijuPool, skipDone, ledger, tripList, jlptList, tourList],
   );
   /* 고른 범위에 구간이 몇 개인가. 개수를 바꾸면 구간 수도 따라 바뀐다. */
   const blockCount = useMemo(
     () => blocksIn(pool, review, {
-      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList, jlpt: jlptList, skipDone, ledger,
+      scope, count, today: todayKey(), kiju: kijuPool, trip: tripList, jlpt: jlptList, tour: tourList, skipDone, ledger,
     }),
-    [pool, review, scope, count, kijuPool, tripList, jlptList, skipDone, ledger],
+    [pool, review, scope, count, kijuPool, tripList, jlptList, tourList, skipDone, ledger],
   );
   /* 개수나 범위를 바꾸면 구간 수가 줄어든다. 저장된 번호를 그대로 쓰면
      「12 / 11구간」이 뜬다 — 고르는 쪽에서 미리 당겨 둔다(뽑는 쪽도 막지만,

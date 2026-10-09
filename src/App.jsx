@@ -44,6 +44,7 @@ const SUB_TITLES = {
   listen: '듣기 · 따라 말하기',
   videos: '영상으로 배우기',
   swiss: '독일어 여행 회화',
+  travel: '여행 일본어',
   n3: '한 권으로 끝내는 N3',
   settings: '설정',
 };
