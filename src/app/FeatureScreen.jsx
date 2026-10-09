@@ -1,4 +1,4 @@
-import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, N3Course } from './screens.js';
+import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, TravelCourse, N3Course } from './screens.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
 export default function FeatureScreen({
@@ -56,6 +56,14 @@ export default function FeatureScreen({
             {sub === 'basics' && <Basics settings={settings} onToast={showToast} />}
             {/* 곁가지 — 회독·기록·계획 어디에도 안 붙는다. 그래서 넘기는 것도 설정뿐이다 */}
             {sub === 'swiss' && <SwissCourse settings={settings} onToast={showToast} />}
+            {sub === 'travel' && (
+              <TravelCourse
+                settings={settings}
+                onToast={showToast}
+                /* 코스 전체를 자동 듣기의 「여행 일본어」 범위로 — 범위를 먼저 그쪽으로 돌려 둔다 */
+                onListen={() => { patchSettings({ listenScope: 'tour' }); openListen('listen'); }}
+              />
+            )}
             {/* N3 코스 — 숙련도는 회독 저장소(applyVerdicts)로, 코스 진도는 progress.n3로.
                 단어 카드에서 「회독으로 더 외우기」는 startJlptSet로 기존 회독 화면을 연다. */}
             {sub === 'n3' && (

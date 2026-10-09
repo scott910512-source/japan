@@ -49,8 +49,8 @@ const of = (g) => MENUS.filter((m) => m.group === g).map((m) => m.id);
 ok('JLPT N3 묶음은 코스와 기출', of('course').join() === 'n3,kiju', of('course').join());
 ok('코스만 큰 칸', MENUS.filter((m) => m.big).map((m) => m.id).join() === 'n3');
 /* 콘텐츠 종류 — 「학습 → 단어 / 문법 / 한자 / 문장 / 듣기」 */
-ok('★ 콘텐츠는 단어 · 문법 · 한자 · 문장 · 듣기 · 영상 ★',
-  of('content').join() === 'words,grammar,kanji,sentences,listen,videos', of('content').join());
+ok('★ 콘텐츠는 단어 · 문법 · 한자 · 문장 · 여행 일본어 · 듣기 · 영상 ★',
+  of('content').join() === 'words,grammar,kanji,sentences,travel,listen,videos', of('content').join());
 ok('한자 칸이 있다 (N3 코스의 한자 과정)', MENUS.find((m) => m.id === 'kanji')?.label === '한자');
 ok('듣기가 학습 탭 안에 있다 (탭이 아니다)', MENUS.find((m) => m.id === 'listen')?.label === '듣기');
 ok('연습은 시험 · 활용 · 부사 · 짝 · 실전',

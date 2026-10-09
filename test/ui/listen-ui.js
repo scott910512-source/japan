@@ -100,8 +100,8 @@ async function boot(browser, patch = {}, init = null) {
   /* ★ 무엇을 들을지 여기서 고른다 ★
      여태 오늘의 학습 큐를 빌려 써서, 배운 게 수백 개인데 늘 같은 스무 개가
      같은 차례로 들렸다. 그러면 소리가 아니라 순서를 외운다. */
-  /* 오늘 · 기출 · 여행 · JLPT 문장 · 배운 것 · 약점 · 전체 — 일곱 */
-  ok('무엇을 들을지 고를 수 있다', await page.locator('.listen .ls-scope').count() === 7,
+  /* 오늘 · 기출 · 여행(삿포로) · JLPT 문장 · 여행 일본어 · 배운 것 · 약점 · 전체 — 여덟 */
+  ok('무엇을 들을지 고를 수 있다', await page.locator('.listen .ls-scope').count() === 8,
     (await page.locator('.listen .ls-scope').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim()).join(' / '));
 
   /* ★ 여행 벼락치기 ★

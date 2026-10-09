@@ -22,6 +22,7 @@ const KEYS = {
   asks: 'jp_manabu_asks_v1',                    // 공부하다 물어본 것 — 비행기 모드에서도 다시 본다
   plan: 'jp_manabu_plan_v1',                    // 오늘의 계획 — 배정과 완료를 날짜별로 적어 둔다
   swiss: 'jp_manabu_swiss_v1',                  // 독일어 코스 진도 — 일본어 회독과 따로 간다 (열쇠 이름은 처음 것 그대로)
+  travel: 'jp_manabu_travel_v1',                // 여행 일본어 코스 진도 — 회독과 따로. 듣기 코스라 외운 기록을 안 건드린다
 };
 
 // 저장 실패를 조용히 삼키면 사용자가 학습 기록이 날아간 걸 모른다.
@@ -151,6 +152,14 @@ export function loadSwiss() {
 }
 export function saveSwiss(progress) {
   write(KEYS.swiss, progress);
+}
+
+/* 여행 일본어 코스 진도. 모양은 lib/travelCourse.js의 normalizeProgress가 맞춘다. */
+export function loadTravel() {
+  return read(KEYS.travel, null);
+}
+export function saveTravel(progress) {
+  write(KEYS.travel, progress);
 }
 
 export function loadCustomWords() {
@@ -327,6 +336,7 @@ export const DEFAULT_SETTINGS = {
     rpg: true,        // 실전 연습 — 상황을 통째로
     // 그 밖에
     basics: true,     // 완전기초 — 히라가나 · 숫자 · 인사
+    travel: true,     // 여행 일본어 — 공항 · 택시 · 호텔 · 식당에서 직원 말 알아듣기
     swiss: true,      // 독일어 여행 회화 — 곁가지 코스(열쇠 이름은 처음 것 그대로)
   },
 
@@ -539,6 +549,7 @@ const BACKUP_ITEMS = [
   { key: 'asks', label: '물어본 것', fallback: [] },
   { key: 'plan', label: '오늘의 계획', fallback: null },
   { key: 'swiss', label: '독일어 코스 진도', fallback: null },
+  { key: 'travel', label: '여행 일본어 코스 진도', fallback: null },
 ];
 
 /* ★ 비밀값은 백업 파일에 넣지 않는다 ★

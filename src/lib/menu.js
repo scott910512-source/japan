@@ -12,7 +12,7 @@
  * 누를지 「새로 배우기」를 누를지부터 고민하게 된다.
  *
  *   JLPT N3 — 한 코스로 N3까지. 이 앱의 목표라서 맨 위에 하나만 크게
- *   콘텐츠  — 단어 · 문법 · 한자 · 문장 · 듣기 · 영상. 골라서 들어간다
+ *   콘텐츠  — 단어 · 문법 · 한자 · 문장 · 여행 일본어 · 듣기 · 영상. 골라서 들어간다
  *   연습    — 배운 것을 다른 방식으로 굴려 본다
  *   그 밖에 — 완전기초 · 독일어(곁가지)
  *
@@ -48,6 +48,9 @@ export const MENUS = [
   /* 한자는 N3 코스의 한자 과정을 그대로 연다 — 같은 자료를 두 벌 두지 않는다 */
   { id: 'kanji', group: 'content', label: '한자', sub: 'N3 한자 500자', icon: 'kanji' },
   { id: 'sentences', group: 'content', label: '문장', sub: '상황별 회화', icon: 'chat' },
+  /* 여행 일본어 — 공항·택시·호텔·식당에서 직원이 먼저 하는 말을 알아듣는 코스.
+     문장(상황별 회화)은 내가 할 말이 앞이고, 여기는 상대 말이 앞이다. */
+  { id: 'travel', group: 'content', label: '여행 일본어', sub: '공항 · 택시 · 호텔 · 식당', icon: 'map' },
   { id: 'listen', group: 'content', label: '듣기', sub: '자동 듣기 · 따라 말하기', icon: 'headphone' },
   { id: 'videos', group: 'content', label: '영상', sub: '유튜브 · 자막', icon: 'video' },
 
