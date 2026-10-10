@@ -50,7 +50,7 @@ export const MENUS = [
   { id: 'sentences', group: 'content', label: '문장', sub: '상황별 회화', icon: 'chat' },
   /* 여행 일본어 — 공항·택시·호텔·식당에서 직원이 먼저 하는 말을 알아듣는 코스.
      문장(상황별 회화)은 내가 할 말이 앞이고, 여기는 상대 말이 앞이다. */
-  { id: 'travel', group: 'content', label: '여행 일본어', sub: '공항 · 택시 · 호텔 · 식당', icon: 'map' },
+  { id: 'travel', group: 'content', label: '여행 일본어', sub: '공항 · 택시 · 호텔 · 온천 · 식당', icon: 'map' },
   { id: 'listen', group: 'content', label: '듣기', sub: '자동 듣기 · 따라 말하기', icon: 'headphone' },
   { id: 'videos', group: 'content', label: '영상', sub: '유튜브 · 자막', icon: 'video' },
 
