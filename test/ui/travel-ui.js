@@ -1,7 +1,7 @@
 /* 여행 일본어 코스 — 진짜 화면에서.
  *
  *   학습 탭 「콘텐츠」에 「여행 일본어」가 있고 들어가진다
- *   허브에 단원 여섯·레슨 열여섯이 있고 전부 열려 있다(잠금 없음)
+ *   허브에 자료의 단원·레슨이 다 있고 전부 열려 있다(잠금 없음)
  *   레슨에 들어가면 직원 문제는 소리만(글자 없음), 내 문제는 뜻을 보고 고른다
  *   답을 알고 끝까지 풀면 별·XP가 저장소에 적히고 허브에 ★가 붙는다
  *   틀리면 뒤에 다시 나온다
@@ -78,8 +78,8 @@ async function solve(page, { wrongFirst = false } = {}) {
   console.log('\n[ 학습 탭 → 여행 일본어 ]');
   await openMenu(page, '여행 일본어');
   ok('헤더', (await page.locator('.subscreen.open .sub-title').first().innerText()).includes('여행 일본어'));
-  ok('단원 여섯', await page.locator('.tr-unit').count() === TRAVEL_UNITS.length, `${await page.locator('.tr-unit').count()}`);
-  ok('레슨 열여섯', await page.locator('.swh-lesson').count() === TRAVEL_LESSONS.length);
+  ok('단원이 자료만큼', await page.locator('.tr-unit').count() === TRAVEL_UNITS.length, `${await page.locator('.tr-unit').count()}`);
+  ok('레슨이 자료만큼', await page.locator('.swh-lesson').count() === TRAVEL_LESSONS.length);
   ok('★ 레슨이 전부 열려 있다 — 잠금 없음 ★', await page.locator('.swh-lesson:disabled').count() === 0);
   ok('처음엔 「시작하기」', (await page.locator('.tr-next').innerText()).includes('시작하기'));
   const nb = await page.locator('.tr-next').boundingBox();

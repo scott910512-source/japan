@@ -28,10 +28,10 @@ const HANGUL = /[가-힣]/;
 
 console.log('\n[ 자료 ]');
 {
-  ok('단원 여섯 — 공항 · 이동 · 호텔 · 식당 · 가게 · 곤란할 때',
-    TRAVEL_UNITS.map((u) => u.title).join(' · ') === '공항 · 이동 · 호텔 · 식당 · 가게 · 곤란할 때');
-  ok('레슨 열여섯', TRAVEL_LESSONS.length === 16, `${TRAVEL_LESSONS.length}`);
-  ok('줄 150개 넘게', TRAVEL_ITEMS.length >= 150, `${TRAVEL_ITEMS.length}`);
+  ok('단원 일곱 — 공항 · 이동 · 호텔 · 온천 · 식당 · 가게 · 곤란할 때',
+    TRAVEL_UNITS.map((u) => u.id).join() === 'air,move,hotel,onsen,food,shop,help', TRAVEL_UNITS.map((u) => u.id).join());
+  ok('레슨 스물다섯', TRAVEL_LESSONS.length === 25, `${TRAVEL_LESSONS.length}`);
+  ok('줄 250개 넘게', TRAVEL_ITEMS.length >= 250, `${TRAVEL_ITEMS.length}`);
   const ids = TRAVEL_ITEMS.map((it) => it.id);
   ok('id가 겹치지 않는다', new Set(ids).size === ids.length);
   ok('전부 tr- 로 시작 — 단어장·상황 문장 id와 안 섞인다', ids.every((id) => id.startsWith('tr-')));
@@ -48,7 +48,7 @@ console.log('\n[ 자료 ]');
     return its.some((it) => it.who === 'staff') && its.some((it) => it.who === 'me');
   }));
   ok('레슨마다 여덟 줄 넘게', TRAVEL_LESSONS.every((l) => itemsOfLesson(l.id).length >= 8));
-  ok('찾기 — 레슨·단원', lessonById('hotel-2')?.unitTitle === '호텔' && unitById('food')?.lessons.length === 3 && itemsOfUnit('air').length >= 30);
+  ok('찾기 — 레슨·단원', lessonById('hotel-2')?.unitTitle === '호텔' && unitById('food')?.lessons.length === 5 && unitById('onsen')?.lessons.length === 2 && itemsOfUnit('air').length >= 30);
   ok('「한 번 더 부탁합니다」가 들어 있다 — 제일 중요한 한 줄', TRAVEL_ITEMS.some((it) => it.jp === 'もう一度お願いします。'));
 }
 
@@ -76,7 +76,7 @@ console.log('\n[ 문제 ]');
 console.log('\n[ 진도 ]');
 {
   const p0 = emptyProgress();
-  ok('처음엔 비어 있다', courseSummary(p0).done === 0 && courseSummary(p0).total === 16);
+  ok('처음엔 비어 있다', courseSummary(p0).done === 0 && courseSummary(p0).total === TRAVEL_LESSONS.length);
   ok('★ 레슨은 안 잠근다 — 여행은 차례대로 안 온다 ★', TRAVEL_LESSONS.every((l) => isUnlocked(p0, l.id)));
   ok('다음은 첫 레슨', nextLesson(p0) === 'air-1');
   const r1 = recordLesson(p0, 'hotel-1', { mistakes: 0, total: 10, wrongIds: [], now: 1 });

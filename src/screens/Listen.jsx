@@ -180,7 +180,7 @@ export default function Listen({
   const level = jlptLevel;
   const jlptCards = jlptAll[level] || [];
   const jlptList = useMemo(() => poolOf(jlptCards), [jlptCards]);
-  /* 여행 일본어 코스 — 직원 말과 내 말 160줄, 공항부터 곤란할 때까지 차례대로.
+  /* 여행 일본어 코스 — 직원 말과 내 말, 공항부터 곤란할 때까지 차례대로.
      단어장에 없는 카드라 예문처럼 큐를 푸는 쪽에도 같이 넘긴다. */
   const tourCards = useMemo(() => travelListenCards(), []);
   const tourList = useMemo(() => poolOf(tourCards), [tourCards]);
