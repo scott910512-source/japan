@@ -4,7 +4,7 @@ import SpeakButton from '../components/SpeakButton.jsx';
 import { loadTravel, saveTravel } from '../lib/storage.js';
 import { TRAVEL_UNITS, itemsOfUnit, lessonById } from '../data/travel.js';
 import { readingText } from '../lib/tts.js';
-import { normalizeProgress, nextLesson, recordLesson, courseSummary } from '../lib/travelCourse.js';
+import { normalizeProgress, nextLesson, recordLesson, courseSummary, buildWeakExercises, settleWeak } from '../lib/travelCourse.js';
 import TravelLesson from './TravelLesson.jsx';
 
 /* 여행 일본어 코스 — 공항부터 곤란할 때까지, 장면마다 레슨.
@@ -36,7 +36,7 @@ function LineCard({ it, rate }) {
 
 export default function TravelCourse({ settings, onToast, onListen }) {
   const [progress, setProgress] = useState(() => normalizeProgress(loadTravel()));
-  const [view, setView] = useState('hub');   // hub | lesson
+  const [view, setView] = useState('hub');   // hub | lesson | weak
   const [lessonId, setLessonId] = useState(null);
   const [openUnit, setOpenUnit] = useState(null);
   const rate = Math.min(settings?.speechRate || 0.9, 0.9);
@@ -46,6 +46,15 @@ export default function TravelCourse({ settings, onToast, onListen }) {
 
   const start = (id) => { setLessonId(id); setView('lesson'); };
   const finish = (result) => {
+    if (view === 'weak') {
+      /* 약점 연습 — 한 번도 안 틀린 줄만 주머니에서 빼고, 레슨 기록은 그대로 */
+      const settled = settleWeak(progress, result.practiced, result.wrongIds);
+      const saved = { lessons: settled.lessons, xp: settled.xp, weak: settled.weak };
+      setProgress(saved);
+      saveTravel(saved);
+      onToast?.(settled.cleared ? `약점 ${settled.cleared}줄 해결 · ${settled.weak.length}줄 남음` : '아직 남았어요 — 다시 해 봐요');
+      return;
+    }
     const rec = recordLesson(progress, lessonId, result);
     const saved = { lessons: rec.lessons, xp: rec.xp, weak: rec.weak };
     setProgress(saved);
@@ -53,6 +62,9 @@ export default function TravelCourse({ settings, onToast, onListen }) {
     onToast?.(`+${rec.gained} XP · 별 ${'★'.repeat(rec.stars)}`);
   };
 
+  if (view === 'weak') {
+    return <TravelLesson key="weak" make={() => buildWeakExercises(progress.weak)} rate={rate} onDone={finish} onQuit={() => setView('hub')} />;
+  }
   if (view === 'lesson' && lessonId) {
     return <TravelLesson lessonId={lessonId} rate={rate} onDone={finish} onQuit={() => setView('hub')} />;
   }
@@ -73,6 +85,13 @@ export default function TravelCourse({ settings, onToast, onListen }) {
           ) : (
             <button className="submit-btn swh-next tr-next" onClick={() => start('air-1')}>
               <IconPlay /> 다 끝냈어요 — 처음부터 다시
+            </button>
+          )}
+        </div>
+        <div className="btnrow tr-sub">
+          {summary.weak > 0 && (
+            <button className="ghost-btn tr-weak" onClick={() => setView('weak')}>
+              틀린 {summary.weak}줄 다시
             </button>
           )}
           {onListen && (

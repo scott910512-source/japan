@@ -593,3 +593,14 @@
 .tr-spk { flex: 0 0 auto; width: var(--touch); height: var(--touch); border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--kon); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .tr-spk svg { width: 18px; height: 18px; }
 .swl-fbody .tr-note { margin-top: 6px; }
+
+/* 여행 코스 — 허브 버튼은 줄을 나눈다(큰 것 하나 · 작은 것 둘), 글자가 끊기지 않게 */
+.tr-sum .btnrow.tr-sub { margin-top: 8px; }
+.tr-sum .btnrow.tr-sub .ghost-btn { white-space: nowrap; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.tr-sum .tr-next { width: 100%; }
+
+/* 피드백 줄 — 긴 문장은 일본어가 한 줄을 다 쓰고, 읽기·소리는 그 아래로 */
+.swl-feedback .swl-fde { flex-wrap: wrap; row-gap: 4px; }
+.swl-feedback .swl-fde b { flex: 1 1 100%; word-break: keep-all; overflow-wrap: anywhere; }
+.swl-feedback .swl-fde span { flex: 1 1 0; min-width: 0; }
+

@@ -63,6 +63,35 @@ export function buildExercises(lessonId, rnd = Math.random) {
   return shuffle(out, rnd);
 }
 
+/* ★ 약점 줄 다시 ★
+ *
+ * 레슨에서 틀린 줄은 진도의 weak에 쌓인다. 그걸 허브에서 꺼내 다시 푸는 문제를
+ * 만든다 — 레슨 상관없이 틀린 줄만, 한 번에 열 줄까지. 보기는 그 줄이 속한
+ * 레슨·단원에서 같은 쪽 줄로 채운다(optionsFor). 모르는 id(자료가 바뀐 뒤 남은
+ * 옛 id)는 조용히 건너뛴다. */
+export const WEAK_RUN = 10;
+
+export function buildWeakExercises(weakIds, rnd = Math.random, limit = WEAK_RUN) {
+  const byId = new Map(TRAVEL_ITEMS.map((it) => [it.id, it]));
+  const items = shuffle((weakIds || []).map((id) => byId.get(id)).filter(Boolean), rnd).slice(0, limit);
+  return items.map((item) => ({
+    type: item.who === 'staff' ? 'hear' : 'say',
+    item,
+    options: optionsFor(item, lessonById(item.lessonId), rnd),
+    answerId: item.id,
+  }));
+}
+
+/* 약점 연습이 끝났다 — 이번에 푼 줄 중 한 번도 안 틀린 것은 주머니에서 뺀다.
+   틀린 것은 그대로 남는다. 레슨 기록·XP는 건드리지 않는다. */
+export function settleWeak(progress, practicedIds = [], wrongIds = []) {
+  const p = normalizeProgress(progress);
+  const wrong = new Set(wrongIds);
+  const cleared = new Set(practicedIds.filter((id) => !wrong.has(id)));
+  const weak = p.weak.filter((id) => !cleared.has(id));
+  return { lessons: p.lessons, xp: p.xp, weak, cleared: p.weak.length - weak.length };
+}
+
 /* ── 진도 ── */
 export function emptyProgress() {
   return { lessons: {}, xp: 0, weak: [] };

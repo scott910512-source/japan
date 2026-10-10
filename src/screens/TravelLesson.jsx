@@ -20,12 +20,16 @@ import { buildExercises, starsFor } from '../lib/travelCourse.js';
 const JA = 'ja-JP';
 const say = (it) => readingText(it.kana, it.jp);
 
-export default function TravelLesson({ lessonId, rate, onDone, onQuit }) {
-  const [queue, setQueue] = useState(() => buildExercises(lessonId));
+export default function TravelLesson({ lessonId, make, rate, onDone, onQuit }) {
+  /* make: 문제 목록을 만드는 함수 — 안 주면 레슨 하나. 약점 연습은 틀린 줄들로 만들어 넘긴다 */
+  const build = make || (() => buildExercises(lessonId));
+  const [queue, setQueue] = useState(() => build());
   const total = useMemo(() => queue.length, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const [at, setAt] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const wrongIds = useRef(new Set());
+  /* 이번에 만난 줄 — 다시 나오는 틀린 문제는 queue에 붙지만 처음 목록은 그대로 */
+  const practiced = useRef(queue.map((e) => e.item.id));
   const [pick, setPick] = useState(null);
   const [checked, setChecked] = useState(null);   // null | 'ok' | 'no'
   const [finished, setFinished] = useState(false);
@@ -54,10 +58,13 @@ export default function TravelLesson({ lessonId, rate, onDone, onQuit }) {
         </div>
         <div className="btnrow" style={{ marginTop: 14 }}>
           <button className="ghost-btn" onClick={() => {
-            setQueue(buildExercises(lessonId)); setAt(0); setMistakes(0); wrongIds.current = new Set();
+            const again = build();
+            if (!again.length) { onQuit(); return; }   // 약점을 다 풀었으면 더 낼 문제가 없다
+            practiced.current = again.map((e) => e.item.id);
+            setQueue(again); setAt(0); setMistakes(0); wrongIds.current = new Set();
             setPick(null); setChecked(null); setFinished(false);
           }}>한 번 더</button>
-          <button className="submit-btn swl-done" onClick={() => { onDone({ mistakes, total, wrongIds: [...wrongIds.current] }); onQuit(); }}>완료</button>
+          <button className="submit-btn swl-done" onClick={() => { onDone({ mistakes, total, wrongIds: [...wrongIds.current], practiced: [...new Set(practiced.current)] }); onQuit(); }}>완료</button>
         </div>
       </div>
     );
