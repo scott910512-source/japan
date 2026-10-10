@@ -12,7 +12,7 @@ import {
 } from '../../src/data/travel.js';
 import {
   buildExercises, courseSummary, emptyProgress, isUnlocked, nextLesson, normalizeProgress,
-  recordLesson, travelListenCards,
+  recordLesson, travelListenCards, buildWeakExercises, settleWeak, WEAK_RUN,
 } from '../../src/lib/travelCourse.js';
 import { SCOPES, pickListen, scopeCounts } from '../../src/lib/listen.js';
 import { cardsForQueue } from '../../src/lib/cards.js';
@@ -86,6 +86,28 @@ console.log('\n[ 진도 ]');
   ok('다시 하면 별은 제일 좋았던 것, XP는 쌓인다', r2.lessons['hotel-1'].stars === 3 && r2.lessons['hotel-1'].last === 1 && r2.xp === 25);
   ok('틀린 줄은 약점 주머니에', r2.weak.includes('tr-ht-004'));
   ok('깨진 진도도 읽는다', normalizeProgress({ lessons: 'x', xp: 'y', weak: [1, 'a'] }).weak.join() === 'a');
+}
+
+console.log('\n[ 약점 줄 다시 ]');
+{
+  let seed = 11;
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  const ids = ['tr-ht-004', 'tr-ht-003', 'tr-air-001', 'tr-fd-001', 'tr-mv-002', 'nope-id'];
+  const ex = buildWeakExercises(ids, rnd);
+  ok('없는 id는 건너뛰고 다섯 문제', ex.length === 5, `${ex.length}`);
+  ok('직원 줄은 듣기, 내 줄은 말하기', ex.every((e) => (e.item.who === 'staff' ? e.type === 'hear' : e.type === 'say')));
+  ok('보기는 셋 · 답이 들어 있고 · 같은 쪽', ex.every((e) => e.options.length === 3
+    && e.options.some((o) => o.id === e.answerId) && e.options.every((o) => o.who === e.item.who)));
+  const many = buildWeakExercises(TRAVEL_ITEMS.map((it) => it.id), rnd);
+  ok(`한 번에 ${WEAK_RUN}줄까지`, many.length === WEAK_RUN);
+  ok('비었으면 빈손', buildWeakExercises([], rnd).length === 0 && buildWeakExercises(null, rnd).length === 0);
+
+  const p = { lessons: { 'hotel-1': { stars: 2, tries: 1 } }, xp: 10, weak: ['a', 'b', 'c'] };
+  const s1 = settleWeak(p, ['a', 'b', 'c'], ['b']);
+  ok('★ 한 번도 안 틀린 줄만 빠진다 ★', s1.weak.join() === 'b' && s1.cleared === 2);
+  ok('레슨 기록·XP는 그대로', s1.lessons['hotel-1'].stars === 2 && s1.xp === 10);
+  ok('이번에 안 푼 줄은 남는다', settleWeak(p, ['a'], []).weak.join() === 'b,c');
+  ok('깨진 진도도 읽는다', settleWeak(null, ['a'], []).weak.length === 0);
 }
 
 console.log('\n[ 자동 듣기 · 메뉴 · 설정 ]');

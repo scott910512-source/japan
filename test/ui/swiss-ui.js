@@ -150,6 +150,8 @@ const saidDe = (page) => page.evaluate(() => (window.__said || []).filter((u) =>
   ok('★ 독일어 소리에 한글이 없다 ★', all.every((u) => !HANGUL.test(u.text)), all.map((u) => u.text).join(' | '));
 
   console.log('\n── 레슨 하나를 끝까지');
+  const sib = await page.locator('.swh-next svg').first().boundingBox();
+  ok('★ 큰 버튼 안 아이콘이 글자 크기다 — 버튼을 채우지 않는다 ★', sib && sib.width <= 24 && sib.height <= 24, `${Math.round(sib?.width)}px`);
   await page.locator('.swh-next').click();
   await page.waitForTimeout(700);
   ok('레슨이 열린다', await page.locator('.swl-bar').count() === 1);

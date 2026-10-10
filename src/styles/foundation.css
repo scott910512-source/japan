@@ -313,6 +313,9 @@ button, input, select { font-family: inherit; }
   background: linear-gradient(135deg, var(--kon), var(--kon-deep)); color: #fff; font-size: 14.5px; font-weight: 700; cursor: pointer;
   box-shadow: var(--glow-btn);
 }
+/* 버튼 안 아이콘은 글자 크기로 — 크기를 안 주면 SVG가 버튼을 가득 채운다(코스 허브의 재생 아이콘이 139px가 됐었다).
+   더 구체적인 규칙(.rp-lvcard · .ls-ask)은 그대로 이긴다. */
+.submit-btn svg { width: 16px; height: 16px; vertical-align: -3px; flex: none; }
 
 /* 글자색을 안 주면 브라우저 기본값(검정)이 나온다. 다크 화면에서는 안 보인다.
    iOS는 color만으로는 안 먹는 경우가 있어 -webkit-text-fill-color도 함께 준다. */

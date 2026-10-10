@@ -82,6 +82,9 @@ async function solve(page, { wrongFirst = false } = {}) {
   ok('레슨 열여섯', await page.locator('.swh-lesson').count() === TRAVEL_LESSONS.length);
   ok('★ 레슨이 전부 열려 있다 — 잠금 없음 ★', await page.locator('.swh-lesson:disabled').count() === 0);
   ok('처음엔 「시작하기」', (await page.locator('.tr-next').innerText()).includes('시작하기'));
+  const nb = await page.locator('.tr-next').boundingBox();
+  const ib = await page.locator('.tr-next svg').first().boundingBox();
+  ok('★ 큰 버튼 안 아이콘이 글자 크기다 — 버튼을 채우지 않는다 ★', ib && ib.width <= 24 && ib.height <= 24 && nb.height < 70, `${Math.round(ib?.width)}px · 버튼 높이 ${Math.round(nb.height)}`);
 
   console.log('\n[ 문장 미리 보기 ]');
   await page.locator('.tr-unit[data-unit="hotel"] .swh-peek').click();
@@ -127,6 +130,24 @@ async function solve(page, { wrongFirst = false } = {}) {
   ok('허브에 ★가 붙는다', (await page.locator('.swh-lesson[data-lesson="hotel-1"]').innerText()).includes('★★'));
   ok('「이어서」는 안 한 것 중 첫째 — 공항', (await page.locator('.tr-next').innerText()).includes('공항'));
   ok('★ 일본어 회독 기록은 그대로 ★', (await reviewSnapshot(page)) === reviewBefore);
+
+  console.log('\n[ 틀린 줄 다시 ]');
+  const weakBtn = page.locator('.tr-weak');
+  ok('★ 틀린 줄이 있으면 「다시」 버튼이 뜬다 ★', await weakBtn.count() === 1 && (await weakBtn.innerText()).includes('1줄'), await weakBtn.count() ? await weakBtn.innerText() : '없음');
+  const wb = await weakBtn.boundingBox(); const lb = await page.locator('.tr-listen').boundingBox();
+  ok('작은 버튼 둘이 한 줄에 · 손가락 크기 · 글자가 안 끊긴다', Math.abs(wb.y - lb.y) < 2 && wb.height >= 43.5 && wb.height < 60 && lb.height < 60, `${Math.round(wb.height)} / ${Math.round(lb.height)}`);
+  const lessonsBefore = await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('jp_manabu_travel_v1')).lessons));
+  await weakBtn.click();
+  await page.waitForTimeout(600);
+  ok('문제 한 개 — 틀렸던 그 줄', await page.locator('.swl-prompt').getAttribute('data-item') === wrongId);
+  await solve(page);
+  ok('끝났다', await page.locator('.swl-finish').count() === 1);
+  await page.locator('.swl-done').click();
+  await page.waitForTimeout(500);
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_travel_v1')));
+  ok('★ 맞히면 약점에서 빠진다 ★', Array.isArray(after.weak) && after.weak.length === 0, JSON.stringify(after.weak));
+  ok('레슨 별·XP는 그대로', JSON.stringify(after.lessons) === lessonsBefore && after.xp === 10);
+  ok('버튼이 사라진다', await page.locator('.tr-weak').count() === 0);
 
   console.log('\n[ 자동 듣기로 ]');
   await page.locator('.tr-listen').click();
