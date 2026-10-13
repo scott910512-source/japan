@@ -109,6 +109,55 @@ export function timeSpeech(h24, m, { ampm = null, tail = true } = {}) {
   };
 }
 
+/* ── 날짜 ──
+   월은 규칙이지만(4월 しがつ · 7월 しちがつ · 9월 くがつ) 일은 1~10일, 14일, 20일, 24일이 따로 읽힌다.
+   이게 호텔·예약·영업일을 들을 때 제일 많이 틀리는 자리다 */
+const MONTH_KANA = ['', 'いちがつ', 'にがつ', 'さんがつ', 'しがつ', 'ごがつ', 'ろくがつ', 'しちがつ', 'はちがつ', 'くがつ', 'じゅうがつ', 'じゅういちがつ', 'じゅうにがつ'];
+const DAY_SPECIAL = {
+  1: 'ついたち', 2: 'ふつか', 3: 'みっか', 4: 'よっか', 5: 'いつか', 6: 'むいか', 7: 'なのか', 8: 'ようか', 9: 'ここのか',
+  10: 'とおか', 14: 'じゅうよっか', 20: 'はつか', 24: 'にじゅうよっか',
+};
+const DAY_ONES = ['', 'いち', 'に', 'さん', '', 'ご', 'ろく', 'しち', 'はち', 'く'];
+
+export function monthKana(m) {
+  return Number.isInteger(m) && m >= 1 && m <= 12 ? MONTH_KANA[m] : '';
+}
+export function dayKana(d) {
+  if (!Number.isInteger(d) || d < 1 || d > 31) return '';
+  if (DAY_SPECIAL[d]) return DAY_SPECIAL[d];
+  const tens = d >= 30 ? 'さんじゅう' : (d >= 20 ? 'にじゅう' : 'じゅう');
+  return `${tens}${DAY_ONES[d % 10]}にち`;
+}
+
+const DAYS_IN_MONTH = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+export function dateSpeech(m, d) {
+  return {
+    jp: `${numberKanji(m)}月${numberKanji(d)}日です。`,
+    kana: `${monthKana(m)}${dayKana(d)}です。`,
+    ko: `${m}월 ${d}일입니다.`,
+  };
+}
+
+/* ── 사람 · 개수 · 층 ── */
+const PEOPLE = ['', 'ひとり', 'ふたり', 'さんにん', 'よにん', 'ごにん', 'ろくにん', 'ななにん', 'はちにん', 'きゅうにん', 'じゅうにん'];
+const THINGS = ['', 'ひとつ', 'ふたつ', 'みっつ', 'よっつ', 'いつつ', 'むっつ', 'ななつ', 'やっつ', 'ここのつ', 'とお'];
+const FLOORS = ['', 'いっかい', 'にかい', 'さんがい', 'よんかい', 'ごかい', 'ろっかい', 'ななかい', 'はっかい', 'きゅうかい', 'じゅっかい'];
+
+export const COUNTERS = [
+  { id: 'people', jp: '人', kana: PEOPLE, ko: '명' },
+  { id: 'things', jp: 'つ', kana: THINGS, ko: '개' },
+  { id: 'floor', jp: '階', kana: FLOORS, ko: '층' },
+];
+
+export function countSpeech(counterId, n) {
+  const c = COUNTERS.find((x) => x.id === counterId);
+  if (!c || !Number.isInteger(n) || n < 1 || n > 10) return null;
+  /* 개수 10은 「十つ」가 아니라 「十」(とお) */
+  const jp = c.id === 'things' ? (n === 10 ? '十' : `${numberKanji(n)}つ`) : `${numberKanji(n)}${c.jp}`;
+  return { jp: `${jp}です。`, kana: `${c.kana[n]}です。`, ko: `${n}${c.ko}입니다.` };
+}
+
 /* ── 무작위 값 ── */
 const randInt = (rnd, lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
 const pick = (rnd, list) => list[Math.floor(rnd() * list.length)];
@@ -218,6 +267,61 @@ export function timeDistractors(t, rnd = Math.random) {
   return shuffle(cands, rnd).slice(0, 2);
 }
 
+export function randomDate(rnd = Math.random) {
+  const m = randInt(rnd, 1, 12);
+  return { m, d: randInt(rnd, 1, DAYS_IN_MONTH[m]) };
+}
+
+/* 날짜의 방해 보기 — 하루 어긋남, 소리가 비슷한 일(4↔8 よっか·ようか, 2↔20 ふつか·はつか, 7↔17 なのか·じゅうしちにち),
+   월의 비슷한 소리(1↔7 いち·しち, 4↔7 し·しち, 4↔9 し·く) */
+const DAY_ALIKE = { 1: [11, 21], 2: [12, 20], 3: [13, 23], 4: [8, 14, 24], 5: [15, 25], 6: [16, 26], 7: [17, 27], 8: [4, 18, 28], 9: [19, 29], 10: [20, 30], 14: [4, 24], 20: [2, 10, 30], 24: [4, 14] };
+const MONTH_ALIKE = { 1: [7, 11], 4: [7, 9], 7: [1, 4], 9: [4], 2: [12], 12: [2], 10: [1], 11: [1] };
+
+export function dateDistractors(t, rnd = Math.random) {
+  const cands = [];
+  const add = (m, d) => {
+    if (m < 1 || m > 12 || d < 1 || d > DAYS_IN_MONTH[m]) return;
+    if (m === t.m && d === t.d) return;
+    if (!cands.some((c) => c.m === m && c.d === d)) cands.push({ m, d });
+  };
+  for (const d of DAY_ALIKE[t.d] || []) add(t.m, d);
+  add(t.m, t.d + 1); add(t.m, t.d - 1);
+  for (const m of MONTH_ALIKE[t.m] || []) add(m, t.d);
+  add(t.m === 12 ? 1 : t.m + 1, t.d);
+  // 십의 자리와 일의 자리를 맞바꾼 일 (12 ↔ 21)
+  const sw = (t.d % 10) * 10 + Math.floor(t.d / 10);
+  if (sw >= 1) add(t.m, sw);
+  // 모자라면 이웃한 날로 채운다
+  for (let k = 2; cands.length < 2 && k < 12; k += 1) { add(t.m, t.d + k); add(t.m, t.d - k); }
+  return shuffle(cands, rnd).slice(0, 2);
+}
+
+export function randomCount(rnd = Math.random) {
+  return { counter: pick(rnd, COUNTERS).id, n: randInt(rnd, 1, 10) };
+}
+
+/* 세는 말의 방해 보기 — 같은 수의 다른 세는 말(ふたり ↔ ふたつ, 2명 ↔ 2개), 한 칸 어긋난 수 */
+export function countDistractors(t, rnd = Math.random) {
+  const cands = [];
+  const add = (counter, n) => {
+    if (n < 1 || n > 10 || (counter === t.counter && n === t.n)) return;
+    if (!cands.some((c) => c.counter === counter && c.n === n)) cands.push({ counter, n });
+  };
+  for (const c of COUNTERS) if (c.id !== t.counter) add(c.id, t.n);
+  add(t.counter, t.n + 1); add(t.counter, t.n - 1);
+  const alike = { 1: 7, 7: 1, 4: 9, 9: 4, 3: 8, 8: 3 };
+  if (alike[t.n]) add(t.counter, alike[t.n]);
+  for (let k = 2; cands.length < 2 && k < 10; k += 1) { add(t.counter, t.n + k); add(t.counter, t.n - k); }
+  // 같은 수 다른 세는 말 하나 + 같은 세는 말 다른 수 하나가 섞이게 — 두 종류를 한 번씩
+  const cross = shuffle(cands.filter((c) => c.counter !== t.counter), rnd);
+  const near = shuffle(cands.filter((c) => c.counter === t.counter), rnd);
+  const out = [];
+  if (cross.length) out.push(cross[0]);
+  if (near.length) out.push(near[0]);
+  for (const c of shuffle(cands, rnd)) { if (out.length >= 2) break; if (!out.includes(c)) out.push(c); }
+  return out.slice(0, 2);
+}
+
 /* ── 문제 ── */
 function yenItem(n, tail) {
   const sp = yenSpeech(n, tail);
@@ -236,11 +340,24 @@ function timeItem(t) {
   };
 }
 
+function dateItem(t) {
+  const sp = dateSpeech(t.m, t.d);
+  return { id: `nd:date:${t.m}-${t.d}`, who: 'staff', jp: sp.jp, kana: sp.kana, ko: sp.ko, lessonId: 'drill', unitId: 'num' };
+}
+
+function countItem(t) {
+  const sp = countSpeech(t.counter, t.n);
+  return { id: `nd:count:${t.counter}:${t.n}`, who: 'staff', jp: sp.jp, kana: sp.kana, ko: sp.ko, lessonId: 'drill', unitId: 'num' };
+}
+
 export const DRILL_KINDS = [
   { id: 'yen', label: '금액', sub: '얼마예요?' },
   { id: 'time', label: '시각', sub: '몇 시예요?' },
-  { id: 'mix', label: '섞어서', sub: '금액 · 시각' },
+  { id: 'date', label: '날짜', sub: '몇 월 며칠?' },
+  { id: 'count', label: '인원·층', sub: '몇 명 · 몇 개 · 몇 층' },
+  { id: 'mix', label: '섞어서', sub: '금액 · 시각 · 날짜 · 인원·층' },
 ];
+const MIX_OF = ['yen', 'time', 'date', 'count'];
 
 export const DRILL_ROUND = 10;
 
@@ -257,9 +374,17 @@ export function buildDrill(kind = 'mix', rnd = Math.random, count = DRILL_ROUND)
   let guard = 0;
   while (out.length < count && guard < count * 50) {
     guard += 1;
-    const useYen = kind === 'yen' || (kind === 'mix' && rnd() < 0.5);
+    const type = kind === 'mix' ? pick(rnd, MIX_OF) : kind;
     let item; let opts;
-    if (useYen) {
+    if (type === 'date') {
+      const t = randomDate(rnd);
+      item = dateItem(t);
+      opts = dateDistractors(t, rnd).map((c) => dateItem(c));
+    } else if (type === 'count') {
+      const t = randomCount(rnd);
+      item = countItem(t);
+      opts = countDistractors(t, rnd).map((c) => countItem(c));
+    } else if (type === 'yen') {
       const n = randomYen(rnd);
       const tail = rnd() < 0.3 ? 'になります' : 'です';
       item = yenItem(n, tail);

@@ -605,8 +605,8 @@
 .swl-feedback .swl-fde span { flex: 1 1 0; min-width: 0; }
 
 /* 숫자 훈련 카드 — 부제가 두 줄로 꺾여도 버튼과 붙지 않게 */
-.tr-drill .btnrow { margin-top: 12px; }
-.tr-drill .btnrow .ghost-btn { white-space: nowrap; min-height: 44px; }
+.tr-drill .btnrow { margin-top: 12px; flex-wrap: wrap; }
+.tr-drill .btnrow .ghost-btn { white-space: nowrap; min-height: 44px; flex: 1 1 30%; }
 
 /* 「글자 보기」 — 소리 없이도 풀 수 있게 펼치는 힌트 */
 .swl-peek { margin-top: 2px; min-height: 44px; }
