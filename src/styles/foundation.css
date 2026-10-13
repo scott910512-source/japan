@@ -320,7 +320,7 @@ button, input, select { font-family: inherit; }
 /* 글자색을 안 주면 브라우저 기본값(검정)이 나온다. 다크 화면에서는 안 보인다.
    iOS는 color만으로는 안 먹는 경우가 있어 -webkit-text-fill-color도 함께 준다. */
 .search-input {
-  width: 100%; padding: 10px 14px; border-radius: 12px; margin-bottom: 14px;
+  width: 100%; min-height: 44px; padding: 10px 14px; border-radius: 12px; margin-bottom: 14px;
   border: 1px solid var(--line); background: var(--surface);
   color: var(--ink); -webkit-text-fill-color: var(--ink);
   font-size: 13.5px;

@@ -77,6 +77,7 @@ export default function VideoAI({ settings, onChange, onToast }) {
               비우면 기본값을 씁니다. 이름이 맞지 않으면 아래에서 목록을 받아 고르세요.
             </div>
             <input
+              type="text"
               value={settings.geminiModel || ''}
               placeholder={DEFAULT_GEMINI_MODEL}
               onChange={(e) => onChange({ geminiModel: e.target.value.trim() })}
