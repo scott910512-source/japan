@@ -4,7 +4,8 @@ import SpeakButton from '../components/SpeakButton.jsx';
 import { loadTravel, saveTravel } from '../lib/storage.js';
 import { TRAVEL_UNITS, itemsOfUnit, lessonById } from '../data/travel.js';
 import { readingText } from '../lib/tts.js';
-import { normalizeProgress, nextLesson, recordLesson, courseSummary, buildWeakExercises, settleWeak } from '../lib/travelCourse.js';
+import { normalizeProgress, nextLesson, recordLesson, recordDrill, courseSummary, buildWeakExercises, settleWeak, progressToSave } from '../lib/travelCourse.js';
+import { buildDrill, DRILL_KINDS } from '../lib/numberDrill.js';
 import TravelLesson from './TravelLesson.jsx';
 
 /* 여행 일본어 코스 — 공항부터 곤란할 때까지, 장면마다 레슨.
@@ -36,7 +37,9 @@ function LineCard({ it, rate }) {
 
 export default function TravelCourse({ settings, onToast, onListen }) {
   const [progress, setProgress] = useState(() => normalizeProgress(loadTravel()));
-  const [view, setView] = useState('hub');   // hub | lesson | weak
+  const [view, setView] = useState('hub');   // hub | lesson | weak | drill
+  const [drillKind, setDrillKind] = useState('mix');
+  const [drillRound, setDrillRound] = useState(0);
   const [lessonId, setLessonId] = useState(null);
   const [openUnit, setOpenUnit] = useState(null);
   const rate = Math.min(settings?.speechRate || 0.9, 0.9);
@@ -46,22 +49,43 @@ export default function TravelCourse({ settings, onToast, onListen }) {
 
   const start = (id) => { setLessonId(id); setView('lesson'); };
   const finish = (result) => {
+    if (view === 'drill') {
+      /* 숫자 훈련 — 레슨 별은 그대로, XP와 판 수만 */
+      const rec = recordDrill(progress, result);
+      setProgress(progressToSave(rec));
+      saveTravel(progressToSave(rec));
+      onToast?.(`${result.total - result.mistakes}/${result.total} 맞음 · +${rec.gained} XP`);
+      return;
+    }
     if (view === 'weak') {
       /* 약점 연습 — 한 번도 안 틀린 줄만 주머니에서 빼고, 레슨 기록은 그대로 */
       const settled = settleWeak(progress, result.practiced, result.wrongIds);
-      const saved = { lessons: settled.lessons, xp: settled.xp, weak: settled.weak };
+      const saved = progressToSave(settled);
       setProgress(saved);
       saveTravel(saved);
       onToast?.(settled.cleared ? `약점 ${settled.cleared}줄 해결 · ${settled.weak.length}줄 남음` : '아직 남았어요 — 다시 해 봐요');
       return;
     }
     const rec = recordLesson(progress, lessonId, result);
-    const saved = { lessons: rec.lessons, xp: rec.xp, weak: rec.weak };
+    const saved = progressToSave(rec);
     setProgress(saved);
     saveTravel(saved);
     onToast?.(`+${rec.gained} XP · 별 ${'★'.repeat(rec.stars)}`);
   };
 
+  if (view === 'drill') {
+    /* 한 판이 끝나면 「한 번 더」가 새 판을 만든다(make가 다시 불린다) — 같은 값이 안 돌아온다 */
+    return (
+      <TravelLesson
+        key={`drill-${drillKind}-${drillRound}`}
+        mode="drill"
+        make={() => buildDrill(drillKind)}
+        rate={rate}
+        onDone={finish}
+        onQuit={() => { setDrillRound((n) => n + 1); setView('hub'); }}
+      />
+    );
+  }
   if (view === 'weak') {
     return <TravelLesson key="weak" make={() => buildWeakExercises(progress.weak)} rate={rate} onDone={finish} onQuit={() => setView('hub')} />;
   }
@@ -104,6 +128,28 @@ export default function TravelCourse({ settings, onToast, onListen }) {
           직원이 먼저 하는 말을 <b>소리만 듣고</b> 알아듣는 연습이에요. 내가 할 말은 뜻을 보고
           고릅니다. 레슨은 어느 것부터 해도 돼요 — 내일 호텔이면 호텔부터. 일본어 회독
           기록과는 따로 셉니다.
+        </div>
+      </div>
+
+      <div className="card tr-drill" style={{ marginTop: 14 }}>
+        <div className="swh-uhead">
+          <span className="swh-uemoji" aria-hidden="true">🔢</span>
+          <span className="swh-ubody">
+            <b>숫자 귀 훈련</b>
+            <span>금액 · 시각을 무작위로 — 끝이 없어요{summary.drillRounds ? ` · ${summary.drillRounds}판 (${summary.drillPerfect}판 만점)` : ''}</span>
+          </span>
+        </div>
+        <div className="btnrow tr-sub">
+          {DRILL_KINDS.map((k) => (
+            <button key={k.id} className="ghost-btn tr-drillgo" data-kind={k.id}
+              onClick={() => { setDrillKind(k.id); setView('drill'); }}>
+              {k.label}
+            </button>
+          ))}
+        </div>
+        <div className="set-note" style={{ marginTop: 8 }}>
+          직원이 말하는 숫자를 소리만 듣고 고릅니다. 열 문제가 한 판이고, 판마다 값이 새로 만들어져요.
+          금액은 자릿수(せん · ひゃく · まん)가, 시각은 분(ふん · ぷん)이 제일 헷갈려요.
         </div>
       </div>
 

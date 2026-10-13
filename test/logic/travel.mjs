@@ -123,6 +123,22 @@ console.log('\n[ 자동 듣기 · 메뉴 · 설정 ]');
   const first = pickListen(pool, {}, { scope: 'tour', count: 20, today, tour: pool, order: 'block', blocks: [0] });
   ok('1구간은 공항 첫 스무 줄', first.length === 20 && first[0].id === 'tr-air-001');
   ok('★ 큐가 카드로 풀린다 ★', cardsForQueue(first, [], [], cards).length === 20);
+  {
+    /* 직원 말만 — 내가 할 말은 빼고 알아듣는 쪽만 */
+    ok('범위에 「직원 말만」이 「여행 일본어」 바로 뒤에 있다', SCOPES.findIndex((x) => x.id === 'tourstaff') === SCOPES.findIndex((x) => x.id === 'tour') + 1);
+    const staffCards = cards.filter((c) => c.who === 'staff');
+    const staffPool = staffCards.map((c) => ({ id: c.id, kind: 'sentence' }));
+    ok('직원 줄이 전체의 절반 넘게', staffCards.length > cards.length / 2 && staffCards.length < cards.length, `${staffCards.length} / ${cards.length}`);
+    const cnt = scopeCounts(pool, {}, { today, tour: pool, tourStaff: staffPool });
+    ok('★ 범위 수 — 직원 말만은 직원 줄 수, 여행 일본어는 전체 ★', cnt.tourstaff === staffCards.length && cnt.tour === cards.length, `${cnt.tourstaff} / ${cnt.tour}`);
+    ok('목록을 안 주면 빈손', scopeCounts(pool, {}, { today, tour: pool }).tourstaff === 0);
+    const staffIds = new Set(staffCards.map((c) => c.id));
+    const all = pickListen(pool, {}, { scope: 'tourstaff', count: 500, today, tour: pool, tourStaff: staffPool, order: 'block', blocks: [0] });
+    ok('★ 뽑힌 줄이 전부 직원 줄이다 — 내 줄이 하나도 안 섞인다 ★', all.length > 0 && all.every((x) => staffIds.has(x.id)), `${all.length}줄`);
+    const first = pickListen(pool, {}, { scope: 'tourstaff', count: 20, today, tour: pool, tourStaff: staffPool, order: 'block', blocks: [0] });
+    ok('차례는 자료 차례 — 첫 줄은 공항 첫 직원 줄', first[0].id === 'tr-air-001');
+    ok('큐가 카드로 풀린다', cardsForQueue(first, [], [], cards).length === first.length);
+  }
   ok('학습 메뉴에 「여행 일본어」', MENUS.some((m) => m.id === 'travel' && m.group === 'content'));
   ok('기본 설정에서 켜져 있다', DEFAULT_SETTINGS.menus.travel === true);
 }

@@ -89,12 +89,12 @@ export function settleWeak(progress, practicedIds = [], wrongIds = []) {
   const wrong = new Set(wrongIds);
   const cleared = new Set(practicedIds.filter((id) => !wrong.has(id)));
   const weak = p.weak.filter((id) => !cleared.has(id));
-  return { lessons: p.lessons, xp: p.xp, weak, cleared: p.weak.length - weak.length };
+  return { lessons: p.lessons, xp: p.xp, weak, drill: p.drill, cleared: p.weak.length - weak.length };
 }
 
 /* ── 진도 ── */
 export function emptyProgress() {
-  return { lessons: {}, xp: 0, weak: [] };
+  return { lessons: {}, xp: 0, weak: [], drill: { rounds: 0, perfect: 0 } };
 }
 
 export function normalizeProgress(p) {
@@ -103,6 +103,11 @@ export function normalizeProgress(p) {
     lessons: src.lessons && typeof src.lessons === 'object' ? src.lessons : {},
     xp: Number(src.xp) || 0,
     weak: Array.isArray(src.weak) ? src.weak.filter((x) => typeof x === 'string') : [],
+    /* 숫자 훈련 — 몇 판 풀었고 몇 판을 하나도 안 틀렸나. 레슨 기록과 따로 센다 */
+    drill: {
+      rounds: Math.max(0, Math.floor(Number(src.drill?.rounds) || 0)),
+      perfect: Math.max(0, Math.floor(Number(src.drill?.perfect) || 0)),
+    },
   };
 }
 
@@ -136,9 +141,32 @@ export function recordLesson(progress, lessonId, { mistakes = 0, total = 1, wron
     },
     xp: p.xp + gained,
     weak,
+    drill: p.drill,
     gained,
     stars,
   };
+}
+
+/* ★ 숫자 훈련 한 판 ★ 레슨 별은 안 건드리고 XP와 판 수만 쌓는다. 하나도 안 틀리면 보너스 */
+export const XP_PER_DRILL = 5;
+export function recordDrill(progress, { mistakes = 0 } = {}) {
+  const p = normalizeProgress(progress);
+  const perfect = mistakes === 0;
+  const gained = XP_PER_DRILL + (perfect ? XP_PERFECT_BONUS : 0);
+  return {
+    lessons: p.lessons,
+    xp: p.xp + gained,
+    weak: p.weak,
+    drill: { rounds: p.drill.rounds + 1, perfect: p.drill.perfect + (perfect ? 1 : 0) },
+    gained,
+    perfect,
+  };
+}
+
+/* 저장소에 쓰는 모양 — 계산용 덧붙임(gained · stars · cleared · perfect)은 뺀다 */
+export function progressToSave(p) {
+  const n = normalizeProgress(p);
+  return { lessons: n.lessons, xp: n.xp, weak: n.weak, drill: n.drill };
 }
 
 export function courseSummary(progress) {
@@ -146,7 +174,10 @@ export function courseSummary(progress) {
   const ids = lessonOrder();
   const done = ids.filter((id) => (p.lessons[id]?.stars || 0) >= 1).length;
   const stars = ids.reduce((n, id) => n + (p.lessons[id]?.stars || 0), 0);
-  return { done, total: ids.length, stars, maxStars: ids.length * 3, xp: p.xp, weak: p.weak.length };
+  return {
+    done, total: ids.length, stars, maxStars: ids.length * 3, xp: p.xp, weak: p.weak.length,
+    drillRounds: p.drill.rounds, drillPerfect: p.drill.perfect,
+  };
 }
 
 /* ── 자동 듣기 ──

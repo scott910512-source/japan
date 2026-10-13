@@ -604,3 +604,12 @@
 .swl-feedback .swl-fde b { flex: 1 1 100%; word-break: keep-all; overflow-wrap: anywhere; }
 .swl-feedback .swl-fde span { flex: 1 1 0; min-width: 0; }
 
+/* 숫자 훈련 카드 — 부제가 두 줄로 꺾여도 버튼과 붙지 않게 */
+.tr-drill .btnrow { margin-top: 12px; }
+.tr-drill .btnrow .ghost-btn { white-space: nowrap; min-height: 44px; }
+
+/* 「글자 보기」 — 소리 없이도 풀 수 있게 펼치는 힌트 */
+.swl-peek { margin-top: 2px; min-height: 44px; }
+.swl-peekbox { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); }
+.swl-peekbox b { font-size: 18px; word-break: keep-all; overflow-wrap: anywhere; }
+.swl-peekbox span { font-size: 12px; color: var(--ink-soft); overflow-wrap: anywhere; }
