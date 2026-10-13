@@ -92,7 +92,7 @@ async function playRound(page, { wrongAt = -1, peekAt = -1 } = {}) {
   console.log('\n[ 허브의 숫자 귀 훈련 ]');
   await openMenu(page, '여행 일본어');
   ok('카드가 있다', await page.locator('.tr-drill').count() === 1);
-  ok('버튼 셋 — 금액 · 시각 · 섞어서', (await page.locator('.tr-drillgo').allInnerTexts()).join() === '금액,시각,섞어서');
+  ok('버튼 다섯 — 금액 · 시각 · 날짜 · 인원·층 · 섞어서', (await page.locator('.tr-drillgo').allInnerTexts()).join() === '금액,시각,날짜,인원·층,섞어서', (await page.locator('.tr-drillgo').allInnerTexts()).join());
   const heights = await Promise.all((await page.locator('.tr-drillgo').all()).map((b) => b.boundingBox()));
   ok('버튼이 손가락 크기', heights.every((b) => b && b.height >= 43.5), heights.map((b) => Math.round(b?.height)).join('/'));
 
@@ -146,11 +146,27 @@ async function playRound(page, { wrongAt = -1, peekAt = -1 } = {}) {
   await page.waitForTimeout(500);
   const r4 = await playRound(page);
   const kinds = new Set(r4.map((q) => q.id.split(':')[1]));
-  ok('섞어서에는 금액과 시각이 둘 다 나온다', kinds.has('yen') && kinds.has('time'), [...kinds].join());
+  ok('섞어서에는 금액·시각·날짜·인원이 고루 나온다', kinds.size >= 3, [...kinds].join());
+  await page.locator('.swl-done').click();
+  await page.waitForTimeout(400);
+
+  console.log('\n[ 날짜 · 인원·층 ]');
+  await page.locator('.tr-drillgo[data-kind="date"]').click();
+  await page.waitForTimeout(500);
+  const r6 = await playRound(page);
+  ok('날짜 보기는 「N월 N일입니다.」', r6.length === 10 && r6.every((q) => q.labels.length === 3 && q.labels.every((l) => /^\d{1,2}월 \d{1,2}일입니다\.$/.test(l.trim()))), r6[0].labels.join(' / '));
+  ok('날짜에도 글자가 없다', r6.every((q) => !q.hasJa));
+  await page.locator('.swl-done').click();
+  await page.waitForTimeout(400);
+  await page.locator('.tr-drillgo[data-kind="count"]').click();
+  await page.waitForTimeout(500);
+  const r7 = await playRound(page);
+  ok('인원·층 보기는 「N명/개/층입니다.」', r7.length === 10 && r7.every((q) => q.labels.length === 3 && q.labels.every((l) => /^\d{1,2}(명|개|층)입니다\.$/.test(l.trim()))), r7[0].labels.join(' / '));
+  ok('★ 같은 수의 다른 세는 말이 방해 보기로 섞인다 (2명 ↔ 2개) ★', r7.some((q) => new Set(q.labels.map((l) => l.replace(/\D*(\d+).*/, '$1'))).size < 3), r7.map((q) => q.labels.join('/')).slice(0, 3).join(' | '));
   await page.locator('.swl-done').click();
   await page.waitForTimeout(400);
   st = await saved(page);
-  ok('넉 판 — 판 4', st.drill.rounds === 4, JSON.stringify(st.drill));
+  ok('여섯 판 — 판 6', st.drill.rounds === 6, JSON.stringify(st.drill));
 
   console.log('\n[ 글자 보기 — 소리가 안 나는 기기에서도 풀리게 ]');
   await page.locator('.tr-drillgo[data-kind="yen"]').click();
@@ -163,7 +179,7 @@ async function playRound(page, { wrongAt = -1, peekAt = -1 } = {}) {
   ok('★ 다음 문제에서는 다시 가려진다 ★', r5.peeked?.nextHidden === true, String(r5.peeked?.nextHidden));
   ok('★ 틀린 게 아니라서 별은 그대로 셋 ★', await page.locator('.swl-stars').getAttribute('data-stars') === '3');
   st = await saved(page);
-  ok('만점 판으로 적힌다', st.drill.rounds === 5 && st.drill.perfect === 4, JSON.stringify(st.drill));
+  ok('만점 판으로 적힌다', st.drill.rounds === 7 && st.drill.perfect === 6, JSON.stringify(st.drill));
   await page.locator('.swl-done').click();
   await page.waitForTimeout(300);
 

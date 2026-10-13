@@ -136,7 +136,7 @@ export default function TravelCourse({ settings, onToast, onListen }) {
           <span className="swh-uemoji" aria-hidden="true">🔢</span>
           <span className="swh-ubody">
             <b>숫자 귀 훈련</b>
-            <span>금액 · 시각을 무작위로 — 끝이 없어요{summary.drillRounds ? ` · ${summary.drillRounds}판 (${summary.drillPerfect}판 만점)` : ''}</span>
+            <span>금액 · 시각 · 날짜 · 인원을 무작위로 — 끝이 없어요{summary.drillRounds ? ` · ${summary.drillRounds}판 (${summary.drillPerfect}판 만점)` : ''}</span>
           </span>
         </div>
         <div className="btnrow tr-sub">
@@ -149,7 +149,7 @@ export default function TravelCourse({ settings, onToast, onListen }) {
         </div>
         <div className="set-note" style={{ marginTop: 8 }}>
           직원이 말하는 숫자를 소리만 듣고 고릅니다. 열 문제가 한 판이고, 판마다 값이 새로 만들어져요.
-          금액은 자릿수(せん · ひゃく · まん)가, 시각은 분(ふん · ぷん)이 제일 헷갈려요.
+          금액은 자릿수(せん · ひゃく · まん)가, 시각은 분(ふん · ぷん)이, 날짜는 1~10일과 20일(ついたち · ふつか · はつか)이 제일 헷갈려요.
         </div>
       </div>
 

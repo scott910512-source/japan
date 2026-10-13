@@ -9,6 +9,7 @@
 import {
   numberKana, numberKanji, minuteKana, hourKana, timeSpeech, yenSpeech,
   randomYen, randomTime, yenDistractors, timeDistractors, buildDrill, forgetDrill, DRILL_KINDS, DRILL_ROUND,
+  monthKana, dayKana, dateSpeech, countSpeech, randomDate, dateDistractors, randomCount, countDistractors, COUNTERS,
 } from '../../src/lib/numberDrill.js';
 
 let pass = 0; let fail = 0;
@@ -85,6 +86,44 @@ table('minuteKana', minuteKana, [
   ok('24시간제 정각', c.jp === '二十一時です。' && c.ko === '21시입니다.', `${c.jp} / ${c.ko}`);
 }
 
+console.log('\n[ 날짜 읽기 — 일은 따로 외워야 한다 ]');
+table('monthKana', monthKana, [
+  [1, 'いちがつ'], [2, 'にがつ'], [3, 'さんがつ'], [4, 'しがつ'], [5, 'ごがつ'], [6, 'ろくがつ'], [7, 'しちがつ'],
+  [8, 'はちがつ'], [9, 'くがつ'], [10, 'じゅうがつ'], [11, 'じゅういちがつ'], [12, 'じゅうにがつ'],
+]);
+table('dayKana', dayKana, [
+  [1, 'ついたち'], [2, 'ふつか'], [3, 'みっか'], [4, 'よっか'], [5, 'いつか'], [6, 'むいか'], [7, 'なのか'], [8, 'ようか'],
+  [9, 'ここのか'], [10, 'とおか'], [11, 'じゅういちにち'], [12, 'じゅうににち'], [13, 'じゅうさんにち'], [14, 'じゅうよっか'],
+  [15, 'じゅうごにち'], [16, 'じゅうろくにち'], [17, 'じゅうしちにち'], [18, 'じゅうはちにち'], [19, 'じゅうくにち'],
+  [20, 'はつか'], [21, 'にじゅういちにち'], [22, 'にじゅうににち'], [23, 'にじゅうさんにち'], [24, 'にじゅうよっか'],
+  [25, 'にじゅうごにち'], [26, 'にじゅうろくにち'], [27, 'にじゅうしちにち'], [28, 'にじゅうはちにち'], [29, 'にじゅうくにち'],
+  [30, 'さんじゅうにち'], [31, 'さんじゅういちにち'],
+]);
+ok('범위 밖의 월·일은 빈 문자열', monthKana(0) === '' && monthKana(13) === '' && dayKana(0) === '' && dayKana(32) === '');
+{
+  const a = dateSpeech(10, 3);
+  ok('날짜 문장 — 十月三日', a.jp === '十月三日です。' && a.kana === 'じゅうがつみっかです。' && a.ko === '10월 3일입니다.', `${a.jp} / ${a.kana}`);
+  const b = dateSpeech(4, 20);
+  ok('날짜 문장 — 四月二十日(はつか)', b.jp === '四月二十日です。' && b.kana === 'しがつはつかです。', `${b.jp} / ${b.kana}`);
+  const c = dateSpeech(12, 31);
+  ok('날짜 문장 — 十二月三十一日', c.jp === '十二月三十一日です。' && c.kana === 'じゅうにがつさんじゅういちにちです。');
+}
+
+console.log('\n[ 사람 · 개수 · 층 ]');
+table('countSpeech (읽기)', (c, n) => countSpeech(c, n).kana, [
+  [['people', 1], 'ひとりです。'], [['people', 2], 'ふたりです。'], [['people', 3], 'さんにんです。'], [['people', 4], 'よにんです。'],
+  [['people', 7], 'ななにんです。'], [['people', 10], 'じゅうにんです。'],
+  [['things', 1], 'ひとつです。'], [['things', 3], 'みっつです。'], [['things', 4], 'よっつです。'], [['things', 6], 'むっつです。'],
+  [['things', 8], 'やっつです。'], [['things', 9], 'ここのつです。'], [['things', 10], 'とおです。'],
+  [['floor', 1], 'いっかいです。'], [['floor', 3], 'さんがいです。'], [['floor', 4], 'よんかいです。'], [['floor', 6], 'ろっかいです。'],
+  [['floor', 8], 'はっかいです。'], [['floor', 10], 'じゅっかいです。'],
+]);
+table('countSpeech (한자·뜻)', (c, n) => { const x = countSpeech(c, n); return `${x.jp}|${x.ko}`; }, [
+  [['people', 2], '二人です。|2명입니다.'], [['things', 5], '五つです。|5개입니다.'], [['things', 10], '十です。|10개입니다.'],
+  [['floor', 3], '三階です。|3층입니다.'], [['floor', 10], '十階です。|10층입니다.'],
+]);
+ok('범위 밖·없는 세는 말은 null', countSpeech('people', 0) === null && countSpeech('people', 11) === null && countSpeech('nope', 1) === null && COUNTERS.length === 3);
+
 console.log('\n[ 무작위로 만든 값 ]');
 {
   let seed = 3;
@@ -118,14 +157,33 @@ console.log('\n[ 무작위로 만든 값 ]');
   ok('★ 시각 방해 보기는 늘 둘 · 서로 다르고 · 정답이 아니다 ★', tBad === 0, tBad ? sample : '이상 없음');
 }
 
+{
+  let seed = 21;
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  let dBad = 0; let cBad = 0; let sample = null;
+  for (let i = 0; i < 4000; i++) {
+    const t = randomDate(rnd);
+    const d = dateDistractors(t, rnd);
+    const keys = new Set([`${t.m}-${t.d}`, ...d.map((x) => `${x.m}-${x.d}`)]);
+    const maxD = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][t.m];
+    if (t.d < 1 || t.d > maxD || d.length !== 2 || keys.size !== 3 || d.some((x) => x.d < 1 || x.d > [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][x.m])) { dBad++; sample = sample || JSON.stringify([t, d]); }
+    const c = randomCount(rnd);
+    const cd = countDistractors(c, rnd);
+    const ck = new Set([`${c.counter}${c.n}`, ...cd.map((x) => `${x.counter}${x.n}`)]);
+    if (cd.length !== 2 || ck.size !== 3) cBad++;
+  }
+  ok('★ 날짜 방해 보기는 늘 둘 · 서로 다르고 · 그 달에 있는 날이다 ★', dBad === 0, dBad ? sample : '이상 없음');
+  ok('★ 세는 말 방해 보기는 늘 둘 · 서로 다르다 ★', cBad === 0, `이상 ${cBad}`);
+}
+
 console.log('\n[ 한 판 ]');
 {
   let seed = 9;
   const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
-  ok('종류 셋 — 금액 · 시각 · 섞어서', DRILL_KINDS.map((k) => k.id).join() === 'yen,time,mix');
+  ok('종류 다섯 — 금액 · 시각 · 날짜 · 인원·층 · 섞어서', DRILL_KINDS.map((k) => k.id).join() === 'yen,time,date,count,mix');
   ok('한 판은 열 문제', DRILL_ROUND === 10 && buildDrill('mix', rnd).length === 10);
   let bad = 0; let hanged = 0; let kanaBad = 0; const ids = [];
-  for (const kind of ['yen', 'time', 'mix']) for (let i = 0; i < 400; i++) {
+  for (const kind of ['yen', 'time', 'date', 'count', 'mix']) for (let i = 0; i < 300; i++) {
     const round = buildDrill(kind, rnd);
     if (round.length !== DRILL_ROUND) { bad++; continue; }
     const keys = new Set(round.map((e) => e.item.id));
@@ -138,10 +196,12 @@ console.log('\n[ 한 판 ]');
       if (/[0-9]/.test(e.item.jp)) hanged++;                                          // 일본어 쪽은 한자 숫자
       if (kind === 'yen' && !e.item.id.startsWith('nd:yen:')) bad++;
       if (kind === 'time' && !e.item.id.startsWith('nd:time:')) bad++;
+      if (kind === 'date' && !e.item.id.startsWith('nd:date:')) bad++;
+      if (kind === 'count' && !e.item.id.startsWith('nd:count:')) bad++;
       ids.push(e.item.id);
     }
   }
-  ok('★ 1,200판의 모든 문제가 규칙을 지킨다 (열 문제 · 보기 셋 · 답 포함 · 숫자 서로 다름) ★', bad === 0, `이상 ${bad}`);
+  ok('★ 1,500판의 모든 문제가 규칙을 지킨다 (열 문제 · 보기 셋 · 답 포함 · 뜻 서로 다름) ★', bad === 0, `이상 ${bad}`);
   ok('읽기는 전부 가나뿐', kanaBad === 0, `이상 ${kanaBad}`);
   ok('일본어 쪽에 아라비아 숫자가 없다', hanged === 0, `이상 ${hanged}`);
   {
@@ -150,7 +210,7 @@ console.log('\n[ 한 판 ]');
     const fifty = [];
     for (let i = 0; i < 50; i++) for (const e of buildDrill('yen', rnd)) fifty.push(e.item.id);
     ok('쉰 판 연달아 — 금액 오백 문제 중 같은 값이 거의 없다', new Set(fifty).size >= 470, `${new Set(fifty).size} / ${fifty.length}`);
-    ok('값의 가짓수가 충분하다 (1,200판)', new Set(ids).size > 2000, `${new Set(ids).size} / ${ids.length}`);
+    ok('값의 가짓수가 충분하다 (1,500판)', new Set(ids).size > 2000, `${new Set(ids).size} / ${ids.length}`);
   }
   const mix = buildDrill('mix', () => 0.3);
   ok('같은 난수라도 무한 반복에 안 걸린다', Array.isArray(mix));
