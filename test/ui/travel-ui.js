@@ -156,6 +156,18 @@ async function solve(page, { wrongFirst = false } = {}) {
   ok('★ 범위가 「여행 일본어」로 되어 있다 ★', await page.locator('.ls-scope.active').getAttribute('data-scope') === 'tour');
   const cnt = Number((await page.locator('.ls-scope[data-scope="tour"] .pk-count').innerText()).replace(/\D/g, ''));
   ok('줄 수가 자료와 같다', cnt === TRAVEL_ITEMS.length, `${cnt}`);
+  /* 직원 말만 — 같은 자료에서 직원 줄만 */
+  const staffN = TRAVEL_ITEMS.filter((it) => it.who === 'staff').length;
+  const staffPill = page.locator('.ls-scope[data-scope="tourstaff"]');
+  ok('「직원 말만」 버튼이 「여행 일본어」 바로 옆에 있다', await staffPill.count() === 1
+    && (await page.locator('.ls-scope').evaluateAll((els) => els.map((e) => e.dataset.scope))).join().includes('tour,tourstaff'));
+  const staffCnt = Number((await staffPill.locator('.pk-count').innerText()).replace(/\D/g, ''));
+  ok('★ 직원 말만의 줄 수 = 자료의 직원 줄 수 ★', staffCnt === staffN && staffCnt < cnt, `${staffCnt} / ${cnt}`);
+  await staffPill.click();
+  await page.waitForTimeout(300);
+  ok('누르면 그 범위가 켜진다', await page.locator('.ls-scope.active').getAttribute('data-scope') === 'tourstaff');
+  await page.locator('.ls-scope[data-scope="tour"]').click();
+  await page.waitForTimeout(300);
   await page.locator('.ls-go').click();
   await page.waitForTimeout(400);
   await page.locator('.ls-ask .submit-btn').click();

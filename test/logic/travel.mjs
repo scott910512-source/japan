@@ -30,8 +30,8 @@ console.log('\n[ 자료 ]');
 {
   ok('단원 아홉 — 공항 · 이동 · 호텔 · 온천 · 식당 · 가게 · 관광지 · 곤란할 때 · 숫자 듣기',
     TRAVEL_UNITS.map((u) => u.id).join() === 'air,move,hotel,onsen,food,shop,sight,help,num', TRAVEL_UNITS.map((u) => u.id).join());
-  ok('레슨 서른', TRAVEL_LESSONS.length === 30, `${TRAVEL_LESSONS.length}`);
-  ok('줄 300개 넘게', TRAVEL_ITEMS.length >= 300, `${TRAVEL_ITEMS.length}`);
+  ok('레슨 서른다섯', TRAVEL_LESSONS.length === 35, `${TRAVEL_LESSONS.length}`);
+  ok('줄 350개 넘게', TRAVEL_ITEMS.length >= 350, `${TRAVEL_ITEMS.length}`);
   const ids = TRAVEL_ITEMS.map((it) => it.id);
   ok('id가 겹치지 않는다', new Set(ids).size === ids.length);
   ok('전부 tr- 로 시작 — 단어장·상황 문장 id와 안 섞인다', ids.every((id) => id.startsWith('tr-')));
@@ -48,7 +48,7 @@ console.log('\n[ 자료 ]');
     return its.some((it) => it.who === 'staff') && its.some((it) => it.who === 'me');
   }));
   ok('레슨마다 여덟 줄 넘게', TRAVEL_LESSONS.every((l) => itemsOfLesson(l.id).length >= 8));
-  ok('찾기 — 레슨·단원', lessonById('hotel-2')?.unitTitle === '호텔' && unitById('food')?.lessons.length === 5 && unitById('onsen')?.lessons.length === 2 && unitById('help')?.lessons.length === 4 && unitById('num')?.lessons.length === 3 && unitById('sight')?.lessons.length === 1 && itemsOfUnit('air').length >= 30);
+  ok('찾기 — 레슨·단원', lessonById('hotel-2')?.unitTitle === '호텔' && unitById('food')?.lessons.length === 6 && unitById('move')?.lessons.length === 6 && unitById('air')?.lessons.length === 5 && unitById('shop')?.lessons.length === 4 && unitById('hotel')?.lessons.length === 4 && unitById('onsen')?.lessons.length === 2 && unitById('help')?.lessons.length === 4 && unitById('num')?.lessons.length === 3 && unitById('sight')?.lessons.length === 1 && itemsOfUnit('air').length >= 30);
   ok('「한 번 더 부탁합니다」가 들어 있다 — 제일 중요한 한 줄', TRAVEL_ITEMS.some((it) => it.jp === 'もう一度お願いします。'));
 }
 
@@ -85,7 +85,11 @@ console.log('\n[ 진도 ]');
   const r2 = recordLesson(r1, 'hotel-1', { mistakes: 5, total: 10, wrongIds: ['tr-ht-004'], now: 2 });
   ok('다시 하면 별은 제일 좋았던 것, XP는 쌓인다', r2.lessons['hotel-1'].stars === 3 && r2.lessons['hotel-1'].last === 1 && r2.xp === 25);
   ok('틀린 줄은 약점 주머니에', r2.weak.includes('tr-ht-004'));
-  ok('깨진 진도도 읽는다', normalizeProgress({ lessons: 'x', xp: 'y', weak: [1, 'a'] }).weak.join() === 'a');
+  ok('깨진 진도도 읽는다', normalizeProgress({ lessons: 'x', xp: 'y', weak: [1, 'tr-ht-004'] }).weak.join() === 'tr-ht-004');
+  ok('★ 자료에 없는 옛 id는 약점에서 걸러진다 — 안 그러면 「다시」 버튼이 영원히 남는다 ★',
+    normalizeProgress({ weak: ['gone-1', 'tr-air-001', 'nd:yen:300'] }).weak.join() === 'tr-air-001');
+  ok('숫자 훈련 기록이 없는 옛 진도도 읽는다', normalizeProgress({ lessons: {}, xp: 5, weak: [] }).drill.rounds === 0
+    && normalizeProgress(null).drill.perfect === 0);
 }
 
 console.log('\n[ 약점 줄 다시 ]');
@@ -102,12 +106,13 @@ console.log('\n[ 약점 줄 다시 ]');
   ok(`한 번에 ${WEAK_RUN}줄까지`, many.length === WEAK_RUN);
   ok('비었으면 빈손', buildWeakExercises([], rnd).length === 0 && buildWeakExercises(null, rnd).length === 0);
 
-  const p = { lessons: { 'hotel-1': { stars: 2, tries: 1 } }, xp: 10, weak: ['a', 'b', 'c'] };
-  const s1 = settleWeak(p, ['a', 'b', 'c'], ['b']);
-  ok('★ 한 번도 안 틀린 줄만 빠진다 ★', s1.weak.join() === 'b' && s1.cleared === 2);
+  const A = 'tr-ht-004'; const B = 'tr-ht-003'; const C = 'tr-air-001';
+  const p = { lessons: { 'hotel-1': { stars: 2, tries: 1 } }, xp: 10, weak: [A, B, C] };
+  const s1 = settleWeak(p, [A, B, C], [B]);
+  ok('★ 한 번도 안 틀린 줄만 빠진다 ★', s1.weak.join() === B && s1.cleared === 2);
   ok('레슨 기록·XP는 그대로', s1.lessons['hotel-1'].stars === 2 && s1.xp === 10);
-  ok('이번에 안 푼 줄은 남는다', settleWeak(p, ['a'], []).weak.join() === 'b,c');
-  ok('깨진 진도도 읽는다', settleWeak(null, ['a'], []).weak.length === 0);
+  ok('이번에 안 푼 줄은 남는다', settleWeak(p, [A], []).weak.join() === `${B},${C}`);
+  ok('깨진 진도도 읽는다', settleWeak(null, [A], []).weak.length === 0);
 }
 
 console.log('\n[ 자동 듣기 · 메뉴 · 설정 ]');
@@ -123,6 +128,22 @@ console.log('\n[ 자동 듣기 · 메뉴 · 설정 ]');
   const first = pickListen(pool, {}, { scope: 'tour', count: 20, today, tour: pool, order: 'block', blocks: [0] });
   ok('1구간은 공항 첫 스무 줄', first.length === 20 && first[0].id === 'tr-air-001');
   ok('★ 큐가 카드로 풀린다 ★', cardsForQueue(first, [], [], cards).length === 20);
+  {
+    /* 직원 말만 — 내가 할 말은 빼고 알아듣는 쪽만 */
+    ok('범위에 「직원 말만」이 「여행 일본어」 바로 뒤에 있다', SCOPES.findIndex((x) => x.id === 'tourstaff') === SCOPES.findIndex((x) => x.id === 'tour') + 1);
+    const staffCards = cards.filter((c) => c.who === 'staff');
+    const staffPool = staffCards.map((c) => ({ id: c.id, kind: 'sentence' }));
+    ok('직원 줄이 전체의 절반 넘게', staffCards.length > cards.length / 2 && staffCards.length < cards.length, `${staffCards.length} / ${cards.length}`);
+    const cnt = scopeCounts(pool, {}, { today, tour: pool, tourStaff: staffPool });
+    ok('★ 범위 수 — 직원 말만은 직원 줄 수, 여행 일본어는 전체 ★', cnt.tourstaff === staffCards.length && cnt.tour === cards.length, `${cnt.tourstaff} / ${cnt.tour}`);
+    ok('목록을 안 주면 빈손', scopeCounts(pool, {}, { today, tour: pool }).tourstaff === 0);
+    const staffIds = new Set(staffCards.map((c) => c.id));
+    const all = pickListen(pool, {}, { scope: 'tourstaff', count: 500, today, tour: pool, tourStaff: staffPool, order: 'block', blocks: [0] });
+    ok('★ 뽑힌 줄이 전부 직원 줄이다 — 내 줄이 하나도 안 섞인다 ★', all.length > 0 && all.every((x) => staffIds.has(x.id)), `${all.length}줄`);
+    const first = pickListen(pool, {}, { scope: 'tourstaff', count: 20, today, tour: pool, tourStaff: staffPool, order: 'block', blocks: [0] });
+    ok('차례는 자료 차례 — 첫 줄은 공항 첫 직원 줄', first[0].id === 'tr-air-001');
+    ok('큐가 카드로 풀린다', cardsForQueue(first, [], [], cards).length === first.length);
+  }
   ok('학습 메뉴에 「여행 일본어」', MENUS.some((m) => m.id === 'travel' && m.group === 'content'));
   ok('기본 설정에서 켜져 있다', DEFAULT_SETTINGS.menus.travel === true);
 }
