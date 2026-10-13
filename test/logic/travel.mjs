@@ -28,10 +28,10 @@ const HANGUL = /[가-힣]/;
 
 console.log('\n[ 자료 ]');
 {
-  ok('단원 일곱 — 공항 · 이동 · 호텔 · 온천 · 식당 · 가게 · 곤란할 때',
-    TRAVEL_UNITS.map((u) => u.id).join() === 'air,move,hotel,onsen,food,shop,help', TRAVEL_UNITS.map((u) => u.id).join());
-  ok('레슨 스물다섯', TRAVEL_LESSONS.length === 25, `${TRAVEL_LESSONS.length}`);
-  ok('줄 250개 넘게', TRAVEL_ITEMS.length >= 250, `${TRAVEL_ITEMS.length}`);
+  ok('단원 아홉 — 공항 · 이동 · 호텔 · 온천 · 식당 · 가게 · 관광지 · 곤란할 때 · 숫자 듣기',
+    TRAVEL_UNITS.map((u) => u.id).join() === 'air,move,hotel,onsen,food,shop,sight,help,num', TRAVEL_UNITS.map((u) => u.id).join());
+  ok('레슨 서른', TRAVEL_LESSONS.length === 30, `${TRAVEL_LESSONS.length}`);
+  ok('줄 300개 넘게', TRAVEL_ITEMS.length >= 300, `${TRAVEL_ITEMS.length}`);
   const ids = TRAVEL_ITEMS.map((it) => it.id);
   ok('id가 겹치지 않는다', new Set(ids).size === ids.length);
   ok('전부 tr- 로 시작 — 단어장·상황 문장 id와 안 섞인다', ids.every((id) => id.startsWith('tr-')));
@@ -48,7 +48,7 @@ console.log('\n[ 자료 ]');
     return its.some((it) => it.who === 'staff') && its.some((it) => it.who === 'me');
   }));
   ok('레슨마다 여덟 줄 넘게', TRAVEL_LESSONS.every((l) => itemsOfLesson(l.id).length >= 8));
-  ok('찾기 — 레슨·단원', lessonById('hotel-2')?.unitTitle === '호텔' && unitById('food')?.lessons.length === 5 && unitById('onsen')?.lessons.length === 2 && itemsOfUnit('air').length >= 30);
+  ok('찾기 — 레슨·단원', lessonById('hotel-2')?.unitTitle === '호텔' && unitById('food')?.lessons.length === 5 && unitById('onsen')?.lessons.length === 2 && unitById('help')?.lessons.length === 4 && unitById('num')?.lessons.length === 3 && unitById('sight')?.lessons.length === 1 && itemsOfUnit('air').length >= 30);
   ok('「한 번 더 부탁합니다」가 들어 있다 — 제일 중요한 한 줄', TRAVEL_ITEMS.some((it) => it.jp === 'もう一度お願いします。'));
 }
 
@@ -114,7 +114,7 @@ console.log('\n[ 자동 듣기 · 메뉴 · 설정 ]');
 {
   const cards = travelListenCards();
   ok('코스 전체가 문장 카드로 — kanji·kana·mean', cards.length === TRAVEL_ITEMS.length && cards.every((c) => c.kanji && c.kana && c.mean && c.kind === 'sentence'));
-  ok('차례는 자료 차례 — 공항이 먼저', cards[0].unitId === 'air' && cards[cards.length - 1].unitId === 'help');
+  ok('차례는 자료 차례 — 공항이 먼저', cards[0].unitId === 'air' && cards[cards.length - 1].unitId === 'num');
   ok('범위에 「여행 일본어」가 있다', SCOPES.some((s) => s.id === 'tour'));
   const pool = cards.map((c) => ({ id: c.id, kind: 'sentence' }));
   const today = '2026-10-09';

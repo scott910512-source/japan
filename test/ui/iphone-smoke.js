@@ -21,7 +21,7 @@
  * 그래서 이것은 smoke 검사다. 「깨진 데 없이 한 바퀴 돌아간다」까지만 본다. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, openListen, openMenu, openReview } from './_nav.js';
+import { goTab, openListen, openMenu, openMore, openReview } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -143,6 +143,15 @@ const boot = async (page) => {
   await walk('복습');
   await goTab(page, '내 학습'); await page.waitForTimeout(700);
   await walk('내 학습');
+
+  /* ★ 설정 안의 입력칸까지 ★ 감사에서 키·모델 칸이 21~40px로 잡혔다. 제일 자주
+     틀리는 자리라 제일 눌리기 어려웠다. 버튼만 보던 검사가 입력칸도 같이 본다. */
+  for (const [g, name] of [['voice', '설정 · 음성'], ['account', '설정 · 계정'], ['tools', '설정 · 학습 도구']]) {
+    await openMore(page, g);
+    await page.waitForTimeout(500);
+    await walk(name);
+  }
+  await goTab(page, '내 학습'); await page.waitForTimeout(500);
 
   console.log('\n[ 탭바가 손가락에 맞나 ]');
   {

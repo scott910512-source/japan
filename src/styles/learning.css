@@ -175,15 +175,17 @@
 .setrow input[type='range'] { width: 100%; accent-color: var(--kon); height: 32px; }
 
 /* 키를 넣는 칸들. 스타일이 없어서 브라우저 기본값(21px)으로 나왔었다 —
-   제일 자주 틀리는 자리인데 제일 눌리기 어려웠다. .field input과 맞춘다. */
-.setrow input[type='text'], .setrow input[type='password'] {
-  width: 100%; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line);
+   제일 자주 틀리는 자리인데 제일 눌리기 어려웠다. .field input과 맞춘다.
+   type을 안 적은 칸(모델 이름)도 같은 모양이어야 해서 :not([type])까지 건다.
+   높이는 손가락만큼(44px) — 감사에서 38~40px로 잡혔다. */
+.setrow input[type='text'], .setrow input[type='password'], .setrow input:not([type]) {
+  width: 100%; min-height: 44px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line);
   background: var(--surface); font-size: 14px; color: var(--ink); -webkit-text-fill-color: var(--ink);
 }
-.setrow input[type='text']::placeholder, .setrow input[type='password']::placeholder {
+.setrow input[type='text']::placeholder, .setrow input[type='password']::placeholder, .setrow input:not([type])::placeholder {
   color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); opacity: 1;
 }
-.setrow input[type='text']:focus, .setrow input[type='password']:focus {
+.setrow input[type='text']:focus, .setrow input[type='password']:focus, .setrow input:not([type]):focus {
   outline: none; border-color: var(--kon); box-shadow: 0 0 0 3px var(--kon-soft);
 }
 
