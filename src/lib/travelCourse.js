@@ -14,6 +14,9 @@ export { starsFor };
 export const XP_PER_LESSON = 10;
 export const XP_PERFECT_BONUS = 5;
 const WEAK_CAP = 60;
+/* 지금 자료에 있는 줄 id — 자료가 바뀐 뒤 저장소에 남은 옛 id는 약점에서 걸러 낸다.
+   안 걸러 내면 「틀린 1줄 다시」 버튼이 눌러도 문제가 없는데 영원히 남는다 */
+const ITEM_IDS = new Set(TRAVEL_ITEMS.map((it) => it.id));
 const MIN_EXERCISES = 8;
 
 function shuffle(list, rnd) {
@@ -102,7 +105,7 @@ export function normalizeProgress(p) {
   return {
     lessons: src.lessons && typeof src.lessons === 'object' ? src.lessons : {},
     xp: Number(src.xp) || 0,
-    weak: Array.isArray(src.weak) ? src.weak.filter((x) => typeof x === 'string') : [],
+    weak: Array.isArray(src.weak) ? src.weak.filter((x) => typeof x === 'string' && ITEM_IDS.has(x)) : [],
     /* 숫자 훈련 — 몇 판 풀었고 몇 판을 하나도 안 틀렸나. 레슨 기록과 따로 센다 */
     drill: {
       rounds: Math.max(0, Math.floor(Number(src.drill?.rounds) || 0)),

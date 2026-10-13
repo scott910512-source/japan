@@ -19,16 +19,17 @@ const ok = (l, c, e) => {
   if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); }
 };
 
-async function boot(browser) {
+async function boot(browser, seed = null) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(() => {
+  await page.evaluate((seedData) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     s.onboarded = true; s.autoTTS = false;
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
     localStorage.removeItem('jp_manabu_travel_v1');
-  });
+    if (seedData) localStorage.setItem('jp_manabu_travel_v1', JSON.stringify(seedData));
+  }, seed);
   await page.waitForTimeout(1000);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
@@ -165,6 +166,55 @@ async function playRound(page, { wrongAt = -1, peekAt = -1 } = {}) {
   ok('만점 판으로 적힌다', st.drill.rounds === 5 && st.drill.perfect === 4, JSON.stringify(st.drill));
   await page.locator('.swl-done').click();
   await page.waitForTimeout(300);
+
+  console.log('\n[ 틀린 줄 다시 — 앞 판은 「한 번 더」 전에 정산된다 ]');
+  {
+    const A = 'tr-ht-004'; const B = 'tr-ht-003';
+    const p2 = await boot(browser, { lessons: {}, xp: 0, weak: [A, B, 'gone-1'], drill: { rounds: 0, perfect: 0 } });
+    p2.on('pageerror', (e) => errors.push(e.message));
+    await openMenu(p2, '여행 일본어');
+    ok('★ 자료에 없는 옛 id(gone-1)는 세지 않는다 — 「2줄」 ★', (await p2.locator('.tr-weak').innerText()).includes('2줄'), await p2.locator('.tr-weak').innerText());
+    await p2.locator('.tr-weak').click();
+    await p2.waitForTimeout(500);
+    /* 두 문제: A는 바로 맞히고, B는 일부러 한 번 틀린다 */
+    const seen = [];
+    let wrongB = false;
+    for (let i = 0; i < 8; i++) {
+      if (await p2.locator('.swl-finish').count()) break;
+      const id = await p2.locator('.swl-prompt').getAttribute('data-item');
+      seen.push(id);
+      let pickId = id;
+      if (id === B && !wrongB) {
+        const opts = p2.locator('.swl-opts .qopt');
+        for (let k = 0; k < await opts.count(); k++) {
+          const oid = await opts.nth(k).getAttribute('data-id');
+          if (oid !== id) { pickId = oid; wrongB = true; break; }
+        }
+      }
+      await p2.locator(`.swl-opts .qopt[data-id="${pickId}"]`).click();
+      await p2.locator('.swl-check').click();
+      await p2.waitForTimeout(120);
+      await p2.locator('.swl-next').click();
+      await p2.waitForTimeout(120);
+    }
+    ok('문제는 약점 두 줄 + 틀린 한 줄의 다시 — 셋', seen.length === 3 && new Set(seen).size === 2, seen.join(' '));
+    const mid = await saved(p2);
+    ok('★ 판이 끝나는 순간 정산된다 — 한 번도 안 틀린 A만 빠지고 B는 남는다 ★', mid.weak.join() === B, JSON.stringify(mid.weak));
+    await p2.locator('.swl-finish .ghost-btn').click();
+    await p2.waitForTimeout(500);
+    ok('★ 「한 번 더」는 남은 약점(B)만으로 새 판이 된다 ★', await p2.locator('.swl-prompt').getAttribute('data-item') === B && (await p2.locator('.swl-count').innerText()).includes('1 / 1'), await p2.locator('.swl-count').innerText());
+    await p2.locator(`.swl-opts .qopt[data-id="${B}"]`).click();
+    await p2.locator('.swl-check').click();
+    await p2.waitForTimeout(120);
+    await p2.locator('.swl-next').click();
+    await p2.waitForTimeout(300);
+    const end = await saved(p2);
+    ok('둘째 판에서 맞히면 약점이 비고 버튼도 사라진다', end.weak.length === 0);
+    await p2.locator('.swl-finish .ghost-btn').click();
+    await p2.waitForTimeout(500);
+    ok('약점이 비었으면 「한 번 더」는 문제를 안 내고 허브로 나간다', await p2.locator('.swl-finish').count() === 0 && await p2.locator('.tr-weak').count() === 0 && await p2.locator('.tr-drill').count() === 1);
+    await p2.close();
+  }
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();

@@ -54,7 +54,7 @@ export default function TravelCourse({ settings, onToast, onListen }) {
       const rec = recordDrill(progress, result);
       setProgress(progressToSave(rec));
       saveTravel(progressToSave(rec));
-      onToast?.(`${result.total - result.mistakes}/${result.total} 맞음 · +${rec.gained} XP`);
+      onToast?.(`${Math.max(0, result.total - result.wrongIds.length)}/${result.total} 한 번에 맞음 · +${rec.gained} XP`);
       return;
     }
     if (view === 'weak') {

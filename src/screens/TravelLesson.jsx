@@ -37,8 +37,9 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
   /* 「글자 보기」 — 소리가 안 나는 기기(일본어 음성이 없거나 소리를 못 켠 자리)에서도 풀리게 한다.
      글자를 본 문제는 틀린 게 아니라서 점수는 그대로고, 대신 뒤에 한 번 더 나와서 귀로 다시 듣는다. */
   const [peek, setPeek] = useState(false);
-  /* 숫자 훈련은 판이 끝나는 순간 한 번 기록한다 — 「한 번 더」로 이어 풀어도, 중간에 나가도
-     판 수와 XP가 안 사라진다. 레슨은 예전대로 「완료」를 눌러야 적힌다. */
+  /* ★ 한 판이 끝나는 순간 한 번 기록한다 ★ — 레슨·약점·숫자 훈련 모두.
+     「한 번 더」로 이어 풀어도, 「완료」를 안 누르고 나가도 앞 판이 안 사라진다
+     (약점 연습에서 앞 판에 푼 줄이 주머니에 남아 있던 문제). */
   const recorded = useRef(false);
 
   const ex = queue[at];
@@ -53,7 +54,7 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
   useEffect(() => { if (done && !finished) setFinished(true); }, [done, finished]);
 
   useEffect(() => {
-    if (!finished || mode !== 'drill' || recorded.current) return;
+    if (!finished || recorded.current) return;
     recorded.current = true;
     onDone({ mistakes, total, wrongIds: [...wrongIds.current], practiced: [...new Set(practiced.current)] });
   }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -79,10 +80,7 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
             setQueue(again); setAt(0); setMistakes(0); wrongIds.current = new Set();
             setPick(null); setChecked(null); setFinished(false);
           }}>한 번 더</button>
-          <button className="submit-btn swl-done" onClick={() => {
-            if (mode !== 'drill') onDone({ mistakes, total, wrongIds: [...wrongIds.current], practiced: [...new Set(practiced.current)] });
-            onQuit();
-          }}>{mode === 'drill' ? '그만' : '완료'}</button>
+          <button className="submit-btn swl-done" onClick={onQuit}>{mode === 'drill' ? '그만' : '완료'}</button>
         </div>
       </div>
     );
@@ -104,7 +102,7 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
     }
   };
   const next = () => { setPick(null); setChecked(null); setPeek(false); setAt((n) => n + 1); };
-  const pct = Math.min(100, Math.round((Math.min(at, total) / total) * 100));
+  const pct = Math.min(100, Math.round((Math.min(at, queue.length) / Math.max(1, queue.length)) * 100));
   const staff = ex.item.who === 'staff';
 
   return (

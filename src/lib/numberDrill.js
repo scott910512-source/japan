@@ -62,7 +62,10 @@ export function numberKanji(n) {
 const comma = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 export function yenSpeech(n, tail = 'です') {
-  return { jp: `${numberKanji(n)}円${tail}。`, kana: `${numberKana(n)}えん${tail}。` };
+  /* 일의 자리가 4인 금액은 「よん」이 아니라 「よ」+円 — 4円 よえん · 14円 じゅうよえん · 1204円 せんにひゃくよえん.
+     (40円·400円처럼 4가 뒤에 오는 것은 그대로 よんじゅう · よんひゃく) */
+  const kana = n % 10 === 4 ? numberKana(n).replace(/よん$/, 'よ') : numberKana(n);
+  return { jp: `${numberKanji(n)}円${tail}。`, kana: `${kana}えん${tail}。` };
 }
 
 /* ── 시각 ── */
