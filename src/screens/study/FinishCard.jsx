@@ -35,10 +35,10 @@ export default function FinishCard({ finished, deck, settings, onClose, onHome, 
             <button className="submit-btn" onClick={onNext}>
               다음: {deck.next.label}
             </button>
-            <button className="ghost-btn" onClick={onHome || onClose}>홈으로</button>
+            <button className="ghost-btn" onClick={onHome || onClose}>오늘로</button>
           </>
         ) : (
-          <button className="submit-btn" onClick={onHome || onClose}>홈으로</button>
+          <button className="submit-btn" onClick={onHome || onClose}>오늘로</button>
         )}
         {onUndo && (
           <button className="ghost-btn" onClick={onUndo}>↩ 마지막 판정 되돌리기</button>

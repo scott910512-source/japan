@@ -52,41 +52,73 @@ async function boot(browser, settings = {}) {
   const page = await boot(browser);
   page.on('pageerror', (e) => errors.push(e.message));
 
-  console.log('\n[ 네 묶음으로 갈렸다 — JLPT N3 · 콘텐츠 · 연습 · 그 밖에 ]');
+  console.log('\n[ 세 영역으로 갈렸다 — 추천 경로 · 원하는 것 골라 학습 · 자료 더 보기 ]');
   await goTab(page, '학습');
   const labels = await page.locator('.menugroup .mg-label').allTextContents();
-  ok('묶음이 넷', await page.locator('.menugroup').count() === 4,
+  ok('묶음이 셋', await page.locator('.menugroup').count() === 3,
     labels.map((t) => t.split('\n')[0]).join(' / '));
-  /* 목표(코스)가 먼저, 그다음 무엇을(콘텐츠), 어떻게 굴릴지(연습), 곁가지 */
-  ok('JLPT N3가 먼저', labels[0].includes('JLPT N3'));
-  ok('그다음 콘텐츠', labels[1].includes('콘텐츠'));
-  ok('그다음 연습', labels[2].includes('연습'));
-  ok('마지막이 그 밖에', labels[3].includes('그 밖에'));
+  /* 목표(코스)가 먼저, 그다음 무엇을(골라 학습), 곁가지(자료 더 보기) */
+  ok('추천 경로가 먼저', labels[0].includes('추천 경로'));
+  ok('그다음 원하는 것 골라 학습', labels[1].includes('원하는 것 골라 학습'));
+  ok('마지막이 자료 더 보기', labels[2].includes('자료 더 보기'));
   ok('왜 여기 있는지 한 줄로 적힌다',
-    await page.locator('.menugroup .mg-sub').count() === 4,
+    await page.locator('.menugroup .mg-sub').count() === 3,
     (await page.locator('.mg-sub').allTextContents()).join(' / '));
 
   const inGroup = async (n) => (await page.locator('.menugroup').nth(n)
     .locator('.mt-title').allTextContents());
   const course = await inGroup(0);
-  const content = await inGroup(1);
-  const practice = await inGroup(2);
-  const etc = await inGroup(3);
+  const pick = await inGroup(1);
+  const more = await inGroup(2);
   /* 코스는 큰 칸 하나, 그 밑에 기출 단어. 큰 칸이 둘이면 어느 것이 코스인지
      한눈에 안 들어온다 — 기출은 코스로 가는 길 옆의 지름길이다. */
   ok('코스는 하나 크게, 그 밑에 기출 단어', course.join() === '한 권으로 끝내는 N3,기출 단어' && await page.locator('.menugroup').first().locator('.mbig').count() === 1, course.join(','));
-  ok('★ 콘텐츠는 단어 · 문법 · 한자 · 문장 · 여행 일본어 · 듣기 · 영상 ★', content.join() === '단어,문법,한자,문장,여행 일본어,듣기,영상', content.join(','));
-  ok('굴려 보는 것은 연습에',
-    practice.includes('단어 시험') && practice.includes('부사 연습'), practice.join(','));
-  ok('단어와 단어 시험이 서로 다른 묶음에',
-    content.includes('단어') && !content.includes('단어 시험'));
-  ok('그 밖에는 완전기초 · 독일어', etc.join() === '완전기초,독일어', etc.join(','));
+  ok('★ 골라 학습은 단어 · 문법 · 한자 · 문장 · 듣기 · 실전 연습 ★', pick.join() === '단어,문법,한자,문장,듣기,실전 연습', pick.join(','));
+  ok('★ 자료 더 보기는 여행 일본어 · 영상 · 완전기초 · 독일어 ★', more.join() === '여행 일본어,영상,완전기초,독일어', more.join(','));
+  /* 연습은 학습 탭 최상위에 안 선다 */
+  const everything = [...course, ...pick, ...more];
+  ok('★ 시험 · 짝 맞추기 · 부사 연습 · 동사 활용은 학습 탭 칸에 없다 ★',
+    !['단어 시험', '짝 맞추기', '부사 연습', '동사 활용'].some((t) => everything.includes(t)), everything.join(','));
   /* 행동은 학습 탭에 없다 — 회독 학습·약점 복습은 복습 탭이 한다 */
   ok('회독 학습·약점 복습은 학습 탭에 없다',
-    ![...course, ...content, ...practice, ...etc].some((t) => t === '회독 학습' || t === '약점 복습'));
+    !everything.some((t) => t === '회독 학습' || t === '약점 복습'));
   /* 공부가 아닌 것은 학습 탭에 없다 */
-  ok('번역기는 학습 탭에 없다',
-    ![...course, ...content, ...practice, ...etc].includes('번역기'));
+  ok('번역기는 학습 탭에 없다', !everything.includes('번역기'));
+
+  console.log('\n[ 연습은 단어·문법 화면 안으로 ]');
+  await openMenu(page, '단어');
+  ok('단어 화면에 연습 줄: 단어 시험 · 짝 맞추기 · 부사 연습',
+    (await page.locator('.pr-row b').allTextContents()).join() === '단어 시험,짝 맞추기,부사 연습',
+    (await page.locator('.pr-row b').allTextContents()).join());
+  await page.locator('.pr-row[data-menu="quiz"]').click();
+  await page.waitForTimeout(700);
+  ok('★ 연습을 열면 시험 화면 ★', (await page.locator('.sub-title').innerText()).includes('단어 시험'));
+  await page.locator('.subscreen .sub-back').first().click();
+  await page.waitForTimeout(600);
+  ok('★ 뒤로 가면 탭이 아니라 단어 화면으로 돌아온다 ★',
+    await page.locator('.pr-row').count() === 3 && (await page.locator('.sub-title').innerText()).includes('단어'),
+    await page.locator('.sub-title').innerText());
+  await page.locator('.subscreen .sub-back').first().click();
+  await page.waitForTimeout(600);
+  ok('한 번 더 뒤로 가면 학습 탭', await page.locator('.menugroup').count() === 3);
+  /* ★ 기기의 뒤로가기도 한 층씩 ★ 시험 → 단어 → 학습 탭. 앱 밖으로 튕기면 안 된다 */
+  await openMenu(page, '단어');
+  await page.locator('.pr-row[data-menu="match"]').click();
+  await page.waitForTimeout(700);
+  await page.goBack();
+  await page.waitForTimeout(700);
+  ok('★ 기기 뒤로가기: 연습 → 단어 화면 ★',
+    await page.locator('.pr-row').count() === 3 && (await page.locator('.sub-title').innerText()).includes('단어'),
+    page.url());
+  await page.goBack();
+  await page.waitForTimeout(700);
+  ok('★ 한 번 더: 단어 → 학습 탭(앱 안에 머문다) ★',
+    await page.locator('.menugroup').count() === 3 && page.url().includes('localhost'), page.url());
+  await openMenu(page, '문법');
+  ok('문법 화면에 연습 줄: 동사 활용',
+    (await page.locator('.pr-row b').allTextContents()).join() === '동사 활용');
+  await page.locator('.subscreen .sub-back').first().click();
+  await page.waitForTimeout(500);
 
   console.log('\n[ JLPT는 단어암기 안으로 ]');
   /* 따로 둔 메뉴였는데 그건 다른 공부가 아니라 같은 단어를 다른 방식으로
@@ -200,7 +232,7 @@ async function boot(browser, settings = {}) {
   await page.waitForTimeout(600);
   await openMore(page, 'study');   // 학습 메뉴 묶음
   await page.waitForTimeout(700);
-  ok('설정에도 같은 네 묶음이 있다', await page.locator('.setgroup').count() === 4,
+  ok('설정에도 같은 묶음이 있다(학습 탭 셋 + 안에 든 연습)', await page.locator('.setgroup').count() === 4,
     (await page.locator('.sg-label').allTextContents()).join(' / '));
   /* 켜는 칸이 있는데 학습 탭에 없으면 켜도 아무 데도 안 뜨는 유령 칸이 된다 */
   ok('없어진 JLPT 칸은 설정에도 없다',
@@ -227,17 +259,17 @@ async function boot(browser, settings = {}) {
     ok('고치는 중에는 칸마다 별', await page.locator('.mt-star').count() > 5,
       `${await page.locator('.mt-star').count()}개`);
 
-    for (const id of ['listen', 'kiju', 'quiz']) {
+    for (const id of ['listen', 'kiju', 'rpg']) {
       await page.locator(`.menutile[data-menu="${id}"]`).first().click();
       await page.waitForTimeout(250);
     }
     ok('★ 고른 것이 바로가기에 올라온다 ★',
-      (await page.locator('.mfavs .mt-title').allTextContents()).join(' · ') === '듣기 · 기출 단어 · 단어 시험',
+      (await page.locator('.mfavs .mt-title').allTextContents()).join(' · ') === '듣기 · 기출 단어 · 실전 연습',
       (await page.locator('.mfavs .mt-title').allTextContents()).join(' · '));
     ok('기기에 남는다',
       await page.evaluate(() => JSON.stringify(
         JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').favs,
-      )) === '["listen","kiju","quiz"]');
+      )) === '["listen","kiju","rpg"]');
 
     await page.locator('.sh-edit').click();
     await page.waitForTimeout(350);

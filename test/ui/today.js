@@ -458,13 +458,13 @@ async function boot(browser, patch = {}, init = null) {
       ok('못 찾는 카드만 남아도 나갈 길이 있음', await p3.locator('.finish .submit-btn').count() > 0);
       await p3.locator('.finish .submit-btn').click();
       await p3.waitForTimeout(700);
-      ok('홈으로 돌아감', await p3.locator('.tabbar').count() === 1);
+      ok('오늘로 돌아감', await p3.locator('.tabbar').count() === 1);
     }
     ok('그 사이에 안 죽음', errs.length === 0, errs.slice(0, 2).join(' | '));
     await p3.close();
   }
 
-  /* ── 끝내면 축하하고 결과를 보여 주고 홈으로 ── */
+  /* ── 끝내면 축하하고 결과를 보여 주고 오늘로 ── */
   {
     const p4 = await boot(browser, { goals: { fresh: 10, review: 10, weak: 10 } });
     await startStudy(p4);
@@ -502,16 +502,16 @@ async function boot(browser, patch = {}, init = null) {
     /* 「장」과 「번」을 뭉뚱그리면 거짓이 된다 — 몰라요가 섞이면 둘이 다르다 */
     ok('누른 횟수는 「번」으로 적음', fin.includes('번 봤어요'), fin);
     ok('걸린 시간도', /약 \d+분/.test(fin));
-    ok('홈으로 버튼이 있음', await p4.locator('.finish .submit-btn').count() === 1);
+    ok('오늘로 버튼이 있음', await p4.locator('.finish .submit-btn').count() === 1);
     await p4.locator('.finish .submit-btn').click({ timeout: 5000 }).catch(() => {});
     await p4.waitForTimeout(800);
-    ok('눌러서 홈으로 감', await p4.locator('.tdhead').count() === 1);
+    ok('눌러서 오늘로 감', await p4.locator('.tdhead').count() === 1);
     ok('세션이 정리됨', await p4.evaluate(() => localStorage.getItem('jp_manabu_session_v1')) === null);
     await p4.close();
   }
 
   /* ── 한 판이 끝나면 다음으로 이어 준다 ──
-     끝날 때마다 홈으로 돌려보내면 매번 「다음에 뭐 하지」를 다시 정해야 한다.
+     끝날 때마다 오늘로 돌려보내면 매번 「다음에 뭐 하지」를 다시 정해야 한다.
      복습 → 단어 외우기 → 회독 학습이 그날의 순서다. */
   console.log('\n── 끝나면 다음으로 이어 준다');
   {
@@ -543,7 +543,7 @@ async function boot(browser, patch = {}, init = null) {
     const fin5 = await p5.locator('.finish').innerText().catch(() => '');
     ok('복습을 끝내면 새 단어로 이어 준다', fin5.includes('다음: 새 단어'),
       fin5.replace(/\n/g, ' ').slice(0, 90));
-    ok('홈으로 가는 길도 남아 있다', fin5.includes('홈으로'));
+    ok('오늘로 가는 길도 남아 있다', fin5.includes('오늘로'));
 
     await p5.locator('.finish .submit-btn').click({ timeout: 5000 }).catch(() => {});
     await p5.waitForTimeout(1000);

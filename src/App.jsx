@@ -57,7 +57,7 @@ export default function App() {
   const nav = useAppNavigation();
   const {
     activeTab, sub, deck, n3View, listenMode, quizSet, videosSeen,
-    setActiveTab, setSub, setDeck, setQuizSet, selectTab, openListen,
+    setActiveTab, setSub, setDeck, setQuizSet, selectTab, openListen, closeSub,
   } = nav;
 
   const appData = useAppData();
@@ -485,7 +485,7 @@ export default function App() {
       {sub && (
         <div className="subscreen open">
           <div className="sub-header">
-            <button className="sub-back" onClick={() => setSub(null)}><IconArrowLeft /> 뒤로</button>
+            <button className="sub-back" onClick={closeSub}><IconArrowLeft /> 뒤로</button>
             <div className="sub-title">{SUB_TITLES[sub]}</div>
           </div>
           <div className="sub-body">
@@ -554,6 +554,8 @@ export default function App() {
                 customWords={customWords}
                 openListen={openListen}
                 n3View={n3View}
+                /* 단어·문법 화면 안의 「연습」 줄 — 열린 화면을 기억해 뒤로 가면 거기로 돌아온다 */
+                onOpenPractice={(id) => openMenu(id, { from: sub })}
               />
               )}
             </DeferredScreen>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Grammar from './Grammar.jsx';
 import Sentence from './Sentence.jsx';
 import DailyGrammar from './DailyGrammar.jsx';
+import PracticeRows from '../components/PracticeRows.jsx';
 
 /* 문법 — 세 갈래를 한 지붕 아래.
  *
@@ -25,7 +26,7 @@ const TABS = [
 ];
 
 export default function GrammarHub({
-  words, progress, settings, onProgress, onPatternDone, onDailyGrammar, onToast,
+  words, progress, settings, onProgress, onPatternDone, onDailyGrammar, onToast, onOpenPractice,
 }) {
   const [tab, setTab] = useState('cards');
 
@@ -57,6 +58,9 @@ export default function GrammarHub({
       {tab === 'pattern' && (
         <Sentence words={words} progress={progress} onPatternDone={onPatternDone} />
       )}
+
+      {/* 규칙을 익힌 뒤 굴려 보는 연습 — 동사 활용 */}
+      <PracticeRows parent="grammar" menus={settings.menus} onOpen={onOpenPractice} />
     </>
   );
 }

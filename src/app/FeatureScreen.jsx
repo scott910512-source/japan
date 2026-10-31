@@ -37,6 +37,7 @@ export default function FeatureScreen({
   n3View,
   quizSet,
   onQuizSet,
+  onOpenPractice,
 }) {
   return (<>
             {sub === 'worddeck' && (
@@ -48,6 +49,7 @@ export default function FeatureScreen({
                 onStart={startWordDeck}
                 onStartSet={startJlptSet}
                 onToast={showToast}
+                onOpenPractice={onOpenPractice}
               />
             )}
             {sub === 'kiju' && (
@@ -94,6 +96,7 @@ export default function FeatureScreen({
                 }))}
                 onDailyGrammar={(dailyGrammar) => setProgress((p) => ({ ...p, dailyGrammar }))}
                 onToast={showToast}
+                onOpenPractice={onOpenPractice}
               />
             )}
             {sub === 'sentences' && (
