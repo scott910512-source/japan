@@ -144,7 +144,7 @@ console.log('\n[ 자동 듣기 · 메뉴 · 설정 ]');
     ok('차례는 자료 차례 — 첫 줄은 공항 첫 직원 줄', first[0].id === 'tr-air-001');
     ok('큐가 카드로 풀린다', cardsForQueue(first, [], [], cards).length === first.length);
   }
-  ok('학습 메뉴에 「여행 일본어」', MENUS.some((m) => m.id === 'travel' && m.group === 'content'));
+  ok('학습 탭 「자료 더 보기」에 「여행 일본어」', MENUS.some((m) => m.id === 'travel' && m.group === 'more'));
   ok('기본 설정에서 켜져 있다', DEFAULT_SETTINGS.menus.travel === true);
 }
 

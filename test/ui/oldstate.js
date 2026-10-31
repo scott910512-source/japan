@@ -82,7 +82,7 @@ const OLD = {
   ok('낡은 기록으로도 앱이 켜짐', await page.locator('.tabbar').count() === 1);
 
   // 탭을 한 바퀴
-  for (const tab of ['홈', '학습', '복습', '내 학습']) {
+  for (const tab of ['오늘', '학습', '복습', '내 학습']) {
     await page.locator('.tabbar .tab', { hasText: tab }).first().click();
     await page.waitForTimeout(800);
     const body = (await page.textContent('.screen.active')).trim();

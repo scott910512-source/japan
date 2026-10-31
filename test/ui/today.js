@@ -109,9 +109,9 @@ async function boot(browser, patch = {}, init = null) {
   page.on('pageerror', (e) => errors.push(e.message));
 
   console.log('── 켜면 오늘이 먼저');
-  ok('홈 탭이 켜진 채로 시작',
-    (await page.locator('.tabbar .tab.active').textContent()).includes('홈'));
-  ok('★ 탭은 넷 — 홈 · 학습 · 복습 · 내 학습 ★', (await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.dataset.tab))).join() === 'home,study,review,me');
+  ok('오늘 탭이 켜진 채로 시작',
+    (await page.locator('.tabbar .tab.active').textContent()).includes('오늘'));
+  ok('★ 탭은 넷 — 오늘 · 학습 · 복습 · 내 학습 ★', (await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.dataset.tab))).join() === 'home,study,review,me');
   ok('N3 진도 한 줄이 머리 밑에 있음', await page.locator('.hm-goal').count() === 1);
 
   /* ★ 3초 안에 알아야 하는 둘 — 얼마나 남았나, 어디를 누르나 ★ */
@@ -254,8 +254,15 @@ async function boot(browser, patch = {}, init = null) {
   console.log('\n── 기존 것이 하나도 안 없어졌다');
   await goTab(page, '학습');
   const names = await page.locator('.menugroup .mt-title').allTextContents();
-  for (const m of ['한 권으로 끝내는 N3', '단어', '문법', '한자', '문장', '듣기', '영상', '단어 시험', '동사 활용', '부사 연습', '짝 맞추기', '실전 연습', '완전기초', '독일어']) {
+  /* 학습 탭 칸으로 남은 것 */
+  for (const m of ['한 권으로 끝내는 N3', '단어', '문법', '한자', '문장', '듣기', '영상', '실전 연습', '완전기초', '독일어']) {
     ok(`${m} 그대로 있음`, names.includes(m), names.join(','));
+  }
+  /* 연습은 칸에서 단어·문법 화면 안 「연습」 줄로 옮겼다 — 옮긴 것도 갈 길이 있어야 한다 */
+  for (const [m, id] of [['단어 시험', 'quiz'], ['짝 맞추기', 'match'], ['부사 연습', 'adverb'], ['동사 활용', 'conjugate']]) {
+    await openMenu(page, m);
+    ok(`${m} 그대로 열린다 (연습 줄 경유)`, await page.locator('.subscreen.open').count() === 1 && (await page.locator('.sub-title').innerText()).includes(m));
+    await goTab(page, '학습');
   }
   /* 듣기와 영상은 학습 탭 「듣기」 칸 안에 */
   await openMenu(page, '듣기');

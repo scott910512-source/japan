@@ -54,8 +54,10 @@ const readReview = (page) => page.evaluate(
 
   console.log('\n[ 묶음 고르기 ]');
   await goTab(page, '학습');
-  ok('학습 메뉴에 부사 연습이 있다',
-    await page.locator('.menutile', { hasText: '부사 연습' }).count() === 1);
+  ok('학습 탭 칸에는 없고(최상위에 안 선다)', await page.locator('.menutile', { hasText: '부사 연습' }).count() === 0);
+  await openMenu(page, '단어');
+  ok('단어 화면 안 「연습」 줄에 부사 연습이 있다',
+    await page.locator('.pr-row[data-menu="adverb"]').count() === 1);
 
   await openMenu(page, '부사 연습');
   ok('묶음이 여럿 보인다', await page.locator('.av-set').count() >= 5,

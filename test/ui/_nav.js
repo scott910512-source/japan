@@ -25,8 +25,10 @@
 export async function goTab(page, label, wait = 700) {
   const close = page.locator('.study .sh-close, .study .si-back');
   if (await close.count()) { await close.first().click(); await page.waitForTimeout(500); }
+  /* 연습은 단어·문법 화면 위에 열려 있을 수 있다 — 뒤로가 그 화면으로 돌아오니
+     덮인 화면이 다 닫힐 때까지 누른다(사람도 그렇게 한다) */
   const back = page.locator('.subscreen.open .sub-header:not(.inline) .sub-back');
-  if (await back.count()) { await back.first().click(); await page.waitForTimeout(500); }
+  for (let i = 0; i < 3 && await back.count(); i++) { await back.first().click(); await page.waitForTimeout(500); }
   /* 「학습」은 「내 학습」에도 들어 있다 — 이름이 아니라 id로 누른다 */
   const id = { '오늘': 'home', '홈': 'home', '학습': 'study', '복습': 'review', '내 학습': 'me' }[label];
   const tab = id ? page.locator(`.tabbar .tab[data-tab="${id}"]`) : page.locator('.tabbar .tab', { hasText: label }).first();

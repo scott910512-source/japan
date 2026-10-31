@@ -153,7 +153,7 @@ const boot = async (browser) => {
 
   // ── 1차: 네 탭 · 학습 메뉴 전부 · 설정 묶음 ──
   const firstPass = async () => {
-    await look('홈');
+    await look('오늘');
     await goTab(page, '학습'); await look('학습 탭');
     await goTab(page, '복습'); await look('복습 탭');
     await goTab(page, '내 학습'); await look('내 학습 탭');

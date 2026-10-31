@@ -136,7 +136,7 @@ const boot = async (page) => {
     ok(`${name} — 손가락보다 작은 버튼이 없다`, small.length === 0, small.join(' | '));
   };
 
-  await walk('홈');
+  await walk('오늘');
   await goTab(page, '학습'); await page.waitForTimeout(700);
   await walk('학습');
   await goTab(page, '복습'); await page.waitForTimeout(700);

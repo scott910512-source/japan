@@ -57,10 +57,10 @@ const open = async (page) => {
   page.on('pageerror', (e) => errors.push(e.message));
 
   // 메뉴는 학습 탭을 방문했을 때 로드된다. 사용자가 보는 경로로 확인한다.
-  await goTab(page, '학습');
-  const menu = page.locator('.screen.active .menutile', { hasText: '동사 활용' });
+  await openMenu(page, '문법');
+  const menu = page.locator('.pr-row[data-menu="conjugate"]');
   await menu.waitFor({ state: 'visible' });
-  ok('학습 탭에서 동사 활용 메뉴가 보임', await menu.count() === 1 && await menu.isVisible());
+  ok('문법 화면 안 「연습」 줄에 동사 활용이 보임', await menu.count() === 1 && await menu.isVisible());
   await open(page);
 
   const body = await page.textContent('.subscreen');
