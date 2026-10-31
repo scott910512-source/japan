@@ -21,6 +21,11 @@ import { reviewLeftOf } from '../lib/plan.js';
  * ★ 숫자는 한 곳에서만 나온다 ★ 배정·완료·남은 시간은 오늘의 계획(plan) 하나를
  * 본다. 화면이 따로 세면 「새 단어 2개」인데 들어가면 「볼 게 없어요」가 된다. */
 
+/* 오늘의 N3 단계 이름 — 코스가 적어 둔 kind를 화면 말로 */
+const N3_KIND = {
+  vocab: '어휘', kanji: '한자', grammar: '문법', reading: '독해', listening: '청해', review: '복습',
+};
+
 const HELLO = [
   '오늘도 조금씩 쌓아볼까요?',
   '가볍게 한 판 어때요?',
@@ -131,13 +136,19 @@ export default function Today({
         <>
           <div className="section-label">이어서 공부하기</div>
           <div className="tdtasks hm-cont">
-            <button className="tdtask hm-n3" onClick={onOpenN3}>
+            <button className={`tdtask hm-n3${n3Steps.length > 0 && n3Left === 0 ? ' done' : ''}`} onClick={onOpenN3}>
               <span className="tt-icon"><IconChart /></span>
               <span className="tt-body">
                 <b>한 권으로 끝내는 N3</b>
                 <span className="tt-note">{n3Note}</span>
+                {/* 오늘 몫의 순서는 여기 한 줄로. 「오늘」 목록에 같은 줄이 또 있었다 */}
+                {n3Steps.length > 0 && n3Left > 0 && (
+                  <span className="tt-note hm-n3steps">{n3Steps.filter((s) => !s.done).map((s) => N3_KIND[s.kind] || s.kind).join(' → ')}</span>
+                )}
               </span>
-              <span className="tt-go">{summary ? '계속하기' : '시작'}</span>
+              {n3Steps.length > 0 && n3Left === 0
+                ? <span className="tt-done"><IconCheck /></span>
+                : <span className="tt-go">{summary ? '계속하기' : '시작'}</span>}
               <IconChevron className="chev" />
             </button>
           </div>
@@ -145,7 +156,7 @@ export default function Today({
       )}
 
       {/* 오늘 — 무엇이 몇 개인지 짧게. 항목마다 큰 카드를 만들지 않는다 */}
-      {(freshLane.assigned > 0 || backLane.assigned > 0 || n3Steps.length > 0 || grammarLeft >= 0) && (
+      {(freshLane.assigned > 0 || backLane.assigned > 0 || grammarLeft >= 0) && (
         <>
           <div className="section-label">오늘</div>
           <div className="tdlist">
@@ -172,13 +183,6 @@ export default function Today({
                 <span className="tt-icon"><IconBook /></span>
                 <span className="tt-body"><b>새로 배우기</b><span className="tt-note">{freshLeft === 0 ? `${freshLane.assigned}개 다 했어요` : freshMix}</span></span>
                 {freshLeft === 0 ? <span className="tt-done"><IconCheck /></span> : <span className="tt-count"><b>{freshLeft}</b>개</span>}
-              </button>
-            )}
-            {n3Steps.length > 0 && onOpenN3 && (
-              <button className={`tdtask slim${n3Left === 0 ? ' done' : ''}`} onClick={onOpenN3}>
-                <span className="tt-icon"><IconChart /></span>
-                <span className="tt-body"><b>오늘의 N3</b><span className="tt-note">{n3Left === 0 ? `${n3Steps.length}단계 다 했어요` : n3Steps.map((s) => s.kind).join(' → ').replace(/vocab/g, '어휘').replace(/kanji/g, '한자').replace(/grammar/g, '문법').replace(/reading/g, '독해').replace(/listening/g, '청해').replace(/review/g, '복습')}</span></span>
-                {n3Left === 0 ? <span className="tt-done"><IconCheck /></span> : <span className="tt-count"><b>{n3Left}</b>단계</span>}
               </button>
             )}
             {/* 문법은 선택이다 — 안 해도 오늘 완료는 완료다 */}

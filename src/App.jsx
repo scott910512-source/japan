@@ -95,6 +95,8 @@ export default function App() {
     removeVideo
   } = appData;
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  /* 내 학습의 「계정과 동기화」「기록 백업」 줄이 설정의 그 묶음을 바로 연다 */
+  const [settingsGroup, setSettingsGroup] = useState(null);
   const { toast, showToast } = useToast();
   /* 앱을 켤 때 브라우저와 맞추는 일들 — 저장 실패를 받는 손, 음성 오류,
      「새 버전이 준비됐다」 알림, iOS 오디오 열기, 연속일, 테마, 음성 설정.
@@ -424,6 +426,7 @@ export default function App() {
             onOpenWeakWords={startWeakDeck}
             onOpenWeakGrammar={() => openMenu('n3', { view: { kind: 'weak', from: 'hub' } })}
             onOpenRepeat={() => setSub('repeat')}
+            onOpenMe={() => selectTab('me')}
           />
         </ScreenSlot>
 
@@ -443,7 +446,7 @@ export default function App() {
             showN3={Boolean(settings.menus?.n3)}
             onOpenStudy={() => selectTab('study')}
             onOpenReview={() => selectTab('review')}
-            onOpenSettings={() => setSub('settings')}
+            onOpenSettings={(group = null) => { setSettingsGroup(group); setSub('settings'); }}
           />
         </ScreenSlot>
 
@@ -494,6 +497,7 @@ export default function App() {
                   음성 · 계정 · 백업 · 도구 · 앱 정보)은 그 안에 그대로 있다. */}
               {sub === 'settings' ? (
                 <Settings
+                  initialGroup={settingsGroup}
                   settings={settings}
                   onChange={patchSettings}
                   onReplayOnboarding={() => setOnboardingOpen(true)}
