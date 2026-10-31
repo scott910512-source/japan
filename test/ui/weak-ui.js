@@ -234,7 +234,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
 
   console.log('\n[ 홈이 아닌 자리에서는 새 버전으로 안 갈아끼운다 ]');
   {
-    /* ★ 「처음 들어가면 한 번 홈으로 튕긴다」 ★
+    /* ★ 「처음 들어가면 한 번 오늘로 튕긴다」 ★
        갈아끼우기는 곧 새로고침이고, 이 앱은 주소가 없다 — 어느 탭에 있었든
        새로고침하면 홈이다. 여태 이 표시는 판정하는 자리만 세워서, 학습 탭을
        눌러 둔 사람은 그대로 튕겼다. 한 배포에 한 번씩 꼭 일어났다. */
@@ -256,7 +256,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
 
     await goTab(page, '홈');
     await page.waitForTimeout(400);
-    ok('홈으로 돌아오면 표시가 내려간다', (await busy()).length === 0,
+    ok('오늘로 돌아오면 표시가 내려간다', (await busy()).length === 0,
       (await busy()).join() || '없음');
   }
 

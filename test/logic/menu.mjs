@@ -7,7 +7,7 @@
  * 여기서 지키는 것은 하나다 — 목록이 한 곳에만 있어야 한다. 학습 탭과
  * 설정에 따로 적어 두면, 없앤 메뉴가 설정에는 남아서 켜도 아무 데도 안 뜨는
  * 칸이 생긴다. */
-import { MENUS, MENU_GROUPS, MENU_IDS, groupedMenus,
+import { MENUS, MENU_GROUPS, MENU_IDS, groupedMenus, practiceOf,
   FAV_MAX, favMenus, isFav, toggleFav,
 } from '../../src/lib/menu.js';
 import { DEFAULT_SETTINGS } from '../../src/lib/storage.js';
@@ -17,11 +17,13 @@ const ok = (l, c, e) => {
   if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); }
 };
 
-console.log('\n[ 네 묶음 ]');
-ok('묶음은 넷', MENU_GROUPS.length === 4, MENU_GROUPS.map((g) => g.label).join(' / '));
-/* 목표(코스)가 먼저, 그다음 무엇을(콘텐츠), 어떻게 굴릴지(연습), 곁가지 */
-ok('JLPT N3 · 콘텐츠 · 연습 · 그 밖에',
-  MENU_GROUPS.map((g) => g.id).join() === 'course,content,practice,etc');
+console.log('\n[ 세 영역과 안에 든 연습 ]');
+ok('묶음은 넷(학습 탭에 그리는 셋 + 안에 든 연습)', MENU_GROUPS.length === 4, MENU_GROUPS.map((g) => g.label).join(' / '));
+/* 목표(코스)가 먼저, 그다음 무엇을(골라 학습), 곁가지(자료 더 보기). 연습은 단어·문법 안에 든다 */
+ok('추천 경로 · 골라 학습 · 자료 더 보기 · (안에 든 연습)',
+  MENU_GROUPS.map((g) => g.id).join() === 'course,pick,more,practice');
+ok('★ 학습 탭에 그리는 묶음은 셋 ★', MENU_GROUPS.filter((g) => !g.inline).length === 3);
+ok('연습 묶음만 안에 든다(inline)', MENU_GROUPS.filter((g) => g.inline).map((g) => g.id).join() === 'practice');
 ok('묶음마다 왜 여기 있는지 적혀 있다', MENU_GROUPS.every((g) => g.sub?.length > 4));
 
 console.log('\n[ 칸마다 ]');
@@ -43,19 +45,28 @@ ok('학습 탭에 있는 칸은 설정에도 있다',
 
 console.log('\n[ 무엇이 어디에 ]');
 const of = (g) => MENUS.filter((m) => m.group === g).map((m) => m.id);
-/* JLPT N3 묶음 — 코스 하나와 기출 단어.
-   기출은 「무엇을 공부할까」가 아니라 「무엇부터 외울까」의 답이라 콘텐츠
-   고르는 줄이 아니라 여기 있다. 큰 칸은 여전히 코스뿐이다. */
-ok('JLPT N3 묶음은 코스와 기출', of('course').join() === 'n3,kiju', of('course').join());
+/* 추천 경로 — 코스 하나와 기출 단어.
+   기출은 「무엇을 공부할까」가 아니라 「무엇부터 외울까」의 답이라 고르는
+   줄이 아니라 여기 있다. 큰 칸은 여전히 코스뿐이다. */
+ok('추천 경로는 코스와 기출', of('course').join() === 'n3,kiju', of('course').join());
 ok('코스만 큰 칸', MENUS.filter((m) => m.big).map((m) => m.id).join() === 'n3');
-/* 콘텐츠 종류 — 「학습 → 단어 / 문법 / 한자 / 문장 / 듣기」 */
-ok('★ 콘텐츠는 단어 · 문법 · 한자 · 문장 · 여행 일본어 · 듣기 · 영상 ★',
-  of('content').join() === 'words,grammar,kanji,sentences,travel,listen,videos', of('content').join());
+ok('★ 골라 학습은 단어 · 문법 · 한자 · 문장 · 듣기 · 실전 연습 ★',
+  of('pick').join() === 'words,grammar,kanji,sentences,listen,rpg', of('pick').join());
 ok('한자 칸이 있다 (N3 코스의 한자 과정)', MENUS.find((m) => m.id === 'kanji')?.label === '한자');
 ok('듣기가 학습 탭 안에 있다 (탭이 아니다)', MENUS.find((m) => m.id === 'listen')?.label === '듣기');
-ok('연습은 시험 · 활용 · 부사 · 짝 · 실전',
-  of('practice').join() === 'quiz,conjugate,adverb,match,rpg', of('practice').join());
-ok('그 밖에는 완전기초 · 독일어', of('etc').join() === 'basics,swiss');
+ok('★ 자료 더 보기는 여행 일본어 · 영상 · 완전기초 · 독일어 ★',
+  of('more').join() === 'travel,videos,basics,swiss', of('more').join());
+/* 연습은 학습 탭 최상위에 안 선다. 단어·문법 화면 안 「연습」 줄에 든다 */
+ok('★ 연습은 시험 · 짝 맞추기 · 부사 연습 · 동사 활용 ★',
+  of('practice').join() === 'quiz,match,adverb,conjugate', of('practice').join());
+ok('안에 든 연습은 모두 열릴 화면(parent)이 있다',
+  MENUS.filter((m) => m.group === 'practice').every((m) => m.parent === 'worddeck' || m.parent === 'grammar'));
+ok('단어 연습은 단어 화면에', practiceOf('worddeck', Object.fromEntries(MENU_IDS.map((i) => [i, true]))).map((m) => m.id).join() === 'quiz,match,adverb');
+ok('동사 활용은 문법 화면에', practiceOf('grammar', Object.fromEntries(MENU_IDS.map((i) => [i, true]))).map((m) => m.id).join() === 'conjugate');
+ok('끈 연습은 줄에서도 빠진다', practiceOf('worddeck', { quiz: true, match: false }).map((m) => m.id).join() === 'quiz');
+ok('모든 칸의 id가 그대로다(저장된 설정·즐겨찾기가 안 깨진다)',
+  ['n3', 'kiju', 'words', 'grammar', 'kanji', 'sentences', 'listen', 'videos', 'quiz', 'conjugate', 'adverb', 'match', 'rpg', 'basics', 'travel', 'swiss']
+    .every((id) => MENU_IDS.includes(id)) && MENU_IDS.length === 16);
 /* ★ 행동은 학습 탭에 없다 ★ 회독 학습·약점 복습은 복습 탭으로 갔다 */
 ok('회독 학습·약점 복습은 학습 탭에 없다 (복습 탭에)', !MENU_IDS.includes('repeat') && !MENU_IDS.includes('weak'));
 ok('JLPT 단어는 더 이상 따로 없다', !MENU_IDS.includes('jlpt'));
@@ -65,13 +76,15 @@ ok('문법은 하나로 열린다', MENUS.find((m) => m.id === 'grammar')?.label
 console.log('\n[ 켠 것만 묶어서 ]');
 const all = Object.fromEntries(MENU_IDS.map((id) => [id, true]));
 const g = groupedMenus(all);
-ok('다 켜면 네 묶음이 다 나온다', g.length === 4);
-ok('묶음 순서가 지켜진다', g.map((x) => x.id).join() === 'course,content,practice,etc');
-ok('칸 수가 맞는다', g.reduce((a, x) => a + x.items.length, 0) === MENUS.length);
+ok('다 켜면 학습 탭 묶음은 셋', g.length === 3);
+ok('묶음 순서가 지켜진다', g.map((x) => x.id).join() === 'course,pick,more');
+ok('★ 연습은 학습 탭 바둑판에 안 그린다 ★', !g.some((x) => x.items.some((m) => m.group === 'practice')));
+ok('칸 수가 맞는다(연습 넷은 화면 안으로)', g.reduce((a, x) => a + x.items.length, 0) === MENUS.length - 4);
 
-const some = groupedMenus({ quiz: true });
-ok('빈 묶음은 안 그린다', some.length === 1 && some[0].id === 'practice',
+const some = groupedMenus({ rpg: true });
+ok('빈 묶음은 안 그린다', some.length === 1 && some[0].id === 'pick',
   some.map((x) => x.id).join());
+ok('연습만 켜면 학습 탭에는 아무것도 안 그린다', groupedMenus({ quiz: true, conjugate: true }).length === 0);
 ok('아무것도 안 켜면 빈손', groupedMenus({}).length === 0);
 /* 없어진 메뉴가 설정에 남아 있어도 안 뜬다 — 목록이 이 파일 하나로 정해진다 */
 ok('없는 메뉴는 켜져 있어도 안 뜬다',

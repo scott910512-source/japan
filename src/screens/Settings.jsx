@@ -198,7 +198,7 @@ export default function Settings({
           />
           <div className="set-note">
             {tripLabel(settings, todayKey())
-              || '넣으면 홈에 남은 날을 세어 드려요. 학습량은 안 바뀌어요.'}
+              || '넣으면 오늘 화면에 남은 날을 세어 드려요. 학습량은 안 바뀌어요.'}
           </div>
         </div>
       </div>

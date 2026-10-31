@@ -32,6 +32,10 @@ export function useAppNavigation() {
   const [activeTab, setActiveTab] = useState('home');
   const [videosSeen, setVideosSeen] = useState(false); // 영상 화면에 한 번이라도 들어갔는지
   const [sub, setSub] = useState(null);
+  /* 연습을 어느 화면 안에서 열었나(단어 → 시험). 값이 있으면 뒤로 갈 때 탭이
+     아니라 그 화면으로 돌아간다. 화면은 여전히 한 겹(sub)이라 이 값이 두 번째
+     층을 대신한다. */
+  const [parentSub, setParentSub] = useState(null);
   const [deck, setDeck] = useState(null); // 학습 중인 덱 (있으면 회독 화면이 전체를 덮는다)
   /* N3 코스를 어느 자리에서 열지 — 학습 탭 「한자」는 한자 과정, 복습 탭
      「틀린 문제」는 오답노트. 코스가 열릴 때 한 번 읽는다. */
@@ -42,7 +46,18 @@ export function useAppNavigation() {
      제 설정(범위·개수)으로 문제를 짠다. */
   const [quizSet, setQuizSet] = useState(null);
 
-  useLayerNavigation({ deck, sub, setDeck, setSub });
+  /* 연습 화면이 부모 위에 열려 있으면 뒤로가기가 닫아야 할 층이 하나 더다 */
+  const closeSub = useCallback(() => {
+    if (parentSub) { setSub(parentSub); setParentSub(null); return; }
+    setSub(null);
+  }, [parentSub]);
+
+  useLayerNavigation({ deck, sub, nested: Boolean(parentSub && sub), setDeck, setSub, closeSub });
+
+  /* 부모가 사라졌는데 값이 남으면 다음에 엉뚱한 곳으로 돌아간다 */
+  useEffect(() => {
+    if (!sub && parentSub) setParentSub(null);
+  }, [sub, parentSub]);
 
   /* ★ 밀어 넣은 화면이 열려 있으면 새 버전으로 안 갈아끼운다 ★
    *
@@ -85,6 +100,8 @@ export function useAppNavigation() {
      한자는 N3 코스의 한자 과정을, 듣기는 듣기 고르기(자동·따라·영상)를 연다.
      같은 자료·화면을 두 벌 두지 않는다 — 길만 여기서 정한다. */
   const openMenu = useCallback((id, opts = {}) => {
+    /* 단어·문법 화면 안의 「연습」 줄에서 열었으면 어디서 왔는지 기억한다 */
+    setParentSub(opts.from || null);
     /* 메뉴로 들어온 시험은 평소 시험이다 — 듣던 세트를 들고 가지 않는다.
        안 비우면 듣기를 한 번 쓴 뒤로 「단어 시험」이 영영 그 스무 개만 묻는다. */
     if (id !== 'quiz') setQuizSet(null);
@@ -107,6 +124,7 @@ export function useAppNavigation() {
   /* 학습 탭은 예전엔 화면이 아니라 바로 회독으로 들어가는 통로였다.
      이제 「오늘」이 그 자리를 맡으니, 학습은 골라 들어가는 목록으로 돌린다. */
   const selectTab = useCallback((id) => {
+    setParentSub(null);
     setSub(null);
     setActiveTab(id);
   }, []);
@@ -114,6 +132,6 @@ export function useAppNavigation() {
   return {
     activeTab, sub, deck, n3View, listenMode, quizSet, videosSeen,
     setActiveTab, setSub, setDeck, setN3View, setQuizSet,
-    openMenu, openListen, selectTab,
+    openMenu, openListen, selectTab, closeSub,
   };
 }

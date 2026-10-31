@@ -402,7 +402,7 @@ export default function Study({
             <span>{deck.label} · {session?.done || 0}번 봤어요</span>
             <span>남은 건 내일 복습 큐에서 다시 만나요</span>
           </p>
-          <button className="submit-btn" onClick={() => { onSessionChange(null); (onHome || onClose)(); }}>홈으로</button>
+          <button className="submit-btn" onClick={() => { onSessionChange(null); (onHome || onClose)(); }}>오늘로</button>
         </div>
       </div>
     );

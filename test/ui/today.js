@@ -109,9 +109,9 @@ async function boot(browser, patch = {}, init = null) {
   page.on('pageerror', (e) => errors.push(e.message));
 
   console.log('── 켜면 오늘이 먼저');
-  ok('홈 탭이 켜진 채로 시작',
-    (await page.locator('.tabbar .tab.active').textContent()).includes('홈'));
-  ok('★ 탭은 넷 — 홈 · 학습 · 복습 · 내 학습 ★', (await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.dataset.tab))).join() === 'home,study,review,me');
+  ok('오늘 탭이 켜진 채로 시작',
+    (await page.locator('.tabbar .tab.active').textContent()).includes('오늘'));
+  ok('★ 탭은 넷 — 오늘 · 학습 · 복습 · 내 학습 ★', (await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.dataset.tab))).join() === 'home,study,review,me');
   ok('N3 진도 한 줄이 머리 밑에 있음', await page.locator('.hm-goal').count() === 1);
 
   /* ★ 3초 안에 알아야 하는 둘 — 얼마나 남았나, 어디를 누르나 ★ */
@@ -254,8 +254,15 @@ async function boot(browser, patch = {}, init = null) {
   console.log('\n── 기존 것이 하나도 안 없어졌다');
   await goTab(page, '학습');
   const names = await page.locator('.menugroup .mt-title').allTextContents();
-  for (const m of ['한 권으로 끝내는 N3', '단어', '문법', '한자', '문장', '듣기', '영상', '단어 시험', '동사 활용', '부사 연습', '짝 맞추기', '실전 연습', '완전기초', '독일어']) {
+  /* 학습 탭 칸으로 남은 것 */
+  for (const m of ['한 권으로 끝내는 N3', '단어', '문법', '한자', '문장', '듣기', '영상', '실전 연습', '완전기초', '독일어']) {
     ok(`${m} 그대로 있음`, names.includes(m), names.join(','));
+  }
+  /* 연습은 칸에서 단어·문법 화면 안 「연습」 줄로 옮겼다 — 옮긴 것도 갈 길이 있어야 한다 */
+  for (const [m, id] of [['단어 시험', 'quiz'], ['짝 맞추기', 'match'], ['부사 연습', 'adverb'], ['동사 활용', 'conjugate']]) {
+    await openMenu(page, m);
+    ok(`${m} 그대로 열린다 (연습 줄 경유)`, await page.locator('.subscreen.open').count() === 1 && (await page.locator('.sub-title').innerText()).includes(m));
+    await goTab(page, '학습');
   }
   /* 듣기와 영상은 학습 탭 「듣기」 칸 안에 */
   await openMenu(page, '듣기');
@@ -458,13 +465,13 @@ async function boot(browser, patch = {}, init = null) {
       ok('못 찾는 카드만 남아도 나갈 길이 있음', await p3.locator('.finish .submit-btn').count() > 0);
       await p3.locator('.finish .submit-btn').click();
       await p3.waitForTimeout(700);
-      ok('홈으로 돌아감', await p3.locator('.tabbar').count() === 1);
+      ok('오늘로 돌아감', await p3.locator('.tabbar').count() === 1);
     }
     ok('그 사이에 안 죽음', errs.length === 0, errs.slice(0, 2).join(' | '));
     await p3.close();
   }
 
-  /* ── 끝내면 축하하고 결과를 보여 주고 홈으로 ── */
+  /* ── 끝내면 축하하고 결과를 보여 주고 오늘로 ── */
   {
     const p4 = await boot(browser, { goals: { fresh: 10, review: 10, weak: 10 } });
     await startStudy(p4);
@@ -502,16 +509,16 @@ async function boot(browser, patch = {}, init = null) {
     /* 「장」과 「번」을 뭉뚱그리면 거짓이 된다 — 몰라요가 섞이면 둘이 다르다 */
     ok('누른 횟수는 「번」으로 적음', fin.includes('번 봤어요'), fin);
     ok('걸린 시간도', /약 \d+분/.test(fin));
-    ok('홈으로 버튼이 있음', await p4.locator('.finish .submit-btn').count() === 1);
+    ok('오늘로 버튼이 있음', await p4.locator('.finish .submit-btn').count() === 1);
     await p4.locator('.finish .submit-btn').click({ timeout: 5000 }).catch(() => {});
     await p4.waitForTimeout(800);
-    ok('눌러서 홈으로 감', await p4.locator('.tdhead').count() === 1);
+    ok('눌러서 오늘로 감', await p4.locator('.tdhead').count() === 1);
     ok('세션이 정리됨', await p4.evaluate(() => localStorage.getItem('jp_manabu_session_v1')) === null);
     await p4.close();
   }
 
   /* ── 한 판이 끝나면 다음으로 이어 준다 ──
-     끝날 때마다 홈으로 돌려보내면 매번 「다음에 뭐 하지」를 다시 정해야 한다.
+     끝날 때마다 오늘로 돌려보내면 매번 「다음에 뭐 하지」를 다시 정해야 한다.
      복습 → 단어 외우기 → 회독 학습이 그날의 순서다. */
   console.log('\n── 끝나면 다음으로 이어 준다');
   {
@@ -543,7 +550,7 @@ async function boot(browser, patch = {}, init = null) {
     const fin5 = await p5.locator('.finish').innerText().catch(() => '');
     ok('복습을 끝내면 새 단어로 이어 준다', fin5.includes('다음: 새 단어'),
       fin5.replace(/\n/g, ' ').slice(0, 90));
-    ok('홈으로 가는 길도 남아 있다', fin5.includes('홈으로'));
+    ok('오늘로 가는 길도 남아 있다', fin5.includes('오늘로'));
 
     await p5.locator('.finish .submit-btn').click({ timeout: 5000 }).catch(() => {});
     await p5.waitForTimeout(1000);

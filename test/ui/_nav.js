@@ -5,8 +5,10 @@
  * 한 곳에 모아 둔다 — 그러면 다음엔 여기만 고치면 된다.
  *
  * 예전 → 지금 (탭 다섯 → 넷)
- *   오늘 탭            → 홈 탭
- *   학습 탭            → 학습 탭 (JLPT N3 · 콘텐츠 · 연습 · 그 밖에)
+ *   오늘 탭            → 오늘 탭 (이름은 한동안 「홈」이었다. id는 home, '홈'도 받는다)
+ *   학습 탭            → 학습 탭 (추천 경로 · 원하는 것 골라 학습 · 자료 더 보기)
+ *   단어 시험·짝 맞추기·부사 연습 → 단어 화면 안 「연습」 줄 (openMenu가 알아서 거쳐 간다)
+ *   동사 활용          → 문법 화면 안 「연습」 줄
  *   듣기 탭            → 학습 탭 「듣기」 칸 (자동 · 따라 · 영상)
  *   기록 탭            → 내 학습 탭
  *   더보기 탭          → 내 학습 탭 → 「설정」 줄
@@ -23,10 +25,12 @@
 export async function goTab(page, label, wait = 700) {
   const close = page.locator('.study .sh-close, .study .si-back');
   if (await close.count()) { await close.first().click(); await page.waitForTimeout(500); }
+  /* 연습은 단어·문법 화면 위에 열려 있을 수 있다 — 뒤로가 그 화면으로 돌아오니
+     덮인 화면이 다 닫힐 때까지 누른다(사람도 그렇게 한다) */
   const back = page.locator('.subscreen.open .sub-header:not(.inline) .sub-back');
-  if (await back.count()) { await back.first().click(); await page.waitForTimeout(500); }
+  for (let i = 0; i < 3 && await back.count(); i++) { await back.first().click(); await page.waitForTimeout(500); }
   /* 「학습」은 「내 학습」에도 들어 있다 — 이름이 아니라 id로 누른다 */
-  const id = { '홈': 'home', '학습': 'study', '복습': 'review', '내 학습': 'me' }[label];
+  const id = { '오늘': 'home', '홈': 'home', '학습': 'study', '복습': 'review', '내 학습': 'me' }[label];
   const tab = id ? page.locator(`.tabbar .tab[data-tab="${id}"]`) : page.locator('.tabbar .tab', { hasText: label }).first();
   await tab.click();
   await page.waitForTimeout(wait);
@@ -146,7 +150,22 @@ export const startReview = (page) => startStudy(page, '복습');
 
 /* 학습 탭의 칸을 연다. 이름이 딱 맞는 칸을 고른다 — hasText는 부분 일치라
    「단어」로 찾으면 「단어 시험」이 먼저 잡힌다. */
+/* 단어·문법 화면 안으로 들어간 연습 — [부모 칸 이름, 메뉴 id] */
+const PRACTICE = {
+  '단어 시험': ['단어', 'quiz'],
+  '짝 맞추기': ['단어', 'match'],
+  '부사 연습': ['단어', 'adverb'],
+  '동사 활용': ['문법', 'conjugate'],
+};
+
 export async function openMenu(page, label) {
+  if (PRACTICE[label]) {
+    const [parent, id] = PRACTICE[label];
+    await openMenu(page, parent);
+    await page.locator(`.pr-row[data-menu="${id}"]`).click();
+    await page.waitForTimeout(800);
+    return;
+  }
   await goTab(page, '학습');
   const exact = page.locator('.menutile').filter({
     has: page.locator('.mt-title', { hasText: new RegExp(`^${label}$`) }),

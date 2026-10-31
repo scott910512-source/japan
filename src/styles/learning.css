@@ -400,3 +400,10 @@
 .korep { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card-2, transparent); }
 .korep-line { font-size: 12px; line-height: 1.7; color: var(--ink-soft); }
 .korep-line:first-child { color: var(--ink); font-weight: 650; }
+
+/* 단어·문법 화면 안의 「연습」 줄 */
+.pr-list { padding: 4px 6px; }
+.pr-row { gap: 12px; min-height: 56px; text-align: left; }
+.pr-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pr-body b { font-size: 14.5px; font-weight: 700; }
+.pr-body span { font-size: 12px; color: var(--ink-soft); font-weight: 500; }

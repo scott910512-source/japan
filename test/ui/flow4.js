@@ -102,9 +102,9 @@ async function judgeAll(page, max = 60, label = '알아요') {
 
   console.log('── 네 탭');
   const tabs = await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.textContent.replace(/^\d+\+?/, '')));
-  ok('★ 홈 · 학습 · 복습 · 내 학습 ★', tabs.join() === '홈,학습,복습,내 학습', tabs.join());
-  ok('켜면 홈', (await page.locator('.tabbar .tab.active').innerText()) === '홈');
-  for (const t of ['홈', '학습', '복습', '내 학습']) {
+  ok('★ 오늘 · 학습 · 복습 · 내 학습 ★', tabs.join() === '오늘,학습,복습,내 학습', tabs.join());
+  ok('켜면 오늘', (await page.locator('.tabbar .tab.active').innerText()) === '오늘');
+  for (const t of ['오늘', '학습', '복습', '내 학습']) {
     await goTab(page, t);
     ok(`${t} 탭이 375px에서 가로로 안 넘친다`, !(await overflow(page)));
   }
@@ -137,10 +137,10 @@ async function judgeAll(page, max = 60, label = '알아요') {
   const judged = await judgeAll(page);
   ok('끝까지 판정했다', judged === rvLeft, `${judged} / ${rvLeft}`);
   ok('끝나면 결과 화면', await page.locator('.finish').count() === 1);
-  /* 복습을 끝내면 「다음: 새 단어」가 먼저 나온다 — 여기서는 홈으로를 누른다 */
-  await page.locator('.finish button', { hasText: '홈으로' }).click({ timeout: 5000 }).catch(() => {});
+  /* 복습을 끝내면 「다음: 새 단어」가 먼저 나온다 — 여기서는 오늘로를 누른다 */
+  await page.locator('.finish button', { hasText: '오늘로' }).click({ timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(800);
-  ok('홈으로 돌아온다', await page.locator('.tdhead').count() === 1 && await page.locator('.tabbar').count() === 1);
+  ok('오늘로 돌아온다', await page.locator('.tdhead').count() === 1 && await page.locator('.tabbar').count() === 1);
   const homeRow = page.locator('.tdlist .tdtask', { hasText: '복습' });
   ok('★ 홈의 복습 줄이 다 했다로 바뀐다 ★', (await homeRow.getAttribute('class')).includes('done'), await homeRow.innerText().catch(() => ''));
   ok('배지가 사라진다', await page.locator('.tabbar .tab[data-tab="review"] .count').count() === 0);
@@ -179,12 +179,12 @@ async function judgeAll(page, max = 60, label = '알아요') {
   const steps = await page.locator('.n3-steprow').count();
   ok('오늘의 N3가 짜였다', steps >= 4, `${steps}단계`);
   /* 요약은 코스가 열려 있는 동안 적힌다 — 나오자마자 홈 숫자가 바뀌어야 한다(다시 켜기 전에).
-     코스는 학습 탭에서 열었으니 닫으면 학습 탭이다 — 홈 줄을 읽으려면 홈으로 가야 한다
+     코스는 학습 탭에서 열었으니 닫으면 학습 탭이다 — 홈 줄을 읽으려면 오늘로 가야 한다
      (숨은 탭의 innerText는 빈 문자열이라 검사가 헛돈다). goTab이 열린 sub를 먼저 닫는다 */
   await goTab(page, '홈');
   ok('★ 코스에서 나오자마자 홈 N3 줄이 갱신된다 ★', /\d+%/.test(await page.locator('.hm-goal').innerText()), await page.locator('.hm-goal').innerText());
   await reboot(page);
-  ok('다시 켜도 홈', (await page.locator('.tabbar .tab.active').innerText()) === '홈');
+  ok('다시 켜도 오늘', (await page.locator('.tabbar .tab.active').innerText()) === '오늘');
   ok('★ 홈 N3 줄에 준비도가 적힌다 (코스가 적어 둔 요약) ★', /\d+%/.test(await page.locator('.hm-goal').innerText()), await page.locator('.hm-goal').innerText());
   const cont = page.locator('.hm-n3');
   ok('이어서 공부하기에 N3 코스 · 오늘 몫', (await cont.innerText()).includes('레슨') && (await cont.innerText()).includes('남음'), (await cont.innerText()).replace(/\s+/g, ' '));

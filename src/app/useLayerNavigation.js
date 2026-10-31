@@ -18,7 +18,7 @@ import { closeTopSheet, sheetDepth, subscribeSheets } from '../lib/sheets.js';
  * 자리가 있는지(owned)와 부른 back이 도착했는지(pending)는 화면에 안 그린다.
  * state로 두면 바뀔 때마다 앱 전체가 다시 그려지고, 더 나쁜 것은 popstate
  * 처리 중에 묵은 값을 읽는다는 점이다 — 그 순간에는 지금 값이 필요하다. */
-export function useLayerNavigation({ deck, sub, setDeck, setSub }) {
+export function useLayerNavigation({ deck, sub, nested = false, setDeck, setSub, closeSub = null }) {
   /* 몇 층이 덮여 있나. 회독 판과 밀어 넣은 메뉴는 따로 세는 게 맞다 —
      판 위에 메뉴가 열릴 수 있고, 그때 뒤로가기는 한 번에 한 층만 닫는다. */
   /* ★ 시트도 한 층이다 ★
@@ -27,7 +27,9 @@ export function useLayerNavigation({ deck, sub, setDeck, setSub }) {
      시트가 아니라 화면이 통째로 닫혔다. 시트 장부(lib/sheets.js)를 구독해
      떠 있는 수만큼 층으로 세고, 닫을 때는 시트부터 닫는다. */
   const sheets = useSyncExternalStore(subscribeSheets, sheetDepth, () => 0);
-  const depth = (deck ? 1 : 0) + (sub ? 1 : 0) + sheets;
+  /* nested: 연습 화면이 부모 화면(단어·문법) 위에 열려 있다. 화면은 한 겹이지만
+     뒤로가기로는 부모로 돌아가야 하니 닫을 층이 하나 더다. */
+  const depth = (deck ? 1 : 0) + (sub ? 1 : 0) + (nested ? 1 : 0) + sheets;
 
   /* popstate 처리가 지금 층 수를 알아야 한다. 효과에 depth를 의존성으로
      넣어 듣는 자리를 매번 다시 붙이면, 붙이는 사이에 온 pop을 놓친다. */
@@ -35,6 +37,8 @@ export function useLayerNavigation({ deck, sub, setDeck, setSub }) {
   depthRef.current = depth;
   const deckRef = useRef(deck);
   deckRef.current = deck;
+  const closeSubRef = useRef(closeSub);
+  closeSubRef.current = closeSub;
 
   const owned = useRef(false);
   const pending = useRef(false);
@@ -78,7 +82,8 @@ export function useLayerNavigation({ deck, sub, setDeck, setSub }) {
       // 위에 덮인 것부터 하나씩. 시트 → 회독 → 메뉴 순이다.
       if (closeTopSheet()) return;
       if (deckRef.current) { setDeck(null); return; }
-      setSub(null);
+      if (closeSubRef.current) closeSubRef.current();
+      else setSub(null);
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);

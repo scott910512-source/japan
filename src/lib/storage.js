@@ -318,23 +318,23 @@ export const DEFAULT_SETTINGS = {
      매번 달라지면 그게 더 나쁘다. */
   favs: [],
   menus: {
-    // JLPT N3
+    // 추천 경로
     n3: true,         // 한 권으로 끝내는 N3 — N4 복습부터 모의고사까지 한 코스
     kiju: true,       // 기출 단어 — 한자읽기 2010~2025에 나온 205개
-    // 콘텐츠
+    // 원하는 것 골라 학습: 단어 · 문법 · 한자 · 문장 · 듣기 · 실전 연습(rpg)
     words: true,      // 단어 — 회독으로 반복해서 외우기
     grammar: true,    // 문법 — 기초문법 · 일상문법 · 문형 연습
     kanji: true,      // 한자 — N3 코스의 한자 과정
     sentences: true,  // 문장 — 상황별 회화
     listen: true,     // 듣기 — 자동 듣기 · 따라 말하기
-    videos: true,     // 영상 — 유튜브 · 자막
-    // 연습
+    videos: true,     // 영상 — 유튜브 · 자막 (자료 더 보기)
+    // 단어·문법 화면 안의 연습 (학습 탭에는 안 그린다)
     quiz: true,       // 단어 시험
     conjugate: true,  // 동사 활용 — 기초 시제
     adverb: true,     // 부사 연습 — 빈칸 채우기
     match: true,      // 짝 맞추기 — 게임으로
-    rpg: true,        // 실전 연습 — 상황을 통째로
-    // 그 밖에
+    rpg: true,        // 실전 연습 — 상황을 통째로 (골라 학습)
+    // 자료 더 보기
     basics: true,     // 완전기초 — 히라가나 · 숫자 · 인사
     travel: true,     // 여행 일본어 — 공항 · 택시 · 호텔 · 식당에서 직원 말 알아듣기
     swiss: true,      // 독일어 여행 회화 — 곁가지 코스(열쇠 이름은 처음 것 그대로)

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { IconRepeat, IconSparkle } from '../components/Icons.jsx';
 import Jlpt from './Jlpt.jsx';
+import PracticeRows from '../components/PracticeRows.jsx';
 import { planDailySession, todayKey } from '../lib/review.js';
 import { normalizeGoals } from '../lib/daily.js';
 
@@ -17,7 +18,7 @@ export { LEVELS, filterByLevel } from '../lib/wordFilters.js';
  * 그래서 한 화면에 넣고 범위 고르는 방법을 둘로 뒀다.
  *   이어서 외우기 — 고른 레벨을 앱이 짜 주는 대로 이어서
  *   세트로 끊어서 — 레벨 안에서 100개씩, 어디까지 했는지 눈에 보이게 */
-export default function WordDeck({ words, review, settings, onChange, onStart, onStartSet, onToast }) {
+export default function WordDeck({ words, review, settings, onChange, onStart, onStartSet, onToast, onOpenPractice }) {
   const [how, setHow] = useState('flow');
   const levels = settings.levels?.length ? settings.levels : LEVELS;
 
@@ -79,8 +80,8 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
         <div className="set-note">레벨을 고르지 않아 전체 단어로 학습해요.</div>
       )}
 
-      {/* ★ 홈의 「오늘 학습 19개」와 다른 숫자다 ★
-          홈은 단어·문장을 오늘 계획(plan)으로 세고, 이 판은 고른 레벨의 단어만
+      {/* ★ 오늘 화면의 「오늘 학습 19개」와 다른 숫자다 ★
+          오늘 화면은 단어·문장을 오늘 계획(plan)으로 세고, 이 판은 고른 레벨의 단어만
           따로 짠다. 같은 「오늘」이라 부르면 어느 쪽이 맞는지 모르게 되니, 여기는
           「이 레벨로 짜는 판」이라 부르고 단어만이라고 적는다. */}
       <div className="section-label">이 레벨로 짜는 판 · 단어만</div>
@@ -100,7 +101,7 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
           </span>
         </div>
         <div className="plantotal">단어 {plan.reviewPicked + plan.newPicked}장 · 고른 레벨 {pool.length}개 중</div>
-        <div className="set-note">홈의 오늘 학습(단어+문장, 계획 기준)과는 별개예요. 하루 분량은 내 학습 → 설정 → 학습 설정에서 바꿔요.</div>
+        <div className="set-note">오늘 화면의 오늘 학습(단어+문장, 계획 기준)과는 별개예요. 하루 분량은 내 학습 → 설정 → 학습 설정에서 바꿔요.</div>
       </div>
 
       <button className="bigstart" onClick={onStart} disabled={plan.total === 0}>
@@ -117,6 +118,9 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
           자리인지 안 보였다. 이 화면은 「어떤 단어를 시작할까」만 답한다. */}
       </>
       )}
+
+      {/* 배운 단어를 굴려 보는 연습 — 시험 · 짝 맞추기 · 부사 연습 */}
+      <PracticeRows parent="worddeck" menus={settings.menus} onOpen={onOpenPractice} />
     </>
   );
 }
