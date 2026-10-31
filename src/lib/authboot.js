@@ -73,6 +73,46 @@ export function canContinueOffline({ signedInOnce = false, online = true, server
   return !online || Boolean(serverDown);
 }
 
+/* ★ 서버가 문제인가, 내가 틀린 건가 ★
+ *
+ * 로그인이 실패하는 이유는 둘로 갈린다. 비밀번호를 틀렸거나 메일 인증 전이면 사람이
+ * 고치면 된다. 서버가 안 열리거나(정지된 무료 프로젝트) 키를 거절하거나 5xx를 돌려주면
+ * 사람이 할 수 있는 게 없고, 이때는 기기에 있는 기록으로 계속할 길이 열려야 한다.
+ * 그 판단이 여기 하나다 — 문구(readableAuthError)와 버튼(Gate)이 같은 판단을 쓴다. */
+const NETWORK_WORDS = /(load failed|failed to fetch|networkerror|network request failed|fetch failed|network error|timed? ?out|econnrefused|enotfound)/i;
+const KEY_WORDS = /(api key|apikey|no api key|invalid jwt|jwt)/i;
+export function isServerProblem(err) {
+  if (!err) return false;
+  const message = typeof err === 'string' ? err : String(err.message || '');
+  const status = Number(err.status ?? err.statusCode ?? 0);
+  if (err.name === 'AuthRetryableFetchError') return true;   // 닿지 못했다
+  if (NETWORK_WORDS.test(message)) return true;
+  if (status >= 500) return true;
+  if ((status === 401 || status === 403) && KEY_WORDS.test(message)) return true;   // 서버가 키를 거절
+  return false;
+}
+
+/* Supabase가 돌려주는 영어 오류를 사람이 읽을 수 있게. 영어를 그대로 보여 주지 않는다 —
+   「Load failed」가 그대로 떠서 무슨 말인지 몰랐다(서버가 정지돼 있었다). */
+export function readableAuthError(err) {
+  const message = typeof err === 'string' ? err : String(err?.message || '');
+  const m = message.toLowerCase();
+  if (m.includes('invalid login')) return '이메일이나 비밀번호가 맞지 않아요';
+  if (m.includes('already registered')) return '이미 가입된 이메일이에요. 로그인해 주세요';
+  if (m.includes('password should be')) return '비밀번호는 6자 이상이어야 해요';
+  if (m.includes('email not confirmed')) return '메일함에서 인증 링크를 먼저 눌러 주세요';
+  if (m.includes('rate limit') || m.includes('too many')) return '잠시 후 다시 시도해 주세요';
+  if (m.includes('unable to validate email') || m.includes('invalid format')) return '이메일 형식을 확인해 주세요';
+  /* 서버 쪽 문제 — 내가 고칠 수 있는 게 아니다 */
+  const status = Number(err?.status ?? err?.statusCode ?? 0);
+  if (NETWORK_WORDS.test(message) || err?.name === 'AuthRetryableFetchError') {
+    return '서버에 닿지 못했어요. 인터넷이나 서버 상태를 확인해 주세요';
+  }
+  if ((status === 401 || status === 403) && KEY_WORDS.test(message)) return '서버가 요청을 받지 않아요. 잠시 뒤 다시 시도해 주세요';
+  if (status >= 500) return '서버가 바쁜 것 같아요. 잠시 뒤 다시 시도해 주세요';
+  return message || '잠시 후 다시 시도해 주세요';
+}
+
 export function authGate({ configured = true, ready = false, session = null, offlinePass = false } = {}) {
   if (!configured) return 'app';        // 서버를 안 쓰면 그냥 들어간다
   if (session) return 'app';            // 세션이 있으면 확인이 끝나기 전이라도 들어간다

@@ -18,6 +18,9 @@ export default function Gate({
   onVaultKey, onToast, signedInOnce, onContinueOffline, serverDown = false,
 }) {
   const [online, setOnline] = useState(() => navigator.onLine);
+  /* 이 화면에서 로그인을 눌렀더니 서버 쪽 문제(닿지 못함·키 거절·5xx)로 실패했다.
+     확인 단계가 아니라 지금 일어난 일이라 App이 몰랐다 — 여기서 들고 있다가 버튼을 연다. */
+  const [loginFailed, setLoginFailed] = useState(false);
 
   useEffect(() => {
     const up = () => setOnline(true);
@@ -50,13 +53,14 @@ export default function Gate({
         onSignedOut={() => {}}
         onVaultKey={onVaultKey}
         onToast={onToast}
+        onServerProblem={() => setLoginFailed(true)}
       />
 
       <div className="gate-note">
         학습 기록이 계정에 저장돼서 기기를 바꿔도 이어집니다.
       </div>
 
-      {canContinueOffline({ signedInOnce, online, serverDown }) && (
+      {canContinueOffline({ signedInOnce, online, serverDown: serverDown || loginFailed }) && (
         <button className="ghost-btn gate-offline" onClick={onContinueOffline}>
           {online
             ? '서버에 닿지 못했어요 · 이 기기 기록으로 계속하기'

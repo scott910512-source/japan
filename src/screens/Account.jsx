@@ -3,6 +3,7 @@ import { IconPerson, IconDownload, IconUpload } from '../components/Icons.jsx';
 import { supabase, supabaseConfigured, redirectUrl } from '../lib/supabase.js';
 import { deriveVaultKey } from '../lib/crypto.js';
 import { VIDEO_COLUMN_SQL } from '../lib/sync.js';
+import { isServerProblem, readableAuthError } from '../lib/authboot.js';
 
 const MODES = {
   signin: { title: '로그인', action: '로그인', other: 'signup', otherLabel: '처음이신가요? 가입하기' },
@@ -10,19 +11,7 @@ const MODES = {
   reset: { title: '비밀번호 재설정', action: '재설정 메일 보내기', other: 'signin', otherLabel: '로그인으로 돌아가기' },
 };
 
-// Supabase가 돌려주는 영어 오류를 사람이 읽을 수 있게 바꾼다.
-function readableError(message = '') {
-  const m = message.toLowerCase();
-  if (m.includes('invalid login')) return '이메일이나 비밀번호가 맞지 않아요';
-  if (m.includes('already registered')) return '이미 가입된 이메일이에요. 로그인해 주세요';
-  if (m.includes('password should be')) return '비밀번호는 6자 이상이어야 해요';
-  if (m.includes('email not confirmed')) return '메일함에서 인증 링크를 먼저 눌러 주세요';
-  if (m.includes('rate limit') || m.includes('too many')) return '잠시 후 다시 시도해 주세요';
-  if (m.includes('unable to validate email') || m.includes('invalid format')) return '이메일 형식을 확인해 주세요';
-  return message || '잠시 후 다시 시도해 주세요';
-}
-
-export default function Account({ session, syncState, onSync, onSignedOut, onToast, onVaultKey }) {
+export default function Account({ session, syncState, onSync, onSignedOut, onToast, onVaultKey, onServerProblem }) {
   // 복사가 막힌 브라우저에서도 글은 그대로 보이니 길게 눌러 복사하면 된다
   const copySql = async () => {
     try {
@@ -145,7 +134,9 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
       }
       setPassword('');
     } catch (err) {
-      onToast(readableError(err.message));
+      /* 서버 쪽 문제면 부른 쪽(로그인 관문)이 「이 기기 기록으로 계속하기」를 열 수 있게 알린다 */
+      if (isServerProblem(err)) onServerProblem?.();
+      onToast(readableAuthError(err));
     } finally {
       setBusy(false);
     }

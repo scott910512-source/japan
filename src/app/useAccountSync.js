@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DEFAULT_SETTINGS, loadVaultKey, saveVaultKey, markSignedInOnce } from '../lib/storage.js';
+import { DEFAULT_SETTINGS, loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce } from '../lib/storage.js';
 import { supabase, supabaseConfigured } from '../lib/supabase.js';
 import { syncNow, pushMerged } from '../lib/sync.js';
 import { mergeSyncedSettings, pickSyncedSettings } from '../lib/merge.js';
@@ -19,6 +19,9 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
      로그인 문이 「이 기기 기록으로 계속하기」를 띄울지 정하는 데 쓴다 —
      와이파이는 잡혔는데 서버가 죽은 자리에서 갇히지 않게. */
   const [authTimedOut, setAuthTimedOut] = useState(false);
+  /* 서버가 답은 했는데 세션을 못 줬다 — 거절(키·토큰)이다. 시간초과와 같은 뜻으로 다룬다:
+     사람이 할 수 있는 게 없으니 기기에 있는 기록으로 계속할 길을 연다. */
+  const [authFailed, setAuthFailed] = useState(false);
 
   const patchSettings = useCallback((patch) => setSettings((s) => ({ ...s, ...patch })), []);
   /* ── 계정 · 기기 간 동기화 ── */
@@ -46,18 +49,27 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
       setAuthTimedOut(true);
       setAuthReady(true);
     }, AUTH_READY_TIMEOUT);
-    const done = (session) => {
-      if (settled) { if (session) setAuthSession(session); return; }
+    const done = (session, error = null) => {
+      /* 상태 변화(onAuthStateChange)가 먼저 와서 이미 끝난 경우가 많다 — 갱신이 거절되면 그 이벤트가
+         빈 세션으로 먼저 오고 오류는 getSession 쪽에 늦게 온다. 늦게 온 오류도 버리지 않는다. */
+      if (settled) {
+        if (session) setAuthSession(session);
+        else if (error) setAuthFailed(true);
+        return;
+      }
       settled = true;
       clearTimeout(giveUp);
       setAuthSession(session);
+      /* 세션이 없는데 오류가 같이 왔다 = 서버가 거절했다(키·갱신 토큰). 처음 쓰는 사람은
+         오류 없이 빈 세션이 온다 — 그 경우는 해당 없다. */
+      setAuthFailed(Boolean(error) && !session);
       setAuthReady(true);
     };
     /* 거절로 끝난 경우도 「서버에 닿지 못했다」다 — 시간초과와 같게 다룬다 */
     const failed = () => { if (!settled) setAuthTimedOut(true); done(null); };
     try {
       supabase.auth.getSession()
-        .then((res) => done(sessionFrom(res)))
+        .then((res) => done(sessionFrom(res), res?.error))
         .catch(failed);
     } catch {
       /* 부르는 그 자리에서 던지는 경우도 있다 — 설정이 깨졌을 때가 그렇다 */
@@ -65,6 +77,15 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     }
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setAuthSession(next);
+      /* ★ 켜는 도중에 로그아웃이 왔다 = 저장된 세션을 서버가 거절했다 ★
+         이 기기에서 로그인한 적이 있는데 켜자마자 SIGNED_OUT이 오면, 사람이 로그아웃한 게
+         아니라 라이브러리가 갱신 토큰이 죽은 것을 알고 세션을 지운 것이다(getSession에는 이미
+         지워진 뒤라 오류가 안 온다). 서버가 받지 않는 것이니 시간초과와 같게 다룬다 — 기기에
+         있는 기록으로 계속할 길을 연다. 켠 뒤에 사람이 로그아웃한 경우는 아래에서 끈다. */
+      if (!settled && event === 'SIGNED_OUT' && hasSignedInOnce()) setAuthFailed(true);
+      /* 세션이 생겼거나 켠 뒤의 로그아웃이면 거절 표시는 낡은 것이다 — 로그아웃한 뒤에
+         「이 기기 기록으로 계속하기」가 저절로 열리면 안 된다. */
+      if (next || (settled && event === 'SIGNED_OUT')) setAuthFailed(false);
       /* 상태 변화가 왔다는 것은 로그인 쪽이 살아 있다는 뜻이다 — 아직
          기다리는 중이면 여기서 끝낸다. */
       if (!settled) { settled = true; clearTimeout(giveUp); setAuthTimedOut(false); setAuthReady(true); }
@@ -222,6 +243,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     vaultKey,
     authReady,
     authTimedOut,
+    authFailed,
     recovering,
     setRecovering,
     rememberVaultKey,
