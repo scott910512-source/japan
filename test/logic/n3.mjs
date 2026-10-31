@@ -85,7 +85,7 @@ console.log('\n[ ★ 한자 — 한국 한자와 잇고, 연상은 유래와 가
   ok('★ 経: 한국 한자 經 · 지날 경 · 経験/経済/経由 ★', kei?.ko === '經' && kei?.kh === '지날 경' && ['経験', '経済', '経由'].every((w) => kei.words.some((x) => x[0] === w)) && kei.diff?.length > 3, `${kei?.ko} ${kei?.kh}`);
   const diffs = KANJI_ITEMS.filter((k) => k.ko && k.ko !== k.k);
   ok('신자체와 다른 한국 한자를 따로 적은 것이 서른 자가 넘고 모양 차이도 적혀 있다', diffs.length >= 30 && diffs.every((k) => k.diff?.length > 3), `${diffs.length}자`);
-  ok('★ 연상(memo)과 실제 유래를 가른다 — 유래는 「실제 유래」로 표시 ★', KANJI_ITEMS.filter((k) => k.memo && /실제 유래/.test(k.memo)).length >= 15 && KANJI_ITEMS.filter((k) => k.memo && !/실제 유래/.test(k.memo)).length >= 10);
+  ok('★ 연상(memo)과 실제 유래(ety)는 다른 칸 — 유래 15자 이상, 연상 15자 이상, 한 칸에 섞인 표시 글자 없음 ★', KANJI_ITEMS.filter((k) => k.ety).length >= 15 && KANJI_ITEMS.filter((k) => k.memo).length >= 15 && !KANJI_ITEMS.some((k) => /실제 유래/.test(`${k.memo || ''}${k.ety || ''}`)));
   ok('낱말 안의 코스 한자를 찾는다(관련 한자)', kanjiIn('経験').map((k) => k.k).join('') === '経験' || kanjiIn('経験').some((k) => k.k === '経'));
   ok('한자 회독 id는 k:漢', KANJI_ITEMS.every((k) => k.id === `k:${k.k}`));
 }
@@ -243,6 +243,39 @@ console.log('\n[ 문제 만들기 ]');
   ok('한자 문제는 그 한자가 든 단어의 읽기', kq.every((q) => q.options.includes(q.answer) && q.options.length === 3 && !KANJI.test(q.answer)));
   const rq = n3.reviewQuestions(['g:wa-ga', 'k:経', VOCAB_WORDS[0].id], rnd);
   ok('복습 단계는 문법·한자·단어 id를 각각 문제로', rq.length === 3 && rq[0].ref === 'g:wa-ga' && rq[1].ref === 'k:経' && rq[2].ref === VOCAB_WORDS[0].id);
+}
+
+
+console.log('\n[ ★ 한자 확인 문제: 읽기 · 뜻 · 모양 ★ ]');
+{
+  const k1 = KANJI_ITEMS.find((k) => k.k === '体');     // 亻 + 本 — 모양 문제가 되는 한자
+  const mq = n3.kanjiMeaningQuestion(k1, rnd);
+  ok('뜻 문제: 보기 셋, 답이 안에, 뜻이 안 겹친다', mq.options.length === 3 && mq.options.includes(mq.answer) && new Set(mq.options).size === 3);
+  ok('뜻 문제 id는 kq:漢:m', mq.id === 'kq:体:m' && mq.cat === 'kanji' && mq.ref === k1.id);
+  ok('★ 뜻 문제 답은 그 한자의 뜻 ★', mq.answer === k1.mean);
+  const sq = n3.kanjiShapeQuestion(k1, rnd);
+  ok('모양 문제: 보기 셋, 답은 그 한자', sq.options.length === 3 && sq.answer === '体' && sq.options.includes('体'));
+  ok('모양 문제 id는 kq:漢:s', sq.id === 'kq:体:s');
+  ok('★ 모양 문제 보기에 구성이 똑같은 한자가 없다(답이 하나) ★',
+    new Set(sq.options.map((c) => KANJI_ITEMS.find((x) => x.k === c).parts)).size === 3);
+  ok('모양 문제 문장에 구성 요소가 보인다', sq.q.includes('亻') && sq.q.includes('本'));
+  // 모양이 안 되는 한자(구성이 한 덩어리)
+  const single = KANJI_ITEMS.find((k) => !n3.canShapeQuestion(k));
+  ok('구성이 한 덩어리인 한자는 모양 문제가 안 된다', Boolean(single) && n3.questionById(`kq:${single.k}:s`) === null, single?.k);
+  // 오답 노트가 id로 다시 만든다
+  ok('★ 새 종류도 id로 다시 만든다(오답 노트) ★',
+    n3.questionById('kq:体:m')?.answer === k1.mean && n3.questionById('kq:体:s')?.answer === '体' && n3.questionById('kq:体:0')?.type === 'choice');
+  // 레슨 확인 문제는 한자마다 하나, 읽기 → 뜻 → 모양
+  const ids = KANJI_ITEMS.slice(10, 16).map((k) => k.id);
+  const cq = n3.kanjiConfirmQuestions(ids, rnd);
+  ok('한자마다 하나', cq.length === ids.length);
+  ok('★ 읽기 · 뜻 · 모양을 돌려 낸다 ★', cq[0].id.endsWith(':0') || /:\d+$/.test(cq[0].id));
+  const kinds = new Set(cq.map((q) => (/:m$/.test(q.id) ? 'm' : /:s$/.test(q.id) ? 's' : 'r')));
+  ok('여섯 자면 세 종류가 다 나온다(모양이 되는 자가 있을 때)', kinds.has('r') && kinds.has('m'), [...kinds].join());
+  // 복습 단계도 세 종류가 섞인다
+  const seen = new Set();
+  for (let i = 0; i < 80; i++) { const q = n3.questionForCard('k:体', Math.random); seen.add(/:m$/.test(q.id) ? 'm' : /:s$/.test(q.id) ? 's' : 'r'); }
+  ok('★ 복습 단계에서도 읽기·뜻·모양이 섞인다 ★', seen.size === 3, [...seen].join());
 }
 
 console.log('\n[ ★ 기기 합치기 — 안 불어나고 안 잃는다 ★ ]');

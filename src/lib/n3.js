@@ -420,6 +420,66 @@ export function kanjiQuestions(kanjiIds, rnd = Math.random) {
   return kanjiIds.map((id, i) => { const k = kanjiByChar(id.slice(2)); return k ? kanjiQuestion(k, rnd, i) : null; }).filter(Boolean);
 }
 
+/* ── 한자 확인 문제: 뜻 · 모양 ──
+ *
+ * 읽기 문제만 있으면 「읽을 줄은 아는데 무슨 뜻이고 어떻게 생겼는지」는 안 물어본다.
+ * 레슨의 확인 문제는 한자마다 하나씩, 읽기 → 뜻 → 모양 순으로 돌려 가며 낸다.
+ *
+ *   id 끝이 숫자  읽기 (그 한자가 든 단어의 읽기)   kq:漢:0
+ *   id 끝이 m     뜻  (한자를 보고 뜻 고르기)       kq:漢:m
+ *   id 끝이 s     모양 (구성 요소를 보고 한자 고르기) kq:漢:s
+ *
+ * 오답 노트는 id로 문제를 다시 만든다(questionById) — 새 종류도 같은 길을 탄다. */
+
+/* 구성 요소로 풀어 쓸 수 있는 한자인가. parts가 「A + B」 꼴이어야 모양 문제가 된다. */
+export const kanjiComponents = (k) => String(k.parts || '').split('+').map((x) => x.trim()).filter(Boolean);
+export const canShapeQuestion = (k) => kanjiComponents(k).length >= 2;
+
+export function kanjiMeaningQuestion(k, rnd = Math.random) {
+  const others = [];
+  for (const o of shuffle(KANJI_ITEMS.filter((x) => x.k !== k.k && x.mean !== k.mean), rnd)) {
+    if (others.length >= 2) break;
+    if (others.some((x) => x.mean === o.mean)) continue;
+    others.push(o);
+  }
+  const all = shuffle([k, ...others], rnd);
+  return { id: `kq:${k.k}:m`, kind: 'kanji', cat: 'kanji', ref: k.id, refTitle: k.k, type: 'choice',
+    q: `【${k.k}】の意味は？`, sub: `${k.on}${k.kun && k.kun !== '—' ? ` / ${k.kun}` : ''}`, options: all.map((x) => x.mean), answer: k.mean,
+    why: Object.fromEntries(others.map((o) => [o.mean, `「${o.mean}」는 ${o.k}(${o.kh})예요.`])),
+    expl: `${k.k} = ${k.mean} (${k.kh})${k.parts ? ` · 구성 ${k.parts}` : ''}`, d: 1 };
+}
+
+/* 모양 문제 — 보기는 같은 요소를 나눠 쓰는 한자를 먼저 고른다. 모양이 비슷한 것끼리
+   헷갈리는 게 이 문제가 묻고 싶은 것이다(休·体). 구성이 똑같은 한자는 보기에서 뺀다. */
+export function kanjiShapeQuestion(k, rnd = Math.random) {
+  const mine = kanjiComponents(k);
+  const diff = KANJI_ITEMS.filter((x) => x.k !== k.k && x.parts !== k.parts);
+  const near = shuffle(diff.filter((x) => kanjiComponents(x).some((c) => mine.includes(c))), rnd);
+  const others = [];
+  for (const o of [...near, ...shuffle(diff, rnd)]) {
+    if (others.length >= 2) break;
+    if (others.some((x) => x.parts === o.parts)) continue;
+    others.push(o);
+  }
+  const all = shuffle([k, ...others], rnd);
+  return { id: `kq:${k.k}:s`, kind: 'kanji', cat: 'kanji', ref: k.id, refTitle: k.k, type: 'choice',
+    q: `${mine.join(' + ')} 로 만든 한자는?`, sub: `뜻: ${k.mean}`, options: all.map((x) => x.k), answer: k.k,
+    why: Object.fromEntries(others.map((o) => [o.k, `${o.k}는 ${o.parts} 로 만들어요 (${o.mean}).`])),
+    expl: `${k.k} = ${k.parts} (${k.mean})`, d: 1 };
+}
+
+/* 레슨 확인 문제 — 한자마다 하나. 읽기·뜻·모양을 돌려 낸다(모양이 안 되는 한자는 읽기로). */
+const CONFIRM_ORDER = ['read', 'mean', 'shape'];
+export function kanjiConfirmQuestion(k, i = 0, rnd = Math.random) {
+  const kind = CONFIRM_ORDER[i % CONFIRM_ORDER.length];
+  if (kind === 'mean') return kanjiMeaningQuestion(k, rnd);
+  if (kind === 'shape' && canShapeQuestion(k)) return kanjiShapeQuestion(k, rnd);
+  return kanjiQuestion(k, rnd, i);
+}
+export function kanjiConfirmQuestions(kanjiIds, rnd = Math.random) {
+  return kanjiIds.map((id, i) => { const k = kanjiByChar(id.slice(2)); return k ? kanjiConfirmQuestion(k, i, rnd) : null; }).filter(Boolean);
+}
+
 export function grammarQuestionsOf(lessonId) {
   return GRAMMAR_QUESTIONS.filter((q) => q.ref === lessonId).map((q) => ({ ...q, type: 'choice' }));
 }
@@ -428,7 +488,15 @@ export function grammarQuestionsOf(lessonId) {
 export function questionForCard(id, rnd = Math.random) {
   const t = trackOf(id);
   if (t === 'grammar') { const qs = grammarQuestionsOf(id); return qs.length ? qs[Math.floor(rnd() * qs.length)] : null; }
-  if (t === 'kanji') { const k = kanjiByChar(id.slice(2)); return k ? kanjiQuestion(k, rnd, Math.floor(rnd() * k.words.length)) : null; }
+  if (t === 'kanji') {
+    const k = kanjiByChar(id.slice(2));
+    if (!k) return null;
+    /* 복습에서도 읽기·뜻·모양을 돌려 낸다 — 같은 한자를 매번 읽기로만 묻지 않는다 */
+    const r = rnd();
+    if (r < 0.34) return kanjiMeaningQuestion(k, rnd);
+    if (r < 0.67 && canShapeQuestion(k)) return kanjiShapeQuestion(k, rnd);
+    return kanjiQuestion(k, rnd, Math.floor(rnd() * k.words.length));
+  }
   const w = vocabWordById(id);
   if (!w) return null;
   const type = rnd() < 0.5 ? 'ko' : (KANA.test(w.kanji) ? 'jp' : 'kana');
@@ -451,7 +519,10 @@ export function questionById(id, rnd = Math.random) {
   if (id.startsWith('kq:')) {
     const [, ch, which] = id.split(':');
     const k = kanjiByChar(ch);
-    return k ? kanjiQuestion(k, rnd, Number(which) || 0) : null;
+    if (!k) return null;
+    if (which === 'm') return kanjiMeaningQuestion(k, rnd);
+    if (which === 's') return canShapeQuestion(k) ? kanjiShapeQuestion(k, rnd) : null;
+    return kanjiQuestion(k, rnd, Number(which) || 0);
   }
   return null;
 }

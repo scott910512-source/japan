@@ -36,7 +36,12 @@ function answerOf(qid) {
     const [, wid, type] = qid.split(':'); const w = vocabWordById(wid);
     return type === 'ko' ? w.mean : type === 'jp' ? w.kanji : w.kana;
   }
-  if (qid.startsWith('kq:')) { const [, ch, n] = qid.split(':'); return kanjiByChar(ch).words[Number(n)][1]; }
+  if (qid.startsWith('kq:')) {
+    const [, ch, n] = qid.split(':');
+    if (n === 'm') return kanjiByChar(ch).mean;     // 뜻 문제
+    if (n === 's') return ch;                       // 모양 문제 — 답은 그 한자
+    return kanjiByChar(ch).words[Number(n)][1];     // 읽기 문제
+  }
   return null;
 }
 
@@ -192,6 +197,12 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   await page.locator('.n3-kanjilesson').waitFor();
   ok('새 한자 넉 자, 한국 한자·훈음이 있다', await page.locator('.n3-kanji').count() === 4 && (await page.locator('.n3-kanji').first().locator('.n3-khk').innerText()).includes('한국 한자'));
   ok('음독·훈독·부수·단어 🔊', await page.locator('.n3-kanji').first().locator('.n3-kword .spk').count() >= 2);
+  /* ★ 한자 카드의 칸 순서: 기본 → 모양과 구성 → 유래 → (연상) → 단어와 예문 ★ */
+  const secs = await page.locator('.n3-kanji').first().locator('.n3-ksec').evaluateAll((els) => els.map((e) => e.dataset.sec));
+  ok('★ 칸 순서가 모양 → 유래 → (연상) → 단어 ★', secs[0] === 'shape' && secs[1] === 'origin' && secs.at(-1) === 'words' && secs.every((x) => ['shape', 'origin', 'memo', 'words'].includes(x)), secs.join(' > '));
+  ok('구성 요소가 칩으로 보인다', await page.locator('.n3-kanji').first().locator('.n3-kpiece b').count() >= 1);
+  ok('유래가 없으면 「적지 않았어요」라고 밝힌다(지어내지 않는다)',
+    await page.locator('.n3-kanji').evaluateAll((els) => els.every((e) => e.querySelector('.n3-kmemo.ety') || e.querySelector('.n3-knoety'))));
   await page.locator('.n3-toquiz').click();
   await page.locator('.n3-quiz').waitFor();
   const kq = await solve(page);
