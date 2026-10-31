@@ -1,0 +1,27 @@
+name: 서버 깨우기
+
+# Supabase 무료 프로젝트는 일주일쯤 요청이 없으면 저절로 정지된다. 정지되면 로그인이
+# 「Load failed」로 막히고 기기 사이 동기화가 멈춘다. 하루 한 번 서버에 진짜 요청을
+# 보내 정지를 막는다. 왜 이 요청인지, 무엇을 건드리지 않는지는 tools/keepalive.sh에 적었다.
+#
+# 실패하면 GitHub가 메일을 보낸다 — 서버가 이미 정지됐거나 키가 막혔다는 신호다.
+# 앱에서 로그인이 막히기 전에 알 수 있다.
+#
+# 매일 03:17 UTC(한국 12:17). 정각을 피한 것은 정각에 몰리는 예약 실행이 밀리기 때문이다.
+# 이 저장소에 두 달 넘게 아무 활동이 없으면 GitHub가 예약 실행을 멈춘다 — 푸시 한 번이면 다시 켜진다.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: 서버 깨우기
+        run: bash tools/keepalive.sh
