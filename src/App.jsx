@@ -112,6 +112,7 @@ export default function App() {
     vaultKey,
     authReady,
     authTimedOut,
+    authFailed,
     recovering,
     setRecovering,
     rememberVaultKey,
@@ -303,7 +304,7 @@ export default function App() {
               /* 와이파이는 잡혔는데 서버가 죽은 자리에서 갇히지 않게 —
                  확인이 시간초과·거절로 끝났거나 동기화가 실패했으면
                  「이 기기 기록으로 계속하기」를 띄운다 */
-              serverDown={authTimedOut || Boolean(syncState.error)}
+              serverDown={authTimedOut || authFailed || Boolean(syncState.error)}
               onContinueOffline={() => setOfflinePass(true)}
             />
           </section>

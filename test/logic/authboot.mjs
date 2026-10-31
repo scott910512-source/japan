@@ -16,6 +16,7 @@
  * 것으로 공부할 수 있어야 한다. */
 import {
   AUTH_READY_TIMEOUT, authGate, canContinueOffline, sessionFrom,
+  isServerProblem, readableAuthError,
 } from '../../src/lib/authboot.js';
 
 let pass = 0; let fail = 0;
@@ -118,6 +119,38 @@ console.log('\n[ ★ 이 기기 기록으로 계속하기 ★ ]');
   ok('처음 쓰는 기기 + 서버 죽음도 안 보여 준다',
     canContinueOffline({ signedInOnce: false, online: true, serverDown: true }) === false);
   ok('빈손으로 불러도 안 죽는다', canContinueOffline() === false);
+}
+
+
+console.log('\n[ ★ 서버 문제인가, 내가 틀린 건가 ★ ]');
+{
+  /* 「Load failed」가 그대로 뜨고 버튼도 안 떴다 — 정지된 무료 프로젝트 때문이었다 */
+  const net = Object.assign(new Error('Load failed'), { name: 'AuthRetryableFetchError', status: 0 });
+  ok('★ 서버에 닿지 못함(Load failed)은 서버 문제다 ★', isServerProblem(net));
+  ok('Failed to fetch · NetworkError도', isServerProblem(new Error('Failed to fetch')) && isServerProblem(new Error('NetworkError when attempting to fetch resource.')));
+  ok('5xx는 서버 문제', isServerProblem({ status: 503, message: 'Service Unavailable' }) && isServerProblem({ status: 500, message: 'x' }));
+  ok('★ 서버가 키를 거절(401 Invalid API key)도 서버 문제 ★', isServerProblem({ status: 401, message: 'Invalid API key' }));
+  ok('비밀번호가 틀린 것은 서버 문제가 아니다', !isServerProblem({ status: 400, message: 'Invalid login credentials' }));
+  ok('메일 인증 전 · 이미 가입 · 형식 오류도 아니다',
+    !isServerProblem({ status: 400, message: 'Email not confirmed' }) && !isServerProblem({ status: 422, message: 'User already registered' }) && !isServerProblem({ status: 400, message: 'Unable to validate email address: invalid format' }));
+  ok('빈 값은 안 죽는다', !isServerProblem(null) && !isServerProblem(undefined) && !isServerProblem({}));
+  ok('문자열 오류도 받는다', isServerProblem('Load failed') && !isServerProblem('Invalid login credentials'));
+}
+
+console.log('\n[ ★ 영어 오류가 그대로 안 뜬다 ★ ]');
+{
+  const net = Object.assign(new Error('Load failed'), { name: 'AuthRetryableFetchError', status: 0 });
+  ok('★ Load failed → 한국어 ★', /서버에 닿지 못했어요/.test(readableAuthError(net)) && !/load failed/i.test(readableAuthError(net)), readableAuthError(net));
+  ok('Failed to fetch도', /서버에 닿지 못했어요/.test(readableAuthError(new Error('Failed to fetch'))));
+  ok('키 거절은 서버가 받지 않는다고', /서버가 요청을 받지 않아요/.test(readableAuthError({ status: 401, message: 'Invalid API key' })));
+  ok('5xx는 서버가 바쁘다고', /서버가 바쁜/.test(readableAuthError({ status: 502, message: 'Bad Gateway' })));
+  /* 전에 있던 안내는 그대로 */
+  ok('비밀번호 틀림', readableAuthError({ status: 400, message: 'Invalid login credentials' }) === '이메일이나 비밀번호가 맞지 않아요');
+  ok('이미 가입', readableAuthError(new Error('User already registered')) === '이미 가입된 이메일이에요. 로그인해 주세요');
+  ok('6자 미만', readableAuthError(new Error('Password should be at least 6 characters')) === '비밀번호는 6자 이상이어야 해요');
+  ok('메일 인증 전', readableAuthError(new Error('Email not confirmed')) === '메일함에서 인증 링크를 먼저 눌러 주세요');
+  ok('횟수 제한', readableAuthError(new Error('email rate limit exceeded')) === '잠시 후 다시 시도해 주세요');
+  ok('빈 값은 기본 안내', readableAuthError(undefined) === '잠시 후 다시 시도해 주세요' && readableAuthError('') === '잠시 후 다시 시도해 주세요');
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
