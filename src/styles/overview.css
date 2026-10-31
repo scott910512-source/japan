@@ -532,3 +532,12 @@
 .kg-dots button.kg-dot.done::after { background: var(--ok, #16a34a); }
 .kg-dots button.kg-dot.now::after { background: var(--accent, #2563eb); }
 .kg-auto { width: 100%; justify-content: center; margin-top: 10px; min-height: var(--touch); }
+
+/* 복습 탭의 기억 단계 안내 */
+.rv-stages { margin-top: 12px; padding: 4px 14px 12px; }
+.rv-stages summary { cursor: pointer; padding: 12px 0; font-size: 14px; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+.rv-stagelist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rv-stagelist li { display: flex; flex-direction: column; gap: 1px; }
+.rv-stagelist b { font-size: 13.5px; font-weight: 700; }
+.rv-stagelist span { font-size: 12px; color: var(--ink-soft); }
+.rv-me { margin-top: 8px; }

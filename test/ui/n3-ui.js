@@ -263,11 +263,12 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   ok('주요 버튼이 「완료 · 다시 보기」', (await page.locator('.n3-cta').getAttribute('data-state')) === 'done');
   ok('약점 버튼에 오답이 반영', (await page.locator('.n3-weakbtn').innerText()).length > 10);
 
-  console.log('\n── 홈의 「오늘의 N3」 줄');
+  console.log('\n── 오늘 화면의 N3 줄 (한 곳)');
   await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click(); await page.waitForTimeout(400);
   await page.locator('.tabbar .tab[data-tab="home"]').click(); await page.waitForTimeout(500);
-  const row = page.locator('.tdtask', { hasText: '오늘의 N3' });
-  ok('홈에 오늘의 N3 줄이 있고 다 했다고 적힌다', await row.count() === 1 && (await row.innerText()).includes('다 했어요'));
+  const row = page.locator('.hm-n3');
+  ok('오늘 화면의 N3 줄은 하나이고 다 했다고 표시된다', await row.count() === 1 && (await row.getAttribute('class')).includes('done') && (await row.innerText()).includes('다 했어요'));
+  ok('★ 「오늘」 목록에 N3 줄이 또 없다 ★', await page.locator('.tdlist .tdtask', { hasText: '오늘의 N3' }).count() === 0);
 
   console.log('\n── 전체 과정 · 진단으로 건너뛰기');
   await openMenu(page, '한 권으로 끝내는 N3');

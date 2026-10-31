@@ -304,10 +304,25 @@ export default function Log({
       </button>
 
       <div className="section-label">설정</div>
-      <button className="rowcard me-settings" onClick={onOpenSettings}>
+      <button className="rowcard me-settings" onClick={() => onOpenSettings()}>
         <span className="rc-body">
           <b>설정</b>
           <span>학습 설정 · 음성 · 계정과 동기화 · 기록 백업 · 학습 도구 · 앱 정보</span>
+        </span>
+        <IconChevron className="chev" />
+      </button>
+      {/* 자주 찾는 둘은 설정을 거치지 않고 그 묶음으로 바로 — 기기를 바꾸거나 로그인이 막혔을 때 쓴다 */}
+      <button className="rowcard me-account" onClick={() => onOpenSettings('account')}>
+        <span className="rc-body">
+          <b>계정과 동기화</b>
+          <span>로그인 · 기기 간 동기화 상태</span>
+        </span>
+        <IconChevron className="chev" />
+      </button>
+      <button className="rowcard me-backup" onClick={() => onOpenSettings('backup')}>
+        <span className="rc-body">
+          <b>기록 백업</b>
+          <span>내려받기 · 복원 · 무엇이 들어가나</span>
         </span>
         <IconChevron className="chev" />
       </button>

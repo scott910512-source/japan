@@ -1,5 +1,6 @@
 import { IconRepeat, IconChevron, IconFlame, IconX, IconGrid, IconChat, IconBook } from '../components/Icons.jsx';
 import { reviewLeftOf } from '../lib/plan.js';
+import { STAGES } from '../lib/rounds.js';
 
 /* 복습 탭 — 복습으로 가는 길을 하나로.
  *
@@ -16,7 +17,7 @@ import { reviewLeftOf } from '../lib/plan.js';
  * 것」과 「틀린 것」만 있으면 쓸 수 있어야 한다. */
 export default function ReviewHub({
   planNow, sentenceDue, weakWords, wrongCount, weakGrammar, weakBook = null, weakRows = [],
-  onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeakWords, onOpenWeakGrammar, onOpenRepeat,
+  onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeakWords, onOpenWeakGrammar, onOpenRepeat, onOpenMe,
 }) {
   /* 홈·배지와 같은 함수 — 여기서 따로 세지 않는다 */
   const { left, assigned, done, backlog, review: reviewLeft, weak: weakLeft } = reviewLeftOf(planNow);
@@ -153,6 +154,19 @@ export default function ReviewHub({
       <p className="set-note">
         <IconRepeat style={{ width: 12, height: 12, verticalAlign: '-2px' }} /> 복습 간격은 앱이 정해요 — 맞힐수록 1 · 3 · 7 · 30 · 90일로 벌어져요.
       </p>
+
+      {/* 기억 단계 안내 — 이름은 rounds.js의 STAGES 하나만 본다(내 학습의 막대와 같은 말).
+          단계별 개수는 내 학습에 있다. 여기는 「무슨 뜻인가」만 말한다. */}
+      <details className="card rv-stages">
+        <summary>기억 단계는 이렇게 올라가요</summary>
+        <ol className="rv-stagelist">
+          {STAGES.filter((s) => s.id !== 'self').map((s) => (
+            <li key={s.id}><b>{s.label}</b><span>{s.sub}</span></li>
+          ))}
+        </ol>
+        <p className="set-note">틀리면 확인 단계가 처음으로 돌아가요. 단계별 개수는 내 학습에서 봐요.</p>
+        {onOpenMe && <button className="ghost-btn rv-me" onClick={onOpenMe}>내 학습에서 보기</button>}
+      </details>
     </>
   );
 }

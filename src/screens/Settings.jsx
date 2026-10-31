@@ -47,7 +47,7 @@ const DIRECTIONS = [
 
 
 export default function Settings({
-  settings, onChange, onReplayOnboarding, onOpenWordManager, onOpenTranslate, onOpenSwiss, onToast, onReload,
+  initialGroup = null, settings, onChange, onReplayOnboarding, onOpenWordManager, onOpenTranslate, onOpenSwiss, onToast, onReload,
   session, syncState, storeError, onSync, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
 }) {
   const goals = normalizeGoals(settings.goals ?? settings.dailyGoal);
@@ -57,7 +57,7 @@ export default function Settings({
   const preset = presetOf(goals);
   const [showLanes, setShowLanes] = useState(false);
   // 어느 묶음을 보고 있나. null이면 고르는 목록.
-  const [group, setGroup] = useState(null);
+  const [group, setGroup] = useState(() => (MORE_GROUPS.some((x) => x.id === initialGroup) ? initialGroup : null));
   const menus = settings.menus || DEFAULT_SETTINGS.menus;
   const enabledCount = Object.values(menus).filter(Boolean).length;
 

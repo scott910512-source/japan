@@ -188,7 +188,8 @@ async function judgeAll(page, max = 60, label = '알아요') {
   ok('★ 홈 N3 줄에 준비도가 적힌다 (코스가 적어 둔 요약) ★', /\d+%/.test(await page.locator('.hm-goal').innerText()), await page.locator('.hm-goal').innerText());
   const cont = page.locator('.hm-n3');
   ok('이어서 공부하기에 N3 코스 · 오늘 몫', (await cont.innerText()).includes('레슨') && (await cont.innerText()).includes('남음'), (await cont.innerText()).replace(/\s+/g, ' '));
-  ok('오늘 목록에 오늘의 N3 줄', await page.locator('.tdlist .tdtask', { hasText: '오늘의 N3' }).count() === 1);
+  ok('★ 오늘 몫의 단계 순서가 N3 줄 안에 한 번 ★', /어휘/.test(await cont.innerText()) && await page.locator('.hm-n3steps').count() === 1);
+  ok('★ 「오늘」 목록에 N3 줄이 또 없다 (한 곳) ★', await page.locator('.tdlist .tdtask', { hasText: '오늘의 N3' }).count() === 0);
   await cont.click();
   await page.locator('.n3-hub').waitFor({ timeout: 8000 });
   ok('그 자리(코스 메인)로 간다', await page.locator('.n3-hub').count() === 1);
