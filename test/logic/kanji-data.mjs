@@ -39,5 +39,26 @@ ok('예문이 있으면 [일본어, 읽기, 한국어] 묶음이다',
 ok('예문에는 그 한자가 들어 있다', withEx.every((k) => k.ex.every(([jp]) => jp.includes(k.k))),
   withEx.filter((k) => !k.ex.every(([jp]) => jp.includes(k.k))).map((k) => k.k).join() || '모두 포함');
 
+console.log('\n[ ★ 500자 전부 구조 설명과 예문이 있다 ★ ]');
+ok('구조 설명이 500자 전부에 있다', withSt.length === 500, `${withSt.length}자`);
+ok('예문이 500자 전부에 있다', withEx.length === 500, `${withEx.length}자`);
+ok('구조 설명은 구성 요소(parts)를 풀어 쓴다 — 한 덩어리가 아니면 구성 요소가 한 글자 이상 들어 있다',
+  KANJI_ITEMS.filter((k) => k.parts.includes('+')).every((k) => k.parts.split('+').map((x) => x.trim()).some((c) => k.st.includes(c.replace(/\(.*\)/, '')))),
+  KANJI_ITEMS.filter((k) => k.parts.includes('+') && !k.parts.split('+').map((x) => x.trim()).some((c) => k.st.includes(c.replace(/\(.*\)/, '')))).map((k) => k.k).join() || '모두 포함');
+/* ★ 유래를 지어내지 않는다 ★ 구조 설명(st)은 「어떤 조각으로 이루어졌나」다. 「원래 ~를 본뜬 글자」 같은
+   유래 주장은 확인된 유래(ety)가 있는 한자에서만 그 내용을 인용할 수 있다. */
+const ORIGIN_WORDS = /(본뜬|모양에서 왔|모양이래요|에서 온 글자|원래는)/;
+ok('★ 확인된 유래(ety)가 없는 한자의 구조 설명에는 유래 주장이 없다 ★',
+  KANJI_ITEMS.filter((k) => !k.ety).every((k) => !ORIGIN_WORDS.test(k.st)),
+  KANJI_ITEMS.filter((k) => !k.ety && ORIGIN_WORDS.test(k.st)).map((k) => k.k).join() || '지어낸 유래 없음');
+/* 「더 쪼개 읽지 않고 한 덩어리」는 구성이 하나(parts에 +가 없음)인 글자에만 쓰는 말이다.
+   구성이 둘 이상인데 이렇게 시작하면 설명이 자료와 어긋난다(余가 그랬다). 풀어 보이고 나서
+   「외우기엔 한 덩어리가 쉽다」고 덧붙이는 것은 어긋남이 아니다. */
+const SINGLE = /^더 쪼개 읽지 않고/;
+ok('★ 구성이 둘 이상인 한자의 설명이 「더 쪼개 읽지 않고」로 시작하지 않는다 ★',
+  KANJI_ITEMS.every((k) => !SINGLE.test(k.st) || !k.parts.includes('+')),
+  KANJI_ITEMS.filter((k) => SINGLE.test(k.st) && k.parts.includes('+')).map((k) => k.k).join() || '어긋남 없음');
+ok('구조 설명은 연상 이야기가 아니다 — 「연상」「~다고 외우」 표현 없음', KANJI_ITEMS.every((k) => !/(연상|외워 보|상상)/.test(k.st)));
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);
