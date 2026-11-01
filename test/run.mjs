@@ -40,6 +40,30 @@ const list = (dir, ext) => (existsSync(join(HERE, dir))
   ? readdirSync(join(HERE, dir)).filter((f) => f.endsWith(ext) && !f.startsWith('_')).sort()
   : []);
 
+/* Observed full-suite durations, in seconds. LPT assignment keeps long listening
+   and review tests from landing on the same runner. New files get a safe default.
+   Selection is deterministic and every UI file belongs to exactly one shard. */
+const UI_SECONDS = {
+  'listen-ui.js': 158, 'weak-ui.js': 120, 'today.js': 96, 'n3-exam-ui.js': 68,
+  'n3-ui.js': 55, 'design.js': 53, 'swiss-ui.js': 52, 'travel-drill-ui.js': 51,
+  'rpg.js': 47, 'steps-ui.js': 47, 'translate-ui.js': 44, 'kiju-ui.js': 42,
+  'compose-ui.js': 39, 'menu-ui.js': 39, 'oldstate.js': 38, 'conjugate-ui.js': 36,
+  'study-flow.js': 34, 'flow4.js': 32, 'grabtoggle.js': 30, 'qa-final.js': 29,
+  'stream-ui.js': 29, 'back-sheet.js': 27, 'iphone-smoke.js': 27,
+};
+function uiForShard(files) {
+  if (!shard) return files;
+  const bins = Array.from({ length: Number(shard[2]) }, () => ({ seconds: 0, files: [] }));
+  const cost = (file) => UI_SECONDS[file] || 20;
+  for (const file of [...files].sort((a, b) => cost(b) - cost(a) || a.localeCompare(b))) {
+    const target = bins.reduce((best, bin) => bin.seconds < best.seconds ? bin : best);
+    target.files.push(file); target.seconds += cost(file);
+  }
+  const chosen = bins[Number(shard[1])];
+  console.log(`UI shard ${shard[1]}/${shard[2]}: ${chosen.files.length} files, estimated ${chosen.seconds}s`);
+  return chosen.files.sort();
+}
+
 /* 검사 하나를 돌리고 "통과 N / 실패 M"을 읽어 온다.
    출력은 그대로 흘려보낸다 — 실패했을 때 어느 줄이 깨졌는지 봐야 한다. */
 function runOne(cmd, args, label) {
@@ -112,7 +136,7 @@ if (only !== 'ui') {
 
 let server = null;
 if (only !== 'logic') {
-  const ui = list('ui', '.js').filter((_, index) => !shard || index % Number(shard[2]) === Number(shard[1]));
+  const ui = uiForShard(list('ui', '.js'));
   if (ui.length) {
     if (!existsSync(join(ROOT, 'dist', 'index.html'))) {
       console.log('── 빌드 (dist가 없음)');
