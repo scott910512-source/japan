@@ -40,6 +40,7 @@ const SUB_TITLES = {
   rpg: '상황 대화',
   drill: '실전 연습',
   stream: '쭉 퀴즈',
+  compose: '문장 만들기',
   repeat: '전체 복습 · 회독 학습',
   adverb: '부사 연습',
   listenhub: '듣기',

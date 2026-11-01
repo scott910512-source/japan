@@ -59,7 +59,7 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
   await page.locator('.menutile[data-menu="rpg"]').click();
   await page.waitForTimeout(700);
   ok('실전 연습이 허브를 연다', await page.locator('.drillhub').count() === 1);
-  ok('허브에 쭉 퀴즈와 상황 대화', (await page.locator('.drillhub .pr-row b').allTextContents()).join() === '쭉 퀴즈,상황 대화');
+  ok('허브에 쭉 퀴즈 · 문장 만들기 · 상황 대화', (await page.locator('.drillhub .pr-row b').allTextContents()).join() === '쭉 퀴즈,문장 만들기,상황 대화');
   ok('★ 목표 레벨이 N3로 보인다(기본) ★', (await page.locator('.dh-goal b').innerText()) === 'N3');
   await page.locator('.pr-row[data-menu="stream"]').click();
   await page.waitForTimeout(900);
@@ -105,27 +105,37 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
     await page.waitForTimeout(250);
   }
   const after = await reviewOf(page);
-  const wrongs = results.filter((r) => !r.ok);
-  const rights = results.filter((r) => r.ok);
-  ok('여러 문제를 풀었다', results.length >= 6, `${results.length}문제 · 맞힘 ${rights.length} · 틀림 ${wrongs.length}`);
-  ok('★ 틀린 것은 「몰라요」 — 오늘 복습으로 올라온다 ★',
+  /* ★ 복습 기록에는 한 낱말의 「첫 대답」만 들어간다 ★
+     한 판에서 같은 낱말을 다시 만날 수 있다(틀리면 곧 다시 나온다). 틀린 뒤 맞혔다고 몰라요가
+     지워지면 안 되고, 두 번 틀렸다고 두 번 쌓여도 안 된다 — 그래서 기록 검사는 첫 대답으로 한다. */
+  const firstOf = new Map();
+  for (const r of results) if (!firstOf.has(r.id)) firstOf.set(r.id, r.ok);
+  const wrongs = [...firstOf].filter(([, v]) => !v).map(([id]) => ({ id }));
+  const rights = [...firstOf].filter(([, v]) => v).map(([id]) => ({ id }));
+  const rightAnswers = results.filter((r) => r.ok).length;
+  const wrongAnyIds = new Set(results.filter((r) => !r.ok).map((r) => r.id));
+  ok('여러 문제를 풀었다', results.length >= 6, `${results.length}문제 · 낱말 ${firstOf.size}개 · 맞힘 ${rightAnswers}`);
+  ok('★ 첫 대답이 틀린 것은 「몰라요」 — 오늘 복습으로 올라온다 ★',
     wrongs.length > 0 && wrongs.every((r) => after[r.id]?.box === BOX.UNKNOWN && after[r.id]?.due === today),
     wrongs.slice(0, 2).map((r) => `${r.id}:${after[r.id]?.box}`).join(' '));
-  ok('★ 맞힌 것은 「알아요」로 들어간다(rounds가 오른다) ★',
+  ok('★ 첫 대답이 맞은 것은 「알아요」로 들어간다(rounds가 오른다) ★',
     rights.length === 0 || rights.every((r) => (after[r.id]?.rounds || 0) > (before[r.id]?.rounds || 0) && after[r.id]?.box === BOX.KNOWN),
     rights.slice(0, 2).map((r) => `${r.id}:${after[r.id]?.rounds}`).join(' '));
+  ok('★ 같은 판에서 다시 만나도 기록은 한 번만(rounds가 한 번만 오른다) ★',
+    [...firstOf.keys()].every((id) => (after[id]?.rounds || 0) === (before[id]?.rounds || 0) + 1),
+    [...firstOf.keys()].slice(0, 3).map((id) => `${id}:${(before[id]?.rounds || 0)}→${after[id]?.rounds}`).join(' '));
   const scoreTxt = (await page.locator('.st-score').innerText()).replace(/\s/g, '');
-  ok('점수가 푼 수와 맞는다', scoreTxt === `${rights.length}/${results.length}` || scoreTxt.endsWith(`/${results.length}`), scoreTxt);
+  ok('점수가 푼 수와 맞는다', scoreTxt === `${rightAnswers}/${results.length}`, scoreTxt);
 
   console.log('\n[ 평가 ]');
   await page.locator('.st-stop').click();
   await page.waitForTimeout(600);
   ok('평가 화면', await page.locator('.st-sum').count() === 1);
   const pct = Number((await page.locator('.qs-num').innerText()).replace(/[^\d]/g, ''));
-  ok('정답률이 맞다', pct === Math.round((rights.length / results.length) * 100), `${pct}%`);
+  ok('정답률이 맞다', pct === Math.round((rightAnswers / results.length) * 100), `${pct}%`);
   ok('종류별 줄이 있다', await page.locator('.st-kindrow').count() >= 1);
   const missedIds = await page.locator('.st-missed .qwrow').evaluateAll((els) => els.map((e) => e.dataset.id));
-  ok('★ 다시 볼 것 = 틀린 낱말 ★', new Set(missedIds).size === new Set(wrongs.map((r) => r.id)).size, `${missedIds.length}개`);
+  ok('★ 다시 볼 것 = 한 번이라도 틀린 낱말 ★', new Set(missedIds).size === wrongAnyIds.size, `${missedIds.length}개`);
   await page.locator('.st-again').click();
   await page.waitForTimeout(700);
   ok('계속 풀기: 새 판(점수 0)', (await page.locator('.st-score').innerText()).replace(/\s/g, '') === '0/0');

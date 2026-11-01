@@ -8,6 +8,7 @@ import { goalOf } from '../lib/goal.js';
  * 그대로 두고 안에서 고른다. 기존 상황 대화 연습(rpg)은 그대로이고 이름만 「상황 대화」다. */
 const ROWS = [
   { id: 'stream', label: '쭉 퀴즈', sub: '외운 것을 끊지 않고 이어서 평가해요. 약한 것이 더 자주 나와요' },
+  { id: 'compose', label: '문장 만들기', sub: '조립, 빈칸, 쓰기로 문장을 직접 만들고 AI가 고쳐 줘요' },
   { id: 'rpg', label: '상황 대화', sub: '식당·길 묻기 같은 상황을 통째로 연습해요' },
 ];
 
@@ -29,7 +30,7 @@ export default function DrillHub({ settings, onOpen }) {
           </button>
         ))}
       </div>
-      <p className="set-note">쭉 퀴즈에서 맞히고 틀린 것은 복습 간격에 반영돼요. 단어 시험·짝 맞추기·부사 연습은 단어 화면 안에 있어요.</p>
+      <p className="set-note">쭉 퀴즈와 문장 만들기(조립·쓰기)에서 맞히고 틀린 것은 복습 간격에 반영돼요. 단어 시험·짝 맞추기·부사 연습은 단어 화면 안에 있어요.</p>
     </div>
   );
 }
