@@ -75,18 +75,13 @@ export default function Today({
   const missions = [
     backLane.assigned > 0 && {
       key: 'review', title: '복습 미션',
-      note: backLeft === 0 ? '오늘 복습을 모두 마쳤어요' : `복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`,
+      note: backLeft === 0 ? '오늘 복습을 모두 마쳤어요' : `남은 ${backLeft}개 · 복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`,
       done: backLane.done, total: backLane.assigned, icon: <IconRepeat />, onClick: onStartReview,
     },
     freshLane.assigned > 0 && {
       key: 'fresh', title: '새로 배우기',
       note: freshLeft === 0 ? '오늘 새 학습을 마쳤어요' : freshMix,
       done: freshLane.done, total: freshLane.assigned, icon: <IconBook />, onClick: onStartWords,
-    },
-    onOpenN3 && n3Steps.length > 0 && {
-      key: 'n3', title: '오늘의 N3',
-      note: n3Note, done: n3Steps.length - n3Left, total: n3Steps.length,
-      icon: <IconChart />, onClick: onOpenN3,
     },
   ].filter(Boolean);
   const missionDone = missions.filter((m) => m.done >= m.total).length;
@@ -158,14 +153,14 @@ export default function Today({
             </div>
             <b className="tdq-score">{missionDone}<span> / </span>{missions.length}</b>
           </div>
-          <div className="tdq-list">
+          <div className="tdq-list tdlist">
             {missions.map((mission, index) => {
               const complete = mission.done >= mission.total;
               const percent = Math.round((mission.done / mission.total) * 100);
               return (
                 <button
                   key={mission.key}
-                  className={'tdq-row' + (complete ? ' complete' : '')}
+                  className={'tdq-row tdtask slim' + (complete ? ' complete done' : '')}
                   onClick={mission.onClick}
                   aria-label={mission.title + ', ' + mission.done + ' / ' + mission.total + ', ' + mission.note}
                 >
@@ -176,7 +171,7 @@ export default function Today({
                     <small>{mission.note}</small>
                     <span className="tdq-meter" aria-hidden="true"><i style={{ width: percent + '%' }} /></span>
                   </span>
-                  <span className="tdq-count">{mission.done}<i>/{mission.total}</i></span>
+                  <span className="tdq-count"><b>{Math.max(0, mission.total - mission.done)}</b><i>개</i></span>
                   <IconChevron className="chev" />
                 </button>
               );
@@ -185,18 +180,23 @@ export default function Today({
         </section>
       )}
 
-      {/* 오늘의 N3 — 단계가 없는 날에도 코스 진입점은 유지한다. */}
-      {onOpenN3 && n3Steps.length === 0 && (
+      {/* 현재 진행 중인 N3 코스는 오늘의 퀘스트와 나란히 계속하기로 둔다. */}
+      {onOpenN3 && (
         <>
-          <div className="section-label">학습 경로</div>
+          <div className="section-label">이어서 공부하기</div>
           <div className="tdtasks hm-cont">
-            <button className="tdtask hm-n3" onClick={onOpenN3}>
+            <button className={`tdtask hm-n3${n3Steps.length > 0 && n3Left === 0 ? ' done' : ''}`} onClick={onOpenN3}>
               <span className="tt-icon"><IconChart /></span>
               <span className="tt-body">
                 <b>한 권으로 끝내는 N3</b>
                 <span className="tt-note">{n3Note}</span>
+                {n3Steps.length > 0 && n3Left > 0 && (
+                  <span className="tt-note hm-n3steps">{n3Steps.filter((step) => !step.done).map((step) => N3_KIND[step.kind] || step.kind).join(' → ')}</span>
+                )}
               </span>
-              <span className="tt-go">{summary ? '계속하기' : '시작'}</span>
+              {n3Steps.length > 0 && n3Left === 0
+                ? <span className="tt-done"><IconCheck /> 다 했어요</span>
+                : <span className="tt-go">{summary ? '계속하기' : '시작'}</span>}
               <IconChevron className="chev" />
             </button>
           </div>
@@ -212,14 +212,16 @@ export default function Today({
         </button>
       )}
 
-      <button className={'tdtask slim tdq-bonus' + (grammarLeft === 0 ? ' done' : '')} onClick={onOpenGrammar}>
+      <div className="tdlist">
+        <button className={'tdtask slim tdq-bonus' + (grammarLeft === 0 ? ' done' : '')} onClick={onOpenGrammar}>
         <span className="tt-icon"><IconGrid /></span>
         <span className="tt-body">
           <b>보너스 수련 · 오늘의 문법</b>
           <span className="tt-note">{grammarLeft > 0 ? (grammarNext || ('아직 안 본 것 ' + grammarLeft + '개')) : '한 바퀴 돌았어요'} · 선택 미션</span>
         </span>
         {grammarLeft === 0 ? <span className="tt-done"><IconCheck /></span> : <span className="tt-count"><b>{grammarLeft}</b>개</span>}
-      </button>
+        </button>
+      </div>
     </>
   );
 }
