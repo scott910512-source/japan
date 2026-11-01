@@ -70,6 +70,21 @@ export default function Today({
   const allDone = Boolean(planNow?.finished);
   const backlog = back.backlog;
   const trip = tripLabel(settings, today);
+  /* 오늘의 퀘스트는 기존 계획과 N3 일일 진도에서 계산한다.
+     별도 점수 저장을 두지 않아 기기 동기화와 기존 학습 기록을 그대로 쓴다. */
+  const missions = [
+    backLane.assigned > 0 && {
+      key: 'review', title: '복습 미션',
+      note: backLeft === 0 ? '오늘 복습을 모두 마쳤어요' : `남은 ${backLeft}개 · 복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`,
+      done: backLane.done, total: backLane.assigned, icon: <IconRepeat />, onClick: onStartReview,
+    },
+    freshLane.assigned > 0 && {
+      key: 'fresh', title: '새로 배우기',
+      note: freshLeft === 0 ? '오늘 새 학습을 마쳤어요' : freshMix,
+      done: freshLane.done, total: freshLane.assigned, icon: <IconBook />, onClick: onStartWords,
+    },
+  ].filter(Boolean);
+  const missionDone = missions.filter((m) => m.done >= m.total).length;
 
   return (
     <>
@@ -128,10 +143,44 @@ export default function Today({
         </div>
       )}
 
-      {/* 이어서 공부하기 — 하던 코스로 바로. N3 코스 전용이다.
-          「오늘 복습」 카드도 여기 있었는데 바로 아래 「오늘」 목록의 복습 줄과
-          같은 숫자·같은 글자였다 — 같은 것을 두 번 읽게 하면 3초가 30초가 된다.
-          복습은 「오늘」 목록에서만 보여 준다. */}
+      {/* 오늘의 퀘스트 — 기존 학습 큐와 N3 일일 단계를 한곳에서 보여 준다. */}
+      {missions.length > 0 && (
+        <section className="td-quest" aria-labelledby="tdq-title">
+          <div className="tdq-head">
+            <div>
+              <small>HUNTER QUEST</small>
+              <h2 id="tdq-title">오늘의 퀘스트</h2>
+            </div>
+            <b className="tdq-score">{missionDone}<span> / </span>{missions.length}</b>
+          </div>
+          <div className="tdq-list tdlist">
+            {missions.map((mission, index) => {
+              const complete = mission.done >= mission.total;
+              const percent = Math.round((mission.done / mission.total) * 100);
+              return (
+                <button
+                  key={mission.key}
+                  className={'tdq-row tdtask slim' + (complete ? ' complete done' : '')}
+                  onClick={mission.onClick}
+                  aria-label={mission.title + ', ' + mission.done + ' / ' + mission.total + ', ' + mission.note}
+                >
+                  <span className="tdq-mark">{complete ? <IconCheck /> : index + 1}</span>
+                  <span className="tdq-icon">{mission.icon}</span>
+                  <span className="tdq-body">
+                    <b>{mission.title}</b>
+                    <small>{mission.note}</small>
+                    <span className="tdq-meter" aria-hidden="true"><i style={{ width: percent + '%' }} /></span>
+                  </span>
+                  <span className="tdq-count"><b>{Math.max(0, mission.total - mission.done)}</b><i>개</i></span>
+                  <IconChevron className="chev" />
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 현재 진행 중인 N3 코스는 오늘의 퀘스트와 나란히 계속하기로 둔다. */}
       {onOpenN3 && (
         <>
           <div className="section-label">이어서 공부하기</div>
@@ -141,13 +190,12 @@ export default function Today({
               <span className="tt-body">
                 <b>한 권으로 끝내는 N3</b>
                 <span className="tt-note">{n3Note}</span>
-                {/* 오늘 몫의 순서는 여기 한 줄로. 「오늘」 목록에 같은 줄이 또 있었다 */}
                 {n3Steps.length > 0 && n3Left > 0 && (
-                  <span className="tt-note hm-n3steps">{n3Steps.filter((s) => !s.done).map((s) => N3_KIND[s.kind] || s.kind).join(' → ')}</span>
+                  <span className="tt-note hm-n3steps">{n3Steps.filter((step) => !step.done).map((step) => N3_KIND[step.kind] || step.kind).join(' → ')}</span>
                 )}
               </span>
               {n3Steps.length > 0 && n3Left === 0
-                ? <span className="tt-done"><IconCheck /></span>
+                ? <span className="tt-done"><IconCheck /> 다 했어요</span>
                 : <span className="tt-go">{summary ? '계속하기' : '시작'}</span>}
               <IconChevron className="chev" />
             </button>
@@ -155,45 +203,25 @@ export default function Today({
         </>
       )}
 
-      {/* 오늘 — 무엇이 몇 개인지 짧게. 항목마다 큰 카드를 만들지 않는다 */}
-      {(freshLane.assigned > 0 || backLane.assigned > 0 || grammarLeft >= 0) && (
-        <>
-          <div className="section-label">오늘</div>
-          <div className="tdlist">
-            {/* 순서는 복습 → 새로 배우기. 이미 본 걸 안 잃는 것이 새로 배우는 것보다
-                앞선다 — 큰 버튼이 짜는 큐도 이 순서다. */}
-            {backLane.assigned > 0 && (
-              <button className={`tdtask slim${backLeft === 0 ? ' done' : ''}`} onClick={onStartReview}>
-                <span className="tt-icon"><IconRepeat /></span>
-                <span className="tt-body"><b>복습</b><span className="tt-note">{backLeft === 0 ? `${backLane.assigned}개 다 했어요` : `복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`}</span></span>
-                {backLeft === 0 ? <span className="tt-done"><IconCheck /></span> : <span className="tt-count"><b>{backLeft}</b>개</span>}
-              </button>
-            )}
-            {/* 오늘 큐에 다 못 담은 복습 — 조용히 밀어 두지 않는다. 오늘 몫을 다 한
-                뒤에만 한 줄로. 숫자는 복습 탭 안에서 다시 말한다. */}
-            {backLeft === 0 && backlog > 0 && (
-              <button className="tdtask slim hm-backlog" onClick={onOpenReview}>
-                <span className="tt-icon"><IconRepeat /></span>
-                <span className="tt-body"><b>{backLane.assigned > 0 ? '더 복습할 수도 있어요' : '밀린 복습'}</b><span className="tt-note">오늘 안 담은 복습 {backlog}개 · 복습 탭에서</span></span>
-                <IconChevron className="chev" />
-              </button>
-            )}
-            {freshLane.assigned > 0 && (
-              <button className={`tdtask slim${freshLeft === 0 ? ' done' : ''}`} onClick={onStartWords}>
-                <span className="tt-icon"><IconBook /></span>
-                <span className="tt-body"><b>새로 배우기</b><span className="tt-note">{freshLeft === 0 ? `${freshLane.assigned}개 다 했어요` : freshMix}</span></span>
-                {freshLeft === 0 ? <span className="tt-done"><IconCheck /></span> : <span className="tt-count"><b>{freshLeft}</b>개</span>}
-              </button>
-            )}
-            {/* 문법은 선택이다 — 안 해도 오늘 완료는 완료다 */}
-            <button className={`tdtask slim${grammarLeft === 0 ? ' done' : ''}`} onClick={onOpenGrammar}>
-              <span className="tt-icon"><IconGrid /></span>
-              <span className="tt-body"><b>오늘의 문법</b><span className="tt-note">{grammarLeft > 0 ? (grammarNext || `아직 안 본 것 ${grammarLeft}개`) : '한 바퀴 돌았어요'} · 선택</span></span>
-              {grammarLeft === 0 ? <span className="tt-done"><IconCheck /></span> : <span className="tt-count"><b>{grammarLeft}</b>개</span>}
-            </button>
-          </div>
-        </>
+      {/* 예정량을 다 못 담은 복습과 선택 문법은 기존처럼 바로 접근할 수 있다. */}
+      {backLeft === 0 && backlog > 0 && (
+        <button className="tdtask slim hm-backlog" onClick={onOpenReview}>
+          <span className="tt-icon"><IconRepeat /></span>
+          <span className="tt-body"><b>{backLane.assigned > 0 ? '더 복습할 수도 있어요' : '밀린 복습'}</b><span className="tt-note">오늘 안 담은 복습 {backlog}개 · 복습 탭에서</span></span>
+          <IconChevron className="chev" />
+        </button>
       )}
+
+      <div className="tdlist">
+        <button className={'tdtask slim tdq-bonus' + (grammarLeft === 0 ? ' done' : '')} onClick={onOpenGrammar}>
+        <span className="tt-icon"><IconGrid /></span>
+        <span className="tt-body">
+          <b>보너스 수련 · 오늘의 문법</b>
+          <span className="tt-note">{grammarLeft > 0 ? (grammarNext || ('아직 안 본 것 ' + grammarLeft + '개')) : '한 바퀴 돌았어요'} · 선택 미션</span>
+        </span>
+        {grammarLeft === 0 ? <span className="tt-done"><IconCheck /></span> : <span className="tt-count"><b>{grammarLeft}</b>개</span>}
+        </button>
+      </div>
     </>
   );
 }
