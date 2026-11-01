@@ -25,9 +25,18 @@ try {
   await page.locator('.gate-offline').waitFor({ timeout: 15000 });
   await page.locator('.gate-offline').click();
   await page.locator('.hunter-home').waitFor();
+  const homeTabs = page.getByRole('tablist', { name: '헌터 홈 화면' });
+  const tab = (name) => homeTabs.getByRole('tab', { name: new RegExp(`^${name}`) });
+  assert.equal(await page.locator('.hunter-tabpanel:visible').count(), 1); pass++;
+  assert.equal(await tab('오늘').getAttribute('aria-selected'), 'true'); pass++;
+  await tab('오늘').focus(); await page.keyboard.press('ArrowRight');
+  assert.equal(await tab('지도').getAttribute('aria-selected'), 'true'); pass++;
+  await page.keyboard.press('End');
+  assert.equal(await tab('기록').getAttribute('aria-selected'), 'true'); pass++;
   assert.equal(await page.locator('.hunter-region').count(), 6); pass++;
   assert.match(await page.locator('.hunter-license').innerText(), /10 \/ 100 XP/); pass++;
   assert.equal(await page.locator('.tabbar .tab').count(), 4); pass++;
+  await tab('지도').click();
   for (let i = 0; i < 6; i++) {
     await page.locator('.hunter-region').nth(i).click();
     assert.equal(await page.locator('.hunter-region-missions button').count(), 3);
@@ -37,10 +46,16 @@ try {
   await page.locator('.hunter-region-missions button').filter({ hasText: '한자 구조' }).click();
   await page.locator('.n3-curriculum').waitFor();
   assert.equal(await page.locator('.n3-curriculum').count(), 1); pass++;
+  assert.equal(await page.locator('.hunter-appbar').isVisible(), true); pass++;
+  const appbarBottom = await page.locator('.hunter-appbar').evaluate((el) => el.getBoundingClientRect().bottom);
+  const subTop = await page.locator('.subscreen.open').evaluate((el) => el.getBoundingClientRect().top);
+  assert.ok(subTop >= appbarBottom, 'Feature header must sit below the Hunter app bar'); pass++;
   await goTab(page, '오늘', 100);
   await page.getByRole('button', { name: '↗ 레벨 진단', exact: true }).click();
   await page.locator('.n3-test[data-test="t:ch0"]').waitFor(); pass++;
   await goTab(page, '오늘', 100);
+  assert.equal(await tab('오늘').getAttribute('aria-selected'), 'true'); pass++;
+  await tab('기록').click();
   await page.locator('.hunter-guides button').filter({ hasText: '키르아' }).click();
   assert.match(await page.locator('.hunter-welcome').innerText(), /키르아/); pass++;
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1')).hunterGuide), 'killua'); pass++;
@@ -50,19 +65,34 @@ try {
   await context.setOffline(false);
   // Force an actual asset load after the offline check and keep screenshots optional in CI.
   await page.locator('.hunter-guides button').filter({ hasText: /^곤$/ }).click();
+  await tab('오늘').click();
+  assert.equal(await page.locator('.hunter-quick-fold').getAttribute('open'), null); pass++;
+  await page.locator('.hunter-quick-fold > summary').click();
+  await page.locator('.hunter-quick-fold').getByRole('button', { name: '쭉 퀴즈', exact: true }).waitFor(); pass++;
+  await page.locator('.hunter-quick-fold > summary').click();
   if (process.env.HUNTER_SCREENSHOTS) {
     await page.locator('.hunter-welcome img').waitFor();
     await page.waitForFunction(() => document.querySelector('.hunter-welcome img')?.naturalWidth > 0, null, { timeout: 15000 });
     mkdirSync('.qa', { recursive: true });
     await page.locator('.screen.active').evaluate((el) => { el.scrollTop = 0; });
     await page.screenshot({ path: '.qa/hunter-desktop.png' });
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.screenshot({ path: '.qa/hunter-mobile.png' });
-    await page.locator('.hunter-shortnav button').filter({ hasText: '학습 지도' }).click();
-    await page.waitForTimeout(400);
-    await page.screenshot({ path: '.qa/hunter-map-mobile.png' });
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); pass++;
   }
+  await page.setViewportSize({ width: 390, height: 844 });
+  const homeHeight = await page.locator('.screen.active').evaluate((el) => el.scrollHeight);
+  assert.ok(homeHeight < 1350, `Compact home is too long: ${homeHeight}px`); pass++;
+  if (process.env.HUNTER_SCREENSHOTS) await page.screenshot({ path: '.qa/hunter-mobile.png' });
+  await tab('지도').click();
+  await page.waitForTimeout(400);
+  if (process.env.HUNTER_SCREENSHOTS) await page.screenshot({ path: '.qa/hunter-map-mobile.png' });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); pass++;
+  assert.equal(await page.locator('.hunter-tabpanel:visible').count(), 1); pass++;
+  await tab('오답').click();
+  if (process.env.HUNTER_SCREENSHOTS) await page.screenshot({ path: '.qa/hunter-mistakes-mobile.png' });
+  await goTab(page, '학습');
+  if (process.env.HUNTER_SCREENSHOTS) await page.screenshot({ path: '.qa/hunter-study-mobile.png' });
+  assert.equal(await page.locator('.hunter-appbar').isVisible(), true); pass++;
+  await page.getByRole('button', { name: '헌터 홈으로', exact: true }).click();
+  assert.equal(await tab('오늘').getAttribute('aria-selected'), 'true'); pass++;
   assert.deepEqual(errors, []); pass++;
   console.log(`통과 ${pass} / 실패 0`);
 } catch (error) { console.error(error); console.log(`통과 ${pass} / 실패 1`); process.exitCode = 1; }

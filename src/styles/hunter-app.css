@@ -1,0 +1,132 @@
+/* Shared Hunter palette: every learning screen uses the same forest/cream world. */
+:root, :root[data-theme='dark'] {
+  --paper: #102b35; --surface: #193b40; --surface-2: #24484a;
+  --ink: #fff7df; --ink-soft: #b5c8bc; --line: #42605c;
+  --kon: #afd78d; --kon-deep: #c3a7e5; --kon-soft: #253f32;
+  --shu: #ff9c9e; --shu-soft: #4a3038; --amber: #efc878; --badge-ink: #312626;
+  --shadow: #001b2680; --glow-a: #60966c20; --glow-b: #9472af14;
+  --glow-btn: 0 6px 16px -8px #001b26a0; --hunter-solid: #356449; --hunter-purple: #694d91;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --paper: #edf1e4; --surface: #fffaf0; --surface-2: #e9eddd;
+    --ink: #243d37; --ink-soft: #586953; --line: #ccd4bf;
+    --kon: #347448; --kon-deep: #735498; --kon-soft: #e2ecd6;
+    --shu: #ad3949; --shu-soft: #f8e0df; --amber: #875400; --badge-ink: #fffaf0;
+    --shadow: #243d3729; --glow-a: #76a06112; --glow-b: #8e6dad0a;
+  }
+}
+:root[data-theme='light'] {
+  --paper: #edf1e4; --surface: #fffaf0; --surface-2: #e9eddd;
+  --ink: #243d37; --ink-soft: #586953; --line: #ccd4bf;
+  --kon: #347448; --kon-deep: #735498; --kon-soft: #e2ecd6;
+  --shu: #ad3949; --shu-soft: #f8e0df; --amber: #875400; --badge-ink: #fffaf0;
+  --shadow: #243d3729; --glow-a: #76a06112; --glow-b: #8e6dad0a;
+}
+.app-shell { background: radial-gradient(ellipse at 15% 0, var(--glow-a), transparent 60%), var(--paper); }
+.card, .studycard, .gramcard, .n3-box, .n3-big, .quiz, .qopt { box-shadow: 0 4px 0 #001b2610; }
+.navtitle { letter-spacing: -.04em; }
+.tabbar { background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar .tab { min-height: 48px; border-radius: 12px; }
+.tabbar .tab.active { background: var(--kon-soft); }
+.sub-header { border-bottom-color: var(--line); }
+.studyhead::before { content: 'HUNTER TRAINING'; display: block; text-align: center; font-size: 9px; font-weight: 800; letter-spacing: .2em; color: var(--kon); margin-bottom: 6px; }
+.app-shell .submit-btn, .app-shell .bigstart, .app-shell .listenbig,
+.app-shell .chip.active, .app-shell .ob-choice.picked, .app-shell .ob-next,
+.app-shell .n3-playbtn, .app-shell .n3-stepdot.cur, .app-shell .build-tile.placed.done,
+.app-shell .vd-study, .app-shell .spk.playing, .app-shell .pickrow.active .pk-icon,
+.app-shell .lc-day.lv3, .app-shell .stamp.ok {
+  background: linear-gradient(120deg, var(--hunter-solid), var(--hunter-purple)); color: #fffaf0;
+}
+.hunter-appbar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: calc(58px + env(safe-area-inset-top, 0px)); padding: calc(4px + env(safe-area-inset-top, 0px)) 18px 4px; border-bottom: 1px solid #70856b55; background: #14383e; color: #fff7df; z-index: 70; }
+.hunter-app-brand { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
+.hunter-app-brand > span { font-size: 23px; font-weight: 900; letter-spacing: -3px; color: #afd78d; transform: skew(-8deg); }
+.hunter-app-brand > span > span { color: #e2a2ac; }
+.hunter-app-brand b { font-size: 12px; letter-spacing: -.03em; }
+.hunter-app-context { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hunter-app-context > span { font-size: 11px; color: #d0dac9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 24ch; }
+.hunter-app-context img { width: 38px; height: 38px; object-fit: cover; border: 1px solid #afd78d88; border-radius: 50%; background: #fffaf0; }
+/* Keep each mounted screen's dimensions stable while moving to/from home. A
+   conditional flex header shrinks the scroll range and loses the saved position. */
+.hunter-app > .screens > .screen:not(:has(> .hunter-home)) { padding-top: calc(74px + env(safe-area-inset-top, 0px)); }
+.app-shell:has(> .hunter-appbar) > .subscreen { top: calc(58px + env(safe-area-inset-top, 0px)); }
+.app-shell:has(> .hunter-appbar) .sub-header:not(.inline) { padding-top: 8px; }
+.gate-mark { background: linear-gradient(135deg, #356449, #694d91); color: #fff7df; }
+
+/* Home tabs replace the stacked dashboard. Hidden panels retain their state. */
+.hunter-home-tabs .hunter-grid { display: block; }
+.hunter-tabpanel[hidden] { display: none !important; }
+.hunter-home-tabs .hunter-tabpanel { grid-column: auto; grid-row: auto; }
+.hunter-home-tabs .hunter-top { margin-bottom: 12px; gap: 12px; }
+.hunter-home-tabs .hunter-brand h1 { font-size: 23px; }
+.hunter-home-tabs .hunter-top-stats > span { padding: 7px 11px; }
+.hunter-home-tabs .hunter-welcome { min-height: 98px; border-radius: 16px; gap: 12px; padding-left: 6px; }
+.hunter-home-tabs .hunter-welcome > .hunter-guide { width: 110px; height: 108px; }
+.hunter-home-tabs .hunter-welcome h2 { font-size: 21px; margin: 4px 0 5px; }
+.hunter-home-tabs .hunter-welcome p { font-size: 11px; }
+.hunter-home-tabs .hunter-welcome-seal { font-size: 10px; padding: 10px; }
+.hunter-home-navigation { position: sticky; top: -1px; z-index: 5; display: flex; align-items: stretch; gap: 10px; padding: 12px 0; background: #16343e; }
+.hunter-home-tabs .hunter-shortnav { flex: 1; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.hunter-home-tabs .hunter-shortnav button { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 53px; padding: 8px 4px; background: #ffffff08; border-color: #6e8a7a66; color: #d9e3d2; font-weight: 500; }
+.hunter-shortnav button b { font-size: 14px; }
+.hunter-shortnav button small { font-size: 9px; }
+.hunter-home-tabs .hunter-shortnav button[aria-selected='true'] { background: #b3d878; color: #253c38; border-color: #b3d878; box-shadow: 0 3px 0 #081e2766; }
+.hunter-diagnose { background: #e8dce8; border: 0; border-radius: 9px; color: #584368 !important; padding: 8px 12px; font-size: 11px !important; min-height: 44px; font-weight: 700 !important; white-space: nowrap; }
+.hunter-home-tabs .hunter-daily { display: grid; gap: 18px; padding: 20px; }
+.hunter-today-main, .hunter-today-secondary { min-width: 0; }
+.hunter-today-secondary > .section-label:first-child { margin-top: 0; }
+.hunter-home-tabs .hunter-daily .td-quest { margin-bottom: 0; }
+.hunter-home-tabs .hunter-daily .tdhead { margin-bottom: 12px; }
+.hunter-home-tabs .hunter-daily .bigcta { margin-bottom: 16px; background: linear-gradient(120deg, #4c7834, #356449); }
+.hunter-home-tabs .hunter-daily .tdq-row { padding: 10px; min-height: 68px; }
+.hunter-quick-fold { grid-column: 1 / -1; border-top: 1px solid #dbe2d2; padding-top: 4px; }
+.hunter-quick-fold > summary { min-height: 44px; display: flex; align-items: center; justify-content: space-between; color: #53664f; font-weight: 700; font-size: 12px; cursor: pointer; list-style: none; }
+.hunter-quick-fold > summary::-webkit-details-marker { display: none; }
+.hunter-quick-fold > summary::after { content: '+'; font-size: 20px; }
+.hunter-quick-fold[open] > summary::after { content: '−'; }
+.hunter-quick-fold .hunter-quick { padding: 12px 0 0; border: 0; box-shadow: none; }
+.hunter-home-tabs .hunter-world { display: grid; gap: 16px; align-items: start; }
+.hunter-home-tabs .hunter-map { height: 580px; }
+.hunter-home-tabs .hunter-record { display: grid; gap: 16px; align-items: start; }
+.hunter-pane-intro { padding: 10px 0 18px; color: #fff7df; }
+.hunter-pane-intro > small { color: #b9d69b; font-size: 9px; font-weight: 800; letter-spacing: .16em; }
+.hunter-pane-intro h2 { margin: 6px 0 8px; font-size: 22px; letter-spacing: -.04em; }
+.hunter-pane-intro p { margin: 0; color: #c5d3c7; font-size: 12px; line-height: 1.7; }
+.hunter-home-tabs .hunter-mistakes-pane { max-width: 720px; margin: 0 auto; }
+.hunter-home-tabs .hunter-panel .hunter-section-head button { min-height: 44px; }
+.hunter-home-tabs .hunter-daily .tdq-row.complete .tdq-mark { background: #357d50; color: white; }
+@media (min-width: 760px) {
+  .app-shell:has(.screen.active .hunter-home-tabs) { max-width: 1060px; }
+  .hunter-home-tabs .hunter-daily { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 22px; }
+  .hunter-today-secondary { padding-left: 22px; border-left: 1px solid #dbe2d2; }
+  .hunter-home-tabs .hunter-world { grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr); }
+  .hunter-home-tabs .hunter-record { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hunter-home-tabs .hunter-guides { grid-column: 1 / -1; }
+  .hunter-home-tabs .hunter-guide.small { height: 85px; }
+}
+@media (max-width: 759px) {
+  .hunter-home-tabs .hunter-top { flex-direction: row; align-items: center; gap: 8px; }
+  .hunter-home-tabs .hunter-brand { gap: 7px; }
+  .hunter-home-tabs .hunter-brand h1 { font-size: 17px; margin-top: 0; }
+  .hunter-home-tabs .hunter-brand small, .hunter-home-tabs .hunter-brand-mark { display: none; }
+  .hunter-home-tabs .hunter-top-stats { gap: 4px; justify-content: flex-end; }
+  .hunter-home-tabs .hunter-top-stats > span { font-size: 9px; padding: 5px 6px; }
+  .hunter-home-tabs .hunter-top-stats > span:first-child { display: none; }
+  .hunter-home-tabs .hunter-welcome { min-height: 83px; gap: 7px; padding: 0 10px 0 0; }
+  .hunter-home-tabs .hunter-welcome > .hunter-guide { width: 79px; height: 88px; }
+  .hunter-home-tabs .hunter-welcome small { font-size: 9px; }
+  .hunter-home-tabs .hunter-welcome h2 { font-size: 17px; margin: 4px 0; }
+  .hunter-home-tabs .hunter-welcome p { font-size: 10px; line-height: 1.5; }
+  .hunter-home-navigation { gap: 6px; padding: 10px 0; }
+  .hunter-home-tabs .hunter-shortnav { gap: 4px; }
+  .hunter-shortnav button b { font-size: 12px; }
+  .hunter-shortnav button small { font-size: 8px; }
+  .hunter-home-tabs .hunter-shortnav button { min-height: 49px; padding: 6px 2px; }
+  .hunter-diagnose { font-size: 10px !important; padding: 6px; width: 57px; white-space: normal; line-height: 1.6; }
+  .hunter-home-tabs .hunter-daily { padding: 16px; gap: 14px; }
+  .hunter-home-tabs .hunter-daily .tdq-row { min-height: 64px; }
+  .hunter-home-tabs .hunter-map { height: 550px; }
+  .hunter-pane-intro h2 { font-size: 20px; }
+  .hunter-appbar { padding-left: 12px; padding-right: 12px; }
+  .hunter-app-context > span { max-width: 15ch; font-size: 10px; }
+}
