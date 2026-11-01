@@ -1,4 +1,4 @@
-/* Hunter theme is confined to the home dashboard; study screens use their existing theme. */
+/* Illustrated dashboard components; shared application palette lives in hunter-app.css. */
 .hunter-home {
   --surface: #fffaf0; --surface-2: #ecece1; --ink: #213a3d; --ink-soft: #607477;
   --line: #dbe2d2; --kon: #357d50; --kon-deep: #7956ae; --kon-soft: #e5efd9;

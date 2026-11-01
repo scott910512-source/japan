@@ -27,6 +27,7 @@ try {
   let book = await read();
   assert.equal(book[`n3:${id}`].wrongChosen, chosen); assert.equal(book[`n3:${id}`].correct, q.answer); pass += 2;
   await goTab(page, '오늘', 100);
+  await page.getByRole('tab', { name: /^오답/ }).click();
   const notebook = page.locator('.screen.active .mistake-notebook');
   await notebook.locator('.mistake-start').click();
   await notebook.getByRole('button', { name: q.answer, exact: true }).click();

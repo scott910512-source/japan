@@ -1,6 +1,7 @@
 import { useAppData, usePersistAppData } from './app/useAppData.js';
 import FeatureScreen from './app/FeatureScreen.jsx';
 import MistakeNotebook from './components/MistakeNotebook.jsx';
+import HunterAppHeader from './components/HunterAppHeader.jsx';
 import { recordMistake } from './lib/mistakes.js';
 import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
@@ -103,6 +104,11 @@ export default function App() {
   /* 내 학습의 「계정과 동기화」「기록 백업」 줄이 설정의 그 묶음을 바로 연다 */
   const [settingsGroup, setSettingsGroup] = useState(null);
   const [composeStart, setComposeStart] = useState(null);
+  const [homeResetKey, setHomeResetKey] = useState(0);
+  const selectAppTab = (id) => {
+    selectTab(id);
+    if (id === 'home') setHomeResetKey((key) => key + 1);
+  };
   const { toast, showToast } = useToast();
   /* 앱을 켤 때 브라우저와 맞추는 일들 — 저장 실패를 받는 손, 음성 오류,
      「새 버전이 준비됐다」 알림, iOS 오디오 열기, 연속일, 테마, 음성 설정.
@@ -391,11 +397,13 @@ export default function App() {
   return (
     <div className="app-shell">
       <Onboarding open={onboardingOpen} onFinish={finishOnboarding} />
+      {(activeTab !== 'home' || sub) && <HunterAppHeader guideId={settings.hunterGuide} section={SUB_TITLES[sub] || { study: '학습 본부', review: '복습 수련', me: '나의 헌터 기록', videos: '영상 수련' }[activeTab]} onHome={() => selectAppTab('home')} />}
 
       <div className="screens">
         <ScreenSlot active={activeTab === 'home' && !sub}>
 
           <Today
+            homeResetKey={homeResetKey}
             onAttempt={recordAttempt}
             onLearnMistake={learnMistake}
             words={words}
@@ -634,7 +642,7 @@ export default function App() {
 
       <TabBar
         active={activeTab === 'videos' ? 'study' : activeTab}
-        onChange={selectTab}
+        onChange={selectAppTab}
         reviewCount={reviewLeft}
       />
       <Toast message={toast} />
