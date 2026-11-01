@@ -395,7 +395,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell hunter-app">
       <Onboarding open={onboardingOpen} onFinish={finishOnboarding} />
       {(activeTab !== 'home' || sub) && <HunterAppHeader guideId={settings.hunterGuide} section={SUB_TITLES[sub] || { study: '학습 본부', review: '복습 수련', me: '나의 헌터 기록', videos: '영상 수련' }[activeTab]} onHome={() => selectAppTab('home')} />}
 

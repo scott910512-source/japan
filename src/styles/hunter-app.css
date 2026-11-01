@@ -38,7 +38,7 @@
 .app-shell .lc-day.lv3, .app-shell .stamp.ok {
   background: linear-gradient(120deg, var(--hunter-solid), var(--hunter-purple)); color: #fffaf0;
 }
-.hunter-appbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: calc(58px + env(safe-area-inset-top, 0px)); padding: calc(4px + env(safe-area-inset-top, 0px)) 18px 4px; border-bottom: 1px solid #70856b55; background: #14383e; color: #fff7df; z-index: 70; }
+.hunter-appbar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: calc(58px + env(safe-area-inset-top, 0px)); padding: calc(4px + env(safe-area-inset-top, 0px)) 18px 4px; border-bottom: 1px solid #70856b55; background: #14383e; color: #fff7df; z-index: 70; }
 .hunter-app-brand { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
 .hunter-app-brand > span { font-size: 23px; font-weight: 900; letter-spacing: -3px; color: #afd78d; transform: skew(-8deg); }
 .hunter-app-brand > span > span { color: #e2a2ac; }
@@ -46,7 +46,9 @@
 .hunter-app-context { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .hunter-app-context > span { font-size: 11px; color: #d0dac9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 24ch; }
 .hunter-app-context img { width: 38px; height: 38px; object-fit: cover; border: 1px solid #afd78d88; border-radius: 50%; background: #fffaf0; }
-.app-shell:has(> .hunter-appbar) .screen { padding-top: 16px; }
+/* Keep each mounted screen's dimensions stable while moving to/from home. A
+   conditional flex header shrinks the scroll range and loses the saved position. */
+.hunter-app > .screens > .screen:not(:has(> .hunter-home)) { padding-top: calc(74px + env(safe-area-inset-top, 0px)); }
 .app-shell:has(> .hunter-appbar) > .subscreen { top: calc(58px + env(safe-area-inset-top, 0px)); }
 .app-shell:has(> .hunter-appbar) .sub-header:not(.inline) { padding-top: 8px; }
 .gate-mark { background: linear-gradient(135deg, #356449, #694d91); color: #fff7df; }
