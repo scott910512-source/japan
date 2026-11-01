@@ -165,16 +165,16 @@ export default function Today({
               return (
                 <button
                   key={mission.key}
-                  className={\`tdq-row\${complete ? ' complete' : ''}\`}
+                  className={'tdq-row' + (complete ? ' complete' : '')}
                   onClick={mission.onClick}
-                  aria-label={\`\${mission.title}, \${mission.done} / \${mission.total}, \${mission.note}\`}
+                  aria-label={mission.title + ', ' + mission.done + ' / ' + mission.total + ', ' + mission.note}
                 >
                   <span className="tdq-mark">{complete ? <IconCheck /> : index + 1}</span>
                   <span className="tdq-icon">{mission.icon}</span>
                   <span className="tdq-body">
                     <b>{mission.title}</b>
                     <small>{mission.note}</small>
-                    <span className="tdq-meter" aria-hidden="true"><i style={{ width: \`\${percent}%\` }} /></span>
+                    <span className="tdq-meter" aria-hidden="true"><i style={{ width: percent + '%' }} /></span>
                   </span>
                   <span className="tdq-count">{mission.done}<i>/{mission.total}</i></span>
                   <IconChevron className="chev" />
@@ -212,11 +212,11 @@ export default function Today({
         </button>
       )}
 
-      <button className={\`tdtask slim tdq-bonus\${grammarLeft === 0 ? ' done' : ''}\`} onClick={onOpenGrammar}>
+      <button className={'tdtask slim tdq-bonus' + (grammarLeft === 0 ? ' done' : '')} onClick={onOpenGrammar}>
         <span className="tt-icon"><IconGrid /></span>
         <span className="tt-body">
           <b>보너스 수련 · 오늘의 문법</b>
-          <span className="tt-note">{grammarLeft > 0 ? (grammarNext || \`아직 안 본 것 \${grammarLeft}개\`) : '한 바퀴 돌았어요'} · 선택 미션</span>
+          <span className="tt-note">{grammarLeft > 0 ? (grammarNext || ('아직 안 본 것 ' + grammarLeft + '개')) : '한 바퀴 돌았어요'} · 선택 미션</span>
         </span>
         {grammarLeft === 0 ? <span className="tt-done"><IconCheck /></span> : <span className="tt-count"><b>{grammarLeft}</b>개</span>}
       </button>
