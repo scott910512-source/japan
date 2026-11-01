@@ -15,6 +15,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       # 22 이상이어야 한다. supabase-js가 붙자마자 native WebSocket을 찾는데
@@ -37,4 +41,4 @@ jobs:
       - name: 빌드
         run: npm run build
       - name: 화면
-        run: npm run test:ui
+        run: npm run test:ui -- --shard=${{ matrix.shard }}/4

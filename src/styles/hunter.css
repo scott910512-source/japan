@@ -1,0 +1,160 @@
+/* Hunter theme is confined to the home dashboard; study screens use their existing theme. */
+.hunter-home {
+  --surface: #fffaf0; --surface-2: #ecece1; --ink: #213a3d; --ink-soft: #607477;
+  --line: #dbe2d2; --kon: #357d50; --kon-deep: #7956ae; --kon-soft: #e5efd9;
+  color: var(--ink); padding-bottom: 12px; font-size: 14px;
+}
+.hunter-home button { color: inherit; font: inherit; cursor: pointer; }
+.hunter-home button:focus-visible, .hunter-home summary:focus-visible { outline: 3px solid #845dd2; outline-offset: 4px; }
+.hunter-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+.hunter-brand { display: flex; align-items: center; gap: 10px; }
+.hunter-brand small { color: #b5c8c2; letter-spacing: .19em; font-size: 8px; font-weight: 700; }
+.hunter-brand h1 { color: #fffbdf; margin: 4px 0 0; font-size: clamp(19px, 2.2vw, 28px); letter-spacing: -.04em; }
+.hunter-brand h1 span { font-weight: 500; }
+.hunter-brand-mark { font-size: 25px; font-weight: 900; color: #b1df79; transform: skew(-8deg); letter-spacing: -3px; }
+.hunter-brand-mark span { color: #d897a9; padding: 0 2px; }
+.hunter-top-stats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.hunter-top-stats > span { color: #3a494b; background: #fffaec; border-radius: 30px; padding: 9px 13px; font-size: 11px; box-shadow: 0 3px 0 #0002; white-space: nowrap; }
+.hunter-top-stats > span:nth-child(2) { color: #7558ab; }
+.hunter-top-stats > span:nth-child(3) { color: #87601e; }
+.hunter-welcome { min-height: 155px; display: flex; align-items: center; gap: 18px; border: 1px solid #76a89560; background: radial-gradient(ellipse at 85% 10%, #456c69b3, transparent 65%), linear-gradient(110deg, #204c43, #153b44); border-radius: 22px; overflow: hidden; padding: 0 28px 0 14px; color: #fff9e7; position: relative; }
+.hunter-guide { position: relative; display: block; flex: 0 0 auto; width: 165px; height: 185px; align-self: end; overflow: hidden; filter: drop-shadow(0 5px 0 #061e2b33); }
+.hunter-guide > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 8%; transform: scale(1.13); }
+.hunter-guide-fallback { display: grid; place-items: center; height: 100%; color: #e0eccb; font-size: 20px; font-weight: 800; }
+.hunter-welcome small { color: #bce099; font-size: 11px; font-weight: 700; }
+.hunter-welcome h2 { margin: 6px 0 9px; font-size: clamp(19px, 2.4vw, 28px); letter-spacing: -.04em; }
+.hunter-welcome p { max-width: 42ch; font-size: 13px; line-height: 1.7; margin: 0; color: #d5e2d8; }
+.hunter-welcome-seal { margin-left: auto; padding: 15px; border: 2px solid #e6d38c55; border-radius: 50%; color: #f7e3a099; font: 800 14px/1.15 Georgia, serif; text-align: center; transform: rotate(12deg); }
+.hunter-welcome-seal b { display: block; margin-top: 5px; font: 9px/1.2 sans-serif; }
+.hunter-shortnav { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 20px; }
+.hunter-shortnav button { background: #ffffff0e; color: #e1e8d8; border: 1px solid #64818155; border-radius: 9px; padding: 10px 15px; min-height: 44px; font-size: 12px; }
+.hunter-shortnav button:first-child { background: #b3d878; color: #253c38; font-weight: 800; border-color: #b3d878; }
+.hunter-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.hunter-reward { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; margin: 0 0 15px; color: #e9f4c8; background: #4a7349; border: 1px solid #89b462; border-radius: 12px; font-size: 12px; }
+.hunter-reward button { background: none; border: 0; color: inherit; min-width: 40px; min-height: 40px; font-size: 24px; }
+.hunter-daily, .hunter-world, .hunter-record { min-width: 0; scroll-margin-top: 14px; }
+.hunter-daily { background: #fffaf0; padding: 18px; border-radius: 20px; box-shadow: 0 5px 0 #00132330; }
+.hunter-daily .tdhead { margin-top: 0; padding-top: 0; }
+.hunter-daily .tdhead .th-streak { display: none; }
+.hunter-daily .tdhead small { font-size: 9px; color: #777c67; letter-spacing: .08em; }
+.hunter-daily .tdhead b { font-size: 16px; }
+.hunter-daily .bigcta { background: linear-gradient(120deg, #779d41, #397647); color: white; border: 0; border-radius: 14px; padding: 15px 12px; }
+.hunter-daily .bigcta b, .hunter-daily .bigcta span { color: inherit; }
+.hunter-daily .bigcta .bc-icon { background: #ffffff22; }
+.hunter-daily .td-quest { box-shadow: none; border: 0; padding: 0; background: none; margin-bottom: 20px; }
+.hunter-daily .tdq-head small { color: #8c835e; }
+.hunter-daily .tdq-head h2 { font-size: 18px; }
+.hunter-daily .tdq-list { border: 0; padding: 0; background: none; gap: 9px; }
+.hunter-daily .tdq-row { border: 1px solid #dde0d2; background: #f4f4e9; padding: 12px 9px; gap: 8px; border-radius: 12px; }
+.hunter-daily .tdq-icon { display: none; }
+.hunter-daily .tdq-count { color: #52763c; }
+.hunter-daily .tdq-body small { font-size: 10px; }
+.hunter-daily .tdq-bonus { background: #f0eaf7; border-radius: 12px; }
+.hunter-daily .hm-goal { margin: 12px 0; }
+.hunter-daily .section-label { color: #768064; margin-top: 18px; }
+.hunter-daily .hm-n3 { background: #f4f0e7; border: 1px solid #e3dbce; border-radius: 12px; }
+.hunter-daily .tdtask { color: var(--ink); }
+.hunter-daily .tdtask .tt-note { font-size: 11px; }
+.hunter-daily .td-done { background: #e8f1dc; }
+.hunter-daily .td-done b { color: #357d50; }
+.hunter-panel { background: #fffaf0; border: 1px solid #e9e5d6; padding: 18px; border-radius: 18px; box-shadow: 0 5px 0 #00132320; }
+.hunter-section-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 14px; }
+.hunter-section-head h2 { font-size: 16px; letter-spacing: -.03em; margin: 0; }
+.hunter-section-head h2 small { font-size: 11px; color: #708173; }
+.hunter-section-head > small { font-size: 10px; color: #768064; }
+.hunter-section-head button { background: none; border: 0; font-size: 11px; padding: 8px 0 8px 8px; min-height: 36px; color: #5e5579; }
+.hunter-tag { background: #e9e0f3; color: #6d5388; padding: 5px 8px; border-radius: 20px; font-size: 10px; white-space: nowrap; }
+.hunter-quick { margin-top: 18px; padding: 15px 0 0; box-shadow: none; border: 0; border-top: 1px solid #dedfce; border-radius: 0; }
+.hunter-quick > div:last-child { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.hunter-quick button { border: 1px solid #e5e2d7; border-radius: 12px; background: #f5f2eb; padding: 10px 3px; display: flex; flex-direction: column; gap: 7px; align-items: center; font-size: 10px; font-weight: 700; }
+.hunter-quick button span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #ebe3f5; color: #6e538c; font-size: 22px; }
+.hunter-world { display: grid; gap: 14px; }
+.hunter-map { isolation: isolate; height: 640px; position: relative; overflow: hidden; border: 1px solid #628b8270; border-radius: 20px; background: linear-gradient(#8bc1c9, #4b969c 45%, #285b72); box-shadow: 0 6px 0 #00132322; }
+.hunter-map-land { position: absolute; inset: 0; z-index: -1; background: url('../assets/hunter/world.svg') center/cover; opacity: .95; }
+.hunter-map-title { position: absolute; left: 22px; top: 20px; padding: 10px 12px; background: #f7f7dfdf; border-radius: 12px; z-index: 1; }
+.hunter-map-title > span { color: #5d7467; font-size: 8px; letter-spacing: .17em; font-weight: 800; }
+.hunter-map-title h2 { margin: 4px 0; font-size: 20px; color: #2b5144; }
+.hunter-map-title p { margin: 0; font-size: 10px; color: #5b766d; }
+.hunter-map-path { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+.hunter-map-path path { fill: none; stroke: #f8df9f; stroke-width: 8px; stroke-linecap: round; stroke-dasharray: 2 12; filter: drop-shadow(0 3px 1px #375c55); }
+.hunter-region { position: absolute; display: flex; align-items: center; flex-direction: column; transform: translate(-50%, -10%); border: 0; background: none; min-width: 115px; padding: 4px; }
+.hunter-region-icon { display: grid; place-items: center; width: 48px; height: 48px; background: #fff4d1; border: 4px solid #f4cb6d; outline: 2px solid #fff6d1; border-radius: 16px; color: #527a5b; font: 900 25px/1 sans-serif; box-shadow: 0 5px 0 #28505b55; transition: transform .2s; }
+.hunter-region.selected .hunter-region-icon { background: #f1d074; color: #2f5a3d; transform: translateY(-4px) rotate(-5deg); box-shadow: 0 0 0 6px #fff8bc55, 0 6px 0 #28505b55; }
+.hunter-region b { margin-top: 8px; background: #fff9e9; border-radius: 7px 7px 0 0; box-shadow: 0 2px 0 #00132340; color: #294740; padding: 5px 8px 2px; font-size: 12px; white-space: nowrap; }
+.hunter-region small { background: #fff9e9; border-radius: 0 0 7px 7px; box-shadow: 0 2px 0 #00132340; color: #53655a; padding: 1px 7px 5px; font-size: 9px; white-space: nowrap; }
+.hunter-region em { position: absolute; top: -15px; background: #355f44; color: #eff9ce; font-style: normal; padding: 3px 8px; font-size: 8px; border-radius: 20px; }
+.hunter-map-compass { position: absolute; right: 20px; bottom: 12px; color: #e3e2bc; font-size: 43px; line-height: 1; text-align: center; }
+.hunter-map-compass small { display: block; font: 10px Georgia, serif; }
+.hunter-region-detail .hunter-section-head small { font-size: 9px; color: #818667; letter-spacing: .1em; }
+.hunter-region-detail h2 { margin-top: 4px; font-size: 20px; }
+.hunter-region-detail > p { font-size: 12px; line-height: 1.7; color: #65746c; }
+.hunter-region-missions { display: grid; gap: 8px; }
+.hunter-region-missions button { padding: 12px 10px; display: flex; align-items: center; gap: 10px; border: 1px solid #e1e4d6; border-radius: 12px; background: #f3f4e9; text-align: left; min-height: 58px; }
+.hunter-region-missions button > span { color: #61784c; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: #dfeacd; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.hunter-region-missions b { display: block; font-size: 13px; }
+.hunter-region-missions small { display: block; margin-top: 4px; font-size: 10px; color: #778173; }
+.hunter-region-missions i { margin-left: auto; color: #6f8660; font-style: normal; }
+.hunter-explore-note { display: block; margin-top: 14px; font-size: 10px; line-height: 1.6; color: #7c8472; }
+.hunter-record { display: grid; gap: 15px; }
+.hunter-license-main { display: flex; align-items: center; gap: 17px; margin-bottom: 16px; }
+.hunter-license-card { width: 73px; height: 93px; padding: 7px 5px; transform: rotate(-5deg); border: 3px double #5e6d60; background: repeating-linear-gradient(0deg, #eff0de, #eff0de 3px, #e3e5cf 3px, #e3e5cf 4px); display: flex; align-items: center; flex-direction: column; justify-content: center; box-shadow: 3px 5px 0 #bbbca83b; }
+.hunter-license-card small { font: 700 9px Georgia, serif; letter-spacing: 1px; }
+.hunter-license-card b { font: 900 24px/1.8 Georgia, serif; letter-spacing: -4px; }
+.hunter-license-card b span { color: #9c4d57; }
+.hunter-license-card > span { font: 8px Georgia, serif; letter-spacing: 1px; }
+.hunter-license-main > div:last-child { display: flex; flex-direction: column; gap: 5px; }
+.hunter-license-main strong { font-size: 27px; color: #3d593f; }
+.hunter-license-main > div:last-child b { font-size: 12px; }
+.hunter-license-main > div:last-child small { font-size: 10px; color: #78836b; }
+.hunter-meter { height: 8px; background: #e6e8dc; border-radius: 20px; overflow: hidden; }
+.hunter-meter i { display: block; height: 100%; background: linear-gradient(90deg, #74ad54, #447b50); border-radius: inherit; }
+.hunter-xp-count { margin: 5px 0 8px; color: #6d7d5c; text-align: right; font-size: 10px; }
+.hunter-license details { border-top: 1px solid #e3e4d8; padding-top: 8px; color: #738169; font-size: 10px; line-height: 1.7; }
+.hunter-license summary { cursor: pointer; padding: 4px 0; }
+.hunter-license details p { margin: 6px 0; }
+.hunter-skills > button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 0; border: 0; background: none; text-align: left; }
+.hunter-skill-symbol { font-size: 20px; color: #5e567f; width: 25px; }
+.hunter-skills > button > div { flex: 1; min-width: 0; }
+.hunter-skills b { display: block; font-size: 12px; margin-bottom: 6px; }
+.hunter-skills .hunter-meter { height: 6px; }
+.hunter-skills > button:nth-child(2) i { background: #9774c9; }.hunter-skills > button:nth-child(3) i { background: #70a5cc; }.hunter-skills > button:nth-child(4) i { background: #55b6b2; }
+.hunter-skills button small { display: block; margin-top: 4px; font-size: 9px; color: #7d8877; }
+.hunter-skills strong { font-size: 13px; min-width: 33px; text-align: right; }
+.hunter-skills > p, .hunter-guides > p { font-size: 9px; color: #7a8473; line-height: 1.6; margin: 9px 0 0; }
+.hunter-badges > div:last-child { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px 6px; }
+.hunter-badges > div:last-child > div { display: flex; align-items: center; flex-direction: column; text-align: center; }
+.hunter-badges > div:last-child span { font: 800 24px/1 serif; width: 50px; height: 54px; display: grid; place-items: center; background: #f4dfa0; color: #658267; clip-path: polygon(50% 0, 95% 23%, 95% 75%, 50% 100%, 5% 75%, 5% 23%); }
+.hunter-badges .locked span { background: #e1e3d8 !important; color: #9aab9e !important; }
+.hunter-badges b { font-size: 10px; margin-top: 7px; }.hunter-badges small { font-size: 8px; color: #7f896f; margin-top: 4px; line-height: 1.5; }
+.hunter-growth-numbers { display: flex; justify-content: space-around; gap: 8px; text-align: center; }
+.hunter-growth-numbers b { font-size: 23px; color: #49764a; display: block; }.hunter-growth-numbers small { font-size: 9px; color: #75816e; }
+.hunter-days { min-height: 85px; display: flex; align-items: end; justify-content: space-around; gap: 8px; margin-top: 17px; padding-top: 5px; border-bottom: 1px solid #dce3d0; }
+.hunter-days div { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 5px; }
+.hunter-days i { display: block; width: min(100%, 20px); background: #b5ce92; border-radius: 5px 5px 0 0; }.hunter-days small { font-size: 8px; color: #7c866d; padding-bottom: 7px; }
+.hunter-days p { font-size: 11px; line-height: 1.7; color: #7c866d; }
+.hunter-diagnostic { margin: 12px 0 0; font-size: 10px; line-height: 1.8; color: #64735d; }
+.hunter-guides > div:nth-child(2) { display: flex; gap: 5px; justify-content: space-between; }
+.hunter-guides button { border: 1px solid transparent; background: none; padding: 4px 1px 7px; min-width: 0; width: 20%; border-radius: 12px; font-size: 9px; }
+.hunter-guides button[aria-pressed='true'] { border-color: #a9ba86; background: #edf2df; }
+.hunter-guide.small { width: 100%; height: 58px; border-radius: 8px; }.hunter-guide.small > img { object-fit: cover; object-position: 60% center; transform: none; }.hunter-guides button span { display: block; margin-top: 5px; }
+.app-shell:has(.screen.active .hunter-home) { background: radial-gradient(ellipse at 30% 0, #264a4e, transparent 55%), #122d38; }
+@media (min-width: 760px) {
+  .app-shell:has(.screen.active .hunter-home) { max-width: 1020px; }
+  .hunter-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+  .hunter-daily { grid-column: 1; grid-row: 1; }.hunter-world { grid-column: 2; grid-row: 1 / span 2; }.hunter-record { grid-column: 1; }
+}
+@media (min-width: 1180px) {
+  .app-shell:has(.screen.active .hunter-home) { max-width: 1500px; }
+  .screen:has(> .hunter-home) { padding: 24px 26px 32px; }
+  .hunter-grid { grid-template-columns: minmax(270px, .95fr) minmax(350px, 1.35fr) minmax(285px, 1fr); gap: 20px; }
+  .hunter-world { grid-row: 1; }.hunter-record { grid-column: 3; grid-row: 1; }.hunter-map { height: 660px; }
+}
+@media (max-width: 759px) {
+  .screen:has(> .hunter-home) { padding: calc(env(safe-area-inset-top, 0px) + 15px) 12px 25px; }
+  .hunter-top { gap: 10px; flex-direction: column; align-items: stretch; }.hunter-top-stats { justify-content: flex-start; }.hunter-top-stats > span { font-size: 10px; padding: 7px 11px; }
+  .hunter-welcome { min-height: 155px; gap: 8px; padding: 0 12px 0 0; border-radius: 16px; }.hunter-welcome > .hunter-guide { width: 115px; height: 155px; }.hunter-welcome h2 { font-size: 19px; line-height: 1.3; }.hunter-welcome p { font-size: 11px; }.hunter-welcome-seal { display: none; }
+  .hunter-shortnav { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }.hunter-shortnav button { font-size: 11px; padding: 8px; }
+  .hunter-map { height: 610px; }.hunter-map-title { left: 15px; top: 14px; }.hunter-map-title h2 { font-size: 18px; }.hunter-region { min-width: 106px; }.hunter-region-icon { width: 43px; height: 43px; font-size: 22px; }
+  .hunter-region b { font-size: 11px; }.hunter-region small { font-size: 8px; }.hunter-region-detail { padding: 17px; }
+}
+@media (prefers-reduced-motion: reduce) { .hunter-home *, .hunter-home *::before { scroll-behavior: auto !important; transition: none !important; } }

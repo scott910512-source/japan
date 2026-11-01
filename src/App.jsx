@@ -375,6 +375,12 @@ export default function App() {
         <ScreenSlot active={activeTab === 'home' && !sub}>
 
           <Today
+            words={words}
+            review={review}
+            progress={progress}
+            stats={stats}
+            onOpen={openMenu}
+            onSettings={patchSettings}
             plan={plan}
             planNow={planNow}
             settings={settings}

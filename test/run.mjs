@@ -27,6 +27,12 @@ const CHROME = process.env.CHROMIUM || (existsSync(LOCAL_CHROME) ? LOCAL_CHROME 
 const TIMEOUT_MS = 300_000;
 
 const only = process.argv.includes('--logic') ? 'logic' : process.argv.includes('--ui') ? 'ui' : 'all';
+// CI divides the complete UI suite across isolated runners, without skipping checks.
+const shardArg = process.argv.find((arg) => arg.startsWith('--shard='));
+const shard = shardArg ? /^--shard=(\d+)\/(\d+)$/.exec(shardArg) : null;
+if (shardArg && (!shard || Number(shard[2]) < 1 || Number(shard[1]) >= Number(shard[2]))) {
+  throw new Error('Invalid shard; use --shard=0/4 through --shard=3/4');
+}
 
 const list = (dir, ext) => (existsSync(join(HERE, dir))
   /* 밑줄로 시작하는 건 검사가 아니라 검사들이 같이 쓰는 것이다 —
@@ -106,7 +112,7 @@ if (only !== 'ui') {
 
 let server = null;
 if (only !== 'logic') {
-  const ui = list('ui', '.js');
+  const ui = list('ui', '.js').filter((_, index) => !shard || index % Number(shard[2]) === Number(shard[1]));
   if (ui.length) {
     if (!existsSync(join(ROOT, 'dist', 'index.html'))) {
       console.log('── 빌드 (dist가 없음)');
