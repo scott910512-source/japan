@@ -28,21 +28,26 @@ const seededReview = Object.fromEntries([...n5, ...n3].map((w) => [w.id, { ...kn
 
 async function boot(browser, { review = {}, settings = {} } = {}) {
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
-  await page.addInitScript(({ review, settings }) => {
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  /* 기존 검사(menu2-ui)가 쓰는 시작 방법 — 첫 로드로 서비스워커를 깔고, 심은 뒤 한 번 더 불러 온 다음,
+     오프라인으로 돌려 로그인 관문의 「이 기기 기록으로 계속하기」로 들어간다. 오프라인으로 새로고침하면
+     서비스워커가 준비되기 전의 느린 러너에서 화면이 안 뜬다(CI에서 그랬다). */
+  await page.evaluate(({ review, settings }) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(review));
     const cur = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     Object.assign(cur, { onboarded: true, canReadKana: true, autoTTS: false }, settings);
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(cur));
   }, { review, settings });
-  await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.waitForTimeout(900);
-  await page.context().setOffline(true);
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
   if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
-  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
+  const up = await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).then(() => true).catch(() => false);
+  if (!up) throw new Error(`앱이 안 열렸어요 — 화면: ${(await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 160)}`);
   return page;
 }
 const reviewOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'));
