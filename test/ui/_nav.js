@@ -156,6 +156,10 @@ const PRACTICE = {
   '짝 맞추기': ['단어', 'match'],
   '부사 연습': ['단어', 'adverb'],
   '동사 활용': ['문법', 'conjugate'],
+  /* 「실전 연습」 칸은 허브다 — 쭉 퀴즈와 상황 대화(전의 실전 연습)가 그 안에 있다 */
+  '쭉 퀴즈': ['실전 연습', 'stream'],
+  '문장 만들기': ['실전 연습', 'compose'],
+  '상황 대화': ['실전 연습', 'rpg'],
 };
 
 export async function openMenu(page, label) {

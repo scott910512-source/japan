@@ -8,6 +8,7 @@ import {
 import Account from './Account.jsx';
 import { MENUS, MENU_GROUPS } from '../lib/menu.js';
 import { PURPOSES, purposeOf, tripLabel } from '../lib/purpose.js';
+import { GOAL_LEVELS, goalOf, goalNote } from '../lib/goal.js';
 /* 여섯 묶음 중 큰 셋(음성 · 백업 · 영상 AI)은 제 파일로 — 이 파일이 930줄이라
    떼어 냈다. 각자 제 상태(키 입력·소리 확인·백업 범위)를 들고, 동작은 그대로다. */
 import Toggle from './settings/Toggle.jsx';
@@ -170,6 +171,25 @@ export default function Settings({
           목적마다 무엇이 달라지는지 그 자리에 적는다. */}
       </>)}
       {G('study') && (<>
+      <div className="section-label">목표 레벨</div>
+      <div className="card">
+        <div className="setrow col">
+          <div className="grouppick" data-set="goalLevel">
+            {GOAL_LEVELS.map((lv) => (
+              <button
+                key={lv}
+                className={goalOf(settings) === lv ? 'active' : ''}
+                onClick={() => onChange({ goalLevel: lv })}
+              >{lv}</button>
+            ))}
+          </div>
+          <div className="set-note">
+            {goalNote(goalOf(settings))}. 이 앱의 목표는 N3예요.
+            N2·N1 자료는 아직 없어서 고를 수 없어요. 바꿔도 학습 기록은 그대로예요.
+          </div>
+        </div>
+      </div>
+
       <div className="section-label">학습 목적</div>
       <div className="card">
         <div className="setrow col">

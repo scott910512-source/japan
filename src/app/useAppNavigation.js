@@ -106,6 +106,8 @@ export function useAppNavigation() {
        안 비우면 듣기를 한 번 쓴 뒤로 「단어 시험」이 영영 그 스무 개만 묻는다. */
     if (id !== 'quiz') setQuizSet(null);
     if (id === 'words') { setSub('worddeck'); return; }
+    /* 「실전 연습」 칸은 허브를 연다 — 쭉 퀴즈와 상황 대화 중에 고른다 */
+    if (id === 'rpg' && !opts.from) { setSub('drill'); return; }
     if (id === 'videos') { setVideosSeen(true); setSub(null); setActiveTab('videos'); return; }
     if (id === 'listen') { setSub('listenhub'); return; }
     if (id === 'kanji') { setN3View({ kind: 'curriculum', chapter: 'ch4' }); setSub('n3'); return; }
@@ -129,9 +131,16 @@ export function useAppNavigation() {
     setActiveTab(id);
   }, []);
 
+  /* 허브 안의 줄에서 화면을 연다 — 뒤로 가면 허브로 돌아온다(연습 줄과 같은 방식) */
+  const openSub = useCallback((id, from) => {
+    setParentSub(from || null);
+    if (id !== 'quiz') setQuizSet(null);
+    setSub(id);
+  }, []);
+
   return {
     activeTab, sub, deck, n3View, listenMode, quizSet, videosSeen,
     setActiveTab, setSub, setDeck, setN3View, setQuizSet,
-    openMenu, openListen, selectTab, closeSub,
+    openMenu, openListen, selectTab, closeSub, openSub,
   };
 }
