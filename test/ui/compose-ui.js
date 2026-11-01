@@ -95,7 +95,10 @@ const tab = (page, id) => page.locator(`.cmp-tabs [data-mode="${id}"]`).click().
       await page.waitForTimeout(150);
     }
     for (const c of chunks) {
-      const tile = page.locator('.build-pool .build-tile').filter({ hasText: c }).first();
+      /* ★ 글자가 같은 조각만 ★ hasText는 부분 일치라 「ですが」가 「のですが」 조각을 먼저 집는다 —
+         그러면 뒤에서 「のですが」를 못 찾는다(조각 글자가 서로 포함될 때만 깨져서 가끔만 실패했다) */
+      const exact = new RegExp(`^\\s*${c.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
+      const tile = page.locator('.build-pool .build-tile').filter({ hasText: exact }).first();
       await tile.click();
       await page.waitForTimeout(120);
     }
