@@ -588,7 +588,7 @@ export default function App() {
               {/* 「그만두기」는 무엇을 그만두는지가 거꾸로 읽힌다 — 하던 학습을
                   그만두는 것처럼 보이는데 실제로는 새로 시작하는 것을 그만두는
                   버튼이다. 결과를 그대로 적는다. */}
-              <button className="ghost-btn" onClick={() => setAskSwap(null)}>하던 학습 계속하기</button>
+              <button className="ghost-btn" onClick={() => { setAskSwap(null); resumeSession(); }}>하던 학습 계속하기</button>
               <button
                 className="submit-btn"
                 onClick={() => { const go = askSwap.run; setAskSwap(null); go(); }}
