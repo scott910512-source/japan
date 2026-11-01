@@ -34,3 +34,16 @@ kanji/diagnosis routes, guide saving, badges and home layout.
 The full existing UI suite is divided across four CI runners using `--shard=0/4` through `3/4`.
 Each test file belongs to exactly one shard; failure of any shard fails the workflow.
 No existing checks are removed.
+
+## Remembering mistakes
+
+`progress.mistakes` stores the question, exact selected answer, correct answer,
+explanation and content reference when an answer is finalized. Word quizzes,
+Stream Quiz, N3 lessons/tests and sentence building/cloze/writing report to it.
+The existing progress backup and account sync include this notebook via `mergeMistakes`.
+
+Home and Review show a shared notebook with direct relearning links and a retest.
+New word tests reserve slots for unresolved mistakes; N3 tests and mock exams also
+prioritize missed questions and related content. Correct practice on two distinct
+dates marks recovery, then schedules a check seven days later. Practiced items move
+behind older pending items so one difficult question does not monopolize practice.

@@ -34,7 +34,7 @@ const HELLO = [
 
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel,
-  grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings,
+  grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake,
   onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore,
 }) {
   const today = todayKey();
@@ -87,7 +87,7 @@ export default function Today({
   const missionDone = missions.filter((m) => m.done >= m.total).length;
 
   return (
-    <HunterDashboard words={words} review={review} progress={progress} stats={stats} streak={streak} settings={settings} onOpen={onOpen} onSettings={onSettings} onReview={onOpenReview}>
+    <HunterDashboard words={words} review={review} progress={progress} stats={stats} streak={streak} settings={settings} onOpen={onOpen} onSettings={onSettings} onReview={onOpenReview} onAttempt={onAttempt} onLearnMistake={onLearnMistake}>
       {/* 머리는 한 줄로. 여기에 장식을 얹으면 정작 눌러야 할 것이 아래로 밀린다 */}
       <div className="tdhead">
         <div className="th-body">

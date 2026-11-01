@@ -20,7 +20,7 @@ import {
 const AUTO_NEXT_MS = 800;
 
 export default function StreamQuiz({
-  words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit,
+  words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit, onAttempt,
 }) {
   const goal = goalOf(settings);
   const [n3, setN3] = useState(null);
@@ -88,8 +88,9 @@ export default function StreamQuiz({
 
   /* 대답이 확정됐다 — 판에 적고, 첫 대답이면 복습 기록에도 넣는다 */
   const finalize = (ok, value, extra = {}) => {
-    const { item } = cur;
+    const { item, q } = cur;
     if (shouldRecord(sessionRef.current, item.id)) onVerdicts?.({ [item.id]: verdictFor(ok) });
+    onAttempt?.({ id: `stream:${item.id}:${q.dir || q.kind}`, source: 'stream', ref: item.id, kind: KIND_LABEL[q.kind] || q.kind, prompt: q.prompt, correct: q.answerText, chosen: q.options?.find((o) => o.key === value)?.label || value, options: q.options?.map((o) => o.label), explanation: [extra.why, q.explain].filter(Boolean).join(' '), ok });
     onActivity?.({ quizzed: 1 });
     setSession((s) => record(s, item, ok));
     setAnswered({ value, ok, verdict: ok ? 'correct' : 'wrong', ...extra });

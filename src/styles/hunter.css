@@ -96,6 +96,22 @@
 .hunter-region-missions i { margin-left: auto; color: #6f8660; font-style: normal; }
 .hunter-explore-note { display: block; margin-top: 14px; font-size: 10px; line-height: 1.6; color: #7c8472; }
 .hunter-record { display: grid; gap: 15px; }
+.mistake-notebook { --kon: #357d50; --ink: #213a3d; color: #213a3d; margin: 16px 0; }
+.hunter-record > .mistake-notebook { margin: 0; }
+.mistake-notebook > p { color: #5f705e; font-size: 11px; line-height: 1.8; }
+.mistake-notebook .submit-btn { background: #416d48; color: #fffbed; font-size: 12px; min-height: 44px; }
+.mistake-list article { padding: 14px 0; border-top: 1px solid #dbe2d2; }
+.mistake-list article > b { display: block; font-size: 14px; line-height: 1.7; margin: 8px 0; white-space: pre-wrap; }
+.mistake-list p, .mistake-feedback p { font-size: 12px; line-height: 1.8; white-space: pre-wrap; }
+.mistake-list small { color: #60715a; font-size: 10px; }
+.mistake-notebook button:not(.submit-btn) { min-height: 44px; background: #edf0df; color: #3f5c43; border: 1px solid #dbe2d2; border-radius: 9px; padding: 9px 12px; font-size: 11px; cursor: pointer; }
+.mistake-retest-head { display: flex; gap: 8px; justify-content: space-between; align-items: center; font-size: 12px; }
+.mistake-question { white-space: pre-wrap; line-height: 1.8; font-size: 16px; }
+.mistake-options { display: grid; gap: 7px; }
+.mistake-options button { text-align: left; }
+.mistake-feedback { margin-top: 14px; background: #e9eedc; padding: 12px; border-radius: 12px; }
+.mistake-retest form { display: grid; gap: 8px; }
+.mistake-retest input { width: 100%; min-height: 44px; border: 1px solid #a9b69d; border-radius: 9px; padding: 8px; color: #213a3d; background: white; font-size: 16px; }
 .hunter-license-main { display: flex; align-items: center; gap: 17px; margin-bottom: 16px; }
 .hunter-license-card { width: 73px; height: 93px; padding: 7px 5px; transform: rotate(-5deg); border: 3px double #5e6d60; background: repeating-linear-gradient(0deg, #eff0de, #eff0de 3px, #e3e5cf 3px, #e3e5cf 4px); display: flex; align-items: center; flex-direction: column; justify-content: center; box-shadow: 3px 5px 0 #bbbca83b; }
 .hunter-license-card small { font: 700 9px Georgia, serif; letter-spacing: 1px; }

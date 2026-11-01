@@ -22,6 +22,8 @@ export default function FeatureScreen({
   startQuizWrongDeck,
   noteActivity,
   noteWeakness,
+  onAttempt,
+  composeStart,
   listenMode,
   todayPool,
   sentenceCards,
@@ -73,6 +75,7 @@ export default function FeatureScreen({
                 단어 카드에서 「회독으로 더 외우기」는 startJlptSet로 기존 회독 화면을 연다. */}
             {sub === 'n3' && (
               <N3Course
+                onAttempt={onAttempt}
                 review={review}
                 progress={progress}
                 setProgress={setProgress}
@@ -125,6 +128,8 @@ export default function FeatureScreen({
             )}
             {sub === 'quiz' && (
               <Quiz
+                onAttempt={onAttempt}
+                mistakes={progress.mistakes}
                 words={words}
                 review={review}
                 settings={settings}
@@ -183,6 +188,7 @@ export default function FeatureScreen({
             {sub === 'drill' && <DrillHub settings={settings} onOpen={onOpenDrill} />}
             {sub === 'stream' && (
               <StreamQuiz
+                onAttempt={onAttempt}
                 words={words}
                 review={review}
                 progress={progress}
@@ -196,6 +202,8 @@ export default function FeatureScreen({
             )}
             {sub === 'compose' && (
               <ComposeQuiz
+                initialMode={composeStart}
+                onAttempt={onAttempt}
                 sentences={sentenceCards}
                 review={review}
                 progress={progress}

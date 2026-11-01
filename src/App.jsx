@@ -1,5 +1,7 @@
 import { useAppData, usePersistAppData } from './app/useAppData.js';
 import FeatureScreen from './app/FeatureScreen.jsx';
+import MistakeNotebook from './components/MistakeNotebook.jsx';
+import { recordMistake } from './lib/mistakes.js';
 import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
 import { filterByLevel } from './lib/wordFilters.js';
@@ -100,6 +102,7 @@ export default function App() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   /* 내 학습의 「계정과 동기화」「기록 백업」 줄이 설정의 그 묶음을 바로 연다 */
   const [settingsGroup, setSettingsGroup] = useState(null);
+  const [composeStart, setComposeStart] = useState(null);
   const { toast, showToast } = useToast();
   /* 앱을 켤 때 브라우저와 맞추는 일들 — 저장 실패를 받는 손, 음성 오류,
      「새 버전이 준비됐다」 알림, iOS 오디오 열기, 연속일, 테마, 음성 설정.
@@ -254,9 +257,27 @@ export default function App() {
      가로챈다 — 그건 화면이 아니라 판이라서(회독 큐를 짜야 한다) 자리를
      정하는 쪽이 알 일이 아니다. */
   const openMenu = useCallback((id, opts = {}) => {
+    if (id === 'compose') setComposeStart(opts.mode || null);
     if (id === 'weak') { startWeakDeck(); return; }
     nav.openMenu(id, opts);
   }, [startWeakDeck, nav.openMenu]);
+
+  const recordAttempt = useCallback((attempt) => {
+    setProgress((p) => {
+      const mistakes = recordMistake(p.mistakes, attempt);
+      return mistakes === p.mistakes ? p : { ...p, mistakes };
+    });
+  }, [setProgress]);
+
+  const learnMistake = useCallback((row) => {
+    const word = byId.get(row.ref);
+    if (word) {
+      guardDeck(() => startJlptSet([word], '틀린 단어 다시 학습', `mistake:${word.id}`), `mistake:${word.id}`);
+    } else if (row.ref?.startsWith('k:')) openMenu('n3', { view: { kind: 'kanjicard', id: row.ref } });
+    else if (/^[gvrl]:/.test(row.ref || '')) openMenu('n3', { view: { kind: 'lesson', id: row.ref } });
+    else if (row.source === 'compose') openMenu('compose', { mode: row.id.includes(':cloze:') ? 'blank' : row.id.includes(':write:') ? 'write' : 'build' });
+    else openMenu('sentences');
+  }, [byId, guardDeck, startJlptSet, openMenu]);
 
   const finishOnboarding = (patch) => {
     patchSettings(patch);
@@ -375,6 +396,8 @@ export default function App() {
         <ScreenSlot active={activeTab === 'home' && !sub}>
 
           <Today
+            onAttempt={recordAttempt}
+            onLearnMistake={learnMistake}
             words={words}
             review={review}
             progress={progress}
@@ -421,6 +444,7 @@ export default function App() {
         <ScreenSlot active={activeTab === 'review' && !sub}>
 
           <ReviewHub
+            mistakePanel={<MistakeNotebook book={progress.mistakes} onAttempt={recordAttempt} onLearn={learnMistake} />}
             planNow={planNow}
             sentenceDue={sentenceDue}
             weakWords={weakWords}
@@ -532,6 +556,8 @@ export default function App() {
                 />
               ) : (
               <FeatureScreen
+                composeStart={composeStart}
+                onAttempt={recordAttempt}
                 sub={sub}
                 words={words}
                 review={review}

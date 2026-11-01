@@ -7,7 +7,7 @@ import { shuffled } from '../lib/review.js';
  *
  * 어순과 조사를 몸에 붙이는 게 목적이라, 틀려도 정답을 바로 까지 않고
  * 어디까지 맞았는지만 알려준 뒤 다시 해볼 기회를 준다. */
-export default function BuildQuiz({ item, chunks, settings, onSolved }) {
+export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt }) {
   // 조각이 겹칠 수 있어(조사 は가 두 번 등) 값이 아니라 자리로 구분한다
   const tiles = useMemo(
     () => shuffled(chunks.map((text, index) => ({ id: `${index}-${text}`, text, index }))),
@@ -38,12 +38,14 @@ export default function BuildQuiz({ item, chunks, settings, onSolved }) {
     if (tile.index !== next.length - 1) {
       setWrongAt(next.length - 1);
       setTries((n) => n + 1);
+      onAttempt?.({ ok: false, chosen: next.map((p) => p.text).join(''), expected: chunks[next.length - 1] });
       return;
     }
     if (next.length === chunks.length) {
       setSolved(true);
       speakJapanese(readingText(item.kana, item.jp), settings.speechRate);
       onSolved?.(tries === 0);
+      onAttempt?.({ ok: true, chosen: next.map((p) => p.text).join('') });
     }
   };
 

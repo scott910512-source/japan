@@ -23,6 +23,7 @@ import { LISTENING_ITEMS, LISTENING_QUESTIONS, LISTENING_LEVELS, listeningById }
 import { EXAM_MOJI, EXAM_NARABE, EXAM_BUNSHOU, EXAM_BUNSHOU_QUESTIONS, EXAM_QUESTIONS } from '../data/n3/exam.js';
 import { stateOf, isMastered, isDue, todayKey, dueCards, addDays, BOX, MASTER_STREAK } from './review.js';
 import { normalizeN3 } from './n3progress.js';
+import { activeMistakes, prioritizeMistakes } from './mistakes.js';
 
 /* ── 섞기 (검사에서 고정할 수 있게 난수를 받는다) ── */
 export function shuffle(list, rnd = Math.random) {
@@ -528,40 +529,59 @@ export function questionById(id, rnd = Math.random) {
 }
 
 /* ═══════════ 확인 테스트 · 진단 · 모의고사 ═══════════ */
-export function checkTest(id, n3, review, rnd = Math.random) {
+export function checkTest(id, n3, review, rnd = Math.random, mistakes = {}) {
+  const wrong = { ...(n3?.wrong || {}) };
+  for (const row of activeMistakes(mistakes)) if (row.id.startsWith('n3:')) wrong[row.id.slice(3)] = { ref: row.ref, at: row.lastWrongAt };
+  const pickQuestion = (qs) => {
+    const pending = qs.filter((q) => wrong[q.id]);
+    const pool = pending.length ? pending : qs;
+    return pool[Math.floor(rnd() * pool.length)];
+  };
+  const priority = Object.fromEntries(Object.values(wrong).map((w, i) => [i, { ref: w.ref, lastWrongAt: w.at }]));
   if (id === 't:ch0') {
     /* 진단 — 꼭지마다 한 문제. 맞히면 그 꼭지는 건너뛴다 */
-    return grammarOfChapter('ch0').map((l) => { const qs = grammarQuestionsOf(l.id); return qs[Math.floor(rnd() * qs.length)]; });
+    return grammarOfChapter('ch0').map((l) => pickQuestion(grammarQuestionsOf(l.id)));
   }
   if (id === 't:ch1' || id === 't:ch2') {
     const ch = id.slice(2);
     const lessons = shuffle(grammarOfChapter(ch), rnd);
     const out = [];
-    for (const l of lessons) { if (out.length >= 20) break; const qs = grammarQuestionsOf(l.id); out.push(qs[Math.floor(rnd() * qs.length)]); }
+    for (const l of lessons) { if (out.length >= 20) break; out.push(pickQuestion(grammarQuestionsOf(l.id))); }
     return out;
   }
   if (id === 't:vocab') {
     const seen = VOCAB_IDS.filter((x) => stateOf(review, x).lastSeen);
-    const ids = pick(seen.length >= 10 ? seen : VOCAB_IDS, 20, rnd);
+    const ids = prioritizeMistakes(shuffle(seen.length >= 10 ? seen : VOCAB_IDS, rnd), priority, (x) => x, 20);
     return ids.map((x, i) => vocabQuestion(vocabWordById(x), VOCAB_TYPES[i % 3] === 'kana' && KANA.test(vocabWordById(x).kanji) ? 'ko' : VOCAB_TYPES[i % 3], rnd));
   }
   if (id === 't:kanji') {
     const seen = KANJI_IDS.filter((x) => stateOf(review, x).lastSeen);
-    return kanjiQuestions(pick(seen.length >= 10 ? seen : KANJI_IDS, 20, rnd), rnd);
+    return kanjiQuestions(prioritizeMistakes(shuffle(seen.length >= 10 ? seen : KANJI_IDS, rnd), priority, (x) => x, 20), rnd);
   }
   return [];
 }
 
 export const EXAM_PLAN = { yomi: 8, hyoki: 4, bunmyaku: 6, iikae: 4, youhou: 3, bunpo1: 13, narabe: 5, bunshou: 1, reading: { 3: 2, 4: 1, 5: 1 }, listening: { 1: 2, 2: 2, 3: 2 } };
 
-export function mockExam(rnd = Math.random) {
-  const sec = (s, n) => pick(EXAM_MOJI.filter((q) => q.sec === `moji-${s}`), n, rnd).map((q) => ({ type: 'choice', ...q }));
+export function mockExam(rnd = Math.random, n3 = null, mistakes = {}) {
+  const book = {};
+  for (const row of activeMistakes(mistakes)) {
+    const id = row.id.startsWith('n3:') ? row.id.slice(3) : row.id;
+    book[id] = { ref: id, lastWrongAt: row.lastWrongAt };
+    if (row.ref) book[`ref:${id}`] = { ref: row.ref, lastWrongAt: row.lastWrongAt };
+  }
+  for (const [id, row] of Object.entries(n3?.wrong || {})) {
+    book[id] = { ref: id, lastWrongAt: row.at };
+    if (row.ref) book[`ref:${id}`] = { ref: row.ref, lastWrongAt: row.at };
+  }
+  const choose = (list, count) => prioritizeMistakes(shuffle(list, rnd), book, (q) => q.id, count);
+  const sec = (s, n) => choose(EXAM_MOJI.filter((q) => q.sec === `moji-${s}`), n).map((q) => ({ type: 'choice', ...q }));
   const moji = [...sec('yomi', EXAM_PLAN.yomi), ...sec('hyoki', EXAM_PLAN.hyoki), ...sec('bunmyaku', EXAM_PLAN.bunmyaku), ...sec('iikae', EXAM_PLAN.iikae), ...sec('youhou', EXAM_PLAN.youhou)];
-  const bunpo1 = pick(GRAMMAR_QUESTIONS.filter((q) => !q.ref.startsWith('g:') || grammarById(q.ref)?.ch !== 'ch0'), EXAM_PLAN.bunpo1, rnd).map((q) => ({ type: 'choice', ...q, sec: 'bunpo-1' }));
-  const narabe = pick(EXAM_NARABE, EXAM_PLAN.narabe, rnd);
-  const bunshou = pick(EXAM_BUNSHOU, EXAM_PLAN.bunshou, rnd).flatMap((p) => EXAM_BUNSHOU_QUESTIONS.filter((q) => q.ref === p.id).map((q) => ({ type: 'choice', ...q })));
-  const reading = Object.entries(EXAM_PLAN.reading).flatMap(([lv, n]) => pick(READING_PASSAGES.filter((p) => p.level === Number(lv)), n, rnd));
-  const listening = Object.entries(EXAM_PLAN.listening).flatMap(([lv, n]) => pick(LISTENING_ITEMS.filter((p) => p.level === Number(lv)), n, rnd));
+  const bunpo1 = choose(GRAMMAR_QUESTIONS.filter((q) => !q.ref.startsWith('g:') || grammarById(q.ref)?.ch !== 'ch0'), EXAM_PLAN.bunpo1).map((q) => ({ type: 'choice', ...q, sec: 'bunpo-1' }));
+  const narabe = choose(EXAM_NARABE, EXAM_PLAN.narabe);
+  const bunshou = choose(EXAM_BUNSHOU, EXAM_PLAN.bunshou).flatMap((p) => EXAM_BUNSHOU_QUESTIONS.filter((q) => q.ref === p.id).map((q) => ({ type: 'choice', ...q })));
+  const reading = Object.entries(EXAM_PLAN.reading).flatMap(([lv, n]) => choose(READING_PASSAGES.filter((p) => p.level === Number(lv)), n));
+  const listening = Object.entries(EXAM_PLAN.listening).flatMap(([lv, n]) => choose(LISTENING_ITEMS.filter((p) => p.level === Number(lv)), n));
   return { moji, bunpo: [...bunpo1, ...narabe, ...bunshou], reading, listening };
 }
 

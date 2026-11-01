@@ -44,7 +44,7 @@ try {
   await page.locator('.hunter-guides button').filter({ hasText: '키르아' }).click();
   assert.match(await page.locator('.hunter-welcome').innerText(), /키르아/); pass++;
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1')).hunterGuide), 'killua'); pass++;
-  await page.getByRole('button', { name: '전체 보기', exact: true }).click();
+  await page.getByRole('button', { name: '배지 보기', exact: true }).click();
   assert.equal(await page.locator('.hunter-badges .earned, .hunter-badges .locked').count(), 6); pass++;
   assert.equal(await page.locator('.hunter-welcome img').count(), 1); pass++;
   await context.setOffline(false);

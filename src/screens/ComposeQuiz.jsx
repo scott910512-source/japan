@@ -4,6 +4,7 @@ import BuildQuiz from '../components/BuildQuiz.jsx';
 import { readingText, speakJapanese } from '../lib/tts.js';
 import { markBusy } from '../lib/busy.js';
 import { goalOf } from '../lib/goal.js';
+import { activeMistakes } from '../lib/mistakes.js';
 import { chunksOf } from '../data/allChunks.js';
 import { DAILY_GRAMMAR_SETS } from '../data/grammar-daily.js';
 import { ADVERB_SETS } from '../data/adverbs.js';
@@ -27,7 +28,7 @@ import { correctSentence, hasAiKey } from '../lib/composeAi.js';
 const AUTO_NEXT_MS = 900;
 
 export default function ComposeQuiz(props) {
-  const [mode, setMode] = useState(COMPOSE_MODE.BUILD);
+  const [mode, setMode] = useState(() => Object.values(COMPOSE_MODE).includes(props.initialMode) ? props.initialMode : COMPOSE_MODE.BUILD);
   const { settings } = props;
   return (
     <div className="compose">
@@ -71,7 +72,7 @@ const Score = ({ session }) => {
 const Empty = ({ children }) => <div className="empty-state cmp-empty">{children}</div>;
 
 /* ── 조립 ── */
-function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivity }) {
+function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivity, onAttempt }) {
   const run = useRun({ sentences, review, progress, settings, mode: COMPOSE_MODE.BUILD, hasChunks: (id) => chunksOf(id) != null });
   const [cur, setCur] = useState(() => run.next());
   const [solved, setSolved] = useState(false);
@@ -91,17 +92,20 @@ function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivi
     <div className="cmp-build" data-id={cur.id}>
       <Score session={run.session} />
       <BuildQuiz key={cur.id} item={{ id: s.id, ko: s.mean, jp: s.kanji, kana: s.kana }} chunks={chunksOf(s.id)}
-        settings={settings} onSolved={onSolved} />
+        settings={settings} onSolved={onSolved} onAttempt={(result) => onAttempt?.({ id: `compose:build:${s.id}`, source: 'compose', ref: s.id, kind: '문장 어순', prompt: s.mean, correct: s.kanji, accepted: [s.kanji, s.kana].filter(Boolean), chosen: result.chosen, explanation: result.expected ? `이 자리에 들어갈 조각은 「${result.expected}」예요. 완성 문장: ${s.kanji}` : s.mean, ok: result.ok })} />
       {solved && <div className="qnext"><button className="submit-btn cmp-next" onClick={advance}>다음 문장</button></div>}
     </div>
   );
 }
 
 /* ── 빈칸 ── 답이 하나가 되게 짜 둔 자료(일상문법·부사). 복습 기록에는 안 들어간다 — 문장 카드가 아니다. */
-function BlankMode({ onActivity, settings }) {
+function BlankMode({ onActivity, settings, progress, onAttempt }) {
   const items = useMemo(() => clozeItems(DAILY_GRAMMAR_SETS, ADVERB_SETS), []);
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
-  const pool = useMemo(() => clozePool(items), [items]);
+  const pool = useMemo(() => {
+    const pending = new Set(activeMistakes(progress?.mistakes).map((m) => m.ref));
+    return clozePool(items).map((item) => ({ ...item, d: pending.has(item.id) ? 6 : 0 }));
+  }, [items, progress?.mistakes]);
   const [session, setSession] = useState(newSession);
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -121,6 +125,7 @@ function BlankMode({ onActivity, settings }) {
   const choose = (opt) => {
     if (picked != null) return;
     const ok = opt === item.answer;
+    onAttempt?.({ id: `compose:cloze:${item.id}`, source: 'compose', ref: item.id, kind: item.set, prompt: `${item.jp} (${item.ko})`, correct: item.answer, chosen: opt, options: item.options, explanation: item.note || item.explain || item.ko, ok });
     setPicked(opt);
     onActivity?.({ quizzed: 1 });
     setSession((s) => record(s, { id: item.id, kind: 'cloze' }, ok));
@@ -167,7 +172,7 @@ function BlankMode({ onActivity, settings }) {
 /* ── 쓰기 ── */
 const AI_TO_VERDICT = { good: VERDICT.KNOWN, okay: VERDICT.VAGUE, wrong: VERDICT.UNKNOWN };
 
-function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivity, onToast }) {
+function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivity, onToast, onAttempt }) {
   const run = useRun({ sentences, review, progress, settings, mode: COMPOSE_MODE.WRITE });
   const [cur, setCur] = useState(() => run.next());
   const [typed, setTyped] = useState('');
@@ -180,6 +185,8 @@ function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivi
   /* 이 문장의 기록을 확정한다 — 틀림·애매는 「다음」을 누를 때(그 사이에 AI가 고쳐 줄 수 있다) */
   const settle = (ok, verdictOverride) => {
     const item = cur;
+    const sentence = run.byId.get(item.id);
+    onAttempt?.({ id: `compose:write:${item.id}`, source: 'compose', ref: item.id, kind: '문장 쓰기', prompt: sentence.mean, correct: sentence.kanji, accepted: [sentence.kanji, sentence.kana, ...(sentence.alt || [])].filter(Boolean), chosen: typed, explanation: sentence.mean, ok });
     if (shouldRecord(run.sessionRef.current, item.id)) onVerdicts?.({ [item.id]: verdictOverride || writeVerdict(ok) });
     onActivity?.({ quizzed: 1 });
     run.setSession((s) => record(s, item, ok));
