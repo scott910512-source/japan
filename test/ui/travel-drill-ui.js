@@ -142,6 +142,13 @@ async function playRound(page, { wrongAt = -1, peekAt = -1 } = {}) {
   ok('시각에도 글자가 없다', r3.every((q) => !q.hasJa));
   await page.locator('.swl-done').click();
   await page.waitForTimeout(400);
+  // The product draws ten random types; an unseeded draw can legitimately contain
+  // only two types. Fix the random stream here so the coverage assertion tests
+  // all categories rather than occasionally failing by chance.
+  await page.evaluate(() => {
+    let seed = 42;
+    Math.random = () => { seed = (Math.imul(1664525, seed) + 1013904223) >>> 0; return seed / 4294967296; };
+  });
   await page.locator('.tr-drillgo[data-kind="mix"]').click();
   await page.waitForTimeout(500);
   const r4 = await playRound(page);

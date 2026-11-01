@@ -36,8 +36,17 @@ try {
   await notebook.getByRole('button', { name: '기록 보기', exact: true }).click();
   assert.match(await notebook.locator('.mistake-list').innerText(), new RegExp(chosen.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))); pass++;
   if (process.env.HUNTER_SCREENSHOTS) await notebook.screenshot({ path: '.qa/mistake-notebook.png' });
+  // Reload online first, then emit the offline transition after the new Gate has
+  // mounted. Loading offline from the outset can miss that transition in CI.
+  await context.setOffline(false);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.locator('.gate-offline').waitFor({ timeout: 15000 }); await page.locator('.gate-offline').click();
+  await page.waitForTimeout(1200);
+  await context.setOffline(true);
+  await page.locator('.hunter-home, .gate-offline').first().waitFor({ timeout: 25000 }).catch(async (error) => {
+    throw new Error(`Reload did not reach the app: ${(await page.locator('body').innerText()).slice(0, 400)}`, { cause: error });
+  });
+  if (await page.locator('.gate-offline').isVisible()) await page.locator('.gate-offline').click();
+  await page.locator('.hunter-home').waitFor({ timeout: 20000 });
   book = await read(); assert.equal(book[`n3:${id}`].wrongChosen, chosen); pass++;
   await page.getByRole('button', { name: '↗ 레벨 진단', exact: true }).click();
   await page.locator('.n3-quiz').waitFor();
