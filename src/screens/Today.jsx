@@ -4,10 +4,10 @@ import {
 import { todayKey } from '../lib/review.js';
 import { tripLabel } from '../lib/purpose.js';
 import { reviewLeftOf } from '../lib/plan.js';
+import HunterDashboard from '../components/HunterDashboard.jsx';
 
-/* 홈 — 앱에서 제일 중요한 자리.
- *
- * 대시보드가 아니다. 「오늘 공부를 시작하는 화면」이다. 앱을 켠 사람이 3초 안에
+/* 헌터 홈의 일일 학습 패널. 계획과 저장된 세션은 기존 엔진을 그대로 쓴다.
+ * 앱을 켠 사람이 3초 안에
  * 알아야 하는 건 두 가지다 — 얼마나 남았나 · 어디를 누르나.
  *
  * 정보의 차례를 지킨다.
@@ -34,7 +34,7 @@ const HELLO = [
 
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel,
-  grammarLeft, grammarNext, onOpenN3, n3,
+  grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake,
   onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore,
 }) {
   const today = todayKey();
@@ -87,11 +87,11 @@ export default function Today({
   const missionDone = missions.filter((m) => m.done >= m.total).length;
 
   return (
-    <>
+    <HunterDashboard words={words} review={review} progress={progress} stats={stats} streak={streak} settings={settings} onOpen={onOpen} onSettings={onSettings} onReview={onOpenReview} onAttempt={onAttempt} onLearnMistake={onLearnMistake}>
       {/* 머리는 한 줄로. 여기에 장식을 얹으면 정작 눌러야 할 것이 아래로 밀린다 */}
       <div className="tdhead">
         <div className="th-body">
-          <small>JS일본어</small>
+          <small>DAILY TRAINING · 하루 10~15분</small>
           <b>{hello}</b>
         </div>
         {streak.count > 0 && (
@@ -222,6 +222,6 @@ export default function Today({
         {grammarLeft === 0 ? <span className="tt-done"><IconCheck /></span> : <span className="tt-count"><b>{grammarLeft}</b>개</span>}
         </button>
       </div>
-    </>
+    </HunterDashboard>
   );
 }

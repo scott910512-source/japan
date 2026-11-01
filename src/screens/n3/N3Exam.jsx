@@ -8,8 +8,8 @@ import ListeningLesson from './ListeningLesson.jsx';
 
 /* N3 모의고사 — 문자·어휘 → 문법 → 독해 → 청해. 해설은 끝에 한꺼번에.
    결과는 영역별 정답률로 남고, 문제별 정답률도 쌓인다. */
-export default function N3Exam({ rate, onAnswer, onFinish, onQuit }) {
-  const exam = useMemo(() => mockExam(), []);
+export default function N3Exam({ rate, onAnswer, onFinish, onQuit, n3, mistakes }) {
+  const exam = useMemo(() => mockExam(Math.random, n3, mistakes), []);
   const [sec, setSec] = useState(0);          // 0 moji · 1 bunpo · 2 reading · 3 listening · 4 done
   const [sub, setSub] = useState(0);          // 독해·청해 안의 몇 번째
   const [scores, setScores] = useState({ moji: { right: 0, total: 0, wrong: [] }, bunpo: { right: 0, total: 0, wrong: [] }, dokkai: { right: 0, total: 0, wrong: [] }, chokai: { right: 0, total: 0, wrong: [] } });

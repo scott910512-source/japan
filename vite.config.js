@@ -41,7 +41,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg}'],
+        globPatterns: ['**/*.{js,css,html,svg,png}'],
         navigateFallback: `${base}index.html`,
         /* ★ 이 앱의 캐시에 이름표를 붙인다 ★
            설정의 「최신 버전 받기」가 caches.keys()로 가져온 것을 전부 지우고

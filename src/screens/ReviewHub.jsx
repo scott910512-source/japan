@@ -16,6 +16,7 @@ import { STAGES } from '../lib/rounds.js';
  * SRS 안쪽 구조(box·level·간격)는 여기서 말하지 않는다. 「오늘 복습해야 하는
  * 것」과 「틀린 것」만 있으면 쓸 수 있어야 한다. */
 export default function ReviewHub({
+  mistakePanel = null,
   planNow, sentenceDue, weakWords, wrongCount, weakGrammar, weakBook = null, weakRows = [],
   onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeakWords, onOpenWeakGrammar, onOpenRepeat, onOpenMe,
 }) {
@@ -67,6 +68,7 @@ export default function ReviewHub({
         )}
       </div>
 
+      {mistakePanel}
       {/* ★ 약점 장부 ★
           「약점 12개」만 보여 주면 무엇을 할지가 안 정해진다. 시험에서 틀리는
           낱말과 쉰 번 들었는데 안 붙는 낱말은 다음에 할 일이 다르다.
