@@ -252,7 +252,7 @@ const SYNCED_SETTINGS = [
   'favs',
   /* onboarded도 같이 올린다. 답(canReadKana)만 올리고 이 표시를 안 올리면,
      기기를 바꿀 때마다 「가타카나 읽을 줄 아세요?」를 다시 답하게 된다. */
-  'onboarded', 'canReadKana', 'tripDay', 'menus', 'levels',
+  'onboarded', 'canReadKana', 'tripDay', 'menus', 'levels', 'goalLevel',
   'dailyGoal', 'goals', 'direction', 'tripPlace',
   'showKana', 'showExample', 'hangulPron', 'autoMic', 'gttsVoice', 'speakOnJudge',
   'quizCount', 'quizType', 'quizDir', 'quizScope', 'videoTranscribe',

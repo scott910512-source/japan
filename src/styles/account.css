@@ -243,3 +243,33 @@
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
+
+/* ── 쭉 퀴즈 ── */
+.stream { display: flex; flex-direction: column; gap: 12px; }
+.st-card { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
+.st-goal { font-size: 12px; color: var(--ink-soft); font-weight: 700; }
+.st-goal b { color: var(--kon); }
+.st-lead { margin: 0; line-height: 1.6; }
+.st-counts { display: flex; gap: 8px; }
+.st-count { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.st-count b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.st-count small { font-size: 11px; color: var(--ink-soft); }
+.st-few { color: var(--shu); margin: 0; }
+.st-start { margin-top: 4px; }
+.st-head { display: flex; align-items: center; gap: 10px; }
+.st-score { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.st-score b { color: var(--kon); font-size: 18px; }
+.st-streak { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.st-streak svg { width: 15px; height: 15px; }
+.st-streak.hot { color: var(--shu); }
+.st-stop { margin-left: auto; min-height: 36px; padding: 0 12px; font-size: 12.5px; }
+.st-kind { display: inline-block; padding: 1px 7px; border-radius: 999px; background: var(--kon-soft); color: var(--kon); font-size: 10.5px; font-weight: 800; margin-right: 4px; }
+.st-kind[data-kind="kanji"], .st-kind[data-kind="grammar"] { background: var(--shu-soft); color: var(--shu); }
+.st-close { display: flex; flex-direction: column; gap: 8px; }
+.st-kinds { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+.st-kindrow { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.st-kn { font-weight: 700; }
+.st-kbar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.st-kbar i { display: block; height: 100%; background: var(--kon); border-radius: 999px; }
+.st-kindrow b { font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.st-missed { padding: 4px 14px; }

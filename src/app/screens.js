@@ -23,6 +23,9 @@ export const ListenHub = lazy(() => import('../screens/ListenHub.jsx'));
 export const Conjugate = lazy(() => import('../screens/Conjugate.jsx'));
 export const Match = lazy(() => import('../screens/Match.jsx'));
 export const Rpg = lazy(() => import('../screens/Rpg.jsx'));
+/* 실전 연습 허브와 쭉 퀴즈 — 학습 탭 「실전 연습」 칸이 연다 */
+export const DrillHub = lazy(() => import('../screens/DrillHub.jsx'));
+export const StreamQuiz = lazy(() => import('../screens/StreamQuiz.jsx'));
 export const Repeat = lazy(() => import('../screens/Repeat.jsx'));
 export const Adverb = lazy(() => import('../screens/Adverb.jsx'));
 export const WordManager = lazy(() => import('../screens/WordManager.jsx'));

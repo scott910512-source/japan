@@ -37,7 +37,9 @@ const SUB_TITLES = {
   quiz: '단어 시험',
   conjugate: '동사 활용',
   match: '짝 맞추기',
-  rpg: '실전 연습',
+  rpg: '상황 대화',
+  drill: '실전 연습',
+  stream: '쭉 퀴즈',
   repeat: '전체 복습 · 회독 학습',
   adverb: '부사 연습',
   listenhub: '듣기',
@@ -57,7 +59,7 @@ export default function App() {
   const nav = useAppNavigation();
   const {
     activeTab, sub, deck, n3View, listenMode, quizSet, videosSeen,
-    setActiveTab, setSub, setDeck, setQuizSet, selectTab, openListen, closeSub,
+    setActiveTab, setSub, setDeck, setQuizSet, selectTab, openListen, closeSub, openSub,
   } = nav;
 
   const appData = useAppData();
@@ -561,6 +563,10 @@ export default function App() {
                 n3View={n3View}
                 /* 단어·문법 화면 안의 「연습」 줄 — 열린 화면을 기억해 뒤로 가면 거기로 돌아온다 */
                 onOpenPractice={(id) => openMenu(id, { from: sub })}
+                /* 실전 연습 허브의 줄 — 쭉 퀴즈·상황 대화. 뒤로 가면 허브로 */
+                onOpenDrill={(id) => openSub(id, 'drill')}
+                onVerdicts={applyVerdicts}
+                onExit={closeSub}
               />
               )}
             </DeferredScreen>

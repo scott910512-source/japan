@@ -1,4 +1,4 @@
-import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, TravelCourse, N3Course } from './screens.js';
+import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, TravelCourse, N3Course, DrillHub, StreamQuiz } from './screens.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
 export default function FeatureScreen({
@@ -38,6 +38,9 @@ export default function FeatureScreen({
   quizSet,
   onQuizSet,
   onOpenPractice,
+  onOpenDrill,
+  onVerdicts,
+  onExit,
 }) {
   return (<>
             {sub === 'worddeck' && (
@@ -175,6 +178,20 @@ export default function FeatureScreen({
                 review={review}
                 settings={settings}
                 onToast={showToast}
+              />
+            )}
+            {sub === 'drill' && <DrillHub settings={settings} onOpen={onOpenDrill} />}
+            {sub === 'stream' && (
+              <StreamQuiz
+                words={words}
+                review={review}
+                progress={progress}
+                settings={settings}
+                sentenceCards={sentenceCards}
+                onVerdicts={onVerdicts}
+                onActivity={noteActivity}
+                onToast={showToast}
+                onExit={onExit}
               />
             )}
             {sub === 'rpg' && (

@@ -64,7 +64,7 @@ const readProgress = (page) => page.evaluate(
     ok('학습 메뉴에 실전 연습이 있다',
       await page.locator('.menutile', { hasText: '실전 연습' }).count() === 1);
 
-    await openMenu(page, '실전 연습');
+    await openMenu(page, '상황 대화');
     ok('레벨 줄이 보인다', await page.locator('.rp-lv').count() === 1);
     ok('편의점 스테이지가 있다', await page.locator('.rp-stage', { hasText: '편의점' }).count() === 1);
     ok('아직 안 만든 곳도 보여 준다', await page.locator('.rp-soonone').count() >= 3);
@@ -113,7 +113,7 @@ const readProgress = (page) => page.evaluate(
     });
     page.on('pageerror', (e) => errors.push(e.message));
 
-    await openMenu(page, '실전 연습');
+    await openMenu(page, '상황 대화');
     ok('EXP가 남아 있다', (await page.locator('.rp-exp').innerText()).includes('120'));
     const live = page.locator('.rp-stage .submit-btn');
     ok('체크포인트를 넘겼으면 실전이 열린다', !(await live.isDisabled()));
@@ -193,7 +193,7 @@ const readProgress = (page) => page.evaluate(
       }
     });
 
-    await openMenu(page, '실전 연습');
+    await openMenu(page, '상황 대화');
     await page.locator('.rp-stage .submit-btn').click();
     await page.waitForTimeout(1200);
 
@@ -235,7 +235,7 @@ const readProgress = (page) => page.evaluate(
       window.__said = [];
       if (window.speechSynthesis) window.speechSynthesis.speak = (u) => window.__said.push(u?.text || '');
     });
-    await openMenu(page, '실전 연습');
+    await openMenu(page, '상황 대화');
     await page.locator('.rp-stage .submit-btn').click();
     await page.waitForTimeout(1200);
     ok('꺼 두면 안 읽어 준다',
