@@ -16,7 +16,6 @@ import { STAGES } from '../lib/rounds.js';
  * SRS 안쪽 구조(box·level·간격)는 여기서 말하지 않는다. 「오늘 복습해야 하는
  * 것」과 「틀린 것」만 있으면 쓸 수 있어야 한다. */
 export default function ReviewHub({
-  mistakePanel = null,
   planNow, sentenceDue, weakWords, wrongCount, weakGrammar, weakBook = null, weakRows = [],
   onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeakWords, onOpenWeakGrammar, onOpenRepeat,
 }) {
@@ -68,7 +67,6 @@ export default function ReviewHub({
         )}
       </div>
 
-      {mistakePanel}
       {/* ★ 약점 장부 ★
           「약점 12개」만 보여 주면 무엇을 할지가 안 정해진다. 시험에서 틀리는
           낱말과 쉰 번 들었는데 안 붙는 낱말은 다음에 할 일이 다르다.
@@ -125,7 +123,7 @@ export default function ReviewHub({
         {/* 0이면 누를 것이 없다 — 취약 단어처럼 흐리게, 설명은 「아직 없어요」로 */}
         <button className="listrow rv-row" data-row="wrong" onClick={onOpenWrong} disabled={wrongCount === 0}>
           <span className="rv-ic"><IconX /></span>
-          <span className="rv-body"><b>틀린 문제</b><span>{wrongCount ? 'N3 코스 오답노트 · 두 번 맞히면 빠져요' : '아직 없어요 — N3 문제를 풀면 여기 모여요'}</span></span>
+          <span className="rv-body"><b>오답노트</b><span>{wrongCount ? '새로 틀린 문제와 N3 오답을 한 곳에서 · 다시 시험도 여기서' : '아직 없어요 — 문제를 풀다 틀리면 여기 모여요'}</span></span>
           <span className="rv-cnt">{wrongCount}</span>
           <IconChevron className="chev" />
         </button>

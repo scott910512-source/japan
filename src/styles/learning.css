@@ -432,3 +432,11 @@
 .swh-tlabel { display: flex; flex-direction: column; gap: 2px; }
 .swl-pic { display: block; text-align: center; font-size: 44px; line-height: 1.2; margin-top: 6px; }
 .swl-pic .sw-swatch.big { display: inline-block; width: 56px; height: 56px; border-radius: 14px; border: 1px solid rgba(0,0,0,.15); }
+
+/* 오답노트(한 화면) */
+.wb2-sum { margin-bottom: 12px; }
+.wb2-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.wb2-head span { font-weight: 700; }
+.wb2-head b { font-size: 28px; line-height: 1.1; }
+.wb2-head b small { font-size: 13px; margin-left: 2px; font-weight: 500; color: var(--ink-soft); }
+.wb2-n3 { width: 100%; text-align: left; }
