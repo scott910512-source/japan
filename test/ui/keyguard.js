@@ -27,6 +27,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
      자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이것 때문에
      화면 검사가 통째로 죽었다. 로그인 문을 지나가려면 오프라인이기만 하면 된다. */
   await p.reload({ waitUntil: 'domcontentloaded' });
+  await p.locator('.gate, .tabbar').first().waitFor({ state: 'visible', timeout: 20000 });
   await p.context().setOffline(true);
   await p.waitForTimeout(900);
   const off = p.locator('.gate-offline'); if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
@@ -41,7 +42,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   await input.fill('AQ.SAMPLE-NOT-A-REAL-KEY-000000000000');
   await p.waitForTimeout(300);
   ok('Gemini 키를 알아봄', await p.locator('.set-warn').count() === 1);
-  ok('어디에 넣어야 하는지 알려 줌', (await p.textContent('.set-warn')).includes('영상 학습'));
+  ok('어디에 넣어야 하는지 알려 줌', (await p.textContent('.set-warn')).includes('Gemini API 키'));
 
   await p.locator('button', { hasText: '저장하고 확인' }).click();
   await p.waitForTimeout(600);

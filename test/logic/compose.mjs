@@ -106,7 +106,7 @@ console.log('\n[ AI 첨삭: 답 읽기 ]');
 console.log('\n[ AI 첨삭: 부르기 전 ]');
 {
   ok('★ 키가 없으면 키가 없다고 한다 ★', !hasAiKey({}) && !hasAiKey({ aiProvider: 'claude' }));
-  ok('Gemini 키 · Claude 키 · 음성 키를 빌려 쓰는 경우', hasAiKey({ geminiKey: 'k' }) && hasAiKey({ aiProvider: 'claude', claudeKey: 'k' }) && hasAiKey({ gttsKey: 'k' }));
+  ok('Gemini 키 · Claude 키를 쓰고 TTS 키를 빌려 쓰지 않는다', hasAiKey({ geminiKey: 'k' }) && hasAiKey({ aiProvider: 'claude', claudeKey: 'k' }) && !hasAiKey({ gttsKey: 'k' }));
   let msg = '';
   try { await correctSentence({ mine: '私は学生です。' }, {}); } catch (e) { msg = e.message; }
   ok('★ 키가 없으면 부르지 않고 알려 준다 ★', msg.includes('AI 키'), msg);
