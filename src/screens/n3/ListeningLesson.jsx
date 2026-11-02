@@ -13,16 +13,20 @@ const STEPS = ['듣기', '문제', '다시', '스크립트', '분석', '섀도�
 
 export default function ListeningLesson({ itemId, rate: baseRate, onAnswer, onFinish, onQuit, exam = false }) {
   const it = listeningById(itemId);
-  const [speed, setSpeed] = useState(1.0);
+  const [speed, setSpeed] = useState(exam ? 1.0 : 0.75);
   const [step, setStep] = useState(0);
   const [played, setPlayed] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [line, setLine] = useState(-1);
   const [result, setResult] = useState(null);
+  const [playError, setPlayError] = useState('');
   const alive = useRef(true);
   const gen = useRef(0);
 
-  useEffect(() => () => { alive.current = false; stopSpeaking(); }, []);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; gen.current += 1; stopSpeaking(); };
+  }, []);
   if (!it) return null;
 
   const rate = Math.round(speed * (baseRate || 0.9) * 100) / 100;
@@ -30,15 +34,21 @@ export default function ListeningLesson({ itemId, rate: baseRate, onAnswer, onFi
 
   const playAll = async () => {
     const my = ++gen.current;
+    setPlayError('');
     setPlaying(true);
     for (let i = 0; i < it.script.length; i += 1) {
       if (!alive.current || my !== gen.current) return;
       setLine(i);
       // eslint-disable-next-line no-await-in-loop
       const how = await speakJapaneseAsync(it.script[i].kana, rate, { id: `ls:${it.id}:${i}` });
-      if (how === 'interrupted' && my !== gen.current) return;
+      if (!alive.current || my !== gen.current) return;
+      if (how !== 'cloud' && how !== 'device') {
+        setPlaying(false);
+        setPlayError('음성을 끝까지 재생하지 못했어요. 다시 듣기를 눌러 주세요.');
+        return;
+      }
       // eslint-disable-next-line no-await-in-loop
-      await new Promise((r) => { setTimeout(r, 350); });
+      await new Promise((r) => { setTimeout(r, exam ? 350 : 700); });
     }
     if (alive.current && my === gen.current) { setPlaying(false); setLine(-1); setPlayed((n) => n + 1); }
   };
@@ -54,6 +64,7 @@ export default function ListeningLesson({ itemId, rate: baseRate, onAnswer, onFi
         <span>{playing ? '재생 중 — 멈추기' : label}</span>
       </button>
       {playing && <div className="n3-playline">{line + 1} / {it.script.length}</div>}
+      {playError && <p className="set-warn" role="alert">{playError}</p>}
     </div>
   );
 
