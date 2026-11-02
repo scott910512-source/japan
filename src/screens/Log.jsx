@@ -51,7 +51,7 @@ const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', readin
 
 export default function Log({
   review, stats, streak, grammarLeft, stat, rounds,
-  n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenQuiz, reviewLeft = 0,
+  n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenQuiz, onOpenWrong, wrongCount = 0, reviewLeft = 0,
 }) {
   /* 자정을 넘기면 이 값이 바뀌고 화면이 다시 그려진다. 예전엔 마운트 때
      한 번 잡아 둬서, 8/31에 켜 놓고 9/1이 되면 달력이 8월에 머물렀다 —
@@ -137,7 +137,7 @@ export default function Log({
     <>
       <div className="navtitle">
         <small>얼마나 했고 얼마나 남았나</small>
-        내 학습
+        복습&amp;내기록
       </div>
 
       {/* 「하루도 안 빠지고」라고 적어 두었지만 이 숫자는 하루 쉬어도 이어진다.
@@ -155,8 +155,13 @@ export default function Log({
       <div className="section-label">복습 · 퀴즈</div>
       <div className="card me-hub">
         <button className="listrow me-row" data-row="review" onClick={onOpenReview}>
-          <span className="rv-body"><b>복습</b><span>오늘 복습 · 약점 · 틀린 문제 · 전체 복습</span></span>
+          <span className="rv-body"><b>복습</b><span>오늘 복습 · 약점 · 전체 복습</span></span>
           <span className="rv-cnt">{reviewLeft}</span>
+          <IconChevron className="chev" />
+        </button>
+        <button className="listrow me-row" data-row="wrong" onClick={onOpenWrong}>
+          <span className="rv-body"><b>오답노트</b><span>틀린 문제 · 다시 시험 · N3 오답</span></span>
+          <span className="rv-cnt">{wrongCount}</span>
           <IconChevron className="chev" />
         </button>
         <button className="listrow me-row" data-row="quiz" onClick={onOpenQuiz}>

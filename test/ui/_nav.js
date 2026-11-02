@@ -4,7 +4,7 @@
  * 길을 각자 적어 두었더니 스무 군데를 고쳐야 했다. 다음에 또 바꿀 테니
  * 한 곳에 모아 둔다 — 그러면 다음엔 여기만 고치면 된다.
  *
- * 예전 → 지금 (탭 다섯 → 넷)
+ * 예전 → 지금 (탭 다섯 → 넷). 「내 학습」 탭은 「복습&내기록」으로 이름이 바뀌었다(goTab은 둘 다 받는다)
  *   오늘 탭            → 오늘 탭 (이름은 한동안 「홈」이었다. id는 home, '홈'도 받는다)
  *   학습 탭            → 학습 탭 (추천 경로 · 원하는 것 골라 학습 · 자료 더 보기)
  *   단어 시험·짝 맞추기·부사 연습 → 단어 화면 안 「연습」 줄 (openMenu가 알아서 거쳐 간다)
@@ -41,7 +41,7 @@ export async function goTab(page, label, wait = 700) {
     return;
   }
   /* 「학습」은 「내 학습」에도 들어 있다 — 이름이 아니라 id로 누른다 */
-  const id = { '오늘': 'home', '홈': 'home', '학습': 'study', '내 학습': 'me', '설정': 'settings' }[label];
+  const id = { '오늘': 'home', '홈': 'home', '학습': 'study', '내 학습': 'me', '복습&내기록': 'me', '설정': 'settings' }[label];
   const tab = id ? page.locator(`.tabbar .tab[data-tab="${id}"]`) : page.locator('.tabbar .tab', { hasText: label }).first();
   await tab.click();
   await page.waitForTimeout(wait);

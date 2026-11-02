@@ -1,9 +1,8 @@
 import { useAppData, usePersistAppData } from './app/useAppData.js';
 import FeatureScreen from './app/FeatureScreen.jsx';
-import MistakeNotebook from './components/MistakeNotebook.jsx';
 import HunterAppHeader from './components/HunterAppHeader.jsx';
 import { recordMistake } from './lib/mistakes.js';
-import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub } from './app/screens.js';
+import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub, WrongBook } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
 import { filterByLevel } from './lib/wordFilters.js';
 import { useAccountSync } from './app/useAccountSync.js';
@@ -24,6 +23,7 @@ import { IconArrowLeft } from './components/Icons.jsx';
 import { dailyPool } from './lib/cards.js';
 import { kijuIndex } from './lib/kiju.js';
 import { hasSignedInOnce } from './lib/storage.js';
+import { wrongTotals } from './lib/wrongbook.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
@@ -53,6 +53,7 @@ const SUB_TITLES = {
   travel: '여행 일본어',
   n3: '한 권으로 끝내는 N3',
   review: '복습',
+  wrongbook: '오답노트',
 };
 
 export default function App() {
@@ -266,6 +267,7 @@ export default function App() {
      가로챈다 — 그건 화면이 아니라 판이라서(회독 큐를 짜야 한다) 자리를
      정하는 쪽이 알 일이 아니다. */
   /* 복습으로 — 내 학습 탭 위에 연다. 닫으면 내 학습으로 돌아온다 */
+  const wrongTotal = useMemo(() => wrongTotals(progress.mistakes, n3Wrong.all), [progress.mistakes, n3Wrong.all]);
   const openReview = useCallback(() => { setActiveTab('me'); openSub('review'); }, [setActiveTab, openSub]);
   const openMenu = useCallback((id, opts = {}) => {
     if (id === 'compose') setComposeStart(opts.mode || null);
@@ -442,10 +444,7 @@ export default function App() {
         <ScreenSlot active={activeTab === 'study' && !sub}>
 
           <StudyHub
-            words={words}
-            stat={wordStat}
             settings={settings}
-            n3Summary={progress.n3?.summary || null}
             onOpen={openMenu}
             /* 바로가기 — 자주 쓰는 메뉴를 사람이 골라 맨 앞에 둔다 */
             onChange={patchSettings}
@@ -470,6 +469,8 @@ export default function App() {
             onOpenStudy={() => selectTab('study')}
             reviewLeft={reviewLeft}
             onOpenReview={openReview}
+            wrongCount={wrongTotal.total}
+            onOpenWrong={() => openSub('wrongbook')}
             onOpenQuiz={() => openSub('drill')}
           />
         </ScreenSlot>
@@ -546,21 +547,28 @@ export default function App() {
           <div className="sub-body">
             <DeferredScreen key={sub}>
               {/* 복습은 내 학습 안에서 밀어 넣는 화면이다 — 오늘 복습 · 약점 · 틀린 문제 · 전체 복습 */}
-              {sub === 'review' ? (
+              {sub === 'wrongbook' ? (
+                <WrongBook
+                  book={progress.mistakes}
+                  n3WrongCount={n3Wrong.all}
+                  onAttempt={recordAttempt}
+                  onLearn={learnMistake}
+                  onOpenN3Wrong={() => openMenu('n3', { view: { kind: 'wrong' } })}
+                />
+              ) : sub === 'review' ? (
                   <ReviewHub
-                    mistakePanel={<MistakeNotebook book={progress.mistakes} onAttempt={recordAttempt} onLearn={learnMistake} />}
                     planNow={planNow}
                     sentenceDue={sentenceDue}
                     weakWords={weakWords}
                     /* 약점 장부 — 어느 게 약한지, 금방 잊어버리는지 */
                     weakBook={weakBook}
                     weakRows={weakRows}
-                    wrongCount={n3Wrong.all}
+                    wrongCount={wrongTotal.total}
                     weakGrammar={n3Wrong.grammar}
                     onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
                     onStartBacklog={startDueDeck}
                     onOpenSentences={() => setSub('sentences')}
-                    onOpenWrong={() => openMenu('n3', { view: { kind: 'wrong' } })}
+                    onOpenWrong={() => openSub('wrongbook', 'review')}
                     onOpenWeakWords={startWeakDeck}
                     onOpenWeakGrammar={() => openMenu('n3', { view: { kind: 'weak', from: 'hub' } })}
                     onOpenRepeat={() => setSub('repeat')}

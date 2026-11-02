@@ -18,6 +18,8 @@ export const Quiz = lazy(() => import('../screens/Quiz.jsx'));
 export const Listen = lazy(() => import('../screens/Listen.jsx'));
 /* 복습 탭 — 오늘 복습·틀린 문제·약점·전체 복습이 한 곳에 */
 export const ReviewHub = lazy(() => import('../screens/ReviewHub.jsx'));
+/* 오답노트 — 틀린 문제를 보는 곳은 이 화면 하나 */
+export const WrongBook = lazy(() => import('../screens/WrongBook.jsx'));
 /* 듣기 고르기 — 학습 탭 「듣기」 칸이 연다 */
 export const ListenHub = lazy(() => import('../screens/ListenHub.jsx'));
 export const Conjugate = lazy(() => import('../screens/Conjugate.jsx'));

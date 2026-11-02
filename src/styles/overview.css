@@ -245,7 +245,8 @@
 .mtiles .menutile.mtile { flex: 0 0 calc((100% - 16px) / 3); }
 .menutile.mtile {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
-  min-height: 82px; padding: 12px 6px; cursor: pointer;
+  /* 모든 칸이 같은 높이 — 이름이 두 줄로 꺾이는 칸(N3)이 있어도 줄마다 높이가 달라지지 않게 */
+  min-height: 96px; padding: 12px 6px; cursor: pointer;
   border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
 }
 .mt-ic {

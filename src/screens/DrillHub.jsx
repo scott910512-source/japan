@@ -19,7 +19,7 @@ export default function DrillHub({ settings, onOpen }) {
       <div className="card dh-goal">
         <span>목표 레벨</span>
         <b>{goal}</b>
-        <small>내 학습 · 설정 · 학습 설정에서 바꿔요</small>
+        <small>설정 · 학습 설정에서 바꿔요</small>
       </div>
       <div className="section-label">연습 고르기</div>
       <div className="card pr-list">

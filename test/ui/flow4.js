@@ -102,7 +102,7 @@ async function judgeAll(page, max = 60, label = '알아요') {
 
   console.log('── 네 탭');
   const tabs = await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.textContent.replace(/^\d+\+?/, '')));
-  ok('★ 오늘 · 학습 · 내 학습 · 설정 ★', tabs.join() === '오늘,학습,내 학습,설정', tabs.join());
+  ok('★ 오늘 · 학습 · 복습&내기록 · 설정 ★', tabs.join() === '오늘,학습,복습&내기록,설정', tabs.join());
   ok('켜면 오늘', (await page.locator('.tabbar .tab.active').innerText()) === '오늘');
   for (const t of ['오늘', '학습', '내 학습', '설정']) {
     await goTab(page, t);
@@ -118,7 +118,7 @@ async function judgeAll(page, max = 60, label = '알아요') {
   ok('★ 홈의 복습 수 = 복습 탭의 오늘 복습 수 = 배지 ★', homeReview > 0 && homeReview === rvLeft && badge === rvLeft, `${homeReview} / ${rvLeft} / ${badge}`);
   ok('복습 화면 맨 위가 오늘 복습', (await page.locator('.rv-top').innerText()).includes('오늘 복습'));
   ok('0짜리 줄은 잠기고 「아직 없어요」', await page.locator('.rv-row[data-row="weak-grammar"]:disabled').count() === 1 && (await page.locator('.rv-row[data-row="weak-grammar"]').innerText()).includes('아직 없어요'));
-  ok('틀린 문제 · 취약 단어 · 취약 문법 · 문장 복습 · 전체 복습', await page.locator('.rv-row').count() === 5);
+  ok('오답노트 · 취약 단어 · 취약 문법 · 문장 복습 · 전체 복습', await page.locator('.rv-row').count() === 5);
 
   console.log('\n── 복습 시작 → 판정 → 끝 → 홈·내 학습에 반영');
   await page.locator('.rv-start').click();
@@ -202,8 +202,11 @@ async function judgeAll(page, max = 60, label = '알아요') {
   await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click(); await page.waitForTimeout(400);
   await goTab(page, '복습');
   await page.locator('.rv-row[data-row="wrong"]').click();
+  await page.locator('.wb2-n3').waitFor({ timeout: 8000 });
+  ok('★ 복습 → 오답노트는 한 화면(새 오답 · N3 오답)을 연다 ★', await page.locator('.wb2-sum').count() === 1);
+  await page.locator('.wb2-n3').click();
   await page.locator('.n3-wrong').waitFor({ timeout: 8000 });
-  ok('★ 복습 → 틀린 문제는 N3 오답노트를 연다 ★', await page.locator('.n3-wrong').count() === 1);
+  ok('★ 그 안의 N3 오답노트 줄은 N3 코스의 오답노트를 연다 ★', await page.locator('.n3-wrong').count() === 1);
   await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click(); await page.waitForTimeout(400);
   await openMenu(page, '듣기');
   ok('학습 → 듣기: 자동 · 따라 · 영상', await page.locator('.lh-way').count() === 3);

@@ -47,9 +47,9 @@ console.log('\n[ 무엇이 어디에 ]');
 const of = (g) => MENUS.filter((m) => m.group === g).map((m) => m.id);
 /* 추천 경로 — 코스 하나와 기출 단어.
    기출은 「무엇을 공부할까」가 아니라 「무엇부터 외울까」의 답이라 고르는
-   줄이 아니라 여기 있다. 큰 칸은 여전히 코스뿐이다. */
+   줄이 아니라 여기 있다. 큰 칸은 없앴다(모든 칸이 같은 크기). */
 ok('추천 경로는 코스와 기출', of('course').join() === 'n3,kiju', of('course').join());
-ok('코스만 큰 칸', MENUS.filter((m) => m.big).map((m) => m.id).join() === 'n3');
+ok('★ 모든 칸이 같은 크기 — 큰 칸이 없다 ★', MENUS.filter((m) => m.big).length === 0);
 ok('★ 골라 학습은 단어 · 문법 · 한자 · 문장 · 듣기 · 실전 연습 ★',
   of('pick').join() === 'words,grammar,kanji,sentences,listen,rpg', of('pick').join());
 ok('한자 칸이 있다 (N3 코스의 한자 과정)', MENUS.find((m) => m.id === 'kanji')?.label === '한자');

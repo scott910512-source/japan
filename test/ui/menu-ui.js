@@ -70,9 +70,10 @@ async function boot(browser, settings = {}) {
   const course = await inGroup(0);
   const pick = await inGroup(1);
   const more = await inGroup(2);
-  /* 코스는 큰 칸 하나, 그 밑에 기출 단어. 큰 칸이 둘이면 어느 것이 코스인지
-     한눈에 안 들어온다 — 기출은 코스로 가는 길 옆의 지름길이다. */
-  ok('코스는 하나 크게, 그 밑에 기출 단어', course.join() === '한 권으로 끝내는 N3,기출 단어' && await page.locator('.menugroup').first().locator('.mbig').count() === 1, course.join(','));
+  /* 모든 칸은 같은 크기다 — 코스 카드를 크게 그렸더니 한 화면의 절반을 차지했다 */
+  ok('코스와 기출 단어는 다른 칸과 같은 크기', course.join() === '한 권으로 끝내는 N3,기출 단어' && await page.locator('.mbig').count() === 0, course.join(','));
+  const sizes = await page.locator('.menutile').evaluateAll((els) => [...new Set(els.map((e) => `${Math.round(e.getBoundingClientRect().width)}x${Math.round(e.getBoundingClientRect().height)}`))]);
+  ok('★ 학습 탭의 칸 크기가 하나다 ★', sizes.length === 1, sizes.join(' / '));
   ok('★ 골라 학습은 단어 · 문법 · 한자 · 문장 · 듣기 · 실전 연습 ★', pick.join() === '단어,문법,한자,문장,듣기,실전 연습', pick.join(','));
   ok('★ 자료 더 보기는 여행 일본어 · 영상 · 완전기초 · 독일어 ★', more.join() === '여행 일본어,영상,완전기초,독일어', more.join(','));
   /* 연습은 학습 탭 최상위에 안 선다 */
@@ -266,6 +267,10 @@ async function boot(browser, settings = {}) {
     ok('★ 고른 것이 바로가기에 올라온다 ★',
       (await page.locator('.mfavs .mt-title').allTextContents()).join(' · ') === '듣기 · 기출 단어 · 실전 연습',
       (await page.locator('.mfavs .mt-title').allTextContents()).join(' · '));
+    ok('★ 바로가기로 올라간 칸은 아래 묶음에서 빠진다(한 번만 보인다) ★',
+      await page.locator('.menutile[data-menu="listen"]').count() === 1 && await page.locator('.menutile[data-menu="kiju"]').count() === 1 && await page.locator('.menutile[data-menu="rpg"]').count() === 1);
+    ok('★ 고르지 않은 칸은 제자리에 남는다 ★', await page.locator('.menugroup:not([data-group="fav"]) .menutile[data-menu="words"]').count() === 1);
+    ok('고른 칸에는 별이 켜져 있다(눌러서 뺄 수 있다)', await page.locator('.mfavs .menutile[data-fav="true"]').count() === 3);
     ok('기기에 남는다',
       await page.evaluate(() => JSON.stringify(
         JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').favs,
@@ -274,6 +279,8 @@ async function boot(browser, settings = {}) {
     await page.locator('.sh-edit').click();
     await page.waitForTimeout(350);
     ok('끝내면 별이 사라진다', await page.locator('.mt-star').count() === 0);
+    ok('★ 바로가기 칸 수 + 아래 칸 수 = 전체 메뉴(겹치지 않는다) ★',
+      await page.locator('.menutile').count() === 12, `${await page.locator('.menutile').count()}칸`);
     ok('★ 맨 앞 묶음이 바로가기 ★',
       await page.locator('.menugroup').first().getAttribute('data-group') === 'fav');
 
