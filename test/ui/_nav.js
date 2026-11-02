@@ -32,7 +32,11 @@ export async function goTab(page, label, wait = 700) {
   /* 복습은 탭이 아니다 — 내 학습 탭 위에 여는 화면이다. 옛 검사가 goTab('복습')으로 부르니 같은 길로 보낸다 */
   if (label === '복습') {
     await goTab(page, '내 학습', 400);
-    await page.locator('.me-row[data-row="review"]').click();
+    const row = page.locator('.me-row[data-row="review"]');
+    if (!(await row.waitFor({ timeout: 8000 }).then(() => true).catch(() => false))) {
+      throw new Error(`내 학습의 복습 줄이 없어요 — 활성 탭 ${await page.locator('.tabbar .tab.active').getAttribute('data-tab').catch(() => '?')} · 화면 ${(await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 200)}`);
+    }
+    await row.click();
     await page.waitForTimeout(wait);
     return;
   }

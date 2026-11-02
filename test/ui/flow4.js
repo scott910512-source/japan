@@ -152,7 +152,7 @@ async function judgeAll(page, max = 60, label = '알아요') {
   ok('내 학습의 판정 횟수에 오늘 판정이 든다', num(me, /(\d+)\s*판정 횟수/) >= rvLeft, me.match(/\d+\s*판정 횟수/)?.[0]);
   ok('오늘 3칸은 내 학습에 없다 (홈이 보여 준다)', !me.includes('끝낸 카드'));
   ok('JLPT N3 진도 카드가 있다', await page.locator('.me-n3').count() === 1);
-  ok('설정으로 가는 줄이 있다', await page.locator('.me-settings').count() === 1);
+  ok('설정은 하단 탭으로 나갔다(내 학습에는 줄이 없다)', await page.locator('.me-settings').count() === 0 && await page.locator('.tabbar .tab[data-tab="settings"]').count() === 1);
   const rv = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'));
   ok('회독 기록에 오늘 판정이 남았다', Object.values(rv).some((v) => v.seenAt > 1000));
 

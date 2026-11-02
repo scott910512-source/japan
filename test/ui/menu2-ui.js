@@ -60,7 +60,7 @@ async function boot(browser) {
   const shown = await page.locator('.rv-stagelist li b').allTextContents();
   const want = STAGES.filter((s) => s.id !== 'self').map((s) => s.label);
   ok('★ 단계 이름이 rounds.js 하나와 같다 ★', shown.join() === want.join(), shown.join(' / '));
-  ok('복습 간격 안내도 그대로', (await page.textContent('.screen.active')).includes('1 · 3 · 7 · 30 · 90일'));
+  ok('복습 간격 안내도 그대로', (await page.textContent('.subscreen.open')).includes('1 · 3 · 7 · 30 · 90일'));
   await page.locator('.subscreen .sub-back').first().click();
   await page.waitForTimeout(500);
   ok('복습을 닫으면 내 학습으로 돌아온다', await page.locator('.tabbar .tab.active[data-tab="me"]').count() === 1);
