@@ -284,7 +284,8 @@ console.log('\n── 기초문법이 쓰는 옛 활용표도 (앞말이 날아�
 
 console.log('\n── 화면에 쓰는 이름들');
 ok('아홉 모양에 이름이 다 있음', FORMS.every((f) => f.ko && f.ex && f.koEx), FORMS.length);
-ok('기초 시제가 다섯', BASIC_KEYS.length === 5, BASIC_KEYS.join('/'));
+ok('기본형 외 기본 활용 7가지를 연습한다', BASIC_KEYS.length === 7, BASIC_KEYS.join('/'));
+ok('정중 부정과 정중 과거 부정도 기본이다', BASIC_KEYS.includes('masuNeg') && BASIC_KEYS.includes('masuNegPast'));
 ok('이름표가 다 있음', ASK_KEYS.every((k) => FORM_LABEL[k]));
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

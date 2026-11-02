@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  FORMS, BASIC_KEYS, MORE_KEYS, ASK_KEYS, GROUP_LABEL,
+  FORMS, BASIC_PAIRS, BASIC_KEYS, MORE_KEYS, ASK_KEYS, GROUP_LABEL,
   conjugate, planDrill, applyDrill, drillRate, canDrill,
 } from '../lib/verbform.js';
 import { kanaToHangul } from '../lib/hangul.js';
@@ -10,19 +10,39 @@ import { IconCheck, IconX, IconSpeaker, IconArrowLeft } from '../components/Icon
 const GROUPS = ['1', '2', '3'];
 const COUNTS = [10, 20, 30];
 
-/* 활용표는 여섯 줄이면 충분하다 — 릴에 나오는 그 여섯이다.
-   て형과 정중 부정은 켠 사람에게만 더 보여 준다. */
+/* 같은 시제의 보통체와 정중체를 나란히 비교한다. */
+function FormCell({ forms, formKey, rate, mark }) {
+  const form = FORMS.find((f) => f.key === formKey);
+  const value = forms[formKey];
+  return <div role="cell" className={`cj-row cj-formcell${mark === formKey ? ' on' : ''}`} data-form={formKey} aria-label={form.ko}>
+    <span className="cj-val"><b lang="ja">{value.jp}</b><i>{kanaToHangul(value.yomi)}</i></span>
+    <button className="cj-say" onClick={() => speakJapanese(value.yomi, rate)} aria-label={`${form.ko} 발음 듣기`}><IconSpeaker /></button>
+  </div>;
+}
+
 function TableRows({ forms, keys, rate, mark }) {
+  const extras = keys.filter((key) => key !== 'dict' && !BASIC_KEYS.includes(key));
   return (
+    <>
+    <div className="cj-comparison" role="table" aria-label="보통체·정중체 기본 8형">
+      <div className="cj-pair cj-pair-head" role="row"><b role="columnheader">시제</b><b role="columnheader">보통체</b><b role="columnheader">정중체</b></div>
+      {BASIC_PAIRS.map((pair) => <div className="cj-pair" role="row" key={pair.casual}>
+        <span className="cj-tense" role="rowheader"><span>{pair.label.split(' ')[0]}</span><b>{pair.label.split(' ')[1]}</b></span>
+        <FormCell forms={forms} formKey={pair.casual} rate={rate} mark={mark} />
+        <FormCell forms={forms} formKey={pair.polite} rate={rate} mark={mark} />
+      </div>)}
+    </div>
+    <p className="cj-table-note">현재·미래는 문맥에 따라 구분해요. 정중체는 <span lang="ja">ます → ません / ました / ませんでした</span>로 바뀌어요.</p>
+    {extras.length > 0 &&
     <div className="cj-table">
-      {keys.map((k) => {
+      {extras.map((k) => {
         const f = FORMS.find((x) => x.key === k);
         const v = forms[k];
         return (
           <div key={k} className={`cj-row${mark === k ? ' on' : ''}`}>
             <span className="cj-label">{f.ko}</span>
             <span className="cj-val">
-              <b>{v.jp}</b>
+              <b lang="ja">{v.jp}</b>
               <i>{kanaToHangul(v.yomi)}</i>
             </span>
             <button
@@ -36,6 +56,8 @@ function TableRows({ forms, keys, rate, mark }) {
         );
       })}
     </div>
+    }
+    </>
   );
 }
 
@@ -144,8 +166,7 @@ export default function Conjugate({ words, progress, onProgress, settings, onToa
           })}
         </div>
 
-        {/* 답을 고른 뒤에 여섯 모양을 한 번에 펼친다. 릴에서 하는 방식이 그거고,
-            틀린 자리만 알려 주는 것보다 표를 통째로 다시 보는 게 남는다. */}
+        {/* 답을 고른 뒤 기본 8형을 같은 시제끼리 비교한다. */}
         {picked && (
           <>
             <div className="section-label">{q.forms.dict.jp} 활용</div>
@@ -172,7 +193,7 @@ export default function Conjugate({ words, progress, onProgress, settings, onToa
     <div className="cj">
       <p className="vd-note">
         동사를 기본형에서 시제로 바꾸는 연습이에요. 1형(五段)·2형(一段)·3형(불규칙)마다 규칙이 달라서,
-        어느 형인지를 아는 게 반이에요. 답을 고르면 여섯 모양을 한 번에 펼쳐 보여 줘요.
+        어느 형인지를 아는 게 반이에요. 답을 고르면 보통체 4개와 정중체 4개를 비교해 보여 줘요.
       </p>
 
       <div className="section-label" style={{ marginTop: 0 }}>동사 형태</div>
@@ -195,8 +216,8 @@ export default function Conjugate({ words, progress, onProgress, settings, onToa
         {/* 설정 화면과 같은 모양으로 둔다. 네모 체크칸은 손가락으로 짚기엔 너무 작다 */}
         <button className="toggle-row setrow" onClick={() => setWithMore((v) => !v)} aria-pressed={withMore}>
           <span>
-            <span className="set-title">て형 · 정중 부정까지</span>
-            <span className="set-sub">기본은 기초 시제 다섯 개예요</span>
+            <span className="set-title">て형 추가</span>
+            <span className="set-sub">기본 8형 중 기본형을 제외한 7가지를 연습해요</span>
           </span>
           <span className={`toggle${withMore ? ' on' : ''}`} aria-hidden="true" />
         </button>
