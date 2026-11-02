@@ -117,8 +117,8 @@ async function judgeAll(page, max = 60, label = '알아요') {
   const rvLeft = Number(await page.locator('.rv-top').getAttribute('data-left'));
   ok('★ 홈의 복습 수 = 복습 탭의 오늘 복습 수 = 배지 ★', homeReview > 0 && homeReview === rvLeft && badge === rvLeft, `${homeReview} / ${rvLeft} / ${badge}`);
   ok('복습 화면 맨 위가 오늘 복습', (await page.locator('.rv-top').innerText()).includes('오늘 복습'));
-  ok('0짜리 줄은 잠기고 「아직 없어요」', await page.locator('.rv-row[data-row="weak-grammar"]:disabled').count() === 1 && (await page.locator('.rv-row[data-row="weak-grammar"]').innerText()).includes('아직 없어요'));
-  ok('오답노트 · 취약 단어 · 취약 문법 · 문장 복습 · 전체 복습', await page.locator('.rv-row').count() === 5);
+  ok('★ 약점은 한 줄(취약 단어·취약 문법 줄이 따로 없다) ★', await page.locator('.rv-row[data-row="weak"]').count() === 1 && await page.locator('.rv-row[data-row="weak-words"], .rv-row[data-row="weak-grammar"]').count() === 0);
+  ok('오답노트 · 약점 · 문장 복습 · 전체 복습', await page.locator('.rv-row').count() === 4);
 
   console.log('\n── 복습 시작 → 판정 → 끝 → 홈·내 학습에 반영');
   await page.locator('.rv-start').click();

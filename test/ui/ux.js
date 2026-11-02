@@ -144,7 +144,7 @@ const judge = async (page, label) => {
   const rv = await page.textContent('.subscreen.open');
   /* 복습 탭 — 오늘 복습이 맨 위, 틀린 문제·취약이 그 아래 */
   ok('복습 화면에 오늘 복습이 맨 위', rv.includes('오늘 복습'), rv.replace(/\s+/g, ' ').slice(0, 80));
-  ok('취약 단어 입구가 있음', rv.includes('취약 단어'));
+  ok('약점 입구가 있음', rv.includes('약점'));
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();

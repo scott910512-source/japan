@@ -149,9 +149,9 @@ const fits = async (loc) => {
     await page.waitForTimeout(400);
   }
 
-  console.log('\n[ 복습 탭 — 까닭이 숫자 중간에서 안 꺾인다 ]');
+  console.log('\n[ 약점 화면 — 까닭이 숫자 중간에서 안 꺾인다 ]');
   {
-    await goTab(page, '복습');
+    await goTab(page, '약점');
     const rows = page.locator('.wb-reason');
     const n = await rows.count();
     ok('까닭 덩어리가 있다', n > 0, `${n}`);
