@@ -1,0 +1,14 @@
+/* Ship the Japanese face with the app instead of relying on installed fonts. */
+:root { --font-ja: 'Noto Sans JP Variable', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif; }
+[lang='ja'], .kanji, .kana, .kc-kana, .gc-jp, .lr-jp, .sr-jp,
+.sent-front:not(.ko), .sent-answer, .ex-jp, .rb-jp, .show-jp, .build-tile, .pattern-jp {
+  font-family: var(--font-ja);
+}
+.study .sc-main:not(.ko) { font-family: var(--font-ja); font-weight: 650; line-height: 1.4; }
+.study .sc-kana { font-family: var(--font-ja); font-size: 20px; font-weight: 500; line-height: 1.7; color: var(--ink); }
+.study .sc-kana[lang='ko'] { font-family: inherit; font-size: 17px; }
+.study .sc-hangul { font-size: 16px; }
+.study .sc-example { padding: 16px 52px 16px 16px; text-align: left; }
+.study .sc-example .ex-jp { font-family: var(--font-ja); font-size: 20px; font-weight: 500; line-height: 1.8; color: var(--ink); overflow-wrap: anywhere; }
+.study .sc-example .ex-ko { font-size: 15px; line-height: 1.7; margin-top: 6px; }
+.study-shortcut-note { margin: 10px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.7; text-align: center; }

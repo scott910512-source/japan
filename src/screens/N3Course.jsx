@@ -55,7 +55,7 @@ function cardRef(ref) {
   return null;
 }
 
-export default function N3Course({ review, progress, setProgress, applyVerdicts, settings, streak, onStartSet, onToast, initialView = null }) {
+export default function N3Course({ review, progress, setProgress, applyVerdicts, settings, streak, onStartSet, onToast, onAttempt, initialView = null }) {
   const today = useToday();
   const n3 = useMemo(() => normalizeN3(progress?.n3), [progress?.n3]);
   const setN3 = useCallback((fn) => setProgress((p) => ({ ...p, n3: fn(normalizeN3(p?.n3)) })), [setProgress]);
@@ -108,9 +108,15 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── 답 하나 ── */
-  const onAnswer = useCallback((q, ok) => {
+  const onAnswer = useCallback((q, ok, picked) => {
     setN3((p) => recordAnswer(p, { qid: q.id, ok, cat: q.cat || 'grammar', ref: q.ref || null, today: todayKey() }));
-  }, [setN3]);
+    const lesson = q.ref ? lessonOf(q.ref) : null;
+    const passage = Array.isArray(lesson?.text) ? lesson.text.map((s) => s.jp).join('\n') : null;
+    const speech = Array.isArray(lesson?.script) ? lesson.script.map((s) => s.kana).join('。') : null;
+    const kind = { grammar: '문법', particle: '조사', kanji: '한자', vocab: '어휘', reading: '독해', listening: '청해' }[q.cat] || '문법';
+    const prompt = q.type === 'order' ? `${q.before || ''} ${q.pieces.map((_, i) => i === q.star ? '★' : '＿').join(' ')} ${q.after || ''}` : q.q;
+    onAttempt?.({ id: `n3:${q.id}`, source: 'n3', ref: q.ref, kind, prompt: [q.passage || passage, prompt].filter(Boolean).join('\n'), speak: speech, chosen: picked, correct: q.answer, options: q.type === 'order' ? q.pieces : q.options, explanation: [q.why?.[picked], q.expl].filter(Boolean).join(' '), ok });
+  }, [setN3, onAttempt]);
 
   /* ── 한 판의 결과를 회독 판정으로. 같은 카드가 여러 번이면 합쳐서 한 번만 ── */
   const applyResults = useCallback((results, forceRef = null) => {
@@ -274,6 +280,7 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
   if (view.kind === 'test') {
     return (
       <N3Test
+        mistakes={progress.mistakes}
         testId={view.id} n3={n3} review={review} rate={rate} onAnswer={onAnswer}
         onQuit={() => setView(backFrom(view))}
         onFinish={(r) => {
@@ -295,6 +302,8 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
   if (view.kind === 'exam') {
     return (
       <N3Exam
+        mistakes={progress.mistakes}
+        n3={n3}
         rate={rate} onAnswer={onAnswer}
         onQuit={() => setView(backFrom(view))}
         onFinish={(res) => {

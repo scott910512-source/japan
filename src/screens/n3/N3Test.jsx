@@ -4,8 +4,8 @@ import { checkTest, TEST_TITLES } from '../../lib/n3.js';
 import QuizRunner from './QuizRunner.jsx';
 
 /* 확인 테스트 · N4 진단. 진단은 꼭지마다 한 문제 — 맞힌 꼭지는 계획에서 빠진다. */
-export default function N3Test({ testId, n3, review, rate, onAnswer, onFinish, onQuit }) {
-  const questions = useMemo(() => checkTest(testId, n3, review), [testId]); // eslint-disable-line react-hooks/exhaustive-deps
+export default function N3Test({ testId, n3, review, rate, onAnswer, onFinish, onQuit, mistakes }) {
+  const questions = useMemo(() => checkTest(testId, n3, review, Math.random, mistakes), [testId]); // eslint-disable-line react-hooks/exhaustive-deps
   const diag = testId === 't:ch0';
   return (
     <div className="n3-test" data-test={testId}>

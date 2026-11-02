@@ -63,9 +63,15 @@ export const FORMS = [
   { key: 'te', ko: 'て형', ex: '遊んで', koEx: '놀고 / 놀아서' },
 ];
 
-/* 릴에 나오는 기초 시제 다섯 개 — 사전형은 문제로 주어지니까 빼고 묻는다. */
-export const BASIC_KEYS = ['masu', 'masuPast', 'nai', 'naiPast', 'ta'];
-export const MORE_KEYS = ['te', 'masuNeg', 'masuNegPast'];
+/* 기본 8형 = 보통체 4개 + 정중체 4개. 사전형은 제시하므로 문제에서는 뺀다. */
+export const BASIC_PAIRS = [
+  { label: '현재·미래 긍정', casual: 'dict', polite: 'masu' },
+  { label: '현재·미래 부정', casual: 'nai', polite: 'masuNeg' },
+  { label: '과거 긍정', casual: 'ta', polite: 'masuPast' },
+  { label: '과거 부정', casual: 'naiPast', polite: 'masuNegPast' },
+];
+export const BASIC_KEYS = BASIC_PAIRS.flatMap((pair) => [pair.casual, pair.polite]).filter((key) => key !== 'dict');
+export const MORE_KEYS = ['te'];
 export const ASK_KEYS = [...BASIC_KEYS, ...MORE_KEYS];
 
 export const FORM_LABEL = Object.fromEntries(FORMS.map((f) => [f.key, f.ko]));

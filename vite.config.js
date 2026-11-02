@@ -24,24 +24,24 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/icon.svg'],
+      includeAssets: ['icons/icon.svg', 'fonts/OFL.noto-sans-jp.txt'],
       manifest: {
-        name: 'JS일본어 — 회독 일본어 학습',
-        short_name: 'JS일본어',
-        description: '회독으로 반복해서 외우는 한국인 학습자용 일본어 앱',
+        name: '日本語 HUNTER — 매일 성장하는 일본어',
+        short_name: '日本語 HUNTER',
+        description: '일일 퀘스트와 오답 수련으로 N5부터 N3까지 성장하는 일본어 앱',
         lang: 'ko',
         scope: base,
         start_url: base,
         display: 'standalone',
-        background_color: '#0A0D14',
-        theme_color: '#0A0D14',
+        background_color: '#102b35',
+        theme_color: '#102b35',
         icons: [
           { src: 'icons/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
           { src: 'icons/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: `${base}index.html`,
         /* ★ 이 앱의 캐시에 이름표를 붙인다 ★
            설정의 「최신 버전 받기」가 caches.keys()로 가져온 것을 전부 지우고

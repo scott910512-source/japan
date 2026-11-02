@@ -1,5 +1,6 @@
 import { stateOf } from './review.js';
 import { isWeakNow, weakEntry } from './weak.js';
+import { activeMistakes, prioritizeMistakes } from './mistakes.js';
 import { narrowAscii, normalizeJp, phoneticJp, soundDiff, stripPunct } from './jptext.js';
 /* 시험 출제 · 채점.
  *
@@ -215,11 +216,12 @@ export function buildQuestion(word, { type, dir }, pool, rng = Math.random) {
 }
 
 // 출제 범위. '학습한 것만'과 '틀린 것만'은 회독 기록을 읽기만 한다.
-export function scopeWords(words, review = {}, scope = QUIZ_SCOPE.ALL, ledger = null) {
+export function scopeWords(words, review = {}, scope = QUIZ_SCOPE.ALL, ledger = null, mistakes = {}) {
   if (scope === QUIZ_SCOPE.SEEN) {
     return words.filter((w) => review[w.id]?.lastSeen);
   }
   if (scope === QUIZ_SCOPE.WEAK) {
+    const pending = new Set(activeMistakes(mistakes).map((m) => m.ref));
     /* 약점 기준은 한 군데서 정한다. 예전엔 여기 ≥1을 손으로 적어 둬서
        같은 「약점」이 시험에서만 56개, 복습에서는 25개였다. */
     /* stateOf를 거친다 — 날것으로 넘기면 옛 기록이 새 칸 없이 들어와서
@@ -228,7 +230,7 @@ export function scopeWords(words, review = {}, scope = QUIZ_SCOPE.ALL, ledger = 
        isWeakNow가 회독 기록만 보니 예전과 같은 목록이다 — 여기서 「시험에서
        틀린 것」을 세는 게 중요한 이유는, 시험 범위 「약점」이 바로 시험에서
        틀린 낱말을 다시 묻는 자리인데 그걸 못 보고 있었기 때문이다. */
-    return words.filter((w) => isWeakNow(stateOf(review, w.id), weakEntry(ledger, w.id)));
+    return words.filter((w) => pending.has(w.id) || isWeakNow(stateOf(review, w.id), weakEntry(ledger, w.id)));
   }
   return words;
 }
@@ -240,11 +242,12 @@ export function buildQuiz(words, {
   scope = QUIZ_SCOPE.ALL,
   review = {},
   ledger = null,
+  mistakes = {},
   rng = Math.random,
 } = {}) {
   // 4지선다는 오답 후보가 필요하다. 범위를 좁혀도 보기는 전체에서 끌어온다.
   const pool = words;
-  const picked = shuffled(scopeWords(words, review, scope, ledger), rng).slice(0, count);
+  const picked = prioritizeMistakes(shuffled(scopeWords(words, review, scope, ledger, mistakes), rng), mistakes, (word) => word.id, count);
 
   return picked.map((word, i) => {
     // 섞기는 문제마다 번갈아 낸다 — 무작위로 하면 한쪽으로 쏠린 시험이 나온다

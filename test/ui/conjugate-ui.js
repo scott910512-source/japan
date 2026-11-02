@@ -65,8 +65,8 @@ const open = async (page) => {
 
   const body = await page.textContent('.subscreen');
   ok('세 형태를 고를 수 있음', body.includes('1형') && body.includes('2형') && body.includes('3형'));
-  ok('기초 시제 다섯이 적혀 있음',
-    ['정중형', '정중 과거', '과거', '부정', '과거 부정'].every((t) => body.includes(t)));
+  ok('정중 부정까지 기본 시제에 포함됨',
+    ['정중형', '정중 과거', '정중 부정', '정중 과거부정', '과거', '부정', '과거 부정'].every((t) => body.includes(t)));
   ok('몇 개 봤는지 알려 줌', /동사 \d+개 중 \d+개/.test(body), body.match(/동사 \d+개 중 \d+개/)?.[0]);
   const onlyN5 = body.match(/동사 (\d+)개/)?.[1]; // 기본은 N5만 — 아래 레벨 검사에서 견준다
 
@@ -97,12 +97,13 @@ const open = async (page) => {
   ok('정답을 알려 줌', await page.locator('.qopt.correct').count() === 1);
   ok('고른 답에 표시가 붙음', await page.locator('.qopt.correct .qo-mark.ok').count() === 1);
 
-  /* 답을 고른 뒤에 여섯 모양을 한 번에 펼치는 게 이 화면의 핵심이다 */
+  /* 기본 8형을 현재/과거 × 긍정/부정의 짝으로 비교한다. */
   const rows = await page.locator('.cj-row').count();
-  ok('활용표가 펼쳐짐', rows === 6, `${rows}줄`);
+  ok('기본 8형 활용표가 펼쳐짐', rows === 8, `${rows}개`);
+  ok('보통체·정중체를 비교함', await page.getByRole('table', { name: '보통체·정중체 기본 8형' }).count() === 1);
   ok('물어본 줄이 표시됨', await page.locator('.cj-row.on').count() === 1);
-  ok('표에 한글 발음이 있음', await page.locator('.cj-row .cj-val i').count() === 6);
-  ok('줄마다 듣기 버튼', await page.locator('.cj-say').count() === 6);
+  ok('표에 한글 발음이 있음', await page.locator('.cj-row .cj-val i').count() === 8);
+  ok('형태마다 듣기 버튼', await page.locator('.cj-say').count() === 8);
 
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}'));
   ok('성적이 저장됨', Boolean(saved.conj?.forms && Object.keys(saved.conj.forms).length === 1), JSON.stringify(saved.conj?.forms));
@@ -151,6 +152,9 @@ const open = async (page) => {
   const look = await page.textContent('.cj-lookone');
   ok('飲みます가 표에 있음', look.includes('飲みます'), look.replace(/\s+/g, ' ').slice(0, 60));
   ok('飲んだ도', look.includes('飲んだ'));
+  ok('정중 부정도', look.includes('飲みません'));
+  ok('정중 과거 부정도', look.includes('飲みませんでした'));
+  ok('활용표가 화면 밖으로 넘치지 않음', await page.locator('.cj-comparison').evaluate((el) => el.scrollWidth <= el.clientWidth));
   await page.locator('.cj-look input').fill('없는동사');
   await page.waitForTimeout(400);
   ok('없으면 없다고 함', (await page.textContent('.cj-look')).includes('찾는 동사가 없어요'));

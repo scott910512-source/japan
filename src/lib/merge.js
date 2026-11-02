@@ -12,6 +12,7 @@
  * seenAt이 없는 건 이 기능 이전에 쌓인 기록이라 있는 쪽을 나중으로 본다. */
 /* N3 코스 — 규칙은 lib/n3.js. 레슨 완료는 OR, 정답률·시험은 큰 쪽, 오답 노트는 나중 쪽. */
 import { mergeN3 } from './n3progress.js';
+import { mergeMistakes } from './mistakes.js';
 /* 약점 장부 — 규칙은 lib/weak.js. 횟수는 큰 쪽, 잊어버린 간격은 작은 쪽. */
 import { mergeWeak } from './weak.js';
 
@@ -164,6 +165,7 @@ export function mergeProgress(local = {}, remote = {}) {
   return {
     ...remote,
     ...local,
+    mistakes: mergeMistakes(local.mistakes, remote.mistakes),
     bookmarks: [...new Set([...(remote.bookmarks || []), ...(local.bookmarks || [])])],
     grammarDone: { ...(remote.grammarDone || {}), ...(local.grammarDone || {}) },
     sentenceDone: { ...(remote.sentenceDone || {}), ...(local.sentenceDone || {}) },
@@ -249,6 +251,7 @@ export function mergeVideos(local = {}, remote = {}) {
 // 설정은 기기마다 다른 게 자연스럽다(음성 속도, 테마). 학습 범위에 관한 것만 가져온다.
 // 음성 API 키는 자격 증명이라 서버에 올리지 않는다.
 const SYNCED_SETTINGS = [
+  'hunterGuide',
   'favs',
   /* onboarded도 같이 올린다. 답(canReadKana)만 올리고 이 표시를 안 올리면,
      기기를 바꿀 때마다 「가타카나 읽을 줄 아세요?」를 다시 답하게 된다. */

@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
+import '@fontsource-variable/noto-sans-jp';
 import './index.css';
 import { isBusy } from './lib/busy.js';
 import { updateGate, waitingLabel, WHY } from './lib/swgate.js';

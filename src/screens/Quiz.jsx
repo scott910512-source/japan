@@ -7,7 +7,7 @@ import { markBusy } from '../lib/busy.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
 import {
-  QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords,
+  QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf,
 } from '../lib/quiz.js';
 import { WEAK_KIND } from '../lib/weak.js';
 
@@ -47,7 +47,7 @@ const SCOPE_OPTS = [
  * 겨루는 편이, 안 들은 낱말이 보기로 나오는 것보다 낫다. */
 export default function Quiz({
   words, review, settings, onChange, onToast, onRetryWrong, onActivity, onWeakness,
-  fixedWords = null, ledger = null,
+  fixedWords = null, ledger = null, mistakes = {}, onAttempt,
 }) {
   const [config, setConfig] = useState({
     count: settings.quizCount ?? 20,
@@ -70,8 +70,8 @@ export default function Quiz({
     [set, words, settings.levels],
   );
   const available = useMemo(
-    () => (set ? set.length : scopeWords(pool, review, config.scope, ledger).length),
-    [set, pool, review, config.scope, ledger],
+    () => (set ? set.length : scopeWords(pool, review, config.scope, ledger, mistakes).length),
+    [set, pool, review, config.scope, ledger, mistakes],
   );
 
   const patch = (p) => {
@@ -92,6 +92,7 @@ export default function Quiz({
       /* 「약점」 범위가 시험 오답까지 본다 — 시험에서 틀린 낱말을 다시 묻는
          자리인데, 여태 회독 기록만 봐서 그걸 못 보고 있었다. */
       ledger,
+      mistakes,
     });
     if (!questions.length) {
       onToast('출제할 단어가 없어요');
@@ -103,6 +104,7 @@ export default function Quiz({
   if (run) {
     return (
       <QuizRun
+        onAttempt={onAttempt}
         run={run}
         pool={pool}
         settings={settings}
@@ -201,7 +203,7 @@ export default function Quiz({
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness }) {
+function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -289,20 +291,21 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
   const logged = useRef(new Set());
   useEffect(() => { logged.current = new Set(); }, [questions]);
 
-  const noteQuiz = useCallback((verdict) => {
-    if (!q || !onWeakness) return;
+  const noteQuiz = useCallback((verdict, value) => {
+    if (!q) return;
     if (verdict !== 'correct' && verdict !== 'wrong') return;
     if (logged.current.has(q.id)) return;
     logged.current.add(q.id);
-    onWeakness([{
+    onWeakness?.([{
       id: q.wordId,
       kind: verdict === 'correct' ? WEAK_KIND.QUIZ_RIGHT : WEAK_KIND.QUIZ_WRONG,
     }]);
-  }, [q, onWeakness]);
+    onAttempt?.({ id: `word:${q.wordId}:${q.dir}`, source: 'word', ref: q.wordId, kind: q.dir === QUIZ_DIR.JP_KO ? '단어 뜻' : '단어 표기', prompt: q.prompt, correct: q.answer, accepted: q.dir === QUIZ_DIR.JP_KO ? meaningsOf(word) : acceptedJp(word), chosen: q.options?.find((o) => o.wordId === value)?.label || value, options: q.options?.map((o) => o.label), explanation: [word?.note, word?.example, word?.exampleKo].filter(Boolean).join(' · '), ok: verdict === 'correct' });
+  }, [q, word, onWeakness, onAttempt]);
 
   const record = (verdict, value) => {
     if (answered) return;
-    noteQuiz(verdict);
+    noteQuiz(verdict, value);
     onRun({ ...run, answers: { ...answers, [q.id]: { verdict, value } } });
   };
 
@@ -315,7 +318,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
 
   const next = () => {
     // 인정하지 않고 넘어간 「거의 맞았어요」는 오답이다 — 점수도 그렇게 센다
-    if (answered?.verdict === 'close') noteQuiz('wrong');
+    if (answered?.verdict === 'close') noteQuiz('wrong', answered.value);
     onRun({ ...run, index: index + 1 });
   };
 
@@ -333,7 +336,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
 
   // 오타로 틀리는 건 실력이 아니다. 애매한 답은 내가 인정할 수 있게 둔다.
   const acceptClose = () => {
-    noteQuiz('correct');
+    noteQuiz('correct', answered.value);
     onRun({
       ...run,
       answers: { ...answers, [q.id]: { ...answers[q.id], verdict: 'correct' } },

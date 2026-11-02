@@ -59,6 +59,7 @@ const initScript = `
     Object.defineProperty(SpeechSynthesisUtterance.prototype, 'voice', { configurable: true, get() { return this.__voice || null; }, set(v) { this.__voice = v; } });
     synth.speak = (u) => {
       window.__said.push({ text: u?.text || '', lang: u?.lang || '', rate: u?.rate, at: Date.now() });
+      if (window.__speechFails && u?.text?.trim()) { setTimeout(() => u.onerror?.({ error: 'synthesis-failed' }), 10); return; }
       setTimeout(() => { try { u.onstart?.(); } catch {} }, 10);
       setTimeout(() => { try { u.onend?.(); } catch {} }, 150);
     };
@@ -111,10 +112,16 @@ const n3of = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp_m
   ok('★ 스크립트는 처음엔 안 보인다 ★', await page.locator('.n3-script').count() === 0 && await page.locator('.n3-dline').count() === 0);
   ok('속도 셋', await page.locator('.n3-speeds .chip').count() === 3);
   ok('듣기 전에는 문제로 못 간다', await page.locator('.n3-toq').isDisabled());
+  await page.evaluate(() => { window.__speechFails = true; window.__said = []; });
+  await page.locator('.n3-playbtn').click();
+  await page.getByRole('alert').waitFor();
+  ok('재생 실패면 다음 대사를 건너뛰지 않는다', await page.evaluate(() => window.__said.length === 1));
+  ok('실패한 듣기를 완료 처리하지 않는다', await page.locator('.n3-toq').isDisabled());
+  await page.evaluate(() => { window.__speechFails = false; });
   await page.locator('.n3-speeds .chip[data-speed="0.75"]').click();
   await page.evaluate(() => { window.__said = []; });
   await page.locator('.n3-playbtn').click();
-  await page.waitForTimeout(item.script.length * 600 + 800);
+  await page.waitForFunction(() => document.querySelector('.n3-toq')?.disabled === false, null, { timeout: 20000 });
   const said = await page.evaluate(() => window.__said);
   ok('★ 줄을 차례로 이어 읽는다 — 겹치지 않고 하나씩 ★', said.length === item.script.length && said.every((s, i) => s.text === item.script[i].kana && s.lang === 'ja-JP'), `${said.length}줄`);
   ok('줄 사이가 떨어져 있다(앞 줄이 끝난 뒤)', said.every((s, i) => i === 0 || s.at - said[i - 1].at >= 150));
@@ -166,7 +173,7 @@ const n3of = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp_m
     const itemId = await page.locator('.n3-listening').getAttribute('data-item');
     const it = LISTENING_ITEMS.find((l) => l.id === itemId);
     await page.locator('.n3-playbtn').click();
-    await page.waitForTimeout(it.script.length * 600 + 800);
+    await page.waitForFunction(() => document.querySelector('.n3-toq')?.disabled === false, null, { timeout: 20000 });
     await page.locator('.n3-toq').click();
     await page.locator('.n3-quiz').waitFor();
     await solveExam(page);

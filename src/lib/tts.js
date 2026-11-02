@@ -562,7 +562,7 @@ async function requestCloud(text, rate, withRate, lang = 'ja', override = null) 
 
 /* lang은 캐시 열쇠에도 들어가야 한다. 안 넣으면 같은 글자를 두 말로 부를 때
    먼저 받은 소리가 다른 말 자리에서 다시 난다 — 한국어 자리에서 일본어가 난다. */
-async function speakCloud(text, rate, token, lang = 'ja') {
+async function speakCloud(text, rate, token, lang = 'ja', beforePlay = null) {
   const cacheKey = `${lang}|${text}|${rate}|${lang === 'ja' ? config.voice : lang}`;
   let b64 = cloudCache.get(cacheKey);
 
@@ -607,6 +607,7 @@ async function speakCloud(text, rate, token, lang = 'ja') {
 
   const a = getAudioEl();
   a.src = `data:audio/mp3;base64,${b64}`;
+  beforePlay?.(a);
   try {
     await a.play();
   } catch (err) {
@@ -675,9 +676,11 @@ export function speakJapaneseAsync(text, rate = 0.9, opts = {}) {
 
   return new Promise((resolve) => {
     let settled = false;
+    let clearCloud = () => {};
     const finish = (how) => {
       if (settled) return;
       settled = true;
+      clearCloud();
       pendingResolvers = pendingResolvers.filter((r) => r !== finish);
       notifySpeaking({ id, active: false, how });
       resolve(how);
@@ -710,16 +713,30 @@ export function speakJapaneseAsync(text, rate = 0.9, opts = {}) {
     };
 
     if (!cloudTTSReady()) { device(); return; }
-    speakCloud(text, rate, token, 'ja')
-      .then(() => finish(token === speakToken ? 'cloud' : 'interrupted'))
-      .catch((err) => {
-        if (token !== speakToken) { finish('interrupted'); return; }
-        if (err?.status === 400 || err?.status === 401 || err?.status === 403) {
-          cloudDisabled = true;
-          onCloudError?.(`클라우드 음성을 쓸 수 없어 기기 음성으로 재생해요 (${err.message})`);
-        }
-        device();
-      });
+    let fallingBack = false;
+    const fallback = (err) => {
+      if (settled || fallingBack) return;
+      if (token !== speakToken) { finish('interrupted'); return; }
+      fallingBack = true;
+      clearCloud();
+      if (err?.status === 400 || err?.status === 401 || err?.status === 403) {
+        cloudDisabled = true;
+        onCloudError?.(`클라우드 음성을 쓸 수 없어 기기 음성으로 재생해요 (${err.message})`);
+      }
+      device();
+    };
+    const waitForPlayback = (audio) => {
+      const ended = () => finish(token === speakToken ? 'cloud' : 'interrupted');
+      const error = () => fallback(new Error('음성 파일을 재생하지 못했어요'));
+      audio.addEventListener('ended', ended);
+      audio.addEventListener('error', error);
+      clearCloud = () => { audio.removeEventListener('ended', ended); audio.removeEventListener('error', error); };
+    };
+    // play() resolves when playback begins. Only ended means the next line may
+    // start; stopSpeaking() settles interruption and removes these listeners.
+    speakCloud(text, rate, token, 'ja', waitForPlayback)
+      .then(() => { if (token !== speakToken) finish('interrupted'); })
+      .catch(fallback);
   });
 }
 

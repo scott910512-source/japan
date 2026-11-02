@@ -1,5 +1,8 @@
 import { useAppData, usePersistAppData } from './app/useAppData.js';
 import FeatureScreen from './app/FeatureScreen.jsx';
+import MistakeNotebook from './components/MistakeNotebook.jsx';
+import HunterAppHeader from './components/HunterAppHeader.jsx';
+import { recordMistake } from './lib/mistakes.js';
 import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
 import { filterByLevel } from './lib/wordFilters.js';
@@ -102,6 +105,12 @@ export default function App() {
   const [settingsGroup, setSettingsGroup] = useState(null);
   /* 독일어 복습이 몇 개인가 — 복습 탭을 볼 때만 센다. 독일어 자료는 메인 번들에 안 싣는다(열 때 받는다). */
   const [swissDue, setSwissDue] = useState(0);
+  const [composeStart, setComposeStart] = useState(null);
+  const [homeResetKey, setHomeResetKey] = useState(0);
+  const selectAppTab = (id) => {
+    selectTab(id);
+    if (id === 'home') setHomeResetKey((key) => key + 1);
+  };
   const { toast, showToast } = useToast();
   /* 앱을 켤 때 브라우저와 맞추는 일들 — 저장 실패를 받는 손, 음성 오류,
      「새 버전이 준비됐다」 알림, iOS 오디오 열기, 연속일, 테마, 음성 설정.
@@ -256,6 +265,7 @@ export default function App() {
      가로챈다 — 그건 화면이 아니라 판이라서(회독 큐를 짜야 한다) 자리를
      정하는 쪽이 알 일이 아니다. */
   const openMenu = useCallback((id, opts = {}) => {
+    if (id === 'compose') setComposeStart(opts.mode || null);
     if (id === 'weak') { startWeakDeck(); return; }
     nav.openMenu(id, opts);
   }, [startWeakDeck, nav.openMenu]);
@@ -268,6 +278,22 @@ export default function App() {
     }).catch(() => {});
     return () => { live = false; };
   }, [activeTab, sub, settings.menus?.swiss]);
+  const recordAttempt = useCallback((attempt) => {
+    setProgress((p) => {
+      const mistakes = recordMistake(p.mistakes, attempt);
+      return mistakes === p.mistakes ? p : { ...p, mistakes };
+    });
+  }, [setProgress]);
+
+  const learnMistake = useCallback((row) => {
+    const word = byId.get(row.ref);
+    if (word) {
+      guardDeck(() => startJlptSet([word], '틀린 단어 다시 학습', `mistake:${word.id}`), `mistake:${word.id}`);
+    } else if (row.ref?.startsWith('k:')) openMenu('n3', { view: { kind: 'kanjicard', id: row.ref } });
+    else if (/^[gvrl]:/.test(row.ref || '')) openMenu('n3', { view: { kind: 'lesson', id: row.ref } });
+    else if (row.source === 'compose') openMenu('compose', { mode: row.id.includes(':cloze:') ? 'blank' : row.id.includes(':write:') ? 'write' : 'build' });
+    else openMenu('sentences');
+  }, [byId, guardDeck, startJlptSet, openMenu]);
 
   const finishOnboarding = (patch) => {
     patchSettings(patch);
@@ -379,13 +405,23 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell hunter-app">
       <Onboarding open={onboardingOpen} onFinish={finishOnboarding} />
+      {(activeTab !== 'home' || sub) && <HunterAppHeader guideId={settings.hunterGuide} section={SUB_TITLES[sub] || { study: '학습 본부', review: '복습 수련', me: '나의 헌터 기록', videos: '영상 수련' }[activeTab]} onHome={() => selectAppTab('home')} />}
 
       <div className="screens">
         <ScreenSlot active={activeTab === 'home' && !sub}>
 
           <Today
+            homeResetKey={homeResetKey}
+            onAttempt={recordAttempt}
+            onLearnMistake={learnMistake}
+            words={words}
+            review={review}
+            progress={progress}
+            stats={stats}
+            onOpen={openMenu}
+            onSettings={patchSettings}
             plan={plan}
             planNow={planNow}
             settings={settings}
@@ -426,6 +462,7 @@ export default function App() {
         <ScreenSlot active={activeTab === 'review' && !sub}>
 
           <ReviewHub
+            mistakePanel={<MistakeNotebook book={progress.mistakes} onAttempt={recordAttempt} onLearn={learnMistake} />}
             planNow={planNow}
             sentenceDue={sentenceDue}
             weakWords={weakWords}
@@ -539,6 +576,8 @@ export default function App() {
                 />
               ) : (
               <FeatureScreen
+                composeStart={composeStart}
+                onAttempt={recordAttempt}
                 sub={sub}
                 words={words}
                 review={review}
@@ -602,7 +641,7 @@ export default function App() {
               {/* 「그만두기」는 무엇을 그만두는지가 거꾸로 읽힌다 — 하던 학습을
                   그만두는 것처럼 보이는데 실제로는 새로 시작하는 것을 그만두는
                   버튼이다. 결과를 그대로 적는다. */}
-              <button className="ghost-btn" onClick={() => setAskSwap(null)}>하던 학습 계속하기</button>
+              <button className="ghost-btn" onClick={() => { setAskSwap(null); resumeSession(); }}>하던 학습 계속하기</button>
               <button
                 className="submit-btn"
                 onClick={() => { const go = askSwap.run; setAskSwap(null); go(); }}
@@ -616,7 +655,7 @@ export default function App() {
 
       <TabBar
         active={activeTab === 'videos' ? 'study' : activeTab}
-        onChange={selectTab}
+        onChange={selectAppTab}
         reviewCount={reviewLeft}
       />
       <Toast message={toast} />
