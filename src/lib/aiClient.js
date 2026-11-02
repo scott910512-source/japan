@@ -35,6 +35,10 @@ export async function failure(res, who) {
   if (blocked) msg = 'Gemini HTTP 403 — 현재 키에 Gemini 문장 첨삭 API 호출 권한이 없어요. Google AI Studio에서 Gemini 전용 키를 만들어 내 학습 → 설정 → 학습 도구 → Gemini API 키에 넣어 주세요. 음성 키는 그대로 두세요.';
   const error = new Error(msg);
   error.status = res.status;
+  if (who === 'Gemini' && res.status === 503) {
+    error.code = 'GEMINI_BUSY';
+    error.message = 'Gemini HTTP 503 — Gemini 서버에 요청이 몰려 잠시 응답하지 못했어요. 잠시 후 다시 시도해 주세요. 계속되면 내 학습 → 설정 → 학습 도구의 ‘쓸 수 있는 모델 보기’에서 다른 모델을 선택할 수 있어요.';
+  }
   if (who === 'Gemini' && res.status === 404) {
     error.code = 'GEMINI_MODEL_UNAVAILABLE';
     error.message = `Gemini HTTP 404 — 선택한 모델을 이 키로 사용할 수 없어요. 내 학습 → 설정 → 학습 도구에서 모델을 ${DEFAULT_GEMINI_MODEL}로 바꾸거나 ‘쓸 수 있는 모델 보기’에서 골라 주세요.`;
@@ -79,12 +83,35 @@ export async function geminiGenerate({ apiKey, model, body }) {
     `${GEMINI_BASE}/models/${encodeURIComponent(requestedModel)}:generateContent?key=${encodeURIComponent(apiKey)}`,
     { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) },
   );
-  let res = await request(name);
-  // 새 프로젝트에서는 2.5 모델 접근이 막힌다. 저장된 2.5 설정은 404일 때만
-  // 현재 기본 모델로 한 번 다시 요청한다. 권한·한도 오류는 그대로 알려 준다.
-  if (res.status === 404 && /^gemini-2\.5-/.test(name)) res = await request(DEFAULT_GEMINI_MODEL);
-  if (!res.ok) throw await failure(res, 'Gemini');
-  return res.json();
+  let currentModel = name;
+  let retries = 0;
+  for (;;) {
+    const res = await request(currentModel);
+    // 저장된 2.5 모델 접근이 막힌 경우에만 현재 기본 모델로 바꾼다.
+    if (res.status === 404 && /^gemini-2\.5-/.test(currentModel)) {
+      currentModel = DEFAULT_GEMINI_MODEL;
+      continue;
+    }
+    // 서버가 혼잡하다고 명시한 503만 최대 두 번 다시 요청한다.
+    // 권한·한도·네트워크 오류에는 중복 생성 요청을 보내지 않는다.
+    if (res.status === 503 && retries < 2) {
+      let delay = 1000 * (2 ** retries) + Math.floor(Math.random() * 250);
+      const retryAfter = res.headers.get('retry-after');
+      if (retryAfter) {
+        const seconds = Number(retryAfter);
+        const wait = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - Date.now();
+        if (Number.isFinite(wait)) delay = Math.max(delay, wait);
+      }
+      // 긴 대기를 요구하면 일찍 재요청하지 않고 사용자가 나중에 다시 시도하게 한다.
+      if (delay <= 10000) {
+        retries += 1;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+    }
+    if (!res.ok) throw await failure(res, 'Gemini');
+    return res.json();
+  }
 }
 
 export function geminiText(data) {
