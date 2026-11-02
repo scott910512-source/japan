@@ -32,16 +32,16 @@ export async function failure(res, who) {
   } catch { /* 본문 파싱 실패는 무시 */ }
   const blocked = who === 'Gemini' && res.status === 403
     && (reasons.includes('API_KEY_SERVICE_BLOCKED') || /Requests to this API[\s\S]*are blocked/i.test(detail));
-  if (blocked) msg = 'Gemini HTTP 403 — 현재 키에 Gemini 문장 첨삭 API 호출 권한이 없어요. Google AI Studio에서 Gemini 전용 키를 만들어 내 학습 → 설정 → 학습 도구 → Gemini API 키에 넣어 주세요. 음성 키는 그대로 두세요.';
+  if (blocked) msg = 'Gemini HTTP 403 — 현재 키에 Gemini 문장 첨삭 API 호출 권한이 없어요. Google AI Studio에서 Gemini 전용 키를 만들어 설정 → 학습 도구 → Gemini API 키에 넣어 주세요. 음성 키는 그대로 두세요.';
   const error = new Error(msg);
   error.status = res.status;
   if (who === 'Gemini' && res.status === 503) {
     error.code = 'GEMINI_BUSY';
-    error.message = 'Gemini HTTP 503 — Gemini 서버에 요청이 몰려 잠시 응답하지 못했어요. 잠시 후 다시 시도해 주세요. 계속되면 내 학습 → 설정 → 학습 도구의 ‘쓸 수 있는 모델 보기’에서 다른 모델을 선택할 수 있어요.';
+    error.message = 'Gemini HTTP 503 — Gemini 서버에 요청이 몰려 잠시 응답하지 못했어요. 잠시 후 다시 시도해 주세요. 계속되면 설정 → 학습 도구의 ‘쓸 수 있는 모델 보기’에서 다른 모델을 선택할 수 있어요.';
   }
   if (who === 'Gemini' && res.status === 404) {
     error.code = 'GEMINI_MODEL_UNAVAILABLE';
-    error.message = `Gemini HTTP 404 — 선택한 모델을 이 키로 사용할 수 없어요. 내 학습 → 설정 → 학습 도구에서 모델을 ${DEFAULT_GEMINI_MODEL}로 바꾸거나 ‘쓸 수 있는 모델 보기’에서 골라 주세요.`;
+    error.message = `Gemini HTTP 404 — 선택한 모델을 이 키로 사용할 수 없어요. 설정 → 학습 도구에서 모델을 ${DEFAULT_GEMINI_MODEL}로 바꾸거나 ‘쓸 수 있는 모델 보기’에서 골라 주세요.`;
   }
   if (blocked) error.code = 'GEMINI_SERVICE_BLOCKED';
   return error;
