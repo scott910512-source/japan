@@ -101,7 +101,7 @@ export async function startStudy(page, want = null) {
 /* 설정을 연다 — 하단 「설정」 탭. 탭을 누르면 늘 묶음 목록이 나온다. */
 export async function openSettings(page) {
   await goTab(page, '설정');
-  return Boolean(await page.locator('.moregroup').count());
+  return Boolean(await page.locator('.moregroup:visible').count());
 }
 
 /* 설정의 한 묶음을 연다.
@@ -120,13 +120,14 @@ export async function openMore(page, group = 'study') {
     tools: '학습 도구',
     about: '앱 정보',
   }[group] || group;
-  /* 어느 묶음 안에 있으면 목록으로 나온다 */
-  if (!(await page.locator('.moregroup').count())) {
-    const back = page.locator('.moreback');
+  /* 설정은 탭 자리에 계속 붙어 있다 — 다른 탭에 있을 때도 숨은 채로 DOM에 남으니 보이는 것만 센다.
+     어느 묶음 안에 있으면 목록으로 나온다 */
+  if (!(await page.locator('.moregroup:visible').count())) {
+    const back = page.locator('.moreback:visible');
     if (await back.count()) { await back.click(); await page.waitForTimeout(400); }
   }
-  if (!(await page.locator('.moregroup').count())) await openSettings(page);
-  const row = page.locator('.moregroup', { hasText: label });
+  if (!(await page.locator('.moregroup:visible').count())) await openSettings(page);
+  const row = page.locator('.moregroup:visible', { hasText: label });
   if (await row.count()) {
     await row.first().click();
     await page.waitForTimeout(500);
