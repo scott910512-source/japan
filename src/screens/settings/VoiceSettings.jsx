@@ -157,7 +157,8 @@ export default function VoiceSettings({ settings, onChange, onToast, session, re
           </div>
         )}
 
-        <div className="set-title" style={{ marginTop: 16 }}>Google Cloud TTS 키</div>
+        <label className="set-title" htmlFor="gtts-api-key" style={{ display: 'block', marginTop: 16 }}>Google Cloud TTS 키 · 읽기용</label>
+        <p className="set-note">단어·예문을 소리로 읽을 때 쓰는 기존 키예요. 문장 생성·첨삭에는 학습 도구의 Gemini API 키를 사용해요.</p>
 
         {/* 빈 칸만 보이면 "저장이 안 된 건지, 원래 안 보이는 건지" 알 수 없다.
             저장된 키가 있으면 가려서라도 보여준다. */}
@@ -176,6 +177,7 @@ export default function VoiceSettings({ settings, onChange, onToast, session, re
           className="search-input"
           type={showKey ? 'text' : 'password'}
           name="gtts-api-key"
+          id="gtts-api-key"
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="none"
@@ -188,7 +190,7 @@ export default function VoiceSettings({ settings, onChange, onToast, session, re
         {looksLikeGeminiKey(keyDraft) && (
           <p className="set-warn">
             이건 AI Studio에서 받은 <b>Gemini 키</b>예요. 음성에는 Google Cloud의
-            TTS 키(AIza…)가 필요합니다. 이 키는 <b>영상 학습 → 구글 API 키</b>에 넣어 주세요.
+            TTS 키가 필요합니다. 이 키는 <b>학습 도구 → Gemini API 키 · 문장 생성·첨삭용</b>에 넣어 주세요.
           </p>
         )}
         <button className="keypeek" onClick={() => setShowKey((v) => !v)}>

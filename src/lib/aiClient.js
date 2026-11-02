@@ -1,7 +1,7 @@
 /* AI를 부르는 자리. 어느 화면이든 여기로만 나간다.
  *
  * 호출은 브라우저에서 바로 한다. 키는 사용자가 설정에 넣은 자기 키이고
- * 기기 밖으로 나가지 않는다 — 음성 키와 같은 방식이다.
+ * 선택한 AI 제공처에 인증할 때만 보낸다.
  *
  * 이 파일이 하는 일은 "부르고, 글자를 꺼내고, 안 되면 왜 안 됐는지 말하는 것"
  * 까지다. 무엇을 물어볼지(프롬프트)는 각자 자기 파일에서 정한다. */
@@ -15,19 +15,32 @@ export const DEFAULT_MODEL = 'claude-sonnet-5';
 /* 제미나이 모델 이름은 자주 바뀐다. 여기 적어 둔 값이 낡으면 404가 나는데,
  * 그때 "왜 안 되지"로 끝나면 안 되니 키로 목록을 직접 받아 고를 수 있게 해 둔다
  * (listGeminiModels). 여기 값은 그 전까지 쓰는 첫 후보일 뿐이다. */
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 export const PROVIDERS = { CLAUDE: 'claude', GEMINI: 'gemini' };
 
 /* 어느 쪽이 실패했는지 알 수 있게 오류를 그대로 꺼내 준다. "실패했어요"만 뜨면
  * 키가 틀린 건지, 모델 이름이 낡은 건지, 한도를 넘은 건지 알 수가 없다. */
 export async function failure(res, who) {
   let msg = `${who} HTTP ${res.status}`;
+  let detail = '';
+  let reasons = [];
   try {
     const body = await res.json();
-    const detail = body?.error?.message;
+    detail = body?.error?.message || '';
+    reasons = (Array.isArray(body?.error?.details) ? body.error.details : []).map((item) => item.reason);
     if (detail) msg += ` — ${detail}`;
   } catch { /* 본문 파싱 실패는 무시 */ }
-  return new Error(msg);
+  const blocked = who === 'Gemini' && res.status === 403
+    && (reasons.includes('API_KEY_SERVICE_BLOCKED') || /Requests to this API[\s\S]*are blocked/i.test(detail));
+  if (blocked) msg = 'Gemini HTTP 403 — 현재 키에 Gemini 문장 첨삭 API 호출 권한이 없어요. Google AI Studio에서 Gemini 전용 키를 만들어 내 학습 → 설정 → 학습 도구 → Gemini API 키에 넣어 주세요. 음성 키는 그대로 두세요.';
+  const error = new Error(msg);
+  error.status = res.status;
+  if (who === 'Gemini' && res.status === 404) {
+    error.code = 'GEMINI_MODEL_UNAVAILABLE';
+    error.message = `Gemini HTTP 404 — 선택한 모델을 이 키로 사용할 수 없어요. 내 학습 → 설정 → 학습 도구에서 모델을 ${DEFAULT_GEMINI_MODEL}로 바꾸거나 ‘쓸 수 있는 모델 보기’에서 골라 주세요.`;
+  }
+  if (blocked) error.code = 'GEMINI_SERVICE_BLOCKED';
+  return error;
 }
 
 /* 글이 안 왔을 때 왜 안 왔는지 말해 준다.
@@ -61,11 +74,15 @@ export async function listGeminiModels(apiKey) {
    영상처럼 특별한 모양을 실어야 할 때 쓴다. */
 export async function geminiGenerate({ apiKey, model, body }) {
   if (!apiKey) throw new Error('구글 API 키가 필요해요');
-  const name = model || DEFAULT_GEMINI_MODEL;
-  const res = await fetch(
-    `${GEMINI_BASE}/models/${encodeURIComponent(name)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+  const name = String(model || DEFAULT_GEMINI_MODEL).trim().replace(/^models\//, '') || DEFAULT_GEMINI_MODEL;
+  const request = (requestedModel) => fetch(
+    `${GEMINI_BASE}/models/${encodeURIComponent(requestedModel)}:generateContent?key=${encodeURIComponent(apiKey)}`,
     { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) },
   );
+  let res = await request(name);
+  // 새 프로젝트에서는 2.5 모델 접근이 막힌다. 저장된 2.5 설정은 404일 때만
+  // 현재 기본 모델로 한 번 다시 요청한다. 권한·한도 오류는 그대로 알려 준다.
+  if (res.status === 404 && /^gemini-2\.5-/.test(name)) res = await request(DEFAULT_GEMINI_MODEL);
   if (!res.ok) throw await failure(res, 'Gemini');
   return res.json();
 }
@@ -134,11 +151,7 @@ export function looksLikeGeminiKey(key = '') {
   return /^AQ\./.test(String(key).trim());
 }
 
-/* 설정에서 실제로 쓸 제공처와 키를 정한다.
- *
- * Gemini 키는 음성(TTS/STT) 키와 같은 구글 API 키 형식이라, 따로 넣지 않았으면
- * 그 키를 그대로 쓴다 — 키를 두 번 넣게 하지 않는다. 다만 그 키가 붙은 구글
- * 프로젝트에서 Generative Language API가 켜져 있어야 통한다. */
+/* 생성용 Gemini 키와 읽기용 TTS 키는 섞지 않는다. */
 export function resolveProvider(settings = {}) {
   const provider = settings.aiProvider === PROVIDERS.CLAUDE ? PROVIDERS.CLAUDE : PROVIDERS.GEMINI;
   if (provider === PROVIDERS.CLAUDE) {
@@ -146,8 +159,7 @@ export function resolveProvider(settings = {}) {
   }
   return {
     provider,
-    apiKey: settings.geminiKey || settings.gttsKey || '',
+    apiKey: String(settings.geminiKey || '').trim(),
     model: settings.geminiModel || '',
-    borrowed: !settings.geminiKey && Boolean(settings.gttsKey),
   };
 }

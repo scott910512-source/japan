@@ -1,6 +1,7 @@
-/* Gemini 경로 — 음성 키를 그대로 쓰는지, 요청이 맞는 모양인지. */
+/* Gemini 경로 — 생성용 키와 읽기용 TTS 키 분리, 실제 생성 권한 확인. */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { mkdirSync } from 'node:fs';
 import { goTab, openMore, openVideos } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
@@ -82,20 +83,31 @@ const FAKE = {
   const body = await page.textContent('.sub-body');
   ok('설명을 만들 곳을 고를 수 있음', body.includes('설명을 만들 곳'));
   ok('Gemini가 기본으로 골라져 있음', await page.locator('.ai-pick.active', { hasText: 'Gemini' }).count() === 1);
-  ok('음성 키를 빌려 쓴다고 안내', body.includes('음성 키를 그대로 쓰고 있어요'));
+  ok('생성용 키와 읽기용 키를 분리해 안내', body.includes('읽기용 TTS 키는 대신 쓰지 않아요'));
+  ok('생성용 키가 없으면 모델 목록을 부르지 않음', await page.getByRole('button', { name: '쓸 수 있는 모델 보기', exact: true }).isDisabled());
+  ok('생성용 키가 없으면 생성 연결 확인을 부르지 않음', await page.getByRole('button', { name: 'Gemini 문장 첨삭 연결 확인', exact: true }).isDisabled());
   ok('자막 학습은 키가 필요 없다고 안내', body.includes('키 없이도'));
+  if (process.env.KEY_SCREENSHOTS) {
+    mkdirSync('.qa', { recursive: true });
+    await page.locator('#gemini-api-key').locator('..').screenshot({ path: '.qa/gemini-generation-key.png' });
+  }
+  await page.getByLabel('Gemini API 키 · 문장 생성·첨삭용', { exact: true }).fill('AQ.TEST-GEMINI-ONLY');
 
   // 모델 목록 받기
   await page.locator('button', { hasText: '쓸 수 있는 모델 보기' }).click();
   await page.waitForTimeout(600);
   const listCall = (await page.evaluate(() => window._calls)).find((c) => c.url.includes('/models?'));
   ok('모델 목록을 키로 물어봄', Boolean(listCall));
-  ok('음성 키를 그대로 씀', listCall && listCall.url.includes('AIzaTESTVOICEKEY'));
+  ok('Gemini 전용 키를 씀', listCall && listCall.url.includes('AQ.TEST-GEMINI-ONLY') && !listCall.url.includes('AIzaTESTVOICEKEY'));
   ok('글을 만드는 모델만 보여 줌', await page.locator('.modelpick').count() === 1, await page.locator('.modelpick').first().textContent());
   await page.locator('.modelpick').first().click();
   await page.waitForTimeout(300);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1')).geminiModel);
   ok('고른 모델이 저장됨', saved === 'gemini-3-flash', saved);
+  await page.getByRole('button', { name: 'Gemini 문장 첨삭 연결 확인', exact: true }).click();
+  await page.waitForTimeout(300);
+  ok('실제 생성 권한을 확인함', await page.getByRole('status').filter({ hasText: '문장 생성 요청이 연결됐어요' }).count() === 1);
+  ok('연결 확인도 생성 API를 사용함', (await page.evaluate(() => window._calls)).some((call) => call.url.includes(':generateContent') && call.body?.generationConfig?.maxOutputTokens === 16));
 
   // 영상 → 자막 → 설명 만들기
   await openVideos(page);
@@ -105,7 +117,7 @@ const FAKE = {
   await page.fill('.vd-script', '[00:05] 替え玉をお願いします。\n[00:12] ごちそうさまでした。');
   await page.click('.vd-run');
   await page.waitForTimeout(700);
-  await page.evaluate(() => { window._calls = window._calls.filter((c) => !c.url || !c.url.includes('/models?')); });
+  await page.evaluate(() => { window._calls = []; });
   await page.locator('button', { hasText: '설명 만들기' }).click();
   await page.waitForTimeout(1200);
 
@@ -114,7 +126,7 @@ const FAKE = {
   const gen = calls.find((c) => c.url.includes(':generateContent'));
   ok('Gemini를 부름', Boolean(gen));
   ok('고른 모델로 부름', gen && gen.url.includes('gemini-3-flash'), gen?.url.split('/models/')[1]?.split(':')[0]);
-  ok('음성 키로 부름', gen && gen.url.includes('AIzaTESTVOICEKEY'));
+  ok('전용 키로 부르고 음성 키는 보존됨', gen && gen.url.includes('AQ.TEST-GEMINI-ONLY') && (await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1')).gttsKey)) === 'AIzaTESTVOICEKEY');
   ok('튜터 지시를 보냄', gen && gen.body.system_instruction.parts[0].text.includes('일본어 회화 튜터'));
   ok('자막을 본문에 실음', gen && gen.body.contents[0].parts[0].text.includes('替え玉'));
   ok('영상 제목도 보냄', gen && gen.body.contents[0].parts[0].text.includes('라멘 일본어'));
