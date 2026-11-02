@@ -217,6 +217,26 @@ const tab = (page, id) => page.locator(`.cmp-tabs [data-mode="${id}"]`).click().
   ok('오류가 나도 작성한 문장을 보존함', await down.locator('.cmp-mine').inputValue() === '私は学生です');
   await down.close();
 
+  console.log('\n[ Gemini 혼잡 — 자동 재시도 후 수동 재시도 ]');
+  const busyBoot = await boot(browser, { settings: { geminiKey: 'FAKE-BUSY-KEY' }, ai: { __status: 503, body: { error: { message: 'This model is currently experiencing high demand.' } } } });
+  const busy = busyBoot.page;
+  await openMenu(busy, '문장 만들기');
+  await tab(busy, 'free');
+  await busy.locator('.cmp-mine').fill('私は学生です');
+  await busy.locator('.cmp-ko').fill('저는 학생입니다');
+  await busy.locator('.cmp-check').click();
+  ok('혼잡 재시도 중 중복 제출을 막음', await busy.locator('.cmp-check').isDisabled());
+  await busy.locator('.cmp-aierr').waitFor({ state: 'visible', timeout: 15000 });
+  ok('503은 두 번만 자동 재시도', busyBoot.aiCalls.length === 3);
+  ok('혼잡하면 한국어로 재시도 안내', (await busy.locator('.cmp-aierr').innerText()).includes('Gemini 서버에 요청이 몰려'));
+  ok('실패해도 한국어·일본어 입력을 보존함', await busy.locator('.cmp-mine').inputValue() === '私は学生です' && await busy.locator('.cmp-ko').inputValue() === '저는 학생입니다');
+  ok('수동 재시도 버튼이 다시 활성화됨', await busy.getByRole('button', { name: '다시 고쳐 달라고 하기', exact: true }).isEnabled());
+  await busy.route(/generativelanguage\.googleapis\.com/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ verdict: 'good', corrected: '私は学生です。', reason: '자연스러워요', natural: [] }) }] } }] }) }));
+  await busy.locator('.cmp-check').click();
+  await busy.locator('.cmp-ai-result').waitFor({ state: 'visible' });
+  ok('혼잡이 풀리면 같은 문장으로 첨삭을 받을 수 있음', (await busy.locator('.cmp-ai-result').innerText()).includes('私は学生です。'));
+  await busy.close();
+
   console.log('\n[ 본 문장이 없을 때 ]');
   const empty = await boot(browser, {});
   empty.page.on('pageerror', (e) => errors.push(e.message));

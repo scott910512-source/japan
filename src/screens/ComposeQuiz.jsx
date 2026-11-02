@@ -347,8 +347,9 @@ function FreeMode({ settings, onToast }) {
         <textarea id="cmp-mine" className="search-input cmp-mine" lang="ja" rows={3} value={mine} onChange={(e) => setMine(e.target.value)}
           placeholder="일본어로 써 보세요" spellCheck={false} />
         <button className="submit-btn cmp-check" onClick={check} disabled={!mine.trim() || Boolean(ai?.busy)}>
-          {ai?.busy ? 'AI가 보는 중…' : '고쳐 달라고 하기'}
+          {ai?.busy ? 'AI가 보는 중…' : ai?.error ? '다시 고쳐 달라고 하기' : '고쳐 달라고 하기'}
         </button>
+        {ai?.busy && settings.aiProvider !== 'claude' && <p className="set-note" role="status">응답을 기다리고 있어요. 서버가 혼잡하면 잠시 후 자동으로 다시 시도해요.</p>}
       </div>
       {ai?.error && <p className="set-note cmp-aierr">{ai.error}</p>}
       {ai?.data && <AiResult data={ai.data} settings={settings} />}
