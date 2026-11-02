@@ -15,12 +15,32 @@ try {
     speechSynthesis.cancel = () => {};
   });
   await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
   await page.evaluate(() => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const settings = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify({ ...settings, onboarded: true, canReadKana: true, autoTTS: true, showExample: true, speakOnJudge: false, quickJudge: false, gttsKey: '', goals: { fresh: 12, review: 0, weak: 0 } }));
+    // Every tested card needs a real example. A random daily card can be a
+    // sentence without one, which would make typography checks wait forever.
+    const fixtures = [
+      ['見せる', 'みせる', '보여주다', '写真を見せます。'],
+      ['書く', 'かく', '쓰다', '名前を書きます。'],
+      ['飲む', 'のむ', '마시다', '水を飲みます。'],
+      ['歩く', 'あるく', '걷다', '駅まで歩きます。'],
+      ['食べる', 'たべる', '먹다', 'パンを食べます。'],
+      ['帰る', 'かえる', '돌아가다', '家に帰ります。'],
+      ['寝る', 'ねる', '자다', '早く寝ます。'],
+      ['泳ぐ', 'およぐ', '수영하다', '海で泳ぎます。'],
+      ['聞く', 'きく', '듣다', '音楽を聞きます。'],
+      ['待つ', 'まつ', '기다리다', '友達を待ちます。'],
+      ['話す', 'はなす', '말하다', '日本語で話します。'],
+      ['読む', 'よむ', '읽다', '本を読みます。'],
+    ].map(([kanji, kana, mean, example], i) => ({ id: `custom-input-${i}`, kanji, kana, mean, example, exampleKo: '예문 뜻', level: 'N5', type: 'v', custom: true }));
+    localStorage.setItem('jp_manabu_custom_words_v1', JSON.stringify(fixtures));
+    const now = new Date();
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    localStorage.setItem('jp_manabu_plan_v1', JSON.stringify({ v: 1, date, goals: { fresh: 12, review: 0, weak: 0 }, assigned: fixtures.map((w) => ({ id: w.id, kind: 'word', bucket: 'fresh' })), reps: 12, done: {}, extra: 1, sizes: { fresh: 12, review: 0, weak: 0 } }));
   });
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
   await context.setOffline(true); await page.locator('.gate-offline').waitFor({ timeout: 15000 }); await page.locator('.gate-offline').click();
   await page.locator('.bigcta').click(); await page.locator('.study.intro').waitFor();
@@ -36,6 +56,7 @@ try {
   check('시작한 뒤 첫 단어를 한 번 읽는다', await page.evaluate(() => window.__said.length === 1));
   check('시작 직후 답은 아직 가려져 있다', await page.locator('.sc-back').count() === 0);
   const session = () => page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_session_v1')));
+  if (!(await session()).queue.every((id) => id.startsWith('custom-input-'))) throw new Error('고정 학습 자료를 불러오지 못했어요');
   const press = async (key) => { await page.keyboard.press(key); await page.waitForTimeout(280); };
   for (const key of ['1', '2', '3']) {
     await press('4'); const before = (await session()).done;
