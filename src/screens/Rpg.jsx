@@ -4,6 +4,8 @@ import { speakJapanese } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { STAGES, COMING } from '../data/rpg.js';
+import HunterTutor from '../components/HunterTutor.jsx';
+import { conversationTutor } from '../data/hunterTutors.js';
 import {
   FORM, buildDrill, buildCheckpoint, reask, passed, masteryOf, MASTERY_LABEL,
   scoreForHints, gradeOf, expFor, levelOf, levelProgress, verdictsFrom, PASS,
@@ -310,6 +312,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
     return (
       <div className="rp">
         <Head label={`${stage.icon} ${stage.label}`} sub={`표현 익히기 ${at + 1} / ${stage.expressions.length}`} onQuit={onQuit} />
+        <HunterTutor guide={conversationTutor(e.jp + ' ' + stage.label)} scene="city" title="상황 속 표현" line="상대가 누구인지 떠올리고, 아래 표현과 사용 상황을 함께 익혀 봐요." peer={conversationTutor(e.jp + ' ' + stage.label) === 'menchi' ? { guide: 'buhara', line: '음식 이름과 주문할 때 쓰는 말을 연결해서 기억해 봐요.' } : undefined} compact />
         <div className="rp-learn">
           <Speak text={e.jp} kana={e.kana} big />
           <div className="rp-kana">{e.kana}{settings.hangulPron && ` · ${kanaToHangul(e.kana)}`}</div>
@@ -531,6 +534,7 @@ function Result({ stage, r, onAgain, onQuit }) {
       <div className="finish">
         <div className="fin-badge">{r.rate >= PASS ? '🎉' : '💪'}</div>
         <h2>{r.rate >= PASS ? `${stage.label} 생존 성공` : '조금만 더 하면 돼요'}</h2>
+        <HunterTutor guide="gon" scene="island" mood={r.rate >= PASS ? 'celebrate' : 'encourage'} title="회화 수련 마무리" line="이번 결과와 다시 볼 표현을 확인하자. 다음 대화에서도 하나씩 써 보면 돼!" compact />
         <div className="fin-big"><b>{r.score}</b><span>점 · {r.grade}</span></div>
         <div className="fin-grid">
           <div className="fin-cell ok"><b>{Math.round(r.rate * 100)}%</b><span>정답률</span></div>

@@ -6,6 +6,7 @@ import {
 import MicButton from '../components/MicButton.jsx';
 import MemoBox from '../components/MemoBox.jsx';
 import AskSheet from '../components/AskSheet.jsx';
+import HunterTutor from '../components/HunterTutor.jsx';
 /* 머리와 완주 카드는 제 파일로 — 이 파일이 700줄이라 떼어 냈다. 동작은 그대로다 */
 import StudyHeader from './study/StudyHeader.jsx';
 import FinishCard from './study/FinishCard.jsx';
@@ -379,6 +380,7 @@ export default function Study({
     return (
       <div className="study intro">
         <div className="si-wrap">
+          <HunterTutor guide="satotsu" scene="island" title="오늘의 수련 안내" line="아래 학습 구성을 확인한 뒤 시작하세요. 준비되면 첫 카드로 안내하겠습니다." compact />
           <div className="si-label">{deck.label}</div>
           <div className="si-total"><b>{total}</b>개</div>
           <div className="td-mix">

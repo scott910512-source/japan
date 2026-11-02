@@ -5,6 +5,7 @@ import { EXAM_SECTIONS } from '../../data/n3/exam.js';
 import QuizRunner, { QText } from './QuizRunner.jsx';
 import ReadingLesson from './ReadingLesson.jsx';
 import ListeningLesson from './ListeningLesson.jsx';
+import HunterTutor from '../../components/HunterTutor.jsx';
 
 /* N3 모의고사 — 문자·어휘 → 문법 → 독해 → 청해. 해설은 끝에 한꺼번에.
    결과는 영역별 정답률로 남고, 문제별 정답률도 쌓인다. */
@@ -73,6 +74,7 @@ export default function N3Exam({ rate, onAnswer, onFinish, onQuit, n3, mistakes 
   return (
     <div className="n3-exam n3-examresult" data-sec="done" data-pct={pct}>
       {head('결과')}
+      <HunterTutor guide="netero" scene="exam" mood={pct >= 70 ? 'celebrate' : 'encourage'} title="시험 결과 돌아보기" line={`${total}문제 중 ${right}문제를 맞혔어요. 영역별 결과와 오답 해설을 보고 다음 수련을 정해 봐요.`} compact />
       <div className="card n3-score"><b>{pct}%</b><span>{right} / {total} · {pct >= 70 ? '합격권이에요' : pct >= 50 ? '조금만 더' : '기초부터 다시'}</span></div>
       <div className="card n3-ready">
         {keys.map((k, i) => {

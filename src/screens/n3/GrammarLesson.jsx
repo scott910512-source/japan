@@ -4,6 +4,8 @@ import { grammarById } from '../../data/n3/grammar.js';
 import { grammarQuestionsOf, verdictFor } from '../../lib/n3.js';
 import QuizRunner from './QuizRunner.jsx';
 import JpSpeak from './JpSpeak.jsx';
+import HunterTutor from '../../components/HunterTutor.jsx';
+import { conversationTutor } from '../../data/hunterTutors.js';
 
 /* 문법 레슨 — 설명 → 예문 → 비교 → 회화 → 문제 → 복습. 순서가 고정이다.
  * 「왜 이렇게 쓰는가」를 규칙보다 먼저 읽게 하고, 문제는 끝에.
@@ -38,10 +40,9 @@ export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQu
             <div className="n3-glabel" style={{ marginTop: 12 }}>구조</div>
             <div className="n3-gstruct">{l.structure}</div>
           </div>
-          <div className="card n3-gcard">
-            <div className="n3-glabel">왜 이렇게 쓰는가</div>
+          <HunterTutor guide="wing" scene="arena" title="왜 이렇게 쓰는가" line="형태만 외우기 전에, 이 표현을 쓰는 이유부터 살펴보자." peer={{ guide: 'zushi', line: '문장에 붙는 모양과 뜻을 같이 보면 되는 거죠?' }}>
             <p className="n3-gwhy">{l.why}</p>
-          </div>
+          </HunterTutor>
           {mastery && <div className="set-note">이 문법의 숙련도: <b>{mastery}</b> · 문제를 맞혀야 올라가요</div>}
           <button className="submit-btn" onClick={next}>예문 보기</button>
         </div>
@@ -75,6 +76,7 @@ export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQu
 
       {step === 3 && (
         <div className="stack">
+          <HunterTutor guide={conversationTutor(l.title + l.dialog.map((d) => d.jp).join(' '))} scene="city" title="회화에서 써 보기" line="누가 누구에게 하는 말인지 생각하면서, 두 사람의 대화를 읽어 봐요." compact />
           <div className="card n3-dialog">
             {l.dialog.map((d, i) => (
               <div key={i} className={`n3-dline ${d.s === 'B' ? 'b' : 'a'}`}>
@@ -105,6 +107,7 @@ export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQu
 
       {step === 5 && (
         <div className="stack n3-recap">
+          <HunterTutor guide="gon" scene="island" mood="encourage" title="오늘 배운 것 정리" line="뜻과 문장 모양을 한 번 더 연결해 보자. 아래 정리 카드로 다시 확인해 보자!" compact />
           <div className="card n3-gcard">
             <div className="n3-glabel">한 줄 정리</div>
             <div className="n3-gmeaning">{l.meaning}</div>
