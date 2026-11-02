@@ -23,7 +23,7 @@ import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { dailyPool } from './lib/cards.js';
 import { kijuIndex } from './lib/kiju.js';
-import { hasSignedInOnce, loadSwiss } from './lib/storage.js';
+import { hasSignedInOnce } from './lib/storage.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
@@ -52,7 +52,7 @@ const SUB_TITLES = {
   swiss: '독일어 여행 회화',
   travel: '여행 일본어',
   n3: '한 권으로 끝내는 N3',
-  settings: '설정',
+  review: '복습',
 };
 
 export default function App() {
@@ -103,13 +103,14 @@ export default function App() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   /* 내 학습의 「계정과 동기화」「기록 백업」 줄이 설정의 그 묶음을 바로 연다 */
   const [settingsGroup, setSettingsGroup] = useState(null);
-  /* 독일어 복습이 몇 개인가 — 복습 탭을 볼 때만 센다. 독일어 자료는 메인 번들에 안 싣는다(열 때 받는다). */
-  const [swissDue, setSwissDue] = useState(0);
+  /* 설정 탭을 열 때마다 새로 만든다 — 「계정」 같은 묶음으로 바로 들어가거나, 탭을 다시 눌러 목록으로 돌아올 때 */
+  const [settingsNonce, setSettingsNonce] = useState(0);
   const [composeStart, setComposeStart] = useState(null);
   const [homeResetKey, setHomeResetKey] = useState(0);
   const selectAppTab = (id) => {
     selectTab(id);
     if (id === 'home') setHomeResetKey((key) => key + 1);
+    if (id === 'settings') { setSettingsGroup(null); setSettingsNonce((n) => n + 1); }
   };
   const { toast, showToast } = useToast();
   /* 앱을 켤 때 브라우저와 맞추는 일들 — 저장 실패를 받는 손, 음성 오류,
@@ -264,20 +265,14 @@ export default function App() {
   /* 메뉴를 연다. 길은 app/useAppNavigation.js가 알고, 「약점」만 여기서
      가로챈다 — 그건 화면이 아니라 판이라서(회독 큐를 짜야 한다) 자리를
      정하는 쪽이 알 일이 아니다. */
+  /* 복습으로 — 내 학습 탭 위에 연다. 닫으면 내 학습으로 돌아온다 */
+  const openReview = useCallback(() => { setActiveTab('me'); openSub('review'); }, [setActiveTab, openSub]);
   const openMenu = useCallback((id, opts = {}) => {
     if (id === 'compose') setComposeStart(opts.mode || null);
     if (id === 'weak') { startWeakDeck(); return; }
     nav.openMenu(id, opts);
   }, [startWeakDeck, nav.openMenu]);
 
-  useEffect(() => {
-    if (activeTab !== 'review' || sub || !settings.menus?.swiss) { setSwissDue(0); return undefined; }
-    let live = true;
-    Promise.all([import('./lib/swissMemory.js'), import('./lib/swissCourse.js')]).then(([m, c]) => {
-      if (live) setSwissDue(m.memorySummary(c.normalizeProgress(loadSwiss())).due);
-    }).catch(() => {});
-    return () => { live = false; };
-  }, [activeTab, sub, settings.menus?.swiss]);
   const recordAttempt = useCallback((attempt) => {
     setProgress((p) => {
       const mistakes = recordMistake(p.mistakes, attempt);
@@ -407,7 +402,7 @@ export default function App() {
   return (
     <div className="app-shell hunter-app">
       <Onboarding open={onboardingOpen} onFinish={finishOnboarding} />
-      {(activeTab !== 'home' || sub) && <HunterAppHeader guideId={settings.hunterGuide} section={SUB_TITLES[sub] || { study: '학습 본부', review: '복습 수련', me: '나의 헌터 기록', videos: '영상 수련' }[activeTab]} onHome={() => selectAppTab('home')} />}
+      {(activeTab !== 'home' || sub) && <HunterAppHeader guideId={settings.hunterGuide} section={SUB_TITLES[sub] || { study: '학습 본부', me: '나의 헌터 기록', settings: '설정', videos: '영상 수련' }[activeTab]} onHome={() => selectAppTab('home')} />}
 
       <div className="screens">
         <ScreenSlot active={activeTab === 'home' && !sub}>
@@ -439,7 +434,7 @@ export default function App() {
             onOpenN3={settings.menus?.n3 ? () => openMenu('n3') : null}
             n3={progress.n3 || null}
             onResume={resumeSession}
-            onOpenReview={() => selectTab('review')}
+            onOpenReview={openReview}
             onLearnMore={learnMore}
           />
         </ScreenSlot>
@@ -458,32 +453,6 @@ export default function App() {
           />
         </ScreenSlot>
 
-        {/* 복습 — 길이 하나다. 오늘 복습·틀린 문제·약점·전체 복습이 여기서 열린다 */}
-        <ScreenSlot active={activeTab === 'review' && !sub}>
-
-          <ReviewHub
-            mistakePanel={<MistakeNotebook book={progress.mistakes} onAttempt={recordAttempt} onLearn={learnMistake} />}
-            planNow={planNow}
-            sentenceDue={sentenceDue}
-            weakWords={weakWords}
-            /* 약점 장부 — 어느 게 약한지, 금방 잊어버리는지 */
-            weakBook={weakBook}
-            weakRows={weakRows}
-            wrongCount={n3Wrong.all}
-            weakGrammar={n3Wrong.grammar}
-            onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
-            onStartBacklog={startDueDeck}
-            onOpenSentences={() => setSub('sentences')}
-            onOpenWrong={() => openMenu('n3', { view: { kind: 'wrong' } })}
-            onOpenWeakWords={startWeakDeck}
-            onOpenWeakGrammar={() => openMenu('n3', { view: { kind: 'weak', from: 'hub' } })}
-            onOpenRepeat={() => setSub('repeat')}
-            onOpenMe={() => selectTab('me')}
-            swissDue={swissDue}
-            onOpenSwiss={() => openMenu('swiss', { view: 'review' })}
-          />
-        </ScreenSlot>
-
         <ScreenSlot active={activeTab === 'me' && !sub}>
 
           <Log
@@ -499,8 +468,37 @@ export default function App() {
             weakWords={weakWords}
             showN3={Boolean(settings.menus?.n3)}
             onOpenStudy={() => selectTab('study')}
-            onOpenReview={() => selectTab('review')}
-            onOpenSettings={(group = null) => { setSettingsGroup(group); setSub('settings'); }}
+            reviewLeft={reviewLeft}
+            onOpenReview={openReview}
+            onOpenQuiz={() => openSub('drill')}
+          />
+        </ScreenSlot>
+
+        {/* 설정 — 큰 탭이다. 여섯 묶음(학습 설정 · 음성 · 계정 · 백업 · 도구 · 앱 정보)은 그 안에 그대로 있다 */}
+        <ScreenSlot active={activeTab === 'settings' && !sub}>
+
+          <Settings
+            key={settingsNonce}
+            initialGroup={settingsGroup}
+            settings={settings}
+            onChange={patchSettings}
+            onReplayOnboarding={() => setOnboardingOpen(true)}
+            onOpenWordManager={() => setSub('manage')}
+            onOpenTranslate={() => setSub('translate')}
+            onOpenSwiss={() => setSub('swiss')}
+            onToast={showToast}
+            onReload={() => window.location.reload()}
+            session={authSession}
+            syncState={syncState}
+            storeError={storeError}
+            onSync={() => runSync(false)}
+            onSignedOut={() => {
+              setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null); setOfflinePass(false);
+              syncedFor.current = null; showToast('로그아웃했어요');
+            }}
+            onVaultKey={rememberVaultKey}
+            remoteKeyEnvelope={remoteKeyEnvelope}
+            vaultReady={Boolean(vaultKey)}
           />
         </ScreenSlot>
 
@@ -547,33 +545,26 @@ export default function App() {
           </div>
           <div className="sub-body">
             <DeferredScreen key={sub}>
-              {/* 설정은 내 학습 탭에서 밀어 넣는 화면이다 — 여섯 묶음(학습 설정 ·
-                  음성 · 계정 · 백업 · 도구 · 앱 정보)은 그 안에 그대로 있다. */}
-              {sub === 'settings' ? (
-                <Settings
-                  initialGroup={settingsGroup}
-                  settings={settings}
-                  onChange={patchSettings}
-                  onReplayOnboarding={() => setOnboardingOpen(true)}
-                  onOpenWordManager={() => setSub('manage')}
-                  onOpenTranslate={() => setSub('translate')}
-                  onOpenSwiss={() => setSub('swiss')}
-                  onToast={showToast}
-                  onReload={() => window.location.reload()}
-                  session={authSession}
-                  syncState={syncState}
-                  /* 저장이 막혔으면 그 표시는 해결될 때까지 남는다 — 잠깐 뜨는
-                     토스트만으로는 그날 공부한 게 안 저장되는 걸 모른다. */
-                  storeError={storeError}
-                  onSync={() => runSync(false)}
-                  onSignedOut={() => {
-                    setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null); setOfflinePass(false);
-                    syncedFor.current = null; showToast('로그아웃했어요');
-                  }}
-                  onVaultKey={rememberVaultKey}
-                  remoteKeyEnvelope={remoteKeyEnvelope}
-                  vaultReady={Boolean(vaultKey)}
-                />
+              {/* 복습은 내 학습 안에서 밀어 넣는 화면이다 — 오늘 복습 · 약점 · 틀린 문제 · 전체 복습 */}
+              {sub === 'review' ? (
+                  <ReviewHub
+                    mistakePanel={<MistakeNotebook book={progress.mistakes} onAttempt={recordAttempt} onLearn={learnMistake} />}
+                    planNow={planNow}
+                    sentenceDue={sentenceDue}
+                    weakWords={weakWords}
+                    /* 약점 장부 — 어느 게 약한지, 금방 잊어버리는지 */
+                    weakBook={weakBook}
+                    weakRows={weakRows}
+                    wrongCount={n3Wrong.all}
+                    weakGrammar={n3Wrong.grammar}
+                    onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
+                    onStartBacklog={startDueDeck}
+                    onOpenSentences={() => setSub('sentences')}
+                    onOpenWrong={() => openMenu('n3', { view: { kind: 'wrong' } })}
+                    onOpenWeakWords={startWeakDeck}
+                    onOpenWeakGrammar={() => openMenu('n3', { view: { kind: 'weak', from: 'hub' } })}
+                    onOpenRepeat={() => setSub('repeat')}
+                  />
               ) : (
               <FeatureScreen
                 composeStart={composeStart}

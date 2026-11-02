@@ -51,7 +51,7 @@ const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', readin
 
 export default function Log({
   review, stats, streak, grammarLeft, stat, rounds,
-  n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenSettings,
+  n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenQuiz, reviewLeft = 0,
 }) {
   /* 자정을 넘기면 이 값이 바뀌고 화면이 다시 그려진다. 예전엔 마운트 때
      한 번 잡아 둬서, 8/31에 켜 놓고 9/1이 되면 달력이 8월에 머물렀다 —
@@ -150,11 +150,26 @@ export default function Log({
         </div>
       )}
 
+      {/* ★ 내가 한 것 — 복습 · 퀴즈 ★
+          복습 탭이 없어지고 여기로 들어왔다. 오늘 할 복습이 몇 개인지가 이 줄의 숫자다. */}
+      <div className="section-label">복습 · 퀴즈</div>
+      <div className="card me-hub">
+        <button className="listrow me-row" data-row="review" onClick={onOpenReview}>
+          <span className="rv-body"><b>복습</b><span>오늘 복습 · 약점 · 틀린 문제 · 전체 복습</span></span>
+          <span className="rv-cnt">{reviewLeft}</span>
+          <IconChevron className="chev" />
+        </button>
+        <button className="listrow me-row" data-row="quiz" onClick={onOpenQuiz}>
+          <span className="rv-body"><b>퀴즈</b><span>쭉 퀴즈 · 문장 만들기 · 상황 대화</span></span>
+          <IconChevron className="chev" />
+        </button>
+      </div>
+
       {/* ★ JLPT N3 — 이 앱의 목표 ★
           진도(레슨을 끝낸 수)와 준비도(실제로 맞힌 결과)는 다른 숫자다. 열어
           봤다고 오르지 않는다. 숫자는 코스가 열릴 때 적어 둔 요약에서 온다. */}
-      {/* 여기는 통계다. 누르면 코스가 아니라 학습 탭으로 — 코스 입구는 홈과
-          학습 탭 둘이면 된다. */}
+      {/* 여기는 통계다. 누르면 코스가 아니라 학습 탭으로 — 코스 입구는
+          학습 탭 하나다. */}
       {showN3 && (
         <button className="card me-n3" onClick={onOpenStudy} data-ready={n3Summary ? n3Summary.ready : ''}>
           <div className="mn-head">
@@ -291,38 +306,14 @@ export default function Log({
         </div>
       </div>
 
-      {/* 어디가 약한가 — 사용자가 궁금한 세 가지 중 하나. 자세한 건 복습 탭 */}
+      {/* 어디가 약한가 — 사용자가 궁금한 세 가지 중 하나. 자세한 건 복습 */}
       <div className="section-label">취약 영역</div>
       <button className="rowcard me-weak" onClick={onOpenReview}>
         <span className="rc-body">
           <b>{weakWords > 0 ? `취약 단어 ${weakWords}개` : '아직 취약 단어가 없어요'}</b>
           <span>{n3Summary
-            ? `N3 준비도가 낮은 곳: ${Object.entries(AREA_LABEL).sort((a, b) => (n3Summary.areas?.[a[0]] ?? 0) - (n3Summary.areas?.[b[0]] ?? 0)).slice(0, 2).map(([, l]) => l).join(' · ')} — 복습 탭에서 틀린 문제와 함께`
-            : '틀린 문제와 약점은 복습 탭에서'}</span>
-        </span>
-        <IconChevron className="chev" />
-      </button>
-
-      <div className="section-label">설정</div>
-      <button className="rowcard me-settings" onClick={() => onOpenSettings()}>
-        <span className="rc-body">
-          <b>설정</b>
-          <span>학습 설정 · 음성 · 계정과 동기화 · 기록 백업 · 학습 도구 · 앱 정보</span>
-        </span>
-        <IconChevron className="chev" />
-      </button>
-      {/* 자주 찾는 둘은 설정을 거치지 않고 그 묶음으로 바로 — 기기를 바꾸거나 로그인이 막혔을 때 쓴다 */}
-      <button className="rowcard me-account" onClick={() => onOpenSettings('account')}>
-        <span className="rc-body">
-          <b>계정과 동기화</b>
-          <span>로그인 · 기기 간 동기화 상태</span>
-        </span>
-        <IconChevron className="chev" />
-      </button>
-      <button className="rowcard me-backup" onClick={() => onOpenSettings('backup')}>
-        <span className="rc-body">
-          <b>기록 백업</b>
-          <span>내려받기 · 복원 · 무엇이 들어가나</span>
+            ? `N3 준비도가 낮은 곳: ${Object.entries(AREA_LABEL).sort((a, b) => (n3Summary.areas?.[a[0]] ?? 0) - (n3Summary.areas?.[b[0]] ?? 0)).slice(0, 2).map(([, l]) => l).join(' · ')} — 복습에서 틀린 문제와 함께`
+            : '틀린 문제와 약점은 복습에서'}</span>
         </span>
         <IconChevron className="chev" />
       </button>

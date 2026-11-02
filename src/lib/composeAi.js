@@ -93,7 +93,7 @@ export async function correctSentence({ ko, mine, expected }, settings = {}) {
   if (!text) throw new Error('문장을 먼저 써 주세요');
   if (text.length > MAX_SENTENCE_CHARS) throw new Error(`문장이 너무 길어요 (${MAX_SENTENCE_CHARS}자까지)`);
   const { provider, apiKey, model } = resolveProvider(settings);
-  if (!apiKey) throw new Error('내 학습 → 설정에서 AI 키를 넣어 주세요');
+  if (!apiKey) throw new Error('설정에서 AI 키를 넣어 주세요');
   const args = { apiKey, model, system: SYSTEM, user: userText({ ko, mine: text, expected }) };
   const raw = provider === PROVIDERS.CLAUDE
     ? await callClaude({ ...args, maxTokens: 1500 })

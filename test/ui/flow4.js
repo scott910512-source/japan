@@ -102,9 +102,9 @@ async function judgeAll(page, max = 60, label = '알아요') {
 
   console.log('── 네 탭');
   const tabs = await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.textContent.replace(/^\d+\+?/, '')));
-  ok('★ 오늘 · 학습 · 복습 · 내 학습 ★', tabs.join() === '오늘,학습,복습,내 학습', tabs.join());
+  ok('★ 오늘 · 학습 · 내 학습 · 설정 ★', tabs.join() === '오늘,학습,내 학습,설정', tabs.join());
   ok('켜면 오늘', (await page.locator('.tabbar .tab.active').innerText()) === '오늘');
-  for (const t of ['오늘', '학습', '복습', '내 학습']) {
+  for (const t of ['오늘', '학습', '내 학습', '설정']) {
     await goTab(page, t);
     ok(`${t} 탭이 375px에서 가로로 안 넘친다`, !(await overflow(page)));
   }
@@ -112,11 +112,11 @@ async function judgeAll(page, max = 60, label = '알아요') {
 
   console.log('\n── 숫자는 한 곳에서 — 홈 · 복습 탭 · 배지');
   const homeReview = num(await page.locator('.tdlist .tdtask', { hasText: '복습' }).innerText().catch(() => ''), /(\d+)개/);
-  const badge = num(await page.locator('.tabbar .tab[data-tab="review"] .count').innerText().catch(() => '0'), /(\d+)/);
+  const badge = num(await page.locator('.tabbar .tab[data-tab="me"] .count').innerText().catch(() => '0'), /(\d+)/);
   await goTab(page, '복습');
   const rvLeft = Number(await page.locator('.rv-top').getAttribute('data-left'));
   ok('★ 홈의 복습 수 = 복습 탭의 오늘 복습 수 = 배지 ★', homeReview > 0 && homeReview === rvLeft && badge === rvLeft, `${homeReview} / ${rvLeft} / ${badge}`);
-  ok('복습 탭 맨 위가 오늘 복습', (await page.locator('.rv-top').innerText()).includes('오늘 복습'));
+  ok('복습 화면 맨 위가 오늘 복습', (await page.locator('.rv-top').innerText()).includes('오늘 복습'));
   ok('0짜리 줄은 잠기고 「아직 없어요」', await page.locator('.rv-row[data-row="weak-grammar"]:disabled').count() === 1 && (await page.locator('.rv-row[data-row="weak-grammar"]').innerText()).includes('아직 없어요'));
   ok('틀린 문제 · 취약 단어 · 취약 문법 · 문장 복습 · 전체 복습', await page.locator('.rv-row').count() === 5);
 
@@ -143,7 +143,7 @@ async function judgeAll(page, max = 60, label = '알아요') {
   ok('오늘로 돌아온다', await page.locator('.tdhead').count() === 1 && await page.locator('.tabbar').count() === 1);
   const homeRow = page.locator('.tdlist .tdtask', { hasText: '복습' });
   ok('★ 홈의 복습 줄이 다 했다로 바뀐다 ★', (await homeRow.getAttribute('class')).includes('done'), await homeRow.innerText().catch(() => ''));
-  ok('배지가 사라진다', await page.locator('.tabbar .tab[data-tab="review"] .count').count() === 0);
+  ok('배지가 사라진다', await page.locator('.tabbar .tab[data-tab="me"] .count').count() === 0);
   await goTab(page, '복습');
   ok('복습 탭도 다 했다', Number(await page.locator('.rv-top').getAttribute('data-left')) === 0 && (await page.locator('.rv-top').innerText()).includes('다 했어요'));
   await goTab(page, '내 학습');
@@ -152,7 +152,7 @@ async function judgeAll(page, max = 60, label = '알아요') {
   ok('내 학습의 판정 횟수에 오늘 판정이 든다', num(me, /(\d+)\s*판정 횟수/) >= rvLeft, me.match(/\d+\s*판정 횟수/)?.[0]);
   ok('오늘 3칸은 내 학습에 없다 (홈이 보여 준다)', !me.includes('끝낸 카드'));
   ok('JLPT N3 진도 카드가 있다', await page.locator('.me-n3').count() === 1);
-  ok('설정으로 가는 줄이 있다', await page.locator('.me-settings').count() === 1);
+  ok('설정은 하단 탭으로 나갔다(내 학습에는 줄이 없다)', await page.locator('.me-settings').count() === 0 && await page.locator('.tabbar .tab[data-tab="settings"]').count() === 1);
   const rv = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'));
   ok('회독 기록에 오늘 판정이 남았다', Object.values(rv).some((v) => v.seenAt > 1000));
 

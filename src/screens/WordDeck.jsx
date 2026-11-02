@@ -101,7 +101,7 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
           </span>
         </div>
         <div className="plantotal">단어 {plan.reviewPicked + plan.newPicked}장 · 고른 레벨 {pool.length}개 중</div>
-        <div className="set-note">오늘 화면의 오늘 학습(단어+문장, 계획 기준)과는 별개예요. 하루 분량은 내 학습 → 설정 → 학습 설정에서 바꿔요.</div>
+        <div className="set-note">오늘 화면의 오늘 학습(단어+문장, 계획 기준)과는 별개예요. 하루 분량은 설정 → 학습 설정에서 바꿔요.</div>
       </div>
 
       <button className="bigstart" onClick={onStart} disabled={plan.total === 0}>

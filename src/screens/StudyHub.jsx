@@ -146,7 +146,7 @@ export default function StudyHub({ words, stat, settings, n3Summary, onOpen, onC
       })}
 
       {groups.length === 0 && (
-        <div className="empty-state">내 학습 → 설정 → 학습 설정에서 학습 메뉴를 켜 주세요</div>
+        <div className="empty-state">설정 → 학습 설정에서 학습 메뉴를 켜 주세요</div>
       )}
     </>
   );

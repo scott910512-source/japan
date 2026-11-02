@@ -80,7 +80,7 @@ const FAKE = {
   // 설정 화면
   await openMore(page, 'tools');   // 영상 AI 연결
   await page.waitForTimeout(700);
-  const body = await page.textContent('.sub-body');
+  const body = await page.textContent('.screen.active');
   ok('설명을 만들 곳을 고를 수 있음', body.includes('설명을 만들 곳'));
   ok('Gemini가 기본으로 골라져 있음', await page.locator('.ai-pick.active', { hasText: 'Gemini' }).count() === 1);
   ok('생성용 키와 읽기용 키를 분리해 안내', body.includes('읽기용 TTS 키는 대신 쓰지 않아요'));

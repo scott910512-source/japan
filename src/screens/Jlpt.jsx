@@ -122,7 +122,7 @@ export default function Jlpt({ words, review, onStartSet, onToast }) {
       </div>
 
       <p className="jl-note" style={{ marginTop: 14 }}>
-        <IconBook /> 세트를 누르면 그 100개만 회독해요. 복습은 평소처럼 복습 탭에 쌓입니다.
+        <IconBook /> 세트를 누르면 그 100개만 회독해요. 복습은 평소처럼 내 학습의 복습에 쌓입니다.
       </p>
     </>
   );

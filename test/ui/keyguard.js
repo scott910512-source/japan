@@ -28,9 +28,12 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
      화면 검사가 통째로 죽었다. 로그인 문을 지나가려면 오프라인이기만 하면 된다. */
   await p.reload({ waitUntil: 'domcontentloaded' });
   await p.locator('.gate, .tabbar').first().waitFor({ state: 'visible', timeout: 20000 });
+  /* 설정 화면 조각은 탭을 처음 열 때 받는다 — 서비스워커가 다 받아 둘 때까지 기다린 뒤에 끊는다 */
+  await p.waitForTimeout(2500);
   await p.context().setOffline(true);
   await p.waitForTimeout(900);
-  const off = p.locator('.gate-offline'); if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
+  const off = p.locator('.gate-offline'); await off.waitFor({ timeout: 8000 }).catch(() => {});
+  if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
   /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직 안 그려진
      화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가 제 말로 실패한다. */
   await p.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});

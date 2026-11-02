@@ -129,7 +129,7 @@ export default function AskSheet({
 
         {!ai.apiKey && (
           <p className="set-note">
-            내 학습 → 설정에서 AI 키를 넣으면 여기서 바로 물어볼 수 있어요.
+            설정에서 AI 키를 넣으면 여기서 바로 물어볼 수 있어요.
             키는 이 기기에만 저장돼요.
           </p>
         )}

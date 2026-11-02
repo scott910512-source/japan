@@ -17,8 +17,8 @@ import { STAGES } from '../lib/rounds.js';
  * 것」과 「틀린 것」만 있으면 쓸 수 있어야 한다. */
 export default function ReviewHub({
   mistakePanel = null,
-  planNow, sentenceDue, weakWords, wrongCount, weakGrammar, weakBook = null, weakRows = [], swissDue = 0, onOpenSwiss,
-  onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeakWords, onOpenWeakGrammar, onOpenRepeat, onOpenMe,
+  planNow, sentenceDue, weakWords, wrongCount, weakGrammar, weakBook = null, weakRows = [],
+  onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeakWords, onOpenWeakGrammar, onOpenRepeat,
 }) {
   /* 홈·배지와 같은 함수 — 여기서 따로 세지 않는다 */
   const { left, assigned, done, backlog, review: reviewLeft, weak: weakLeft } = reviewLeftOf(planNow);
@@ -147,15 +147,6 @@ export default function ReviewHub({
           <span className="rv-cnt">{sentenceDue}</span>
           <IconChevron className="chev" />
         </button>
-        {/* 독일어 복습 — 독일어 코스를 쓰는 사람에게만. 일본어 복습과는 따로 센다 */}
-        {swissDue > 0 && onOpenSwiss && (
-          <button className="listrow rv-row" data-row="swiss" onClick={onOpenSwiss}>
-            <span className="rv-ic"><IconChat /></span>
-            <span className="rv-body"><b>독일어 복습</b><span>독일어 코스에서 복습일이 된 낱말 · 일본어 복습과는 따로 세요</span></span>
-            <span className="rv-cnt">{swissDue}</span>
-            <IconChevron className="chev" />
-          </button>
-        )}
         <button className="listrow rv-row" data-row="repeat" onClick={onOpenRepeat}>
           <span className="rv-ic"><IconBook /></span>
           <span className="rv-body"><b>전체 복습</b><span>배운 것을 기억 단계별로 다시 — 회독 학습</span></span>
@@ -175,8 +166,7 @@ export default function ReviewHub({
             <li key={s.id}><b>{s.label}</b><span>{s.sub}</span></li>
           ))}
         </ol>
-        <p className="set-note">틀리면 확인 단계가 처음으로 돌아가요. 단계별 개수는 내 학습에서 봐요.</p>
-        {onOpenMe && <button className="ghost-btn rv-me" onClick={onOpenMe}>내 학습에서 보기</button>}
+        <p className="set-note">틀리면 확인 단계가 처음으로 돌아가요. 단계별 개수는 내 학습의 기억 수준에서 봐요.</p>
       </details>
     </>
   );
