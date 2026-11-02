@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 const SEEN_KEY = 'jp_manabu_has_keyboard_v1';
 
 let hasKeyboard = (() => {
-  try { return localStorage.getItem(SEEN_KEY) === '1'; } catch { return false; }
+  try { return localStorage.getItem(SEEN_KEY) === '1' || window.matchMedia('(hover: hover) and (pointer: fine)').matches; } catch { return false; }
 })();
 const listeners = new Set();
 
@@ -37,11 +37,17 @@ export function useHotkeys(map) {
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       const el = e.target;
       if (el instanceof HTMLElement && el.closest('input, textarea, select, [contenteditable]')) return;
 
-      const handler = ref.current[e.key] ?? ref.current[e.code];
+      // IMEs and number pads can report Process/Unidentified/End rather than
+      // the printed key. Fall back to its physical position outside editors.
+      const letter = /^Key([A-Z])$/.exec(e.code)?.[1];
+      const digit = !e.shiftKey && /^(?:Digit|Numpad)([0-9])$/.exec(e.code)?.[1];
+      const handler = ref.current[e.code] ?? (digit ? ref.current[digit] : undefined)
+        ?? ref.current[e.key]
+        ?? (letter ? ref.current[letter.toLowerCase()] ?? ref.current[letter] : undefined);
       if (!handler) return;
       markKeyboard();
       e.preventDefault();

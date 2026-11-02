@@ -182,6 +182,8 @@ export default function Study({
   const view = step ? settingsForStep(settings, step) : settings;
   const faces = word ? facesOf(word, view) : null;
   const covered = step ? hidesFront(step) : false;
+  const showingIntro = Boolean(deck.intro && !introSeen && session?.deckId === deck.id && session.done === 0);
+  const studyReady = Boolean(word && session?.deckId === deck.id && !showingIntro && !finished);
 
   // 같은 카드가 몰라요로 다시 나오면 done이 달라져 새 방문으로 친다
   const visitKey = `${currentId}:${session?.done ?? 0}`;
@@ -216,7 +218,7 @@ export default function Study({
   const judgeSpokeAt = useRef(0);
   useEffect(() => {
     // 듣기 단계는 소리가 전부다 — 안 내면 화면에 아무것도 없다
-    if (!word || (!settings.autoTTS && !needsSound(step))) return;
+    if (!studyReady || (!settings.autoTTS && !needsSound(step))) return;
     if (view.direction === 'mean-kanji' && !revealed) return;
     if (spokenFor.current === visitKey) return;   // 한 방문에 한 번만
     spokenFor.current = visitKey;
@@ -231,7 +233,7 @@ export default function Study({
     speakCurrent();
     return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visitKey, revealed]);
+  }, [visitKey, revealed, studyReady]);
 
   useEffect(() => {
     setPeekKana(false);
@@ -316,7 +318,9 @@ export default function Study({
    * 물어보는 창이 열려 있으면 다 끈다. 창 안에서 버튼을 한 번 누르면 초점이
    * 글상자를 떠나는데, 그 상태로 3을 치면 「알아요」가 눌린다 — 물어보다가
    * 카드가 판정돼 버린다. Esc는 창만 닫는다. */
-  useHotkeys(asking ? { Escape: () => setAsking(false) } : {
+  useHotkeys(showingIntro ? { Enter: () => setIntroSeen(true), Escape: onClose }
+    : asking ? { Escape: () => setAsking(false) }
+      : !studyReady ? { Escape: onClose } : {
     ' ': speakCurrent,
     Space: speakCurrent,
     Enter: () => (revealed ? judge(VERDICT.KNOWN) : reveal()),
@@ -325,6 +329,9 @@ export default function Study({
     1: () => (canJudge ? judge(VERDICT.UNKNOWN) : reveal()),
     2: () => (canJudge ? judge(VERDICT.VAGUE) : reveal()),
     3: () => (canJudge ? judge(VERDICT.KNOWN) : reveal()),
+    z: () => (canJudge ? judge(VERDICT.UNKNOWN) : reveal()),
+    x: () => (canJudge ? judge(VERDICT.VAGUE) : reveal()),
+    c: () => (canJudge ? judge(VERDICT.KNOWN) : reveal()),
     0: () => (canJudge ? judge(VERDICT.MASTER) : reveal()),
     ArrowLeft: undo,
     Backspace: undo,
@@ -367,7 +374,7 @@ export default function Study({
   // 훅을 모두 부른 뒤에 그린다 — 세션 준비 전에 일찍 빠져나가면 훅 순서가 어긋난다.
   if (!session || session.deckId !== deck.id) return null;
 
-  if (deck.intro && !introSeen && session.done === 0) {
+  if (showingIntro) {
     const { total, review: rv, weak, fresh, minutes } = deck.intro;
     return (
       <div className="study intro">
@@ -381,7 +388,7 @@ export default function Study({
           </div>
           <div className="si-time">약 {minutes}분</div>
           <button className="bigstart" onClick={() => setIntroSeen(true)}>
-            <span className="bs-t">시작하기</span>
+            <span className="bs-t">시작하기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</span>
           </button>
           <button className="ghost-btn si-back" onClick={onClose}>나중에</button>
         </div>
@@ -449,7 +456,7 @@ export default function Study({
             <IconSpeaker />
           </div>
         ) : (
-          <div className={`sc-main${faces.front.isKo ? ' ko' : ''} ${sizeOf(faces.front.main)}`}>
+          <div className={`sc-main${faces.front.isKo ? ' ko' : ''} ${sizeOf(faces.front.main)}`} lang={faces.front.isKo ? 'ko' : 'ja'}>
             {faces.front.main}
           </div>
         )}
@@ -486,9 +493,9 @@ export default function Study({
 
         {revealed ? (
           <div className="sc-back">
-            <div className="sc-answer">{faces.back.main}</div>
+            <div className="sc-answer" lang={view.direction === 'mean-kanji' || view.direction === 'kanji-kana' ? 'ja' : 'ko'}>{faces.back.main}</div>
             {faces.back.sub && (
-              <div className="sc-kana">
+              <div className="sc-kana" lang={view.direction === 'kanji-kana' ? 'ko' : 'ja'}>
                 {faces.back.sub}
                 {hangul && <span className="sc-hangul"> · {hangul}</span>}
               </div>
@@ -504,7 +511,7 @@ export default function Study({
             />
             {settings.showExample && word.example && (
               <div className="sc-example">
-                <div className="ex-jp">{settings.canReadKana === false && word.exampleKana ? word.exampleKana : word.example}</div>
+                <div className="ex-jp" lang="ja">{settings.canReadKana === false && word.exampleKana ? word.exampleKana : word.example}</div>
                 <div className="ex-ko">{word.exampleKo}</div>
                 {/* 예문은 단어보다 길어서 발음 흐름을 익히기 좋다. 따로 들을 수 있게 둔다. */}
                 <button
@@ -581,28 +588,29 @@ export default function Study({
           떠서 앞면에서도 판정이 눌렸다. 아예 그리지 않는다. */}
       {canJudge && (
       <div className="judgerow">
-        <button className="judge unknown" disabled={locked} onClick={() => judge(VERDICT.UNKNOWN)}>
-          {hasKeyboard && <kbd className="judge-key">1</kbd>}
+        <button className="judge unknown" aria-keyshortcuts="1 Z" disabled={locked} onClick={() => judge(VERDICT.UNKNOWN)}>
+          {hasKeyboard && <kbd className="judge-key">1 / Z</kbd>}
           <IconX />
           <b>몰라요</b>
           {/* 이제 이번 바퀴가 아니라 다음 바퀴에 나온다. 애매해요와 때가 같아서
               같은 말을 쓴다 — 다르게 적으면 안 그런 것처럼 읽힌다. */}
           <span>다음 회독에</span>
         </button>
-        <button className="judge vague" disabled={locked} onClick={() => judge(VERDICT.VAGUE)}>
-          {hasKeyboard && <kbd className="judge-key">2</kbd>}
+        <button className="judge vague" aria-keyshortcuts="2 X" disabled={locked} onClick={() => judge(VERDICT.VAGUE)}>
+          {hasKeyboard && <kbd className="judge-key">2 / X</kbd>}
           <IconTriangle />
           <b>애매해요</b>
           <span>다음 회독에</span>
         </button>
-        <button className="judge known" disabled={locked} onClick={() => judge(VERDICT.KNOWN)}>
-          {hasKeyboard && <kbd className="judge-key">3</kbd>}
+        <button className="judge known" aria-keyshortcuts="3 C" disabled={locked} onClick={() => judge(VERDICT.KNOWN)}>
+          {hasKeyboard && <kbd className="judge-key">3 / C</kbd>}
           <IconCheck />
           <b>알아요</b>
           <span>기억했어요</span>
         </button>
       </div>
       )}
+      {hasKeyboard && <p className="study-shortcut-note">Enter·4 답 보기 · 숫자가 안 되면 Z 몰라요 / X 애매해요 / C 알아요</p>}
 
       <div className="studyfoot">
         <button onClick={() => speakSlow(faces.speak)}>
@@ -628,7 +636,7 @@ export default function Study({
 
       {showExample && word.example && !settings.showExample && (
         <div className="card sc-example" style={{ marginTop: 12 }}>
-          <div className="ex-jp">{word.example}</div>
+          <div className="ex-jp" lang="ja">{word.example}</div>
           <div className="ex-ko">{word.exampleKo}</div>
           <button
             className="ex-play"

@@ -24,7 +24,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/icon.svg'],
+      includeAssets: ['icons/icon.svg', 'fonts/OFL.noto-sans-jp.txt'],
       manifest: {
         name: '日本語 HUNTER — 매일 성장하는 일본어',
         short_name: '日本語 HUNTER',
@@ -41,7 +41,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: `${base}index.html`,
         /* ★ 이 앱의 캐시에 이름표를 붙인다 ★
            설정의 「최신 버전 받기」가 caches.keys()로 가져온 것을 전부 지우고
