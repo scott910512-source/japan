@@ -246,5 +246,17 @@ console.log('\n[ ★ 기초 단어 갈래 — 초등학생이 먼저 배우는 �
   ok('자동재생에 기초 단원 id로 고를 수 있다', listenPool(e, 'b3').length === 11);
 }
 
+console.log('\n[ ★ 짝 맞추기가 다 맞춘 뒤 반드시 넘어간다 ★ ]');
+{
+  /* 부모가 다시 그려지면서 타이머가 지워져 「다 맞췄는데 안 넘어가는」 일이 있었다.
+     그림은 브라우저에서만 되니, 원인이 된 모양(최신 onDone을 effect 의존성에 두는 것)이 다시 생기지 않게 코드 모양을 지킨다. */
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../src/screens/SwissLesson.jsx', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('function SwissMatch'), src.indexOf('function SwissFinish'));
+  ok('★ onDone을 ref로 읽는다 ★', /onDoneRef\.current\s*=\s*onDone/.test(body) && /onDoneRef\.current\(\)/.test(body));
+  ok('★ effect 의존성에 onDone이 없다 ★', !/\[[^\]]*\bonDone\b[^\]]*\]/.test(body));
+  ok('타이머는 화면이 닫힐 때만 지운다', /\(\) => \(\) => clearTimeout\(timerRef\.current\), \[\]/.test(body));
+}
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

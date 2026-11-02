@@ -120,6 +120,7 @@ async function solveOne(page, { wrong = false } = {}) {
   const total = Number((await countOf(page)).split('/')[1]);
   ok('★ 한 묶음은 열두 낱말과 짝 맞추기 ★', total === 13, `${total}문제`);
   const seen = []; let wrongId = null;
+  /* 약점 주머니의 낱말(L1.items[0])은 옛 진도를 채울 때 이미 한 번 틀린 것으로 적히니 틀림 횟수가 하나 더 많다 */
   /* 첫 문제는 일부러 틀린다 — 틀린 문제는 뒤에 다시 붙는다 */
   const first = await solveOne(page, { wrong: true });
   wrongId = first.id; seen.push(first);
@@ -137,7 +138,7 @@ async function solveOne(page, { wrong = false } = {}) {
   const goodId = itemIds.find((id) => id !== wrongId);
   ok('★ 틀린 낱말은 「몰라요」 — 오늘 다시 나온다 ★', afterOne.mem[wrongId].box === 1 && afterOne.mem[wrongId].due === today && afterOne.mem[wrongId].level === 0, `box ${afterOne.mem[wrongId].box}`);
   ok('★ 첫 대답이 맞은 낱말은 단계가 오른다 ★', afterOne.mem[goodId].level >= 2 && afterOne.mem[goodId].box === 3, `level ${afterOne.mem[goodId].level}`);
-  ok('★ 한 낱말은 한 번만 센다(틀린 뒤 다시 맞혀도 두 번 안 쌓인다) ★', afterOne.mem[wrongId].rounds === 2 && afterOne.mem[wrongId].wrongCount === 1, `rounds ${afterOne.mem[wrongId].rounds} · 틀림 ${afterOne.mem[wrongId].wrongCount}`);
+  ok('★ 한 낱말은 한 번만 센다(틀린 뒤 다시 맞혀도 두 번 안 쌓인다) ★', afterOne.mem[wrongId].rounds === 2 && afterOne.mem[wrongId].wrongCount === (wrongId === L1.items[0].id ? 2 : 1), `rounds ${afterOne.mem[wrongId].rounds} · 틀림 ${afterOne.mem[wrongId].wrongCount}`);
   ok('복습 경험치가 쌓였다', afterOne.xp > 30 && afterOne.xp <= 30 + 12, `${afterOne.xp}`);
   ok('★ 일본어 회독 기록은 그대로 ★', await jpReview(page) === jpBefore);
   ok('「더 복습하기」가 다음 묶음을 연다', await page.locator('.swl-count').count() === 1);

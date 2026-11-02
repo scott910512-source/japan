@@ -294,15 +294,22 @@ function SwissMatch({ pairs, rate, onWrong, onDone }) {
   const [okIds, setOkIds] = useState([]);
   const [shake, setShake] = useState(null);
   const doneRef = useRef(false);
+  const timerRef = useRef(null);
+  /* ★ onDone은 부모가 다시 그려질 때마다 새 함수다 ★
+     예전에는 이 함수를 effect 의존성에 두었다. 넷을 다 맞힌 0.7초 안에 부모가 한 번이라도 다시 그려지면
+     (읽어 주던 소리가 끝나 상태가 바뀌는 것만으로도) 정리 함수가 타이머를 지우고, 다음 effect는
+     doneRef가 이미 true라서 타이머를 다시 안 건다 — 그러면 다 맞췄는데 영영 안 넘어간다.
+     그래서 최신 onDone은 ref로 읽고, 타이머는 화면이 닫힐 때만 지운다. */
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     if (okIds.length === pairs.length && !doneRef.current) {
       doneRef.current = true;
-      const t = setTimeout(onDone, 700);
-      return () => clearTimeout(t);
+      timerRef.current = setTimeout(() => onDoneRef.current(), 700);
     }
-    return undefined;
-  }, [okIds, pairs.length, onDone]);
+  }, [okIds, pairs.length]);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const tapLeft = (id) => {
     if (okIds.includes(id)) return;
