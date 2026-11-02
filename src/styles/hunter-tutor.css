@@ -1,0 +1,45 @@
+/* Scene treatments belong to lessons, not to navigation or learning state. */
+.hunter-tutor { --ht-accent: #b7d789; --ht-glow: #77965126; position: relative; isolation: isolate; min-width: 0; margin: 14px 0; padding: 16px; border: 1px solid var(--line); border-left: 4px solid var(--ht-accent); border-radius: 16px; color: var(--ink); background: radial-gradient(ellipse at 100% 0, var(--ht-glow), transparent 70%), var(--surface); text-align: left; }
+.hunter-tutor[data-scene='arena'] { --ht-accent: #b5a0df; --ht-glow: #9275cf29; }
+.hunter-tutor[data-scene='city'] { --ht-accent: #8ebce0; --ht-glow: #689acb29; }
+.hunter-tutor[data-scene='cards'] { --ht-accent: #dcb66f; --ht-glow: #b58c4729; border-style: dashed; border-left-style: solid; }
+.hunter-tutor[data-scene='exam'] { --ht-accent: #d9a3b6; --ht-glow: #b36a8729; }
+.ht-speaker { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+.ht-portrait { display: block; flex: 0 0 auto; width: 82px; height: 82px; overflow: hidden; border: 2px solid var(--ht-accent); border-radius: 50%; background: #fffaf0; box-shadow: 0 3px 0 #0002; }
+.ht-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 60% center; }
+.ht-portrait[data-art='sheet'] img { height: auto; }
+.ht-portrait > span { display: grid; height: 100%; place-items: center; color: #243d37; font-size: 12px; }
+.ht-bubble { flex: 1; min-width: 0; }
+.ht-place { display: block; color: var(--ink-soft); font-size: 10px; letter-spacing: .04em; line-height: 1.6; }
+.ht-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+.ht-name b { font-size: 16px; }
+.ht-name > span { color: var(--ink-soft); font-size: 11px; }
+.ht-name i { margin-left: auto; color: var(--ht-accent); font-size: 19px; font-style: normal; }
+.ht-bubble p { margin: 5px 0 0; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.ht-lesson { margin-top: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); font-size: 15px; line-height: 1.9; overflow-wrap: anywhere; }
+.ht-lesson > :first-child { margin-top: 0; }
+.ht-lesson > :last-child { margin-bottom: 0; }
+.ht-peer { display: flex; gap: 10px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.ht-peer .ht-portrait { width: 38px; height: 38px; }
+.ht-peer p { margin: 0; font-size: 13px; line-height: 1.7; }
+.ht-peer b { display: block; font-size: 11px; color: var(--ink-soft); }
+.ht-compact { padding: 12px; }
+.ht-compact .ht-portrait { width: 52px; height: 52px; }
+.ht-compact .ht-place span { display: none; }
+.ht-compact .ht-bubble p { font-size: 13px; }
+.ht-compact .ht-name b { font-size: 14px; }
+.hunter-tutor[data-mood='celebrate'] { border-style: double; border-left-width: 4px; box-shadow: 0 0 0 3px var(--ht-glow); }
+.hunter-tutor[data-mood='encourage'] .ht-bubble { border-bottom: 2px solid var(--ht-glow); padding-bottom: 4px; }
+.n3-kpieces .n3-kpiece { transition: background-color .2s; }
+.n3-kpieces .n3-kpiece:hover { background: var(--kon-soft); }
+@media (max-width: 480px) {
+  .hunter-tutor { padding: 12px; margin: 12px 0; }
+  .ht-speaker { gap: 10px; }
+  .ht-portrait { width: 62px; height: 62px; }
+  .ht-place span { display: none; }
+  .ht-bubble p { font-size: 13px; }
+  .ht-lesson { padding: 12px; font-size: 15px; }
+  .ht-compact .ht-portrait { width: 44px; height: 44px; }
+  .ht-name { gap: 5px; }
+}
+@media (prefers-reduced-motion: reduce) { .n3-kpieces .n3-kpiece { transition: none; } }

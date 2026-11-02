@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconCheck, IconSpeaker, IconX } from '../components/Icons.jsx';
 import BuildQuiz from '../components/BuildQuiz.jsx';
+import HunterTutor from '../components/HunterTutor.jsx';
+import { conversationTutor } from '../data/hunterTutors.js';
 import { readingText, speakJapanese } from '../lib/tts.js';
 import { markBusy } from '../lib/busy.js';
 import { goalOf } from '../lib/goal.js';
@@ -289,7 +291,9 @@ function AiResult({ data, settings }) {
           <button className="qc-speak cmp-speak" onClick={() => speak(data.corrected, data.kana)} aria-label="고친 문장 듣기"><IconSpeaker /></button>
         </div>
       )}
-      {data.reason && <div className="cmp-reason">{data.reason}</div>}
+      {data.reason && <HunterTutor guide={conversationTutor(data.corrected + ' ' + data.reason)} scene="city" mood={data.verdict === 'good' ? 'celebrate' : 'explain'} title="내 문장 첨삭" line="고친 표현이 어떤 상황에서 쓰이는지, 이유와 함께 확인해 봐요." compact>
+        <div className="cmp-reason">{data.reason}</div>
+      </HunterTutor>}
       {data.natural.length > 0 && (
         <div className="cmp-natural">
           <small>이렇게도 말해요</small>

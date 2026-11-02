@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import BottomSheet from '../components/BottomSheet.jsx';
+import HunterTutor from '../components/HunterTutor.jsx';
 import { GRAMMAR_MODULES } from '../data/grammar.js';
 import { conjugate, FORM_LABELS } from '../lib/conjugate.js';
 import { IconGrid } from '../components/Icons.jsx';
@@ -93,6 +94,7 @@ export default function Grammar({ words, onProgress }) {
           <>
             <h3>{module.title}</h3>
             <div className="sub">규칙 정리 &amp; 미니 퀴즈</div>
+            <HunterTutor guide="wing" scene="arena" title="활용의 원리" line="아래 규칙에서 동사의 갈래와 바뀌는 부분을 먼저 찾아보자." peer={{ guide: 'zushi', line: '같은 뜻도 정중한 말과 보통 말로 나눠서 확인할게요.' }} compact>
             <table className="ruletable">
               <tbody>
                 {module.rules.map(([k, v]) => (
@@ -100,6 +102,7 @@ export default function Grammar({ words, onProgress }) {
                 ))}
               </tbody>
             </table>
+            </HunterTutor>
             <div className="quiz-q">
               {question.word.kanji}({question.word.kana})의 {FORM_LABELS[question.formKey]}은?
             </div>

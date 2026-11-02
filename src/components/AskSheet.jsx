@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconSpeaker, IconPlus } from './Icons.jsx';
 import BottomSheet from './BottomSheet.jsx';
+import HunterTutor from './HunterTutor.jsx';
+import { questionTutor } from '../data/hunterTutors.js';
 import { speakJapanese } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { resolveProvider } from '../lib/aiClient.js';
@@ -144,7 +146,9 @@ export default function AskSheet({
         {shown && (
           <div className="ask-ans">
             <div className="ask-q">{shown.q}</div>
-            <p className="ask-text">{shown.answer}</p>
+            <HunterTutor guide={questionTutor(shown.q)} scene="city" title="궁금한 표현 설명" line="지금 질문한 내용과 카드의 표현을 함께 살펴봐요." compact>
+              <p className="ask-text">{shown.answer}</p>
+            </HunterTutor>
             {shown.items.map((it) => (
               <div key={it.jp} className="ask-item">
                 <div className="ask-itop">
