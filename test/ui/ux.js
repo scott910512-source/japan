@@ -141,9 +141,9 @@ const judge = async (page, label) => {
      .sub-body 안에 산다. 화면 자체는 그대로다. */
   await openReview(page);
   await page.waitForTimeout(800);
-  const rv = await page.textContent('.screen.active');
+  const rv = await page.textContent('.subscreen.open');
   /* 복습 탭 — 오늘 복습이 맨 위, 틀린 문제·취약이 그 아래 */
-  ok('복습 탭에 오늘 복습이 맨 위', rv.includes('오늘 복습'), rv.replace(/\s+/g, ' ').slice(0, 80));
+  ok('복습 화면에 오늘 복습이 맨 위', rv.includes('오늘 복습'), rv.replace(/\s+/g, ' ').slice(0, 80));
   ok('취약 단어 입구가 있음', rv.includes('취약 단어'));
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));

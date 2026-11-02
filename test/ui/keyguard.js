@@ -27,9 +27,12 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
      자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이것 때문에
      화면 검사가 통째로 죽었다. 로그인 문을 지나가려면 오프라인이기만 하면 된다. */
   await p.reload({ waitUntil: 'domcontentloaded' });
+  /* 불러오는 동안 끊으면 아직 안 받은 화면 조각을 못 받아 「여는 중」에서 멈춘다 — 다 받은 뒤에 끊는다 */
+  await p.waitForTimeout(1500);
   await p.context().setOffline(true);
   await p.waitForTimeout(900);
-  const off = p.locator('.gate-offline'); if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
+  const off = p.locator('.gate-offline'); await off.waitFor({ timeout: 8000 }).catch(() => {});
+  if (await off.count()) { await off.click(); await p.waitForTimeout(700); }
   /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직 안 그려진
      화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가 제 말로 실패한다. */
   await p.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
