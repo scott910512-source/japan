@@ -2,7 +2,7 @@ import { useAppData, usePersistAppData } from './app/useAppData.js';
 import FeatureScreen from './app/FeatureScreen.jsx';
 import HunterAppHeader from './components/HunterAppHeader.jsx';
 import { recordMistake } from './lib/mistakes.js';
-import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub, WrongBook } from './app/screens.js';
+import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub, WrongBook, WeakHub } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
 import { filterByLevel } from './lib/wordFilters.js';
 import { useAccountSync } from './app/useAccountSync.js';
@@ -24,6 +24,8 @@ import { dailyPool } from './lib/cards.js';
 import { kijuIndex } from './lib/kiju.js';
 import { hasSignedInOnce } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
+import { weakIds, WEAK_KIND } from './lib/weak.js';
+import { noteWeakQuiz, weakQuizState } from './lib/weakquiz.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
@@ -54,6 +56,7 @@ const SUB_TITLES = {
   n3: '한 권으로 끝내는 N3',
   review: '복습',
   wrongbook: '오답노트',
+  weakbook: '약점',
 };
 
 export default function App() {
@@ -268,6 +271,31 @@ export default function App() {
      정하는 쪽이 알 일이 아니다. */
   /* 복습으로 — 내 학습 탭 위에 연다. 닫으면 내 학습으로 돌아온다 */
   const wrongTotal = useMemo(() => wrongTotals(progress.mistakes, n3Wrong.all), [progress.mistakes, n3Wrong.all]);
+  /* ★ 약점 퀴즈 ★ 지금 제일 약한 낱말로 단어 시험을 열고, 푼 낱말을 오늘 몫에 적는다.
+     시험 화면은 그대로 쓴다 — 듣기에서 넘어오는 세트(quizSet)와 같은 길이다. */
+  const weakAll = useMemo(() => weakIds(wordIds, review, progress.weak), [wordIds, review, progress.weak]);
+  const weakQuiz = useMemo(() => weakQuizState(progress, weakAll, today), [progress, weakAll, today]);
+  const weakQuizOn = useRef(false);
+  useEffect(() => { if (sub !== 'quiz') weakQuizOn.current = false; }, [sub]);
+  const startWeakQuiz = useCallback(() => {
+    const cards = weakQuiz.ids.map((id) => byId.get(id)).filter(Boolean);
+    if (!cards.length) { showToast('약점 퀴즈로 풀 낱말이 아직 없어요'); return; }
+    setQuizSet(cards);
+    weakQuizOn.current = true;
+    setActiveTab('me');
+    openSub('quiz');
+  }, [weakQuiz, byId, showToast, setQuizSet, setActiveTab, openSub]);
+  /* 시험이 적는 약점 장부 줄을 가로채서, 약점 퀴즈 중이면 푼 낱말을 오늘 몫에도 적는다 */
+  const noteWeaknessQuiz = useCallback((notes) => {
+    noteWeakness(notes);
+    if (!weakQuizOn.current || !notes?.length) return;
+    const ids = notes.filter((n) => n.kind === WEAK_KIND.QUIZ_RIGHT || n.kind === WEAK_KIND.QUIZ_WRONG).map((n) => n.id);
+    if (!ids.length) return;
+    setProgress((p) => {
+      const next = noteWeakQuiz(p.weakQuiz, ids, today);
+      return next === p.weakQuiz ? p : { ...p, weakQuiz: next };
+    });
+  }, [noteWeakness, setProgress, today]);
   const openReview = useCallback(() => { setActiveTab('me'); openSub('review'); }, [setActiveTab, openSub]);
   const openMenu = useCallback((id, opts = {}) => {
     if (id === 'compose') setComposeStart(opts.mode || null);
@@ -437,6 +465,8 @@ export default function App() {
             n3={progress.n3 || null}
             onResume={resumeSession}
             onOpenReview={openReview}
+            weakQuiz={weakQuiz}
+            onStartWeakQuiz={startWeakQuiz}
             onLearnMore={learnMore}
           />
         </ScreenSlot>
@@ -465,6 +495,8 @@ export default function App() {
             grammarLeft={grammarLeft}
             n3Summary={progress.n3?.summary || null}
             weakWords={weakWords}
+            weakGrammar={n3Wrong.grammar}
+            onOpenWeak={() => openSub('weakbook')}
             showN3={Boolean(settings.menus?.n3)}
             onOpenStudy={() => selectTab('study')}
             reviewLeft={reviewLeft}
@@ -555,22 +587,28 @@ export default function App() {
                   onLearn={learnMistake}
                   onOpenN3Wrong={() => openMenu('n3', { view: { kind: 'wrong' } })}
                 />
+              ) : sub === 'weakbook' ? (
+                <WeakHub
+                  weakWords={weakWords}
+                  weakGrammar={n3Wrong.grammar}
+                  weakBook={weakBook}
+                  weakRows={weakRows}
+                  quiz={weakQuiz}
+                  onStartQuiz={startWeakQuiz}
+                  onStartDeck={startWeakDeck}
+                  onOpenGrammar={() => openMenu('n3', { view: { kind: 'weak', from: 'hub' } })}
+                />
               ) : sub === 'review' ? (
                   <ReviewHub
                     planNow={planNow}
                     sentenceDue={sentenceDue}
-                    weakWords={weakWords}
-                    /* 약점 장부 — 어느 게 약한지, 금방 잊어버리는지 */
-                    weakBook={weakBook}
-                    weakRows={weakRows}
+                    weakCount={weakWords + n3Wrong.grammar}
                     wrongCount={wrongTotal.total}
-                    weakGrammar={n3Wrong.grammar}
                     onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
                     onStartBacklog={startDueDeck}
                     onOpenSentences={() => setSub('sentences')}
                     onOpenWrong={() => openSub('wrongbook', 'review')}
-                    onOpenWeakWords={startWeakDeck}
-                    onOpenWeakGrammar={() => openMenu('n3', { view: { kind: 'weak', from: 'hub' } })}
+                    onOpenWeak={() => openSub('weakbook', 'review')}
                     onOpenRepeat={() => setSub('repeat')}
                   />
               ) : (
@@ -597,7 +635,7 @@ export default function App() {
                 startQuizWrongDeck={startQuizWrongDeck}
                 noteActivity={noteActivity}
                 /* 약점 장부 — 시험과 듣기가 한 줄씩 적는다 */
-                noteWeakness={noteWeakness}
+                noteWeakness={noteWeaknessQuiz}
                 listenMode={listenMode}
                 quizSet={quizSet}
                 onQuizSet={(cards) => { setQuizSet(cards); setSub('quiz'); }}

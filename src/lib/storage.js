@@ -188,6 +188,8 @@ const DEFAULT_PROGRESS = {
      시험·듣기·잊어버림을 센다. 복습 간격은 안 건드린다(회독 저장소가 따로 있다).
      여기 두는 이유도 n3과 같다 — 백업·동기화에 저절로 실린다(mergeWeak). */
   weak: {},
+  /* 오늘 약점 퀴즈로 푼 낱말 — { day, ids }. 날이 바뀌면 새로 시작한다(lib/weakquiz.js) */
+  weakQuiz: {},
 };
 export function loadProgress() {
   const saved = read(KEYS.progress, {});
@@ -201,6 +203,7 @@ export function loadProgress() {
     rpg: { exp: saved?.rpg?.exp || 0, stages: saved?.rpg?.stages || {} },
     n3: saved?.n3 && typeof saved.n3 === 'object' ? saved.n3 : null,
     weak: saved?.weak && typeof saved.weak === 'object' ? saved.weak : {},
+    weakQuiz: saved?.weakQuiz && typeof saved.weakQuiz === 'object' ? saved.weakQuiz : {},
   };
 }
 export function saveProgress(progress) {

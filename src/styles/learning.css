@@ -440,3 +440,13 @@
 .wb2-head b { font-size: 28px; line-height: 1.1; }
 .wb2-head b small { font-size: 13px; margin-left: 2px; font-weight: 500; color: var(--ink-soft); }
 .wb2-n3 { width: 100%; text-align: left; }
+
+/* 약점(한 화면) */
+.wk-sum { margin-bottom: 12px; }
+.wk-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.wk-head span { font-weight: 700; }
+.wk-head b { font-size: 28px; line-height: 1.1; }
+.wk-head b small { font-size: 13px; margin-left: 2px; font-weight: 500; color: var(--ink-soft); }
+.wk-acts { display: grid; gap: 8px; margin-bottom: 12px; }
+.wk-acts .submit-btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.wk-quizsub { margin: -2px 2px 2px; }

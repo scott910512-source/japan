@@ -150,11 +150,11 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
     await off2.waitFor({ timeout: 8000 }).catch(() => {});
     if (await off2.count()) { await off2.click(); await page.waitForTimeout(700); }
     await page.locator('.tabbar').waitFor({ timeout: 20000 });
-    await goTab(page, '복습');
+    await goTab(page, '약점');
     await page.waitForTimeout(600);
 
     const card = page.locator('.wb-card');
-    ok('약점 장부가 복습 탭에 뜬다', await card.count() === 1, `심은 낱말 ${ids.length}개`);
+    ok('약점 장부가 약점 화면에 뜬다', await card.count() === 1, `심은 낱말 ${ids.length}개`);
     const txt = (await card.innerText().catch(() => '')).replace(/\s+/g, ' ');
     ok('시험 오답 수를 말한다', txt.includes('시험 오답'), txt.slice(0, 90));
     ok('외웠다가 틀린 횟수를 말한다', txt.includes('외웠다가'));
@@ -165,8 +165,9 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
     ok('★ 금방 잊는 낱말을 짚어 준다 ★', await page.locator('.wb-fast').count() > 0,
       await page.locator('.wb-fast').first().innerText().catch(() => '없음'));
     ok('왜 약한지가 낱말마다 붙는다', await page.locator('.wb-row .wb-why').count() > 0);
-    ok('약한 것부터 외우러 가는 길이 있다', await page.locator('.wb-start').count() === 1,
-      await page.locator('.wb-start').innerText().catch(() => ''));
+    ok('약한 것부터 외우러 가는 길이 있다', await page.locator('.wk-deck').count() === 1,
+      await page.locator('.wk-deck').innerText().catch(() => ''));
+    ok('★ 약점 퀴즈로 가는 길도 같은 화면에 있다 ★', await page.locator('.wk-quiz').count() === 1);
 
     // 제일 약한 것이 맨 위 — 금방 잊은 낱말이 시험 네 번 틀린 낱말보다 위다
     const firstRow = await page.locator('.wb-row').first().getAttribute('data-weak');

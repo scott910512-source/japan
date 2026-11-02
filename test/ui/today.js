@@ -272,7 +272,7 @@ async function boot(browser, patch = {}, init = null) {
   /* 회독 학습·약점 복습은 복습 탭으로 — 같은 곳으로 가는 길이 하나다 */
   await goTab(page, '복습');
   ok('전체 복습(회독 학습)이 복습 탭에', await page.locator('.rv-row[data-row="repeat"]').count() === 1);
-  ok('취약 단어도 복습 탭에', await page.locator('.rv-row[data-row="weak-words"]').count() === 1);
+  ok('약점도 복습 화면에 한 줄(취약 단어·문법은 그 안)', await page.locator('.rv-row[data-row="weak"]').count() === 1);
   /* 번역기와 내 단어장은 설정 → 학습 도구에 — 공부가 아니라 쓰는 것이라서 */
   await openMore(page, 'tools');
   ok('번역기는 설정의 학습 도구에 있음',

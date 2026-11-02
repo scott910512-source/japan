@@ -29,6 +29,13 @@ export async function goTab(page, label, wait = 700) {
      덮인 화면이 다 닫힐 때까지 누른다(사람도 그렇게 한다) */
   const back = page.locator('.subscreen.open .sub-header:not(.inline) .sub-back');
   for (let i = 0; i < 3 && await back.count(); i++) { await back.first().click(); await page.waitForTimeout(500); }
+  /* 약점·오답노트도 내 학습 위에 여는 화면이다 */
+  if (label === '약점' || label === '오답노트') {
+    await goTab(page, '내 학습', 400);
+    await page.locator(`.me-row[data-row="${label === '약점' ? 'weak' : 'wrong'}"]`).click();
+    await page.waitForTimeout(wait);
+    return;
+  }
   /* 복습은 탭이 아니다 — 내 학습 탭 위에 여는 화면이다. 옛 검사가 goTab('복습')으로 부르니 같은 길로 보낸다 */
   if (label === '복습') {
     await goTab(page, '내 학습', 400);
