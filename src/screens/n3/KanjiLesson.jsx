@@ -5,6 +5,7 @@ import { stateOf } from '../../lib/review.js';
 import { kanjiConfirmQuestions, kanjiComponents, masteryOf, MASTERY_LABEL } from '../../lib/n3.js';
 import QuizRunner from './QuizRunner.jsx';
 import JpSpeak from './JpSpeak.jsx';
+import HunterTutor from '../../components/HunterTutor.jsx';
 
 /* 구성 요소 칩에 붙일 이름 — 부수면 부수 이름(亻 → 사람인변), 이 코스의 한자면 훈음.
    둘 다 아니면 이름을 안 붙인다(모르는 것을 지어내지 않는다). */
@@ -58,7 +59,9 @@ export function KanjiCard({ k, rate, review }) {
             );
           })}
         </div>
-        {k.st && <div className="n3-kst">{k.st}</div>}
+        <HunterTutor guide="kurapika" scene="cards" title="구성 요소 살펴보기" line="조각을 먼저 살펴보자. 모양 설명과 실제 유래, 외우기 위한 연상은 서로 구분해야 해." compact>
+          {k.st ? <div className="n3-kst">{k.st}</div> : <p>위에 표시된 구성 요소와 아래 단어를 함께 확인해요. 확인되지 않은 유래는 만들어 설명하지 않아요.</p>}
+        </HunterTutor>
       </div>
 
       <div className="n3-ksec" data-sec="origin">

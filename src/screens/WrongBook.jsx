@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import MistakeNotebook from '../components/MistakeNotebook.jsx';
+import HunterTutor from '../components/HunterTutor.jsx';
 import { IconChevron } from '../components/Icons.jsx';
 import { wrongTotals } from '../lib/wrongbook.js';
 
@@ -12,6 +13,7 @@ export default function WrongBook({ book, n3WrongCount, onAttempt, onLearn, onOp
   const t = useMemo(() => wrongTotals(book, n3WrongCount), [book, n3WrongCount]);
   return (
     <>
+      <HunterTutor guide="killua" scene="arena" mood="encourage" title="오답부터 다시 수련" line={t.total ? `다시 볼 문제 ${t.total}개가 있어. 기록과 해설을 보고 헷갈린 부분부터 확인해 보자.` : '아직 남아 있는 오답이 없어. 문제를 풀다 헷갈린 부분이 생기면 여기서 다시 확인하자.'} compact />
       <div className="card wb2-sum" data-total={t.total}>
         <div className="wb2-head"><span>다시 볼 오답</span><b>{t.total}<small>개</small></b></div>
         <div className="set-note">새 오답노트 {t.fresh}개 · N3 코스에만 남은 오답 {t.n3Only}개. 같은 문제는 한 번만 세요.</div>

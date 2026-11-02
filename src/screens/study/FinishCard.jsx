@@ -1,3 +1,5 @@
+import HunterTutor from '../../components/HunterTutor.jsx';
+
 /* 완주 카드 — 몇 장 끝냈나 · 판정 셋 · 다음으로.
    Study.jsx에서 떼어 냈다. 동작은 그대로다. */
 export default function FinishCard({ finished, deck, settings, onClose, onHome, onNext, onUndo }) {
@@ -8,6 +10,7 @@ export default function FinishCard({ finished, deck, settings, onClose, onHome, 
       <div className="finish">
         <div className="fin-badge">🎉</div>
         <h2>{finished.reason === 'clear' ? '오늘 회독 완주!' : '오늘은 여기까지'}</h2>
+        <HunterTutor guide={settings.hunterGuide || 'gon'} scene="island" mood={finished.reason === 'clear' ? 'celebrate' : 'encourage'} title="함께한 수련 기록" line={`${finished.cleared} / ${finished.total}장을 마쳤어요. 아래 판정과 다음 학습을 확인해 봐요.`} compact />
 
         {/* 무엇을 했는지가 결과다. 「장」은 서로 다른 카드, 「번」은 누른 횟수 —
             몰라요가 섞이면 둘이 달라져서, 한 낱말로 뭉뚱그리면 거짓이 된다. */}

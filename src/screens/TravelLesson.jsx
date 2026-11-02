@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconArrowLeft, IconRewind, IconCheck } from '../components/Icons.jsx';
 import SpeakButton from '../components/SpeakButton.jsx';
+import HunterTutor from '../components/HunterTutor.jsx';
+import { conversationTutor } from '../data/hunterTutors.js';
 import { readingText, speakIn } from '../lib/tts.js';
 import { buildExercises, starsFor } from '../lib/travelCourse.js';
 
@@ -64,6 +66,7 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
     return (
       <div className="swl-finish">
         <div className="navtitle"><small>{mode === 'drill' ? '한 판 끝' : '레슨 끝'}</small>{stars === 3 ? '다 알아들었어요!' : (stars === 2 ? '잘했어요' : '끝까지 했어요')}</div>
+        <HunterTutor guide="gon" scene="island" mood={stars === 3 ? 'celebrate' : 'encourage'} title="여행 회화 수련 완료" line="오늘 만난 표현을 실제 상황에서도 하나씩 써 보자!" compact />
         <div className="card swl-stars" data-stars={stars}>
           <div className="swl-starrow" aria-label={`별 ${stars}개`}>
             {[1, 2, 3].map((n) => <span key={n} className={n <= stars ? 'on' : ''}>★</span>)}
@@ -180,6 +183,7 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
       ) : (
         <div className={`swl-feedback ${checked}`}>
           <div className="swl-fhead">{checked === 'ok' ? <><IconCheck /> 맞았어요</> : '아쉬워요'}</div>
+          <HunterTutor guide={checked === 'ok' ? conversationTutor(ex.item.jp + ' ' + ex.item.ko) : 'killua'} scene="city" mood={checked === 'ok' ? 'explain' : 'encourage'} title="상황과 표현 연결하기" line="답을 고른 뒤에는, 어떤 상황에서 이 말을 쓰는지 함께 확인해 봐요." peer={checked === 'ok' && conversationTutor(ex.item.jp + ' ' + ex.item.ko) === 'menchi' ? { guide: 'buhara', line: '음식 이름과 주문 표현을 함께 익혀 봐요.' } : undefined} compact>
           <div className="swl-fbody">
             <div className="swl-fko">{ex.item.ko}</div>
             <div className="swl-fde">
@@ -189,6 +193,7 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
             </div>
             {ex.item.note && <em className="tr-note">{ex.item.note}</em>}
           </div>
+          </HunterTutor>
           <div className="btnrow" style={{ marginTop: 10 }}>
             <button className="submit-btn swl-next" onClick={next}>계속</button>
           </div>

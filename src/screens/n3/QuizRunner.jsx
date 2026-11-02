@@ -5,6 +5,7 @@ import { speakJapanese, stopSpeaking } from '../../lib/tts.js';
 import { BLANK } from '../../data/n3/grammar.js';
 import { shuffle } from '../../lib/n3.js';
 import JpSpeak from './JpSpeak.jsx';
+import HunterTutor from '../../components/HunterTutor.jsx';
 
 /* 문제 풀기 — 코스의 모든 문제가 이 하나를 지난다.
  *
@@ -75,6 +76,7 @@ export default function QuizRunner({
     const pct = total ? Math.round((right / total) * 100) : 0;
     return (
       <div className="n3-finish">
+        <HunterTutor guide={mode === 'exam' ? 'netero' : 'gon'} scene={mode === 'exam' ? 'exam' : 'island'} mood={pct >= 70 ? 'celebrate' : 'encourage'} title="수련 결과" line={wrong.length ? `${total}문제 중 ${right}문제를 맞혔어요. 아래에 남은 오답과 해설을 다시 확인해 봐요.` : `${right} / ${total}문제를 확인했어요. 다음 수련으로 이어가 봐요.`} compact />
         <div className="card n3-score" data-right={right} data-total={total}>
           <b>{right} / {total}</b>
           <span>{pct >= 90 ? '훌륭해요' : pct >= 70 ? '잘했어요' : pct >= 50 ? '조금 더' : '다시 한번'} · 정답률 {pct}%</span>
@@ -110,6 +112,7 @@ export default function QuizRunner({
         <span className="swl-count">{at + 1} / {total}</span>
       </div>
       {title && <div className="n3-qtitle">{title}</div>}
+      {at === 0 && <HunterTutor guide={mode === 'exam' ? 'hisoka' : 'hanzo'} scene="exam" title={mode === 'exam' ? '실전 도전' : '집중 퀴즈'} line={mode === 'exam' ? '이번에는 스스로 풀어 보자. 해설은 시험을 마친 뒤에 확인할 수 있어.' : '먼저 스스로 답을 골라 봐. 고른 뒤에 이유를 함께 살펴보자.'} compact />}
 
       {q.passage && (
         <div className="card n3-passage">
@@ -158,12 +161,14 @@ export default function QuizRunner({
       {picked !== null && mode !== 'exam' && (
         <div className={`swl-feedback n3-fb ${ok ? 'ok' : 'no'}`}>
           <div className="swl-fhead">{ok ? <><IconCheck /> 정답!</> : <><IconX /> 틀렸어요</>}</div>
+          <HunterTutor guide={ok ? 'gon' : 'killua'} scene={ok ? 'island' : 'arena'} mood={ok ? 'celebrate' : 'encourage'} title={ok ? '정답 확인' : '고른 답과 비교하기'} line={ok ? '맞았어! 해설까지 확인하고 다음으로 가자.' : '방금 고른 보기와 정답을 비교해 보자. 차이는 아래 해설에서 확인할 수 있어.'} compact>
           <div className="swl-fbody">
             {!ok && q.why?.[picked] && <p className="n3-why"><b>「{picked}」</b> — {q.why[picked]}</p>}
             {!ok && <p className="n3-ans">정답: <b>{q.answer}</b></p>}
             {q.expl && <p className="n3-expl">{q.expl}</p>}
             {q.speakAfter && <JpSpeak text={q.speakAfter} rate={rate} id={`answer:${q.id}`} label="정답 발음 듣기" className="n3-answer-spk" />}
           </div>
+          </HunterTutor>
           <button className="submit-btn n3-next" onClick={() => advance()} style={{ marginTop: 10 }}>
             {at + 1 >= total ? lastLabel : '다음'}
           </button>
