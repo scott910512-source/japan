@@ -11,8 +11,8 @@
  *   동사 활용          → 문법 화면 안 「연습」 줄
  *   듣기 탭            → 학습 탭 「듣기」 칸 (자동 · 따라 · 영상)
  *   기록 탭            → 내 학습 탭
- *   더보기 탭          → 내 학습 탭 → 「설정」 줄
- *   밀어 넣는 복습 화면 → 복습 탭 */
+ *   더보기 탭          → 설정 탭
+ *   밀어 넣는 복습 화면 → 내 학습 탭 → 「복습」 줄 (복습 탭은 없어졌다) */
 
 /* 탭으로 간다.
  *
@@ -29,8 +29,15 @@ export async function goTab(page, label, wait = 700) {
      덮인 화면이 다 닫힐 때까지 누른다(사람도 그렇게 한다) */
   const back = page.locator('.subscreen.open .sub-header:not(.inline) .sub-back');
   for (let i = 0; i < 3 && await back.count(); i++) { await back.first().click(); await page.waitForTimeout(500); }
+  /* 복습은 탭이 아니다 — 내 학습 탭 위에 여는 화면이다. 옛 검사가 goTab('복습')으로 부르니 같은 길로 보낸다 */
+  if (label === '복습') {
+    await goTab(page, '내 학습', 400);
+    await page.locator('.me-row[data-row="review"]').click();
+    await page.waitForTimeout(wait);
+    return;
+  }
   /* 「학습」은 「내 학습」에도 들어 있다 — 이름이 아니라 id로 누른다 */
-  const id = { '오늘': 'home', '홈': 'home', '학습': 'study', '복습': 'review', '내 학습': 'me' }[label];
+  const id = { '오늘': 'home', '홈': 'home', '학습': 'study', '내 학습': 'me', '설정': 'settings' }[label];
   const tab = id ? page.locator(`.tabbar .tab[data-tab="${id}"]`) : page.locator('.tabbar .tab', { hasText: label }).first();
   await tab.click();
   await page.waitForTimeout(wait);
@@ -87,19 +94,15 @@ export async function startStudy(page, want = null) {
   return true;
 }
 
-/* 설정을 연다 — 내 학습 탭 → 「설정」 줄. 이미 설정 안이면 그대로. */
+/* 설정을 연다 — 하단 「설정」 탭. 탭을 누르면 늘 묶음 목록이 나온다. */
 export async function openSettings(page) {
-  if (await page.locator('.moregroup').count() || await page.locator('.moreback').count()) return true;
-  await goTab(page, '내 학습');
-  await page.locator('.me-settings').click();
-  await page.waitForTimeout(600);
+  await goTab(page, '설정');
   return Boolean(await page.locator('.moregroup').count());
 }
 
 /* 설정의 한 묶음을 연다.
  *
- * ★ 더보기 탭이 없어졌다 ★ 설정은 내 학습 탭에서 밀어 넣는 화면이고, 그 안은
- * 예전처럼 여섯 묶음 목록이다. 검사 여덟 곳이 탭만 누르고 내용을 찾고
+ * ★ 설정은 하단 탭이다 ★ 그 안은 여섯 묶음 목록이다. 검사 여덟 곳이 탭만 누르고 내용을 찾고
  * 있었으니, 어디를 눌러 들어가는지는 여기서만 정한다.
  *
  * group: study · voice · account · backup · tools · about
@@ -187,7 +190,7 @@ export async function openListen(page, way = 'auto') {
   await page.waitForTimeout(900);
 }
 
-/* 복습 탭. 오늘 복습·틀린 문제·약점·전체 복습이 여기 하나에 있다. */
+/* 복습 화면. 내 학습 탭 → 「복습」 줄. 오늘 복습·틀린 문제·약점·전체 복습이 여기 하나에 있다. */
 export async function openReview(page) {
   await goTab(page, '복습');
 }

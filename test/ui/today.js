@@ -111,7 +111,7 @@ async function boot(browser, patch = {}, init = null) {
   console.log('── 켜면 오늘이 먼저');
   ok('오늘 탭이 켜진 채로 시작',
     (await page.locator('.tabbar .tab.active').textContent()).includes('오늘'));
-  ok('★ 탭은 넷 — 오늘 · 학습 · 복습 · 내 학습 ★', (await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.dataset.tab))).join() === 'home,study,review,me');
+  ok('★ 탭은 넷 — 오늘 · 학습 · 내 학습 · 설정 ★', (await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.dataset.tab))).join() === 'home,study,me,settings');
   ok('N3 진도 한 줄이 머리 밑에 있음', await page.locator('.hm-goal').count() === 1);
 
   /* ★ 3초 안에 알아야 하는 둘 — 얼마나 남았나, 어디를 누르나 ★ */

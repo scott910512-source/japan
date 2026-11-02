@@ -199,17 +199,12 @@ async function solveOne(page, { wrong = false } = {}) {
   ok('★ 쓰기·받아쓰기 문제에는 보기 버튼이 하나도 없다 ★', optsOnTyping === 0);
   await hard.close();
 
-  console.log('\n[ 복습 탭의 「독일어 복습」 줄 ]');
+  console.log('\n[ 독일어는 독일어 안에서만 복습한다 ]');
   const tab = await boot(browser, progressDone());
   tab.on('pageerror', (e) => errors.push(e.message));
   await goTab(tab, '복습');
   await tab.waitForTimeout(900);
-  ok('★ 복습 탭에 독일어 복습 줄이 뜬다 ★', await tab.locator('.rv-row[data-row="swiss"]').count() === 1);
-  ok('개수가 맞다', (await tab.locator('.rv-row[data-row="swiss"] .rv-cnt').innerText()) === String(due0));
-  ok('일본어 복습과 따로 센다고 밝힌다', (await tab.locator('.rv-row[data-row="swiss"]').innerText()).includes('따로'));
-  await tab.locator('.rv-row[data-row="swiss"]').click();
-  await tab.waitForTimeout(1200);
-  ok('★ 누르면 바로 복습이 열린다 ★', await tab.locator('.swl-count').count() === 1 && (await countOf(tab)).startsWith('1/'));
+  ok('★ 일본어 복습 화면에 독일어 줄이 없다(독일어는 단독 구성) ★', await tab.locator('.rv-row[data-row="swiss"]').count() === 0);
   await tab.close();
 
   console.log('\n[ 아직 안 배운 사람 ]');
@@ -217,7 +212,7 @@ async function solveOne(page, { wrong = false } = {}) {
   fresh.on('pageerror', (e) => errors.push(e.message));
   await goTab(fresh, '복습');
   await fresh.waitForTimeout(700);
-  ok('복습 탭에 독일어 줄이 없다', await fresh.locator('.rv-row[data-row="swiss"]').count() === 0);
+  ok('복습 화면에 독일어 줄이 없다', await fresh.locator('.rv-row[data-row="swiss"]').count() === 0);
   await openMenu(fresh, '독일어');
   await fresh.waitForTimeout(500);
   ok('★ 복습 시작이 막혀 있고 이유를 알려 준다 ★', await fresh.locator('.swh-rstart').isDisabled() && (await fresh.locator('.swh-rdue').innerText()).includes('레슨을 끝내면'));

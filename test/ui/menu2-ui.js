@@ -61,36 +61,23 @@ async function boot(browser) {
   const want = STAGES.filter((s) => s.id !== 'self').map((s) => s.label);
   ok('★ 단계 이름이 rounds.js 하나와 같다 ★', shown.join() === want.join(), shown.join(' / '));
   ok('복습 간격 안내도 그대로', (await page.textContent('.screen.active')).includes('1 · 3 · 7 · 30 · 90일'));
-  await stages.locator('.rv-me').click();
+  await page.locator('.subscreen .sub-back').first().click();
   await page.waitForTimeout(500);
-  ok('「내 학습에서 보기」가 내 학습 탭을 연다', await page.locator('.tabbar .tab.active[data-tab="me"]').count() === 1);
+  ok('복습을 닫으면 내 학습으로 돌아온다', await page.locator('.tabbar .tab.active[data-tab="me"]').count() === 1);
   ok('기억 수준 막대가 거기 있다', await page.locator('.roundstat').count() === 1);
 
-  console.log('\n[ 내 학습 — 계정·백업 바로가기 ]');
-  ok('설정은 별도 줄로 있다', await page.locator('.me-settings').count() === 1);
-  ok('계정과 동기화 줄', await page.locator('.me-account').count() === 1);
-  ok('기록 백업 줄', await page.locator('.me-backup').count() === 1);
-
-  await page.locator('.me-account').click();
-  await page.waitForTimeout(700);
-  ok('★ 계정 줄: 설정 목록을 거치지 않고 계정 묶음이 열린다 ★',
-    await page.locator('.moregroup').count() === 0 && (await page.textContent('.subscreen')).includes('계정'),
-    (await page.locator('.moreback').count() ? '묶음 안' : '목록'));
-  await page.locator('.subscreen .sub-back').first().click();
-  await page.waitForTimeout(500);
-  ok('뒤로 가면 내 학습', await page.locator('.me-settings').count() === 1);
-
-  await page.locator('.me-backup').click();
-  await page.waitForTimeout(700);
-  ok('★ 백업 줄: 백업 묶음이 바로 열린다 ★',
-    await page.locator('.moregroup').count() === 0 && /백업|내려받기|복원/.test(await page.textContent('.subscreen')));
-  await page.locator('.subscreen .sub-back').first().click();
-  await page.waitForTimeout(500);
-
-  await page.locator('.me-settings').click();
-  await page.waitForTimeout(600);
-  ok('설정 줄은 여전히 여섯 묶음 목록', await page.locator('.moregroup').count() === 6,
+  console.log('\n[ 설정은 하단 탭 ]');
+  ok('★ 내 학습에는 설정·계정·백업 줄이 없다(탭으로 나갔다) ★',
+    await page.locator('.me-settings, .me-account, .me-backup').count() === 0);
+  await goTab(page, '설정');
+  ok('★ 설정 탭이 활성이고 여섯 묶음 목록 ★', await page.locator('.tabbar .tab.active[data-tab="settings"]').count() === 1 && await page.locator('.moregroup').count() === 6,
     `${await page.locator('.moregroup').count()}개`);
+  await page.locator('.moregroup', { hasText: '계정과 동기화' }).click();
+  await page.waitForTimeout(500);
+  ok('계정 묶음이 열린다', await page.locator('.moreback').count() === 1);
+  await goTab(page, '학습');
+  await goTab(page, '설정');
+  ok('★ 탭을 다시 열면 묶음 목록으로 돌아온다 ★', await page.locator('.moregroup').count() === 6);
 
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | ') || '깨끗');
   await browser.close();
