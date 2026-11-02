@@ -20,11 +20,13 @@
  *
  * 단원 순서는 여행에서 부딪히는 순서다 — 교과서 순서가 아니다. */
 
+import { BASIC_UNITS } from './swissBasic.js';
+
 const W = (id, ko, de, han, extra = {}) => ({ id, kind: 'word', ko, de, ...(han ? { han } : {}), ...extra });
 const S = (id, ko, de, han, extra = {}) => ({ id, kind: 'sentence', ko, de, ...(han ? { han } : {}), ...extra });
 const CH = (text, note) => ({ ch: note ? { text, note } : { text } });
 
-export const SWISS_UNITS = [
+const TRAVEL_UNITS = [
   {
     id: 'u1', title: '인사와 기본 표현', emoji: '👋', sub: '만나고 · 고맙고 · 미안하고',
     lessons: [
@@ -295,8 +297,27 @@ export function tokensOf(item) {
   return String(item.de).split(/\s+/).filter(Boolean);
 }
 
-export const SWISS_LESSONS = SWISS_UNITS.flatMap((u) => u.lessons.map((l) => ({ ...l, unitId: u.id })));
-export const SWISS_ITEMS = SWISS_LESSONS.flatMap((l) => l.items.map((it) => ({ ...it, lessonId: l.id, unitId: l.unitId })));
+/* ★ 갈래 둘 ★
+ * basic  — 기초 단어. 초등학생이 처음 배우는 낱말(숫자·색깔·동물…)과 아주 쉬운 문장.
+ * travel — 여행 회화. 식당·길 찾기처럼 여행에서 쓰는 문장.
+ * 같은 독일어 메뉴 안의 두 길이다. 잠금은 갈래 안에서만 이어진다 — 여행 회화를 이미 하던 사람이
+ * 기초를 안 끝냈다고 막히지 않고, 처음 오는 사람은 기초부터 시작한다. */
+export const SWISS_TRACKS = [
+  { id: 'basic', title: '처음 시작 — 기초 단어', sub: '초등학생 수준 · 숫자 · 색깔 · 동물부터 하나씩' },
+  { id: 'travel', title: '여행 회화', sub: '여행에서 바로 쓰는 말 · 스위스 팁' },
+];
+
+export const SWISS_UNITS = [
+  ...BASIC_UNITS.map((u) => ({ ...u, track: 'basic' })),
+  ...TRAVEL_UNITS.map((u) => ({ ...u, track: 'travel' })),
+];
+
+export const SWISS_LESSONS = SWISS_UNITS.flatMap((u) => u.lessons.map((l) => ({ ...l, unitId: u.id, track: u.track })));
+export const SWISS_ITEMS = SWISS_LESSONS.flatMap((l) => l.items.map((it) => ({ ...it, lessonId: l.id, unitId: l.unitId, track: l.track })));
+
+export function trackOfLesson(id) {
+  return lessonById(id)?.track || null;
+}
 
 export function lessonById(id) {
   return SWISS_LESSONS.find((l) => l.id === id) || null;

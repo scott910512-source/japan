@@ -5,7 +5,7 @@
  *
  * ★ 기본은 표준 독일어다 ★ 스위스 팁은 실제로 다른 말일 때만, 열에 하나쯤. */
 import {
-  SWISS_UNITS, SWISS_LESSONS, SWISS_ITEMS, itemsOfLesson, tokensOf,
+  trackOfLesson, SWISS_TRACKS, SWISS_UNITS, SWISS_LESSONS, SWISS_ITEMS, itemsOfLesson, tokensOf,
 } from '../../src/data/swiss.js';
 import {
   buildExercises, starsFor, emptyProgress, isUnlocked, nextLesson, recordLesson,
@@ -21,7 +21,8 @@ const HANGUL = /[가-힣]/;
 
 console.log('\n[ 자료가 성하다 — 표준 독일어가 기본 ]');
 {
-  ok('단원이 아홉', SWISS_UNITS.length === 9, SWISS_UNITS.map((u) => u.title).join(' · '));
+  const travelUnits = SWISS_UNITS.filter((u) => u.track === 'travel');
+  ok('여행 회화 단원이 아홉', travelUnits.length === 9, travelUnits.map((u) => u.title).join(' · '));
   ok('레슨이 열넷 넘게', SWISS_LESSONS.length >= 14, `${SWISS_LESSONS.length}개`);
   ok('낱말·문장이 백 넘게', SWISS_ITEMS.length >= 100, `${SWISS_ITEMS.length}개`);
 
@@ -60,14 +61,17 @@ console.log('\n[ 자료가 성하다 — 표준 독일어가 기본 ]');
   ok('숫자가 1~10 차례로', nums.join(',') === '1,2,3,4,5,6,7,8,9,10', nums.join(','));
 
   /* 여행 순서 — 식당·호텔·공항·길 찾기·쇼핑·응급이 다 있다 */
-  const titles = SWISS_UNITS.map((u) => u.title).join(' ');
+  const titles = SWISS_UNITS.filter((u) => u.track === 'travel').map((u) => u.title).join(' ');
   ok('여행 상황이 단원으로 있다', ['식당', '호텔', '공항', '길 찾기', '쇼핑', '응급'].every((t) => titles.includes(t)), titles);
 }
 
 console.log('\n[ ★ 스위스 팁 — 실제로 다른 말만, 열에 하나쯤 ★ ]');
 {
+  /* 팁은 여행 회화의 것이다. 기초 단어(숫자·색깔·동물)에는 스위스만의 말이 없다 */
+  const travelItems = SWISS_ITEMS.filter((it) => it.track === 'travel');
   const tips = SWISS_ITEMS.filter((it) => it.ch);
-  const ratio = tips.length / SWISS_ITEMS.length;
+  ok('★ 팁은 전부 여행 회화에만 있다 ★', tips.every((it) => it.track === 'travel'));
+  const ratio = tips.length / travelItems.length;
   ok('팁이 있다', tips.length >= 8, `${tips.length}개`);
   ok('★ 열에 하나쯤 (5~20%) ★', ratio >= 0.05 && ratio <= 0.2, `${Math.round(ratio * 100)}%`);
   ok('팁은 글이 있다', tips.every((it) => String(it.ch.text).trim().length > 0));
@@ -117,7 +121,9 @@ console.log('\n[ 별 ]');
 
 console.log('\n[ ★ 진도 — 앞 것을 끝내야 열린다 ★ ]');
 {
-  const order = lessonOrder();
+  const all = lessonOrder();
+  /* 여행 회화 갈래 안에서의 잠금. 갈래가 둘이라 「전체 순서의 맨 앞」이 아니라 갈래마다 따로 본다 */
+  const order = all.filter((id) => trackOfLesson(id) === 'travel');
   let p = emptyProgress();
   ok('맨 첫 레슨은 열려 있다', isUnlocked(p, order[0]));
   ok('둘째는 잠겨 있다', !isUnlocked(p, order[1]));
@@ -131,7 +137,7 @@ console.log('\n[ ★ 진도 — 앞 것을 끝내야 열린다 ★ ]');
   ok('★ 별은 제일 좋았던 것을 남긴다 ★', r2.lessons[order[0]].stars === 3 && r2.lessons[order[0]].last === 1);
   ok('틀린 낱말이 약점에 남는다', r2.weak.includes('hallo') && r2.weak.includes('danke'));
   const s = courseSummary({ lessons: r2.lessons, xp: r2.xp, weak: r2.weak });
-  ok('요약이 맞다', s.done === 1 && s.total === order.length && s.stars === 3, JSON.stringify(s));
+  ok('요약이 맞다', s.done === 1 && s.total === all.length && s.stars === 3, JSON.stringify(s));
   ok('망가진 진도도 견딘다', courseSummary(null).done === 0);
 }
 
@@ -154,6 +160,102 @@ console.log('\n[ 자동재생에 무엇을 ]');
   const p = { lessons: r.lessons, xp: r.xp, weak: r.weak };
   ok('★ 끝낸 레슨의 낱말만 ★', listenPool(p, 'learned').every((it) => it.lessonId === 'u1l1') && listenPool(p, 'learned').length === itemsOfLesson('u1l1').length);
   ok('틀렸던 것만', listenPool(p, 'weak').map((it) => it.id).join() === 'hallo');
+}
+
+console.log('\n[ ★ 기초 단어 갈래 — 초등학생이 먼저 배우는 말 ★ ]');
+{
+  const basicUnits = SWISS_UNITS.filter((u) => u.track === 'basic');
+  const basicLessons = SWISS_LESSONS.filter((l) => l.track === 'basic');
+  const basicItems = SWISS_ITEMS.filter((it) => it.track === 'basic');
+  ok('갈래가 둘: 기초 단어가 앞, 여행 회화가 뒤', SWISS_TRACKS.map((t) => t.id).join() === 'basic,travel');
+  ok('기초 단어 단원이 열둘 넘게', basicUnits.length >= 12, `${basicUnits.length}개`);
+  ok('기초 단어 레슨이 스물다섯 넘게', basicLessons.length >= 25, `${basicLessons.length}개`);
+  ok('★ 기초 낱말·문장이 백오십 넘게 ★', basicItems.length >= 150, `${basicItems.length}개`);
+  ok('기초 단원 id는 b로 시작해 여행과 안 겹친다', basicUnits.every((u) => /^b\d+$/.test(u.id)) && basicItems.every((it) => it.id.startsWith('b-')));
+  ok('SWISS_UNITS 맨 앞이 기초 단어', SWISS_UNITS[0].track === 'basic');
+
+  const small = basicLessons.filter((l) => l.items.length < 4 || l.items.length > 8);
+  ok('★ 레슨 하나는 네~여덟 개(한꺼번에 많이 외우지 않는다) ★', small.length === 0, small.map((l) => `${l.id}:${l.items.length}`).join(',') || '모두 적당');
+
+  const sameLesson = basicLessons.filter((l) => new Set(l.items.map((it) => it.de.toLowerCase())).size !== l.items.length);
+  ok('같은 레슨에 같은 독일어가 둘 없다(보기가 겹치지 않는다)', sameLesson.length === 0, sameLesson.map((l) => l.id).join(',') || '없음');
+  const sameKo = basicLessons.filter((l) => new Set(l.items.map((it) => it.ko)).size !== l.items.length);
+  ok('같은 레슨에 같은 뜻이 둘 없다', sameKo.length === 0, sameKo.map((l) => l.id).join(',') || '없음');
+  /* 같은 말이 기초와 여행 양쪽에 있는 건 괜찮다(숫자·오늘/내일 — 두 번 만나는 셈). 하지만 한 갈래 안에서
+     같은 말이 두 번 나오면 복습이 같은 낱말을 둘로 센다 */
+  const dupWithin = ['basic', 'travel'].flatMap((t) => {
+    const seen = new Set();
+    return SWISS_ITEMS.filter((it) => it.track === t).filter((it) => { const k = it.de.toLowerCase(); const d = seen.has(k); seen.add(k); return d; }).map((it) => `${t}:${it.de}`);
+  });
+  ok('★ 한 갈래 안에서는 같은 독일어가 두 번 안 나온다 ★', dupWithin.length === 0, dupWithin.join(',') || '없음');
+
+  /* 명사는 관사를 붙여 한 덩어리로 */
+  const nouns = basicItems.filter((it) => it.kind === 'word' && /^(der|die|das) /.test(it.de));
+  ok('관사 붙은 명사가 육십 개 넘게', nouns.length >= 60, `${nouns.length}개`);
+  const bareNouns = basicItems.filter((it) => it.kind === 'word' && /^[A-ZÄÖÜ]/.test(it.de) && !/^(Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag)$/.test(it.de));
+  ok('★ 대문자로 시작하는 낱말(명사)은 모두 관사가 붙었다(요일 제외) ★', bareNouns.length === 0, bareNouns.map((x) => x.de).join(',') || '없음');
+  const bigHan = basicItems.filter((it) => it.han && /^(der|die|das)\b/.test(it.han));
+  ok('한글 도움말에는 관사를 안 적는다', bigHan.length === 0);
+  const pics = basicItems.filter((it) => it.emoji || it.swatch);
+  ok('그림이나 색이 붙은 낱말이 마흔 개 넘게', pics.length >= 40, `${pics.length}개`);
+  ok('색깔 단원은 색이 전부 붙었다', SWISS_ITEMS.filter((it) => it.lessonId.startsWith('b3l')).every((it) => /^#[0-9a-f]{6}$/i.test(it.swatch || '')));
+  ok('숫자 0~10이 차례로', itemsOfLesson('b1l1').concat(itemsOfLesson('b1l2')).map((it) => it.ko.split(' ')[0]).join() === '0,1,2,3,4,5,6,7,8,9,10');
+
+  /* 문장은 짧다 */
+  const sents = basicItems.filter((it) => it.kind === 'sentence');
+  ok('쉬운 문장이 열다섯 개 넘게', sents.length >= 15, `${sents.length}개`);
+  ok('★ 기초 문장은 다섯 낱말 이하 ★', sents.every((it) => tokensOf(it).length <= 5), sents.filter((it) => tokensOf(it).length > 5).map((x) => x.de).join(',') || '모두 짧음');
+
+  console.log('\n[ 갈래별 잠금 · 다음 레슨 ]');
+  const e = emptyProgress();
+  ok('처음 오면 기초 단어 첫 레슨이 열려 있다', isUnlocked(e, 'b1l1'));
+  ok('★ 여행 회화 첫 레슨도 열려 있다(기초를 안 끝내도 막지 않는다) ★', isUnlocked(e, 'u1l1'));
+  ok('기초 둘째 레슨은 잠겨 있다', !isUnlocked(e, 'b1l2'));
+  ok('여행 둘째 레슨도 잠겨 있다', !isUnlocked(e, 'u1l2'));
+  ok('★ 처음엔 기초 단어부터 권한다 ★', nextLesson(e) === 'b1l1');
+  const r1 = recordLesson(e, 'b1l1', { mistakes: 0, total: 8, wrongIds: [], now: 1000 });
+  const p1 = { lessons: r1.lessons, xp: r1.xp, weak: r1.weak };
+  ok('기초 첫 레슨을 끝내면 기초 둘째가 열린다', isUnlocked(p1, 'b1l2'));
+  ok('기초 진도가 여행 잠금은 안 건드린다', !isUnlocked(p1, 'u1l2'));
+  ok('이어서 기초 둘째 레슨', nextLesson(p1) === 'b1l2');
+  const r2 = recordLesson(p1, 'u1l1', { mistakes: 0, total: 8, wrongIds: [], now: 2000 });
+  const p2 = { lessons: r2.lessons, xp: r2.xp, weak: r2.weak };
+  ok('★ 가장 최근에 한 갈래를 이어 간다(여행을 하던 사람은 여행으로) ★', nextLesson(p2) === 'u1l2', nextLesson(p2));
+  ok('끝낸 레슨은 다시 권하지 않는다', !['b1l1', 'u1l1'].includes(nextLesson(p2)));
+  /* 여행 회화를 이미 끝까지 한 옛 사용자: 기초가 새로 생겼어도 잠기지 않고, 기초를 권한다 */
+  const oldAll = { lessons: {}, xp: 0, weak: [] };
+  SWISS_LESSONS.filter((l) => l.track === 'travel').forEach((l, i) => { oldAll.lessons[l.id] = { stars: 2, tries: 1, at: 1000 + i, last: 2 }; });
+  ok('★ 옛 진도(여행 전부 끝냄)가 그대로 인정된다 ★', courseSummary(oldAll).done === SWISS_LESSONS.filter((l) => l.track === 'travel').length);
+  ok('여행을 다 끝낸 사람에게는 기초 단어를 권한다', nextLesson(oldAll) === 'b1l1');
+  const oldNone = { lessons: {}, xp: 0, weak: [] };
+  SWISS_LESSONS.forEach((l, i) => { oldNone.lessons[l.id] = { stars: 1, tries: 1, at: 1 + i, last: 1 }; });
+  ok('전부 끝내면 권할 것이 없다', nextLesson(oldNone) === null);
+  ok('알 수 없는 레슨 id는 잠김', !isUnlocked(e, '없음'));
+
+  /* 문제: 기초 레슨도 똑같이 만든다 */
+  const seeded = (s) => () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+  const bad = basicLessons.filter((l) => {
+    const ex = buildExercises(l.id, seeded(3));
+    return ex.length < 5 || ex.filter((x) => x.options).some((o) => o.options.length !== 3 || !o.options.some((q) => q.id === o.answerId));
+  });
+  ok('★ 기초 레슨 전부 문제가 만들어지고 보기에 정답이 있다 ★', bad.length === 0, bad.map((l) => l.id).join(',') || '모두 정상');
+  ok('모든 보기 문제의 보기가 서로 다르다', basicLessons.every((l) => buildExercises(l.id, seeded(9)).filter((x) => x.options).every((o) => new Set(o.options.map((q) => q.de)).size === 3)));
+  const sentLessons = basicLessons.filter((l) => l.items.some((it) => it.kind === 'sentence'));
+  ok('문장 레슨은 조립 문제를 만든다', sentLessons.every((l) => buildExercises(l.id, seeded(5)).some((x) => x.type === 'build')));
+  ok('자동재생 「전부」에 기초 낱말이 들어 있다', listenPool(e, 'all').some((it) => it.track === 'basic'));
+  ok('자동재생에 기초 단원 id로 고를 수 있다', listenPool(e, 'b3').length === 11);
+}
+
+console.log('\n[ ★ 짝 맞추기가 다 맞춘 뒤 반드시 넘어간다 ★ ]');
+{
+  /* 부모가 다시 그려지면서 타이머가 지워져 「다 맞췄는데 안 넘어가는」 일이 있었다.
+     그림은 브라우저에서만 되니, 원인이 된 모양(최신 onDone을 effect 의존성에 두는 것)이 다시 생기지 않게 코드 모양을 지킨다. */
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../src/screens/SwissLesson.jsx', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('function SwissMatch'), src.indexOf('function SwissFinish'));
+  ok('★ onDone을 ref로 읽는다 ★', /onDoneRef\.current\s*=\s*onDone/.test(body) && /onDoneRef\.current\(\)/.test(body));
+  ok('★ effect 의존성에 onDone이 없다 ★', !/\[[^\]]*\bonDone\b[^\]]*\]/.test(body));
+  ok('타이머는 화면이 닫힐 때만 지운다', /\(\) => \(\) => clearTimeout\(timerRef\.current\), \[\]/.test(body));
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

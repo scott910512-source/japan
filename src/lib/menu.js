@@ -77,7 +77,7 @@ export const MENUS = [
   { id: 'basics', group: 'more', label: '완전기초', sub: '히라가나 · 숫자 · 인사', icon: 'sparkle' },
   /* 곁가지 — 일본어가 아니다. 회독 기록에 안 붙는다.
      id는 처음 만들 때 이름(swiss)을 그대로 둔다 — 설정·진도 열쇠가 이 이름이다 */
-  { id: 'swiss', group: 'more', label: '독일어', sub: '여행 회화 · 스위스 팁', icon: 'map' },
+  { id: 'swiss', group: 'more', label: '독일어', sub: '기초 단어 · 여행 회화', icon: 'map' },
 ];
 
 /* 설정에서 켠 것만, 묶음 순서대로(학습 탭에 그리는 묶음만).

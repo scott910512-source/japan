@@ -23,7 +23,7 @@ import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { dailyPool } from './lib/cards.js';
 import { kijuIndex } from './lib/kiju.js';
-import { hasSignedInOnce } from './lib/storage.js';
+import { hasSignedInOnce, loadSwiss } from './lib/storage.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
@@ -62,7 +62,7 @@ export default function App() {
      개로 흩어져 있으면 한 자리를 열 때 함께 할 일을 빼먹는다. */
   const nav = useAppNavigation();
   const {
-    activeTab, sub, deck, n3View, listenMode, quizSet, videosSeen,
+    activeTab, sub, deck, n3View, swissView, listenMode, quizSet, videosSeen,
     setActiveTab, setSub, setDeck, setQuizSet, selectTab, openListen, closeSub, openSub,
   } = nav;
 
@@ -103,6 +103,8 @@ export default function App() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   /* 내 학습의 「계정과 동기화」「기록 백업」 줄이 설정의 그 묶음을 바로 연다 */
   const [settingsGroup, setSettingsGroup] = useState(null);
+  /* 독일어 복습이 몇 개인가 — 복습 탭을 볼 때만 센다. 독일어 자료는 메인 번들에 안 싣는다(열 때 받는다). */
+  const [swissDue, setSwissDue] = useState(0);
   const [composeStart, setComposeStart] = useState(null);
   const [homeResetKey, setHomeResetKey] = useState(0);
   const selectAppTab = (id) => {
@@ -268,6 +270,14 @@ export default function App() {
     nav.openMenu(id, opts);
   }, [startWeakDeck, nav.openMenu]);
 
+  useEffect(() => {
+    if (activeTab !== 'review' || sub || !settings.menus?.swiss) { setSwissDue(0); return undefined; }
+    let live = true;
+    Promise.all([import('./lib/swissMemory.js'), import('./lib/swissCourse.js')]).then(([m, c]) => {
+      if (live) setSwissDue(m.memorySummary(c.normalizeProgress(loadSwiss())).due);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [activeTab, sub, settings.menus?.swiss]);
   const recordAttempt = useCallback((attempt) => {
     setProgress((p) => {
       const mistakes = recordMistake(p.mistakes, attempt);
@@ -469,6 +479,8 @@ export default function App() {
             onOpenWeakGrammar={() => openMenu('n3', { view: { kind: 'weak', from: 'hub' } })}
             onOpenRepeat={() => setSub('repeat')}
             onOpenMe={() => selectTab('me')}
+            swissDue={swissDue}
+            onOpenSwiss={() => openMenu('swiss', { view: 'review' })}
           />
         </ScreenSlot>
 
@@ -602,6 +614,7 @@ export default function App() {
                 customWords={customWords}
                 openListen={openListen}
                 n3View={n3View}
+                swissView={swissView}
                 /* 단어·문법 화면 안의 「연습」 줄 — 열린 화면을 기억해 뒤로 가면 거기로 돌아온다 */
                 onOpenPractice={(id) => openMenu(id, { from: sub })}
                 /* 실전 연습 허브의 줄 — 쭉 퀴즈·상황 대화. 뒤로 가면 허브로 */
