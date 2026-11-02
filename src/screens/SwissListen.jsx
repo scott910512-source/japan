@@ -134,6 +134,7 @@ export default function SwissListen({ progress, rate, onQuit, onToast }) {
       <div className="chiprow swp-scopes">
         {[
           { id: 'learned', label: '배운 것' },
+          { id: 'due', label: '복습할 것' },
           { id: 'weak', label: '틀렸던 것' },
           { id: 'all', label: '전부' },
           ...SWISS_UNITS.map((u) => ({ id: u.id, label: `${u.emoji} ${u.title}` })),

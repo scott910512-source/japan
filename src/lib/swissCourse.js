@@ -8,15 +8,18 @@
  * 손댈 일이 없다. 이 진도는 기기에 남고 백업에 들어가지만, 아직 계정 동기화는
  * 안 탄다 — 동기화 표에 칸을 더하려면 서버 쪽 표도 같이 바꿔야 해서 따로 간다. */
 import {
-  SWISS_LESSONS, SWISS_ITEMS, itemsOfLesson, itemsOfUnit, lessonById, tokensOf,
+  SWISS_LESSONS, SWISS_ITEMS, SWISS_TRACKS, itemsOfLesson, itemsOfUnit, lessonById, tokensOf,
 } from '../data/swiss.js';
+import { editDistance } from './quiz.js';
+import { todayKey, stateOf } from './review.js';
+import { dueIds, memoryOf, mergeMemory, preReviewIds, seedMemory, stageOf, itemById } from './swissMemory.js';
 
 export const XP_PER_LESSON = 10;
 export const XP_PERFECT_BONUS = 5;
 const WEAK_CAP = 60;
 
 /* ── 섞기 (난수를 받아서 검사에서 고정할 수 있게) ── */
-function shuffle(list, rnd) {
+export function shuffle(list, rnd) {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rnd() * (i + 1));
@@ -27,7 +30,7 @@ function shuffle(list, rnd) {
 
 /* 보기 셋. 같은 레슨에서 둘을 더 고르고, 모자라면 같은 단원에서 채운다 —
    숫자 문제에 「고양이」가 보기로 나오면 맞히는 게 아니라 거르는 게 된다. */
-function optionsFor(item, lesson, rnd) {
+export function optionsFor(item, lesson, rnd) {
   const same = itemsOfLesson(lesson.id).filter((it) => it.id !== item.id);
   let pool = same;
   if (pool.length < 2) pool = itemsOfUnit(lesson.unitId).filter((it) => it.id !== item.id);
@@ -37,7 +40,7 @@ function optionsFor(item, lesson, rnd) {
 
 /* 조립 문제의 낱말 조각. 정답 조각에 같은 단원 다른 문장의 조각 둘을 섞는다.
    조각마다 번호를 붙인다 — 같은 낱말이 두 번 나오는 문장이 있어서 글자로는 못 가른다. */
-function buildTokens(item, lesson, rnd) {
+export function buildTokens(item, lesson, rnd) {
   const target = tokensOf(item);
   const unitSentences = itemsOfUnit(lesson.unitId).filter((it) => it.kind === 'sentence' && it.id !== item.id);
   const spare = shuffle(
@@ -95,7 +98,7 @@ export function starsFor(mistakes, total) {
 
 /* ── 진도 ── */
 export function emptyProgress() {
-  return { lessons: {}, xp: 0, weak: [] };
+  return { lessons: {}, xp: 0, weak: [], mem: {} };
 }
 
 export function normalizeProgress(p) {
@@ -104,6 +107,9 @@ export function normalizeProgress(p) {
     lessons: src.lessons && typeof src.lessons === 'object' ? src.lessons : {},
     xp: Number(src.xp) || 0,
     weak: Array.isArray(src.weak) ? src.weak.filter((x) => typeof x === 'string') : [],
+    /* 낱말마다 언제 다시 볼까(lib/swissMemory.js). 없던 옛 진도에는 빈 칸으로 읽는다 —
+       끝낸 레슨의 낱말은 seedMemory가 그 자리에서 채운다 */
+    mem: src.mem && typeof src.mem === 'object' ? src.mem : {},
   };
 }
 
@@ -111,20 +117,35 @@ export function lessonOrder() {
   return SWISS_LESSONS.map((l) => l.id);
 }
 
-/* 열렸는가. 맨 첫 레슨은 늘 열려 있고, 그다음부터는 바로 앞 레슨을 한 번이라도
-   끝냈으면 열린다. 별 개수는 안 본다 — 겨우 통과해도 다음으로 갈 수 있어야
-   막히지 않는다. */
+/* 열렸는가. 갈래(기초 단어 · 여행 회화)마다 첫 레슨은 늘 열려 있고, 그다음부터는 같은 갈래의 바로 앞
+   레슨을 한 번이라도 끝냈으면 열린다. 별 개수는 안 본다 — 겨우 통과해도 다음으로 갈 수 있어야 막히지 않는다.
+   갈래끼리는 서로 잠그지 않는다: 여행 회화를 하던 사람이 기초를 안 했다고 막히지 않는다. */
 export function isUnlocked(progress, lessonId) {
-  const order = lessonOrder();
-  const i = order.indexOf(lessonId);
-  if (i < 0) return false;
-  if (i === 0) return true;
-  const prev = normalizeProgress(progress).lessons[order[i - 1]];
+  const lesson = lessonById(lessonId);
+  if (!lesson) return false;
+  const track = SWISS_LESSONS.filter((l) => l.track === lesson.track);
+  const i = track.findIndex((l) => l.id === lessonId);
+  if (i <= 0) return i === 0;
+  const prev = normalizeProgress(progress).lessons[track[i - 1].id];
   return Boolean(prev && prev.stars >= 1);
 }
 
+/* 다음에 할 레슨. 가장 최근에 한 레슨이 속한 갈래를 먼저 이어 가고(여행 회화를 하던 사람은 거기서 계속),
+   기록이 없으면 기초 단어부터. 그 갈래가 끝났으면 다른 갈래에서 찾는다. */
 export function nextLesson(progress) {
-  return lessonOrder().find((id) => isUnlocked(progress, id) && !normalizeProgress(progress).lessons[id]) || null;
+  const p = normalizeProgress(progress);
+  let recent = null; let at = -1;
+  for (const [id, st] of Object.entries(p.lessons)) {
+    const l = lessonById(id);
+    if (l && (st?.at || 0) >= at) { at = st?.at || 0; recent = l.track; }
+  }
+  const tracks = SWISS_TRACKS.map((t) => t.id);
+  const order = recent ? [recent, ...tracks.filter((t) => t !== recent)] : tracks;
+  for (const track of order) {
+    const hit = SWISS_LESSONS.find((l) => l.track === track && isUnlocked(p, l.id) && !p.lessons[l.id]);
+    if (hit) return hit.id;
+  }
+  return null;
 }
 
 /* 레슨을 끝냈다. 별은 제일 좋았던 것을 남기고, 경험치는 매번 쌓인다 —
@@ -142,6 +163,7 @@ export function recordLesson(progress, lessonId, { mistakes = 0, total = 1, wron
     },
     xp: p.xp + gained,
     weak,
+    mem: p.mem,
     gained,
     stars,
   };
@@ -172,7 +194,10 @@ export function mergeSwiss(a, b) {
       at: Math.max(l.at || 0, r.at || 0),
     };
   }
-  return { lessons, xp: Math.max(x.xp, y.xp), weak: [...new Set([...x.weak, ...y.weak])].slice(-WEAK_CAP) };
+  return {
+    lessons, xp: Math.max(x.xp, y.xp), weak: [...new Set([...x.weak, ...y.weak])].slice(-WEAK_CAP),
+    mem: mergeMemory(x.mem, y.mem),
+  };
 }
 
 /* 자동재생에 무엇을 들려줄까.
@@ -184,9 +209,84 @@ export function listenPool(progress, scope = 'learned') {
   const p = normalizeProgress(progress);
   if (scope === 'all') return SWISS_ITEMS;
   if (scope === 'weak') return SWISS_ITEMS.filter((it) => p.weak.includes(it.id));
+  /* 복습일이 된 것 — 복습 화면에서 풀기 전에 귀로 한 번 훑는 길 */
+  if (scope === 'due') return dueIds(p).map(itemById).filter(Boolean);
   if (scope === 'learned') {
     const done = new Set(Object.keys(p.lessons).filter((id) => (p.lessons[id]?.stars || 0) >= 1));
     return SWISS_ITEMS.filter((it) => done.has(it.lessonId));
   }
   return itemsOfUnit(scope);
+}
+
+
+/* ── 쓰기 채점 ──
+ *
+ * 독일어 철자는 키보드가 문제다. ä ö ü ß가 없는 자판으로 쓴 「Tschuss」「Gruezi」를 틀렸다고 하면
+ * 철자를 모르는 게 아니라 자판을 못 찾은 것을 벌주는 것이다. 그래서 움라우트는 「ä=a=ae · ö=o=oe ·
+ * ü=u=ue」, ß=ss로 같은 글자로 맞춰 놓고 양쪽을 견준다(정답도 같은 식으로 바꾼다). 대소문자·문장부호·
+ * 여러 칸 공백은 무시한다. 명사의 대문자는 독일어의 규칙이지만 여행 회화에서 소문자로 쓴 것을
+ * 틀렸다고 하지는 않는다.
+ *
+ * 한두 글자 다르면 close — 오타일 수 있다. 맞게 쳐 주되 정답 철자를 보여 준다. */
+export function normalizeDe(text) {
+  return String(text ?? '')
+    .toLowerCase()
+    .replace(/ß/g, 'ss')
+    .replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u')
+    .replace(/ae/g, 'a').replace(/oe/g, 'o').replace(/ue/g, 'u')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function judgeGerman(item, input) {
+  const mine = normalizeDe(input);
+  const want = normalizeDe(item?.de);
+  if (!mine) return { verdict: 'wrong', expected: item?.de };
+  if (mine === want) return { verdict: 'correct', expected: item.de };
+  /* 공백만 다른 것(Auf Wiedersehen / Aufwiedersehen)은 같은 말이다 */
+  if (mine.replace(/ /g, '') === want.replace(/ /g, '')) return { verdict: 'correct', expected: item.de };
+  /* 명사는 관사까지 한 덩어리로 외우지만, 관사를 빼고 쓴 것(Hund)은 철자는 안 것이다 — 틀렸다고 하지 않고
+     「관사도 같이」라고 알려 준다(close). 엉뚱한 관사를 붙인 것은 아래 철자 거리로 가린다. */
+  const stripped = want.replace(/^(der|die|das) /, '');
+  if (stripped !== want && mine === stripped) return { verdict: 'close', expected: item.de, article: true };
+  const limit = want.length >= 12 ? 2 : (want.length >= 5 ? 1 : 0);
+  if (limit > 0 && editDistance(mine, want) <= limit) return { verdict: 'close', expected: item.de };
+  return { verdict: 'wrong', expected: item.de };
+}
+
+/* ── 복습 세션 ──
+ *
+ * 복습일이 된 낱말을 먼저, 모자라면(fill) 약한 순서로 미리 복습할 낱말을 채운다. 문제 유형은 낱말이
+ * 얼마나 굳었는지에 따라 다르다 — 처음엔 보기가 있는 문제로, 굳을수록 보기 없이 직접 쓰게. 같은 유형만
+ * 계속 나오면 낱말이 아니라 버튼 자리를 외우게 된다. */
+export const REVIEW_SIZE = 12;
+const SPAN = { learning: ['choose-ko', 'choose-sw', 'listen'], known: ['choose-sw', 'listen', 'write'], mastered: ['write', 'dictate'] };
+
+export function typeFor(item, st, i) {
+  const stage = stageOf(st) || 'learning';
+  if (item.kind === 'sentence') return stage === 'mastered' && i % 2 === 1 ? 'write' : 'build';
+  return SPAN[stage][i % SPAN[stage].length];
+}
+
+export function buildReview(progress, { size = REVIEW_SIZE, fill = false, today = todayKey(), rnd = Math.random } = {}) {
+  const seeded = seedMemory(normalizeProgress(progress), today);
+  const mem = memoryOf(seeded);
+  const due = dueIds(seeded, today);
+  const picked = due.slice(0, size);
+  if (picked.length < size && fill) {
+    for (const id of preReviewIds(seeded, today)) { if (picked.length >= size) break; picked.push(id); }
+  }
+  const items = shuffle(picked.map(itemById).filter(Boolean), rnd);
+  const out = [];
+  items.forEach((item, i) => {
+    const lesson = lessonById(item.lessonId);
+    const type = typeFor(item, stateOf(mem, item.id), i);
+    if (type === 'build') out.push({ type, item, ...buildTokens(item, lesson, rnd) });
+    else if (type === 'write' || type === 'dictate') out.push({ type, item });
+    else out.push({ type, item, options: optionsFor(item, lesson, rnd), answerId: item.id });
+  });
+  const pairable = items.filter((it) => it.kind === 'word');
+  if (pairable.length >= 4) out.push({ type: 'match', pairs: shuffle(pairable, rnd).slice(0, 4) });
+  return { exercises: out, ids: items.map((it) => it.id), dueCount: due.length, extra: Math.max(0, items.length - Math.min(due.length, size)) };
 }

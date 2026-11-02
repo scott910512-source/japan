@@ -94,7 +94,13 @@ const saidDe = (page) => page.evaluate(() => (window.__said || []).filter((u) =>
 
   console.log('── 들어가기');
   await openMenu(page, '독일어');
-  ok('학습 탭에서 들어가진다', await page.locator('.swh-unit').count() === 9, `${await page.locator('.swh-unit').count()}단원`);
+  ok('학습 탭에서 들어가진다', await page.locator('.swh-unit').count() >= 24, `${await page.locator('.swh-unit').count()}단원`);
+  ok('★ 여행 회화 단원은 아홉 ★', await page.locator('.swh-track[data-track="travel"] .swh-unit').count() === 9);
+  ok('★ 기초 단어 갈래가 여행 회화보다 먼저 ★', (await page.locator('.swh-track').evaluateAll((els) => els.map((e) => e.dataset.track))).join() === 'basic,travel');
+  ok('기초 단어 첫 레슨이 열려 있다', await page.locator('.swh-lesson[data-lesson="b1l1"].open').count() === 1);
+  ok('기초 둘째 레슨은 잠겨 있다', await page.locator('.swh-lesson[data-lesson="b1l2"].locked').count() === 1);
+  ok('★ 처음엔 큰 버튼이 기초 단어 첫 레슨을 가리킨다 ★', (await page.locator('.swh-next').innerText()).includes('0 ~ 5'));
+  ok('초등학생 수준이라고 알린다', (await page.locator('.swh-track[data-track="basic"] .swh-tlabel').innerText()).includes('초등학생'));
   ok('제목이 「독일어 여행 회화」', (await page.textContent('.sub-title').catch(() => '')).includes('독일어'));
   ok('표준 독일어라고 밝힌다', (await page.locator('.swh-sum').innerText()).includes('표준 독일어'));
   ok('첫 레슨은 열려 있다', await page.locator('.swh-lesson[data-lesson="u1l1"].open').count() === 1);
@@ -152,7 +158,8 @@ const saidDe = (page) => page.evaluate(() => (window.__said || []).filter((u) =>
   console.log('\n── 레슨 하나를 끝까지');
   const sib = await page.locator('.swh-next svg').first().boundingBox();
   ok('★ 큰 버튼 안 아이콘이 글자 크기다 — 버튼을 채우지 않는다 ★', sib && sib.width <= 24 && sib.height <= 24, `${Math.round(sib?.width)}px`);
-  await page.locator('.swh-next').click();
+  /* 아래 검사는 여행 회화 인사 레슨(스위스 팁이 있다)으로 간다 */
+  await page.locator('.swh-lesson[data-lesson="u1l1"]').click();
   await page.waitForTimeout(700);
   ok('레슨이 열린다', await page.locator('.swl-bar').count() === 1);
 
@@ -257,9 +264,10 @@ const saidDe = (page) => page.evaluate(() => (window.__said || []).filter((u) =>
   const k = seq.indexOf('ko');
   ok('★ 독일어 → 뜻 → 독일어 ★', seq[0] === 'de' && k > 0 && seq[k + 1] === 'de', seq.join(','));
   const firstText = await page.evaluate(() => (window.__said || [])[0]?.text);
-  const firstItem = [...byId.values()].find((it) => it.de === firstText);
+  /* 기초와 여행에 같은 말(zwei…)이 있어서 철자가 같은 항목을 모두 본다 */
+  const sameDe = [...byId.values()].filter((it) => it.de === firstText);
   const learned = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('jp_manabu_swiss_v1') || '{"lessons":{}}').lessons));
-  ok('★ 배운 낱말만 튼다 ★', Boolean(firstItem) && learned.includes(firstItem.lessonId), `${firstText} (${firstItem?.lessonId})`);
+  ok('★ 배운 낱말만 튼다 ★', sameDe.length > 0 && sameDe.some((it) => learned.includes(it.lessonId)), `${firstText} (${sameDe.map((x) => x.lessonId).join('/')})`);
   await page.locator('.swp .sub-back').click();
   await page.waitForTimeout(400);
 

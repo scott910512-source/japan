@@ -40,6 +40,8 @@ export function useAppNavigation() {
   /* N3 코스를 어느 자리에서 열지 — 학습 탭 「한자」는 한자 과정, 복습 탭
      「틀린 문제」는 오답노트. 코스가 열릴 때 한 번 읽는다. */
   const [n3View, setN3View] = useState(null);
+  /* 독일어 코스를 어느 자리에서 열지 — 복습 탭의 「독일어 복습」 줄은 복습 화면으로 바로 */
+  const [swissView, setSwissView] = useState(null);
   // 듣기에 어떤 방식으로 들어왔는지 — 자동 듣기냐 따라 말하기냐
   const [listenMode, setListenMode] = useState('listen');
   /* 듣기에서 시험으로 넘어갈 때 들고 가는 세트. 비어 있으면 시험은 평소대로
@@ -112,6 +114,7 @@ export function useAppNavigation() {
     if (id === 'listen') { setSub('listenhub'); return; }
     if (id === 'kanji') { setN3View({ kind: 'curriculum', chapter: 'ch4' }); setSub('n3'); return; }
     if (id === 'n3') { setN3View(opts.view || null); setSub('n3'); return; }
+    if (id === 'swiss') { setSwissView(opts.view || null); setSub('swiss'); return; }
     setSub(id);
   }, []);
 
@@ -139,7 +142,7 @@ export function useAppNavigation() {
   }, []);
 
   return {
-    activeTab, sub, deck, n3View, listenMode, quizSet, videosSeen,
+    activeTab, sub, deck, n3View, swissView, listenMode, quizSet, videosSeen,
     setActiveTab, setSub, setDeck, setN3View, setQuizSet,
     openMenu, openListen, selectTab, closeSub, openSub,
   };

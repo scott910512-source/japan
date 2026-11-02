@@ -35,6 +35,7 @@ export default function FeatureScreen({
   customWords,
   openListen,
   n3View,
+  swissView,
   quizSet,
   onQuizSet,
   onOpenPractice,
@@ -60,7 +61,7 @@ export default function FeatureScreen({
             )}
             {sub === 'basics' && <Basics settings={settings} onToast={showToast} />}
             {/* 곁가지 — 회독·기록·계획 어디에도 안 붙는다. 그래서 넘기는 것도 설정뿐이다 */}
-            {sub === 'swiss' && <SwissCourse settings={settings} onToast={showToast} />}
+            {sub === 'swiss' && <SwissCourse settings={settings} onToast={showToast} initialView={swissView} />}
             {sub === 'travel' && (
               <TravelCourse
                 settings={settings}
