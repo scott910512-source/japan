@@ -42,6 +42,7 @@ async function boot(browser, { review = {}, settings = {}, ai = null } = {}) {
     });
   }
   await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.evaluate(() => navigator.serviceWorker.ready);
   /* 기존 검사(menu2-ui)가 쓰는 시작 방법 — 첫 로드로 서비스워커를 깔고, 심은 뒤 한 번 더 불러 온 다음,
      오프라인으로 돌려 로그인 관문의 「이 기기 기록으로 계속하기」로 들어간다. 오프라인으로 새로고침하면
      서비스워커가 준비되기 전의 느린 러너에서 화면이 안 뜬다(CI에서 그랬다). */
@@ -54,7 +55,7 @@ async function boot(browser, { review = {}, settings = {}, ai = null } = {}) {
   }, { review, settings });
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1200);
+  await page.locator('.gate, .tabbar').first().waitFor({ state: 'visible', timeout: 20000 });
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
@@ -204,7 +205,7 @@ const tab = (page, id) => page.locator(`.cmp-tabs [data-mode="${id}"]`).click().
   await withAi.page.close();
 
   console.log('\n[ AI가 실패할 때 ]');
-  const downBoot = await boot(browser, { review: seeded, settings: { geminiKey: 'bad' }, ai: { __status: 403, body: { error: { message: 'API key not valid' } } } });
+  const downBoot = await boot(browser, { review: seeded, settings: { geminiKey: 'bad' }, ai: { __status: 403, body: { error: { message: 'Requests to this API generativelanguage.googleapis.com method google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent are blocked.' } } } });
   const down = downBoot.page;
   await openMenu(down, '문장 만들기');
   await tab(down, 'free');
@@ -212,6 +213,8 @@ const tab = (page, id) => page.locator(`.cmp-tabs [data-mode="${id}"]`).click().
   await down.locator('.cmp-check').click();
   await down.waitForTimeout(900);
   ok('★ 실패하면 이유를 보여 주고 화면이 안 죽는다 ★', await down.locator('.cmp-aierr').count() === 1 && (await down.locator('.cmp-aierr').innerText()).includes('403'));
+  ok('서비스 차단이면 전용 키 설정 위치를 안내함', (await down.locator('.cmp-aierr').innerText()).includes('Google AI Studio') && (await down.locator('.cmp-aierr').innerText()).includes('학습 도구'));
+  ok('오류가 나도 작성한 문장을 보존함', await down.locator('.cmp-mine').inputValue() === '私は学生です');
   await down.close();
 
   console.log('\n[ 본 문장이 없을 때 ]');

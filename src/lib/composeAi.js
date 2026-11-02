@@ -2,7 +2,7 @@ import { callClaude, callGemini, PROVIDERS, resolveProvider } from './aiClient.j
 
 /* 내 문장 첨삭 — 내가 만든 일본어 문장을 AI가 고쳐 준다.
  *
- * 부르는 자리는 aiClient.js 하나다(키는 설정에 넣은 내 키, 기기 밖으로 안 나간다). 여기는 무엇을
+ * 부르는 자리는 aiClient.js 하나다(설정에 넣은 키로 선택한 AI 제공처에 인증한다). 여기는 무엇을
  * 물을지(프롬프트)와 답을 읽는 일만 한다 — ask.js와 같은 짜임새다.
  *
  * ★ 프롬프트가 제일 힘주는 곳 ★

@@ -1,21 +1,39 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { geminiGenerate } from '../../lib/aiClient.js';
 import Toggle from './Toggle.jsx';
 import {
   DEFAULT_GEMINI_MODEL, PROVIDERS, TRANSCRIBE_MINUTES,
   listGeminiModels, resolveProvider,
 } from '../../lib/videoTutor.js';
 
-/* 영상 설명을 만들 곳.
- *
- * Gemini 키는 음성 키와 같은 구글 API 키 형식이라, 따로 넣지 않으면 그 키를
- * 그대로 쓴다 — 같은 키를 두 번 넣게 할 이유가 없다.
- * 모델 이름은 자주 바뀐다. 내가 적어 둔 값이 낡으면 404가 나는데, 그때 왜 안
- * 되는지 알 길이 없으니 키로 목록을 직접 받아 고를 수 있게 해 둔다. */
+/* 문장 첨삭·번역·영상의 AI 연결. Gemini 키와 음성 키는 별도로 설정한다. */
 export default function VideoAI({ settings, onChange, onToast }) {
-  const { provider, apiKey, borrowed } = resolveProvider(settings);
+  const { provider, apiKey } = resolveProvider(settings);
   const gemini = provider === PROVIDERS.GEMINI;
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [connection, setConnection] = useState(null);
+  const checkVersion = useRef(0);
+  useEffect(() => {
+    checkVersion.current += 1; setConnection(null); setChecking(false);
+    return () => { checkVersion.current += 1; };
+  }, [apiKey, settings.geminiModel, provider]);
+
+  const checkConnection = async () => {
+    if (!apiKey || checking) return;
+    const version = ++checkVersion.current;
+    setChecking(true); setConnection(null);
+    try {
+      await geminiGenerate({ apiKey, model: settings.geminiModel, body: {
+        contents: [{ role: 'user', parts: [{ text: 'Reply only OK.' }] }],
+        generationConfig: { maxOutputTokens: 16 },
+      } });
+      if (version === checkVersion.current) setConnection({ ok: true, text: 'Gemini 문장 생성 요청이 연결됐어요. 문장 만들기에서 첨삭을 받을 수 있어요.' });
+    } catch (error) {
+      if (version === checkVersion.current) setConnection({ ok: false, text: error.message });
+    } finally { if (version === checkVersion.current) setChecking(false); }
+  };
 
   const loadModels = async () => {
     if (loading) return;
@@ -36,7 +54,7 @@ export default function VideoAI({ settings, onChange, onToast }) {
       <div className="setrow col">
         <div className="set-title">설명을 만들 곳</div>
         <div className="set-note">
-          자막으로 하는 학습은 키 없이도 됩니다. 뜻·문법 설명을 만들 때만 씁니다.
+          문장 첨삭·번역·영상 설명에 사용해요. 자막으로 하는 학습은 키 없이도 됩니다.
         </div>
         <div className="pickrow-group">
           {[
@@ -57,24 +75,29 @@ export default function VideoAI({ settings, onChange, onToast }) {
       {gemini ? (
         <>
           <div className="setrow col">
-            <div className="set-title">구글 API 키</div>
+            <label className="set-title" htmlFor="gemini-api-key">Gemini API 키 · 문장 생성·첨삭용</label>
             <div className="set-note">
-              {borrowed
-                ? '아래 음성 키를 그대로 쓰고 있어요. 그 키가 붙은 구글 프로젝트에서 Generative Language API를 켜 두어야 통합니다. 다른 키를 쓰려면 여기 넣으세요.'
-                : '비워 두면 아래 음성 키를 그대로 씁니다. 키는 이 기기에만 저장돼요.'}
+              AI Studio에서 받은 생성용 키를 여기에 넣으세요. 문장 만들기·첨삭·번역·영상 설명에 사용하고, 읽기용 TTS 키는 대신 쓰지 않아요. 입력하면 자동으로 저장돼요.
+              {' '}<a className="ghost-btn" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Gemini 키 만들기</a>
             </div>
             <input
               type="password"
+              id="gemini-api-key"
+              name="gemini-api-key"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
               value={settings.geminiKey || ''}
-              placeholder={settings.gttsKey ? '비우면 음성 키를 씁니다' : 'AIza...'}
+              placeholder="생성용 Gemini API 키를 붙여넣으세요"
               onChange={(e) => onChange({ geminiKey: e.target.value.trim() })}
             />
+            <div className="keystate">{apiKey ? '생성용 Gemini 키 저장됨 · 아래에서 연결을 확인하세요' : '아직 생성용 Gemini 키가 없어요'}</div>
           </div>
 
           <div className="setrow col">
             <div className="set-title">모델</div>
             <div className="set-note">
-              비우면 기본값을 씁니다. 이름이 맞지 않으면 아래에서 목록을 받아 고르세요.
+              비우면 {DEFAULT_GEMINI_MODEL}를 씁니다. 저장된 2.5 모델을 사용할 수 없으면 새 기본 모델로 다시 연결해요. 다른 모델은 아래 목록에서 고르세요.
             </div>
             <input
               type="text"
@@ -96,6 +119,11 @@ export default function VideoAI({ settings, onChange, onToast }) {
                 ))}
               </div>
             )}
+            <button className="ghost-btn" disabled={!apiKey || checking} onClick={checkConnection}>
+              {checking ? '연결 확인 중…' : 'Gemini 문장 첨삭 연결 확인'}
+            </button>
+            <div className="set-note">선택한 모델에 아주 짧은 문장 생성 요청을 보내요. API 사용량이 조금 발생할 수 있어요.</div>
+            {connection && <p className={connection.ok ? 'set-note' : 'set-warn'} role={connection.ok ? 'status' : 'alert'}>{connection.text}</p>}
           </div>
         </>
       ) : (

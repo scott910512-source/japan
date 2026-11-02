@@ -331,8 +331,10 @@ function FreeMode({ settings, onToast }) {
         <div className="set-title">내 문장을 AI가 고쳐 줘요</div>
         <p className="set-note">
           내가 만든 일본어 문장을 넣으면 자연스러운지 봐 주고, 고친 문장과 일본인이 실제로 쓰는 말을 알려 줘요.
-          내 AI 키가 있어야 해요. 내 학습 · 설정 · 학습 도구에서 넣어요. 키는 이 기기 밖으로 나가지 않아요.
+          내 AI 키가 있어야 해요. 내 학습 → 설정 → 학습 도구에서 넣어요.
+          {settings.aiProvider !== 'claude' && 'Gemini는 AI Studio의 생성용 키를 별도 칸에 넣어야 해요. 읽기용 TTS 키는 문장 생성에 사용하지 않아요.'}
         </p>
+        {settings.aiProvider !== 'claude' && <a className="ghost-btn" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Gemini 키 만들기</a>}
       </div>
     );
   }

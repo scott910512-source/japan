@@ -379,7 +379,7 @@ export const DEFAULT_SETTINGS = {
   aiProvider: 'gemini', // gemini | claude
   videoTranscribe: false, // 영상을 직접 듣게 할지 — 요금이 많이 들어 기본은 끔
   tripPlace: '',      // 어디로 가는지 (예: 오사카) — 번역기가 그 지역 사투리도 봐 준다
-  geminiKey: '',        // 비워 두면 음성 키(gttsKey)를 그대로 쓴다 — 같은 형식이다
+  geminiKey: '',        // 문장 생성·첨삭용 Gemini 키. 읽기용 gttsKey와 별도로 사용한다.
   geminiModel: '',      // 비우면 기본값, 설정에서 목록을 받아 고를 수 있다
   claudeKey: '',
   claudeModel: '',     // 비우면 기본 모델
