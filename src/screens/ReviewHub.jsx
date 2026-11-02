@@ -166,7 +166,7 @@ export default function ReviewHub({
             <li key={s.id}><b>{s.label}</b><span>{s.sub}</span></li>
           ))}
         </ol>
-        <p className="set-note">틀리면 확인 단계가 처음으로 돌아가요. 단계별 개수는 내 학습의 기억 수준에서 봐요.</p>
+        <p className="set-note">틀리면 확인 단계가 처음으로 돌아가요. 단계별 개수는 복습&내기록의 기억 수준에서 봐요.</p>
       </details>
     </>
   );

@@ -4,7 +4,7 @@ import { IconHome, IconBook, IconChart, IconGear } from './Icons.jsx';
  *
  *   오늘    — 오늘 공부를 바로 시작한다. 앱을 켜면 여기다(내부 id는 home 그대로)
  *   학습    — 무엇을 공부할지 고른다 (N3 학습하기 · 단어 · 문법 · 한자 · 문장 · 듣기 · 자료 더 보기)
- *   내 학습 — 내가 한 것을 본다: 복습 · 퀴즈 · 오답 · 약점 · 진도
+ *   복습&내기록 — 내가 한 것을 본다: 복습 · 퀴즈 · 오답 · 약점 · 진도 (내부 id는 me 그대로)
  *   설정    — 학습 설정 · 음성 · 계정 · 백업 · 도구 · 앱 정보
  *
  * 복습 탭은 없어졌다. 복습·오답·약점은 「내가 한 것」이라 내 학습 안으로 모았다 —
@@ -16,7 +16,7 @@ import { IconHome, IconBook, IconChart, IconGear } from './Icons.jsx';
 const TABS = [
   { id: 'home', label: '오늘', Icon: IconHome },
   { id: 'study', label: '학습', Icon: IconBook },
-  { id: 'me', label: '내 학습', Icon: IconChart },
+  { id: 'me', label: '복습&내기록', Icon: IconChart },
   { id: 'settings', label: '설정', Icon: IconGear },
 ];
 
@@ -31,7 +31,7 @@ export default function TabBar({ active, onChange, reviewCount = 0 }) {
           onClick={() => onChange(id)}
           aria-current={active === id ? 'page' : undefined}
         >
-          {/* 오늘 복습이 남았으면 내 학습 탭에 적는다 — 안 그러면 며칠 밀린 걸
+          {/* 오늘 복습이 남았으면 복습&내기록 탭에 적는다 — 안 그러면 며칠 밀린 걸
               앱을 켜고도 모른다. 숫자는 오늘·복습 탭과 같은 계획(plan)에서 나온다. */}
           {id === 'me' && reviewCount > 0 && (
             <span className="count">{reviewCount > 99 ? '99+' : reviewCount}</span>

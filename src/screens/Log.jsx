@@ -137,7 +137,7 @@ export default function Log({
     <>
       <div className="navtitle">
         <small>얼마나 했고 얼마나 남았나</small>
-        내 학습
+        복습&amp;내기록
       </div>
 
       {/* 「하루도 안 빠지고」라고 적어 두었지만 이 숫자는 하루 쉬어도 이어진다.

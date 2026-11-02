@@ -442,10 +442,7 @@ export default function App() {
         <ScreenSlot active={activeTab === 'study' && !sub}>
 
           <StudyHub
-            words={words}
-            stat={wordStat}
             settings={settings}
-            n3Summary={progress.n3?.summary || null}
             onOpen={openMenu}
             /* 바로가기 — 자주 쓰는 메뉴를 사람이 골라 맨 앞에 둔다 */
             onChange={patchSettings}

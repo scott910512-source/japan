@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import StudyMenuCard from '../components/StudyMenuCard.jsx';
 import { FAV_MAX, favMenus, groupedMenus, isFav, toggleFav } from '../lib/menu.js';
-import { filterByLevel } from '../lib/wordFilters.js';
 
 /* 학습 탭 — 「무엇을」 공부할지 고르는 자리.
  *
@@ -9,23 +8,18 @@ import { filterByLevel } from '../lib/wordFilters.js';
  * 생겼다고 이 길을 없애지 않는다 — "오늘은 식당 회화만 3회독 하고 싶다"는
  * 사람이 있고, 그건 앱이 대신 정해 줄 수 있는 게 아니다.
  *
- * 추천 경로(N3 코스 하나만 크게, 옆에 기출 단어) → 원하는 것 골라 학습(단어·
+ * 추천 경로(N3 코스, 옆에 기출 단어) → 원하는 것 골라 학습(단어·
  * 문법·한자·문장·듣기·실전 연습) → 자료 더 보기(여행·영상·완전기초·독일어).
  * 어디에 무엇이 들어가는지는 lib/menu.js가 정한다. 시험·짝 맞추기·부사 연습·
  * 동사 활용은 단어·문법 화면 안의 「연습」 줄에 있다.
  *
- * 여기에는 행동(새로 배우기·복습하기)이 없다. 그건 오늘과 복습 탭이 한다.
+ * 여기에는 행동(새로 배우기·복습하기)이 없다. 그건 오늘과 내 학습의 복습이 한다.
  * 진행률 숫자도 안 둔다 — 고르는 화면에 통계가 같이 있으면 고르러 왔다가
- * 통계를 읽고 나간다. 코스 카드의 한 줄만 예외다(어디까지 왔는지가 곧 다음
- * 레슨이 무엇인지라서). */
+ * 통계를 읽고 나간다. N3 진도·준비도는 내 학습에서 본다.
+ *
+ * 모든 칸은 같은 크기다. 코스 카드를 크게 그렸더니 한 화면의 절반을 차지했다. */
 
-/* stat(단어 회독 현황)은 App이 한 번 세서 내려 준다 — 내 학습과 같은 값이다 */
-export default function StudyHub({ words, stat, settings, n3Summary, onOpen, onChange, onToast }) {
-  const pool = useMemo(
-    () => filterByLevel(words, settings.levels),
-    [words, settings.levels],
-  );
-  const groups = useMemo(() => groupedMenus(settings.menus), [settings.menus]);
+export default function StudyHub({ settings, onOpen, onChange, onToast }) {
 
   /* ★ 바로가기 ★
      묶음은 「처음 오는 사람이 무엇이 있는지 알아보는」 차례다. 그건 그대로
@@ -36,6 +30,15 @@ export default function StudyHub({ words, stat, settings, n3Summary, onOpen, onC
     () => favMenus(settings.favs, settings.menus),
     [settings.favs, settings.menus],
   );
+  /* ★ 바로가기로 올라간 칸은 아래 묶음에서 뺀다 ★
+     위에도 있고 아래에도 있으면 같은 칸이 두 번 보이고, 어느 쪽이 진짜인지 따지게 된다.
+     고른 순간 그 칸은 위로 올라가고, 빼면 제자리 묶음으로 돌아온다. */
+  const groups = useMemo(() => {
+    const up = new Set(favs.map((m) => m.id));
+    return groupedMenus(settings.menus)
+      .map((g) => ({ ...g, items: g.items.filter((m) => !up.has(m.id)) }))
+      .filter((g) => g.items.length > 0);
+  }, [settings.menus, favs]);
   /* 고치는 동안에만 별을 띄운다. 평소에 칸마다 별이 붙어 있으면 누를 자리가
      둘이 되고, 작은 칸에서는 열려던 메뉴 대신 별이 눌린다. */
   const [editing, setEditing] = useState(false);
@@ -50,16 +53,6 @@ export default function StudyHub({ words, stat, settings, n3Summary, onOpen, onC
   };
 
   const tap = (id) => (editing ? flipFav(id) : onOpen(id));
-
-  const noteOf = (id) => {
-    if (id === 'n3') {
-      return n3Summary
-        ? `${n3Summary.done} / ${n3Summary.total} 레슨 · 준비도 ${n3Summary.ready}%`
-        : 'N4 복습부터 모의고사까지 — 오늘의 N3만 누르면 돼요';
-    }
-    if (id === 'words') return `${stat.seen} / ${pool.length}개 봤어요`;
-    return null;
-  };
 
   return (
     <>
@@ -119,7 +112,6 @@ export default function StudyHub({ words, stat, settings, n3Summary, onOpen, onC
                   <StudyMenuCard
                     key={m.id}
                     item={m}
-                    note={noteOf(m.id)}
                     /* 고치는 중에는 큰 칸도 작은 칸으로 — 별을 달 자리가
                        같아야 어느 것이 고를 수 있는 칸인지 헷갈리지 않는다 */
                     big={editing ? false : null}

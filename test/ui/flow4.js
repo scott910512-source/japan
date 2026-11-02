@@ -102,7 +102,7 @@ async function judgeAll(page, max = 60, label = '알아요') {
 
   console.log('── 네 탭');
   const tabs = await page.locator('.tabbar .tab').evaluateAll((els) => els.map((e) => e.textContent.replace(/^\d+\+?/, '')));
-  ok('★ 오늘 · 학습 · 내 학습 · 설정 ★', tabs.join() === '오늘,학습,내 학습,설정', tabs.join());
+  ok('★ 오늘 · 학습 · 복습&내기록 · 설정 ★', tabs.join() === '오늘,학습,복습&내기록,설정', tabs.join());
   ok('켜면 오늘', (await page.locator('.tabbar .tab.active').innerText()) === '오늘');
   for (const t of ['오늘', '학습', '내 학습', '설정']) {
     await goTab(page, t);
