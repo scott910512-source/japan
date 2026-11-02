@@ -51,7 +51,7 @@ const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', readin
 
 export default function Log({
   review, stats, streak, grammarLeft, stat, rounds,
-  n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenQuiz, onOpenWrong, wrongCount = 0, reviewLeft = 0,
+  n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenQuiz, onOpenWrong, wrongCount = 0, onOpenWeak, weakGrammar = 0, reviewLeft = 0,
 }) {
   /* 자정을 넘기면 이 값이 바뀌고 화면이 다시 그려진다. 예전엔 마운트 때
      한 번 잡아 둬서, 8/31에 켜 놓고 9/1이 되면 달력이 8월에 머물렀다 —
@@ -162,6 +162,11 @@ export default function Log({
         <button className="listrow me-row" data-row="wrong" onClick={onOpenWrong}>
           <span className="rv-body"><b>오답노트</b><span>틀린 문제 · 다시 시험 · N3 오답</span></span>
           <span className="rv-cnt">{wrongCount}</span>
+          <IconChevron className="chev" />
+        </button>
+        <button className="listrow me-row" data-row="weak" onClick={onOpenWeak}>
+          <span className="rv-body"><b>약점</b><span>약점 퀴즈 · 약한 단어 · 취약 문법</span></span>
+          <span className="rv-cnt">{weakWords + weakGrammar}</span>
           <IconChevron className="chev" />
         </button>
         <button className="listrow me-row" data-row="quiz" onClick={onOpenQuiz}>
@@ -313,12 +318,12 @@ export default function Log({
 
       {/* 어디가 약한가 — 사용자가 궁금한 세 가지 중 하나. 자세한 건 복습 */}
       <div className="section-label">취약 영역</div>
-      <button className="rowcard me-weak" onClick={onOpenReview}>
+      <button className="rowcard me-weak" onClick={onOpenWeak}>
         <span className="rc-body">
           <b>{weakWords > 0 ? `취약 단어 ${weakWords}개` : '아직 취약 단어가 없어요'}</b>
           <span>{n3Summary
-            ? `N3 준비도가 낮은 곳: ${Object.entries(AREA_LABEL).sort((a, b) => (n3Summary.areas?.[a[0]] ?? 0) - (n3Summary.areas?.[b[0]] ?? 0)).slice(0, 2).map(([, l]) => l).join(' · ')} — 복습에서 틀린 문제와 함께`
-            : '틀린 문제와 약점은 복습에서'}</span>
+            ? `N3 준비도가 낮은 곳: ${Object.entries(AREA_LABEL).sort((a, b) => (n3Summary.areas?.[a[0]] ?? 0) - (n3Summary.areas?.[b[0]] ?? 0)).slice(0, 2).map(([, l]) => l).join(' · ')} — 약점에서 한꺼번에`
+            : '약점은 약점 화면에서'}</span>
         </span>
         <IconChevron className="chev" />
       </button>

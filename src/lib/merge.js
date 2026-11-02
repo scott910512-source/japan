@@ -13,6 +13,7 @@
 /* N3 코스 — 규칙은 lib/n3.js. 레슨 완료는 OR, 정답률·시험은 큰 쪽, 오답 노트는 나중 쪽. */
 import { mergeN3 } from './n3progress.js';
 import { mergeMistakes } from './mistakes.js';
+import { mergeWeakQuiz } from './weakquiz.js';
 /* 약점 장부 — 규칙은 lib/weak.js. 횟수는 큰 쪽, 잊어버린 간격은 작은 쪽. */
 import { mergeWeak } from './weak.js';
 
@@ -177,6 +178,8 @@ export function mergeProgress(local = {}, remote = {}) {
     /* 약점 장부도 두 기기에서 쌓은 게 다 남아야 한다 — local이 통째로 덮으면
        폰에서 본 시험 성적이 태블릿과 합치는 순간 사라진다(활용 성적과 같은 일). */
     weak: mergeWeak(local.weak, remote.weak),
+    /* 오늘 약점 퀴즈로 푼 낱말 — 같은 날이면 합치고, 다른 날이면 나중 날 */
+    weakQuiz: mergeWeakQuiz(local.weakQuiz, remote.weakQuiz),
     /* 둘 다 없으면 null로 둔다 — 한 번도 안 연 사람에게 빈 코스 기록을 만들지 않는다 */
     n3: (local.n3 || remote.n3) ? mergeN3(local.n3, remote.n3) : null,
   };

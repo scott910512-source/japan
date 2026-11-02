@@ -35,7 +35,7 @@ const HELLO = [
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
-  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore,
+  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz,
 }) {
   const today = todayKey();
 
@@ -77,6 +77,12 @@ export default function Today({
       key: 'review', title: '복습 미션',
       note: backLeft === 0 ? '오늘 복습을 모두 마쳤어요' : `남은 ${backLeft}개 · 복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`,
       done: backLane.done, total: backLane.assigned, icon: <IconRepeat />, onClick: onStartReview,
+    },
+    /* ★ 약점 퀴즈 ★ 약한 낱말 다섯 문제. 약점이 하나도 없고 오늘 푼 것도 없으면 줄이 안 뜬다 */
+    weakQuiz && weakQuiz.total > 0 && {
+      key: 'weakquiz', title: '약점 퀴즈',
+      note: weakQuiz.complete ? '오늘 약점 퀴즈를 마쳤어요' : `약한 낱말 ${weakQuiz.total - weakQuiz.done}문제 남았어요`,
+      done: weakQuiz.done, total: weakQuiz.total, icon: <IconFlame />, onClick: onStartWeakQuiz,
     },
     freshLane.assigned > 0 && {
       key: 'fresh', title: '새로 배우기',
