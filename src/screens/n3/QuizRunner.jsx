@@ -35,6 +35,7 @@ export default function QuizRunner({
   useEffect(() => {
     if (!q) return undefined;
     if (autoSpeak && q.speak) speakJapanese(q.speak, rate);
+    else stopSpeaking(); // Do not carry a learning-card pronunciation into a reading question.
     return () => stopSpeaking();
   }, [at]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -51,7 +52,7 @@ export default function QuizRunner({
     const next = [...results, { q, ok, picked: opt }];
     setResults(next);
     onAnswer?.(q, ok, opt);
-    if (ok && q.speakAfter && autoSpeak) speakJapanese(q.speakAfter, rate);
+    if (q.speakAfter && autoSpeak && mode !== 'exam') speakJapanese(q.speakAfter, rate);
     /* 실전은 바로 다음으로 — 설명은 끝에 */
     if (mode === 'exam') after(() => advance(next), 250);
   };
@@ -161,6 +162,7 @@ export default function QuizRunner({
             {!ok && q.why?.[picked] && <p className="n3-why"><b>「{picked}」</b> — {q.why[picked]}</p>}
             {!ok && <p className="n3-ans">정답: <b>{q.answer}</b></p>}
             {q.expl && <p className="n3-expl">{q.expl}</p>}
+            {q.speakAfter && <JpSpeak text={q.speakAfter} rate={rate} id={`answer:${q.id}`} label="정답 발음 듣기" className="n3-answer-spk" />}
           </div>
           <button className="submit-btn n3-next" onClick={() => advance()} style={{ marginTop: 10 }}>
             {at + 1 >= total ? lastLabel : '다음'}

@@ -238,9 +238,11 @@ console.log('\n[ 문제 만들기 ]');
 {
   const vq = n3.vocabQuestions(VOCAB_WORDS.slice(0, 9).map((w) => w.id), rnd);
   ok('단어 문제는 뜻·일본어·읽기 세 유형이 돌아간다', vq.length === 9 && new Set(vq.map((q) => q.id.split(':')[2])).size === 3);
+  ok('읽기 정답은 채점 후에만 발음한다', vq.filter((q) => q.id.endsWith(':kana')).every((q) => !q.speak && q.speakAfter === q.answer));
   ok('보기 셋, 답이 안에, 뜻이 겹치지 않는다', vq.every((q) => q.options.length === 3 && q.options.includes(q.answer) && new Set(q.options).size === 3));
   const kq = n3.kanjiQuestions(KANJI_ITEMS.slice(0, 5).map((k) => k.id), rnd);
   ok('한자 문제는 그 한자가 든 단어의 읽기', kq.every((q) => q.options.includes(q.answer) && q.options.length === 3 && !KANJI.test(q.answer)));
+  ok('한자 읽기도 채점 전 음성으로 답을 주지 않는다', kq.every((q) => !q.speak && q.speakAfter === q.answer));
   const rq = n3.reviewQuestions(['g:wa-ga', 'k:経', VOCAB_WORDS[0].id], rnd);
   ok('복습 단계는 문법·한자·단어 id를 각각 문제로', rq.length === 3 && rq[0].ref === 'g:wa-ga' && rq[1].ref === 'k:経' && rq[2].ref === VOCAB_WORDS[0].id);
 }

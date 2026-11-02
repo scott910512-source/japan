@@ -378,7 +378,7 @@ export function vocabQuestion(word, type, rnd = Math.random) {
   if (type === 'kana') {
     return { id: `vq:${word.id}:kana`, kind: 'vocab', cat: 'vocab', ref: word.id, refTitle: word.kanji, type: 'choice',
       q: `【${word.kanji}】の読み方は？`, sub: word.mean, options: all.map((w) => w.kana), answer: word.kana,
-      why: Object.fromEntries(others.map((w) => [w.kana, `「${w.kana}」는 ${w.kanji}(${w.mean})의 읽기예요.`])), expl: `${word.kanji} = ${word.kana}`, speak: word.kana, d: 1 };
+      why: Object.fromEntries(others.map((w) => [w.kana, `「${w.kana}」는 ${w.kanji}(${w.mean})의 읽기예요.`])), expl: `${word.kanji} = ${word.kana}`, speakAfter: word.kana, d: 1 };
   }
   if (type === 'jp') {
     return { id: `vq:${word.id}:jp`, kind: 'vocab', cat: 'vocab', ref: word.id, refTitle: word.kanji, type: 'choice',
@@ -415,7 +415,7 @@ export function kanjiQuestion(k, rnd = Math.random, which = 0) {
   const all = shuffle([word, ...others], rnd);
   return { id: `kq:${k.k}:${which % k.words.length}`, kind: 'kanji', cat: 'kanji', ref: k.id, refTitle: k.k, type: 'choice',
     q: `【${word[0]}】の読み方は？`, sub: `${k.k} — ${k.kh}`, options: all.map((w) => w[1]), answer: word[1],
-    why: Object.fromEntries(others.map((w) => [w[1], `「${w[1]}」는 ${w[0]}(${w[2]})예요.`])), expl: `${word[0]}(${word[1]}) = ${word[2]} · ${k.k}: ${k.on}${k.kun && k.kun !== '—' ? ` / ${k.kun}` : ''}`, speak: word[1], d: 1 };
+    why: Object.fromEntries(others.map((w) => [w[1], `「${w[1]}」는 ${w[0]}(${w[2]})예요.`])), expl: `${word[0]}(${word[1]}) = ${word[2]} · ${k.k}: ${k.on}${k.kun && k.kun !== '—' ? ` / ${k.kun}` : ''}`, speakAfter: word[1], d: 1 };
 }
 export function kanjiQuestions(kanjiIds, rnd = Math.random) {
   return kanjiIds.map((id, i) => { const k = kanjiByChar(id.slice(2)); return k ? kanjiQuestion(k, rnd, i) : null; }).filter(Boolean);

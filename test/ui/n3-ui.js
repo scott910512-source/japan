@@ -55,6 +55,10 @@ async function solve(page, { wrongAt = [], max = 40 } = {}) {
     if (seen.at(-1) === qid) { await page.waitForTimeout(200); continue; }
     seen.push(qid);
     const ans = answerOf(qid);
+    const readingQuestion = /^vq:.*:kana$/.test(qid) || /^kq:[^:]+:\d+$/.test(qid);
+    if (readingQuestion) {
+      ok('읽기 문제는 답을 고르기 전에 듣기 버튼이 없다', await runner.locator('.n3-qspk, .n3-answer-spk').count() === 0);
+    }
     const opts = runner.locator('.qopt');
     const n = await opts.count();
     let target = null;
@@ -66,6 +70,7 @@ async function solve(page, { wrongAt = [], max = 40 } = {}) {
     await (target || opts.first()).click();
     await page.waitForTimeout(350);
     const next = page.locator('.n3-next');
+    if (readingQuestion && await next.count()) ok('채점 후에는 정답 발음을 들을 수 있다', await runner.locator('.n3-answer-spk').count() === 1);
     if (await next.count()) { await next.click(); await page.waitForTimeout(300); }
     else await page.waitForTimeout(300);
   }
