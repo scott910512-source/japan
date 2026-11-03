@@ -25,7 +25,7 @@ const TABS = [
 ];
 
 export default function GrammarHub({
-  words, progress, settings, onProgress, onPatternDone, onDailyGrammar, onToast,
+  words, progress, settings, onProgress, onPatternDone, onDailyGrammar, onToast, onAttempt,
 }) {
   const [tab, setTab] = useState('cards');
 
@@ -45,7 +45,7 @@ export default function GrammarHub({
           매번 셋 다 들어가 보게 된다. */}
       <p className="set-note gm-note">{TABS.find((t) => t.id === tab)?.sub}</p>
 
-      {tab === 'cards' && <Grammar words={words} progress={progress} onProgress={onProgress} />}
+      {tab === 'cards' && <Grammar words={words} progress={progress} onProgress={onProgress} onAttempt={onAttempt} />}
       {tab === 'daily' && (
         <DailyGrammar
           progress={progress}

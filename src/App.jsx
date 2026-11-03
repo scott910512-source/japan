@@ -327,6 +327,7 @@ export default function App() {
     } else if (row.ref?.startsWith('k:')) openMenu('n3', { view: { kind: 'kanjicard', id: row.ref } });
     else if (/^[gvrl]:/.test(row.ref || '')) openMenu('n3', { view: { kind: 'lesson', id: row.ref } });
     else if (row.source === 'compose') openMenu('compose', { mode: row.id.includes(':cloze:') ? 'blank' : row.id.includes(':write:') ? 'write' : 'build' });
+    else if (row.source === 'grammar') openMenu('grammar');
     else openMenu('sentences');
   }, [byId, guardDeck, startJlptSet, openMenu]);
 

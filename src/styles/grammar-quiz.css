@@ -1,0 +1,17 @@
+.grammar-session { min-width: 0; }
+.grammar-session-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.grammar-session-head h3 { margin: 0; }
+.grammar-session-head > button { min-height: 44px; flex: 0 0 auto; }
+.grammar-quiz-progress { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding: 8px 0; background: var(--surface); border-bottom: 1px solid var(--line); font-size: 13px; }
+.grammar-quiz-progress > span { font-size: 11px; color: var(--ink-soft); }
+.grammar-progress { display: block; width: 100%; height: 8px; margin: 8px 0 12px; accent-color: var(--kon); }
+.grammar-result { padding: 20px 0 10px; text-align: center; }
+.grammar-result h4 { margin: 0 0 12px; }
+.grammar-result > strong { font-size: 34px; color: var(--kon); }
+.grammar-result p { font-size: 13px; line-height: 1.8; }
+.grammar-wrong-list .card { padding: 12px; margin-bottom: 8px; }
+.grammar-wrong-list b, .grammar-wrong-list p, .grammar-all-answers p { font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.grammar-all-answers { margin: 14px 0; }
+.grammar-all-answers summary { min-height: 44px; cursor: pointer; font-size: 14px; }
+.grammar-result-actions { display: grid; gap: 8px; margin: 16px 0; }
+.grammar-result-actions > button { min-height: 44px; }
