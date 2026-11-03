@@ -211,6 +211,7 @@ export function buildQuestion(word, { type, dir }, pool, rng = Math.random) {
     sub: jpFirst ? null : w.kana,
     jp: w.kanji,
     jpKana: w.kana,
+    mean: w.mean,
   }));
   return { ...base, options };
 }

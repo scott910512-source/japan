@@ -48,6 +48,7 @@ function answerOf(qid) {
 /* 문제를 끝까지 푼다. wrongAt에 든 번째(0부터)는 일부러 틀린다. */
 async function solve(page, { wrongAt = [], max = 40 } = {}) {
   const seen = [];
+  const noInfo = [];
   for (let i = 0; i < max; i += 1) {
     const runner = page.locator('.n3-quiz');
     if (!(await runner.count())) break;
@@ -71,9 +72,16 @@ async function solve(page, { wrongAt = [], max = 40 } = {}) {
     await page.waitForTimeout(350);
     const next = page.locator('.n3-next');
     if (readingQuestion && await next.count()) ok('채점 후에는 정답 발음을 들을 수 있다', await runner.locator('.n3-answer-spk').count() === 1);
+    /* 답을 낸 뒤에는 보기마다 읽기 · 뜻 · 듣기 줄이 붙는다(어휘·한자는 🔊까지) */
+    if (await next.count()) {
+      const rows = await page.locator('.optrev-row').count();
+      const spk = await page.locator('.optrev-row .optrev-spk').count();
+      if (rows !== n || (/^(vq|kq):/.test(qid) && spk !== n)) noInfo.push(`${qid} rows=${rows}/${n} spk=${spk}`);
+    }
     if (await next.count()) { await next.click(); await page.waitForTimeout(300); }
     else await page.waitForTimeout(300);
   }
+  ok('★ 답을 낸 뒤 모든 보기에 읽기 · 뜻 · 듣기 줄이 붙는다 ★', noInfo.length === 0, noInfo.slice(0, 3).join(' | ') || `${seen.length}문제`);
   return seen;
 }
 
