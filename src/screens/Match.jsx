@@ -3,6 +3,8 @@ import { useTimeouts } from '../hooks/useTimeouts.js';
 import { IconSpeaker, IconCheck, IconPlay } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
+import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows } from '../lib/optionInfo.js';
 import {
   MODE, MODE_HINT, MODE_LABEL, PAIRS, buildBoard, scoreOf, verdictOf,
 } from '../lib/match.js';
@@ -30,6 +32,8 @@ export default function Match({ cards, review, settings, onToast }) {
   const [wrong, setWrong] = useState(null);      // 방금 틀린 짝 — 잠깐 흔든다
   const [misses, setMisses] = useState(0);
   const [done, setDone] = useState(null);
+  const [recap, setRecap] = useState(false);     // 한 판을 다 맞힌 뒤, 쌍마다 읽기 · 뜻 · 듣기를 보는 자리
+  const [reviewOpen, setReviewOpen] = useReviewOpen();
   const seen = useRef([]);                       // 이번 게임에 이미 낸 것
   const startedAt = useRef(0);
   const rate = settings.speechRate;
@@ -44,6 +48,7 @@ export default function Match({ cards, review, settings, onToast }) {
     setPicked(null);
     setMatched([]);
     setWrong(null);
+    setRecap(false);
     return true;
   }, [cards, review, onToast]);
 
@@ -87,17 +92,22 @@ export default function Match({ cards, review, settings, onToast }) {
     after(() => setWrong(null), 420);
   };
 
+  const proceed = () => {
+    if (round >= ROUNDS) {
+      const seconds = Math.round((Date.now() - startedAt.current) / 1000);
+      const pairs = seen.current.length;
+      setDone({ pairs, misses, seconds, score: scoreOf({ pairs, misses, seconds }) });
+      return;
+    }
+    setRound((r) => r + 1);
+    deal(board.mode, true);
+  };
+
+  /* 한 판을 다 맞히면, 펼쳐 둔 때는 쌍마다 읽기 · 뜻 · 듣기를 보고 직접 넘긴다.
+     접어 두면 예전처럼 잠깐 뒤 저절로 다음 판. */
   const finishRound = () => {
-    after(() => {
-      if (round >= ROUNDS) {
-        const seconds = Math.round((Date.now() - startedAt.current) / 1000);
-        const pairs = seen.current.length;
-        setDone({ pairs, misses, seconds, score: scoreOf({ pairs, misses, seconds }) });
-        return;
-      }
-      setRound((r) => r + 1);
-      deal(board.mode, true);
-    }, 500);
+    if (reviewOpen) { setRecap(true); return; }
+    after(proceed, 500);
   };
 
   // ── 무엇을 할지 고르기 ──
@@ -197,6 +207,21 @@ export default function Match({ cards, review, settings, onToast }) {
           })}
         </div>
       </div>
+
+      {recap && (
+        <>
+          <button className="submit-btn mt-nextround" onClick={proceed}>
+            {round >= ROUNDS ? '결과 보기' : '다음 판'}
+          </button>
+          <OptionReview
+            idPrefix={`mt:${round}`}
+            rate={rate}
+            open={reviewOpen}
+            onOpenChange={setReviewOpen}
+            rows={reviewRows(board.pairs, board.pairs.map((p) => ({ jp: p.jp, kana: p.kana !== p.jp ? p.kana : '', ko: p.mean })), {})}
+          />
+        </>
+      )}
 
       <p className="set-note mt-foot">
         {picked

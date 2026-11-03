@@ -75,6 +75,9 @@ function distractors(target, pool, key, want) {
   return out;
 }
 
+/* 장면의 답 보기 한 줄 — 몸짓（　）은 소리 낼 말이 아니라서 mute. */
+export const choiceInfo = (c) => ({ jp: c.jp, kana: '', ko: c.ko || '', mute: /^[（(]/.test(c.jp) });
+
 /* 문제 하나. 화면은 이 모양만 그리면 된다. */
 function question(form, target, pool, seed) {
   const key = form === FORM.KO_JP || form === FORM.LISTEN ? 'jp' : 'ko';
@@ -84,6 +87,8 @@ function question(form, target, pool, seed) {
   const options = [target, ...wrong].map((e) => ({
     id: e.id,
     text: form === FORM.KO_JP || form === FORM.LISTEN ? e.jp : e.ko,
+    /* 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기 */
+    info: { jp: e.jp, kana: e.kana && e.kana !== e.jp ? e.kana : '', ko: e.ko },
   }));
   // 정답이 늘 첫 칸이면 그 자리만 외운다
   const at = ((seed % options.length) + options.length) % options.length;
@@ -107,7 +112,7 @@ function replyQuestion(scene, seed) {
   const ok = scene.choices.filter((c) => c.ok);
   const no = scene.choices.filter((c) => !c.ok);
   if (!ok.length || !no.length) return null;
-  const options = shuffled(scene.choices).map((c) => ({ id: c.jp, text: c.jp, ok: c.ok, why: c.why }));
+  const options = shuffled(scene.choices).map((c) => ({ id: c.jp, text: c.jp, ok: c.ok, why: c.why, info: choiceInfo(c) }));
   return {
     key: `${scene.id}:reply:${seed}`,
     form: FORM.REPLY,

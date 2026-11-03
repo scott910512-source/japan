@@ -6,6 +6,7 @@
  * 줄 하나의 모양: { jp, kana, ko, tone }
  *   jp    일본어 표기 (없을 수 있다)
  *   kana  읽기 (표기와 같으면 비운다)
+ *   mute  true면 소리를 내지 않는다(실제로 없는 말)
  *   say   소리로 낼 말 (읽기와 달리 보일 때만. 없으면 kana → jp 순)
  *   ko    한국어 뜻 (없을 수 있다)
  *   tone  'correct' 정답 · 'mine' 내가 고른 틀린 답 · '' 그 밖의 보기
@@ -51,4 +52,4 @@ export function reviewRows(options, infos, { isCorrect, isMine } = {}) {
 }
 
 /* 소리로 낼 말 — 읽기가 있으면 읽기, 없으면 표기. 한자를 그대로 넘기면 엔진이 제멋대로 읽는다. */
-export const speakText = (row) => clean(row?.say) || clean(row?.kana) || clean(row?.jp);
+export const speakText = (row) => (row?.mute ? '' : (clean(row?.say) || clean(row?.kana) || clean(row?.jp)));

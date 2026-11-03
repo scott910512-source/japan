@@ -85,10 +85,10 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
   useEffect(() => {
     const areas = { vocab: ready.vocab, kanji: ready.kanji, grammar: ready.grammar, reading: ready.reading, listening: ready.listening };
     const cur = n3.summary;
-    const same = cur && cur.done === prog.done && cur.total === prog.total && cur.ready === ready.total
+    const same = cur && cur.done === prog.done && cur.total === prog.total && cur.ready === ready.total && cur.exact === ready.exact
       && TRACKS.every((t) => cur.areas?.[t] === areas[t]);
     if (same) return;
-    setN3((p) => ({ ...p, summary: { done: prog.done, total: prog.total, pct: prog.pct, ready: ready.total, areas, at: Date.now() } }));
+    setN3((p) => ({ ...p, summary: { done: prog.done, total: prog.total, pct: prog.pct, ready: ready.total, exact: ready.exact, areas, at: Date.now() } }));
   }, [prog, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ★ 문제를 푸는 중에는 새 버전으로 안 갈아끼운다 ★

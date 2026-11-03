@@ -27,6 +27,12 @@ const HELLO = [
   '오늘 몫만 하면 돼요.',
 ];
 
+/* 준비도 숫자 — 10% 아래에서는 소수 첫째 자리까지 (조금 풀어도 올라가는 게 보이게) */
+const readyShown = (s) => {
+  const x = typeof s.exact === 'number' ? s.exact : s.ready;
+  return x < 10 ? (Math.round(x * 10) / 10).toString() : Math.round(x).toString();
+};
+
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
@@ -110,8 +116,8 @@ export default function Today({
       {onOpenN3 && (
         <div className="hm-goal" data-ready={summary ? summary.ready : ''}>
           <span className="hg-lab">JLPT N3</span>
-          <span className="hg-bar"><i style={{ width: `${summary ? summary.ready : 0}%` }} /></span>
-          <b className="hg-pct">{summary ? `${summary.ready}%` : '시작 전'}</b>
+          <span className="hg-bar"><i style={{ width: `${summary ? readyShown(summary) : 0}%` }} /></span>
+          <b className="hg-pct">{summary ? `${readyShown(summary)}%` : '시작 전'}</b>
         </div>
       )}
 

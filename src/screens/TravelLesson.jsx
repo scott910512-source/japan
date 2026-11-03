@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconArrowLeft, IconRewind, IconCheck } from '../components/Icons.jsx';
 import SpeakButton from '../components/SpeakButton.jsx';
+import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows } from '../lib/optionInfo.js';
 import HunterTutor from '../components/HunterTutor.jsx';
 import { conversationTutor } from '../data/hunterTutors.js';
 import { readingText, speakIn } from '../lib/tts.js';
@@ -39,6 +41,7 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
   /* 「글자 보기」 — 소리가 안 나는 기기(일본어 음성이 없거나 소리를 못 켠 자리)에서도 풀리게 한다.
      글자를 본 문제는 틀린 게 아니라서 점수는 그대로고, 대신 뒤에 한 번 더 나와서 귀로 다시 듣는다. */
   const [peek, setPeek] = useState(false);
+  const [reviewOpen, setReviewOpen] = useReviewOpen();
   /* ★ 한 판이 끝나는 순간 한 번 기록한다 ★ — 레슨·약점·숫자 훈련 모두.
      「한 번 더」로 이어 풀어도, 「완료」를 안 누르고 나가도 앞 판이 안 사라진다
      (약점 연습에서 앞 판에 푼 줄이 주머니에 남아 있던 문제). */
@@ -198,6 +201,20 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
             <button className="submit-btn swl-next" onClick={next}>계속</button>
           </div>
         </div>
+      )}
+
+      {/* 정답은 아는데 다른 보기가 궁금할 때 — 「계속」 아래에 둔다 */}
+      {checked && (
+        <OptionReview
+          idPrefix={`tr:${at}`}
+          rate={rate}
+          open={reviewOpen}
+          onOpenChange={setReviewOpen}
+          rows={reviewRows(ex.options, ex.options.map((o) => ({ jp: o.jp, kana: o.kana && o.kana !== o.jp ? o.kana : '', say: say(o), ko: o.ko })), {
+            isCorrect: (i) => ex.options[i].id === ex.answerId,
+            isMine: (i) => ex.options[i].id === pick,
+          })}
+        />
       )}
     </>
   );

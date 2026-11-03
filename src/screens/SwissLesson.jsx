@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconArrowLeft, IconRewind, IconCheck } from '../components/Icons.jsx';
 import SpeakButton from '../components/SpeakButton.jsx';
+import SwissOptionReview from '../components/SwissOptionReview.jsx';
+import { useReviewOpen } from '../components/OptionReview.jsx';
 import { speakIn } from '../lib/tts.js';
 import { buildExercises, judgeGerman, starsFor } from '../lib/swissCourse.js';
 
@@ -279,6 +281,11 @@ export default function SwissLesson({
               </div>
             </div>
           )}
+
+          {/* 정답은 아는데 다른 보기가 궁금할 때 — 「계속」 아래에 둔다. 독일어는 독일어 음성으로 따로 만든 칸 */}
+          {checked && ex.options && !typing(ex.type) && ex.type !== 'build' && (
+            <SwissOptionReview options={ex.options} answerId={ex.answerId} pickId={pick} rate={rate} idPrefix={`swl:${at}`} />
+          )}
         </>
       )}
     </>
@@ -302,13 +309,17 @@ function SwissMatch({ pairs, rate, onWrong, onDone }) {
      그래서 최신 onDone은 ref로 읽고, 타이머는 화면이 닫힐 때만 지운다. */
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
+  /* 넷을 다 맞힌 뒤, 보기 상세를 펼쳐 둔 때는 낱말마다 발음 · 뜻 · 듣기를 보고 「계속」으로 넘긴다 */
+  const [reviewOpen] = useReviewOpen();
+  const [recap, setRecap] = useState(false);
 
   useEffect(() => {
     if (okIds.length === pairs.length && !doneRef.current) {
       doneRef.current = true;
+      if (reviewOpen) { setRecap(true); return; }
       timerRef.current = setTimeout(() => onDoneRef.current(), 700);
     }
-  }, [okIds, pairs.length]);
+  }, [okIds, pairs.length]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const tapLeft = (id) => {
@@ -357,6 +368,14 @@ function SwissMatch({ pairs, rate, onWrong, onDone }) {
           ))}
         </div>
       </div>
+      {recap && (
+        <>
+          <div className="btnrow" style={{ marginTop: 10 }}>
+            <button className="submit-btn swl-next" onClick={() => onDoneRef.current()}>계속</button>
+          </div>
+          <SwissOptionReview options={pairs} rate={rate} idPrefix="swm" />
+        </>
+      )}
     </>
   );
 }

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows } from '../lib/optionInfo.js';
+import { reviewRows, speakText, textInfo } from '../lib/optionInfo.js';
+import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { markBusy } from '../lib/busy.js';
 import { goalOf } from '../lib/goal.js';
 import {
@@ -20,6 +21,11 @@ import {
  * 한 판의 풀은 시작할 때 한 번 굳힌다. 답할 때마다 복습 기록이 바뀌는데 그때마다 풀을
  * 다시 짜면 방금 틀린 것의 무게가 판 안에서 이리저리 흔들린다 — 판 안의 적응은 session이 한다. */
 const AUTO_NEXT_MS = 800;
+const BATCH_KEY = 'jp_stream_batch';
+const BATCH_CHOICES = [10, 20, 30, 0];   // 0 = 끝없이
+const loadBatch = () => {
+  try { const n = Number(localStorage.getItem(BATCH_KEY)); return BATCH_CHOICES.includes(n) && localStorage.getItem(BATCH_KEY) != null ? n : 20; } catch { return 20; }
+};
 
 export default function StreamQuiz({
   words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit, onAttempt, onAnswered,
@@ -31,6 +37,11 @@ export default function StreamQuiz({
   const [cur, setCur] = useState(null);          // { item, q }
   const [answered, setAnswered] = useState(null); // { value, verdict, ok? }
   const [typed, setTyped] = useState('');
+  /* 한 번에 풀 문제 수 — 정해 두지 않으면 20. 다 풀면 「계속하기 / 오늘은 여기까지」를 묻는다. 0이면 끝없이. */
+  const [batch, setBatchState] = useState(loadBatch);
+  const setBatch = (n) => { setBatchState(n); try { localStorage.setItem(BATCH_KEY, String(n)); } catch { /* 저장 못 해도 괜찮다 */ } };
+  const [checkpoint, setCheckpoint] = useState(false);
+  const lastCheck = useRef(0);
   const poolRef = useRef([]);
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -89,15 +100,26 @@ export default function StreamQuiz({
     setSession(fresh);
     const first = nextQuestion(fresh);
     if (!first) { onToast?.('낼 수 있는 문제가 없어요'); return; }
+    lastCheck.current = 0; setCheckpoint(false);
     setCur(first); setAnswered(null); setTyped(''); setPhase('run');
   };
 
-  const advance = useCallback(() => {
-    clearTimeout(timer.current);
+  /* 한 묶음(기본 20문제)을 다 풀었으면 다음 문제 대신 멈춰서 묻는다 */
+  const goNext = useCallback(() => {
     const nxt = nextQuestion(sessionRef.current);
     if (!nxt) { setPhase('sum'); return; }
+    setCheckpoint(false);
     setCur(nxt); setAnswered(null); setTyped('');
   }, [nextQuestion]);
+
+  const advance = useCallback(() => {
+    clearTimeout(timer.current);
+    const n = sessionRef.current.log.length;
+    if (batch > 0 && n > 0 && n % batch === 0 && lastCheck.current !== n) {
+      lastCheck.current = n; setCheckpoint(true); return;
+    }
+    goNext();
+  }, [goNext, batch]);
 
   /* 대답이 확정됐다 — 판에 적고, 첫 대답이면 복습 기록에도 넣는다 */
   const finalize = (ok, value, extra = {}) => {
@@ -130,6 +152,32 @@ export default function StreamQuiz({
 
   const speak = (text) => speakJapanese(text, settings?.speechRate);
 
+  /* ── 키보드 ──
+     Space  듣기(문제 · 답을 낸 뒤엔 정답)
+     1~4    고르기. 답을 낸 뒤에는 그 보기의 일본어 듣기
+     5 · Enter  다음 문제 (답을 낸 뒤) */
+  const hasKeyboard = useHasKeyboard();
+  const curQ0 = cur?.q;
+  const pressOption = (i) => {
+    const o = curQ0?.options?.[i];
+    if (!o || curQ0.mode !== 'choice') return;
+    if (!answered) { answer(o.key); return; }
+    const t = speakText(o.info || textInfo(o.label));
+    if (t) speak(t);
+  };
+  const canNext = () => answered && answered.verdict !== 'close' && (answered.verdict === 'wrong' || holdForReview);
+  const hotkeys = checkpoint ? { Enter: goNext } : (phase === 'run' && curQ0) ? {
+    ' ': () => { if (curQ0.speak && (curQ0.promptJp || answered)) speak(curQ0.speak); },
+    Space: () => { if (curQ0.speak && (curQ0.promptJp || answered)) speak(curQ0.speak); },
+    1: () => pressOption(0),
+    2: () => pressOption(1),
+    3: () => pressOption(2),
+    4: () => pressOption(3),
+    5: () => { if (answered && answered.verdict !== 'close') advance(); },
+    Enter: () => { if (canNext()) advance(); },
+  } : {};
+  useHotkeys(hotkeys);
+
   /* ── 맛보기: 아직 외운 게 없을 때 ── */
   const counts = live ? poolCounts(live) : null;
 
@@ -151,6 +199,14 @@ export default function StreamQuiz({
               ))}
             </div>
           )}
+          <div className="st-batch" role="group" aria-label="한 번에 풀 문제 수">
+            <span className="st-batch-lab">한 번에</span>
+            {BATCH_CHOICES.map((n) => (
+              <button key={n} type="button" data-n={n} className={`chip${batch === n ? ' active' : ''}`} onClick={() => setBatch(n)}>
+                {n ? `${n}문제` : '끝없이'}
+              </button>
+            ))}
+          </div>
           {live && live.length < MIN_POOL && (
             <p className="set-note st-few">
               아직 외운 것이 적어요({live.length}개). 오늘 화면에서 먼저 배우고 오면 문제가 나와요.
@@ -173,6 +229,24 @@ export default function StreamQuiz({
   const { q } = cur;
   const total = session.log.length;
   const right = session.log.filter((e) => e.ok).length;
+
+  /* ── 한 묶음을 다 풀었다: 계속할지, 오늘은 여기까지 할지 ── */
+  if (checkpoint) {
+    return (
+      <div className="stream st-checkpoint" data-total={total}>
+        <div className="card st-card">
+          <div className="st-goal">{total}문제를 풀었어요</div>
+          <div className="set-title">여기서 어떻게 할까요?</div>
+          <p className="set-note st-lead">
+            맞힌 것 <b>{right}</b> / {total}{session.streak >= 3 ? ` · 연속 ${session.streak}` : ''}.
+            더 풀면 같은 판에서 이어져요. 오늘은 여기까지 하면 지금까지의 평가가 나와요.
+          </p>
+          <button className="submit-btn st-continue" onClick={goNext}>계속하기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
+          <button className="ghost-btn st-enough" onClick={() => { setCheckpoint(false); setPhase('sum'); }}>오늘은 여기까지</button>
+        </div>
+      </div>
+    );
+  }
   const isTyping = q.mode === 'typing';
 
   return (
@@ -190,7 +264,7 @@ export default function StreamQuiz({
         <div className={`qc-prompt${q.promptJp ? '' : ' ko'}`} lang={q.promptJp ? 'ja' : 'ko'}>{q.prompt}</div>
         {q.sub && (answered || q.kind === KIND.KANJI) && <div className="qc-sub">{q.sub}</div>}
         {q.speak && (q.promptJp || answered) && (
-          <button className="qc-speak" onClick={() => speak(q.speak)} aria-label="발음 듣기"><IconSpeaker /></button>
+          <button className="qc-speak" onClick={() => speak(q.speak)} aria-label="발음 듣기"><IconSpeaker />{hasKeyboard && <kbd className="corner-key">Space</kbd>}</button>
         )}
       </div>
 
@@ -205,7 +279,7 @@ export default function StreamQuiz({
             }
             return (
               <button key={`${o.key}-${i}`} className={cls} disabled={Boolean(answered)} onClick={() => answer(o.key)}>
-                <span className="qo-num">{i + 1}</span>
+                <span className="qo-num">{hasKeyboard ? <kbd>{i + 1}</kbd> : i + 1}</span>
                 <span className="qo-body">
                   <b lang={q.promptJp ? 'ko' : 'ja'}>{o.label}</b>
                   {answered && o.sub && <span>{o.sub}</span>}
@@ -243,7 +317,7 @@ export default function StreamQuiz({
 
       {answered && answered.verdict === 'correct' && holdForReview && (
         <div className="qnext">
-          <button className="submit-btn st-next" onClick={advance}>다음 문제</button>
+          <button className="submit-btn st-next" onClick={advance}>다음 문제{hasKeyboard && <kbd className="inline-key">5</kbd>}</button>
         </div>
       )}
 
@@ -257,7 +331,7 @@ export default function StreamQuiz({
             </div>
           )}
           <div className="qnext">
-            <button className="submit-btn st-next" onClick={advance}>다음 문제</button>
+            <button className="submit-btn st-next" onClick={advance}>다음 문제{hasKeyboard && <kbd className="inline-key">5</kbd>}</button>
           </div>
         </>
       )}

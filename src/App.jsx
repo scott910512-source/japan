@@ -31,6 +31,8 @@ import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
 import { useToday } from './lib/useToday.js';
+import { useN3Summary } from './hooks/useN3Summary.js';
+import { goalOf, n3Included } from './lib/goal.js';
 
 const SUB_TITLES = {
   basics: '완전기초',
@@ -192,6 +194,9 @@ export default function App() {
   } = useVerdicts({
     review, setReview, setPlan, setProgress, setStats, setStreak, setMemos,
   });
+
+  /* 퀘스트·복습으로 N3 단어·한자·문법 기록이 올라가면 오늘 탭의 「JLPT N3 ○%」도 따라 오른다 */
+  useN3Summary({ review, progress, setProgress, enabled: n3Included(goalOf(settings)) });
 
   // 오늘 학습 덱만 daily로 표시한다 — 복습 섞기 + 신규로 세션을 짜라는 뜻.
   /* 오늘의 학습 — 앱이 짜 준 큐 하나로 단어와 문장을 같이 돈다.

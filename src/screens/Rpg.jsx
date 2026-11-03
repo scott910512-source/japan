@@ -8,8 +8,10 @@ import HunterTutor from '../components/HunterTutor.jsx';
 import { conversationTutor } from '../data/hunterTutors.js';
 import {
   FORM, buildDrill, buildCheckpoint, reask, passed, masteryOf, MASTERY_LABEL,
-  scoreForHints, gradeOf, expFor, levelOf, levelProgress, verdictsFrom, PASS,
+  scoreForHints, gradeOf, expFor, levelOf, levelProgress, verdictsFrom, PASS, choiceInfo,
 } from '../lib/rpg.js';
+import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows } from '../lib/optionInfo.js';
 
 /* 실전 연습.
  *
@@ -139,8 +141,26 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
   const [log, setLog] = useState({ score: 0, hits: 0, tries: 0, hintTotal: 0, best: 0, wrong: [], hinted: [] });
   const [result, setResult] = useState(null);
   const advance = useRef(null);
+  const pending = useRef(null);
 
   useEffect(() => () => clearTimeout(advance.current), []);
+
+  /* 답을 낸 뒤 다음으로 가는 일. 보기 상세를 펼쳐 둔 때는 「다음」을 눌러야 가고,
+     접어 두면 예전처럼 잠깐 뒤 저절로 간다. */
+  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const [waiting, setWaiting] = useState(false);
+  const schedule = (fn, ms) => {
+    pending.current = fn;
+    if (reviewOpen) { setWaiting(true); return; }
+    advance.current = setTimeout(() => { pending.current = null; fn(); }, ms);
+  };
+  const goNext = () => {
+    clearTimeout(advance.current);
+    setWaiting(false);
+    const fn = pending.current;
+    pending.current = null;
+    fn?.();
+  };
 
   /* 실전이 끝나면 정산한다.
    *
@@ -189,7 +209,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
     setAsked((n) => n + 1);
     if (good) setRight((n) => n + 1);
 
-    advance.current = setTimeout(() => {
+    schedule(() => {
       setAnswered(null);
       setQueue((rest) => {
         const next = rest.slice(1);
@@ -224,7 +244,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
       hinted: hints > 0 ? [...l.hinted, ...(c.uses || sc.choices.find((x) => x.ok)?.uses || [])] : l.hinted,
     }));
 
-    advance.current = setTimeout(() => {
+    schedule(() => {
       setAnswered(null);
       setHints(0);
       if (!c.ok && hearts - 1 <= 0) { setScene(stage.scenes.length); return; }
@@ -430,6 +450,19 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
           })}
         </div>
         {answered && !answered.good && answered.why && <p className="rp-why">{answered.why}</p>}
+        {waiting && <button className="submit-btn rp-next" onClick={goNext}>다음</button>}
+        {answered && (
+          <OptionReview
+            idPrefix={`rp:${q.key}`}
+            rate={settings.speechRate}
+            open={reviewOpen}
+            onOpenChange={setReviewOpen}
+            rows={reviewRows(q.options, q.options.map((o) => o.info), {
+              isCorrect: (i) => (q.form === FORM.REPLY ? q.options[i].ok : q.options[i].id === q.answerId),
+              isMine: (i) => answered.id === q.options[i].id,
+            })}
+          />
+        )}
       </div>
     );
   }
@@ -509,6 +542,19 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
           <p className="rp-why">
             {answered.good ? (answered.note || sc.reaction.ok) : `${sc.reaction.no} — ${answered.why || ''}`}
           </p>
+        )}
+        {waiting && <button className="submit-btn rp-next" onClick={goNext}>다음</button>}
+        {answered && (
+          <OptionReview
+            idPrefix={`rp:${sc.id}`}
+            rate={settings.speechRate}
+            open={reviewOpen}
+            onOpenChange={setReviewOpen}
+            rows={reviewRows(sc.choices, sc.choices.map(choiceInfo), {
+              isCorrect: (i) => sc.choices[i].ok,
+              isMine: (i) => answered.id === sc.choices[i].jp,
+            })}
+          />
         )}
       </div>
     );

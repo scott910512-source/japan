@@ -236,6 +236,21 @@ export function makeQuestion(word, formKey, seed = 0) {
   };
 }
 
+/* 보기마다 읽기 · 뜻 — 답을 낸 뒤 보여 주는 줄.
+ * 진짜 활용형이면 표기 · 읽기 · 무슨 모양인지(+동사 뜻). 사람이 하는 실수로 만든 오답은
+ * 그런 말이 없으니 소리를 내지 않고(mute) 「틀린 활용」이라고만 적는다. */
+export function choiceInfos(q) {
+  const labelOf = Object.fromEntries(FORMS.map((f) => [f.key, f.ko]));
+  return q.choices.map((c) => {
+    const key = Object.keys(q.forms).find((k) => q.forms[k].jp === c);
+    if (key) {
+      const yomi = q.forms[key].yomi;
+      return { jp: c, kana: yomi !== c ? yomi : '', ko: `${labelOf[key]} · ${q.word.mean}` };
+    }
+    return { jp: c, kana: '', ko: '이런 활용은 없어요 (틀린 활용)', mute: true };
+  });
+}
+
 /* 오늘 풀 문제를 뽑는다.
  *
  * 그룹을 골고루 섞는다. 1형만 스무 개 나오면 2형은 영영 안 는다.
