@@ -24,7 +24,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/icon.svg', 'fonts/OFL.noto-sans-jp.txt'],
+      includeAssets: ['icons/hxh-gon.svg', 'icons/hxh-gon-180.png', 'fonts/OFL.noto-sans-jp.txt'],
       manifest: {
         name: '日本語 HUNTER — 매일 성장하는 일본어',
         short_name: '日本語 HUNTER',
@@ -36,8 +36,9 @@ export default defineConfig({
         background_color: '#102b35',
         theme_color: '#102b35',
         icons: [
-          { src: 'icons/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icons/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: 'icons/hxh-gon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icons/hxh-gon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icons/hxh-gon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
