@@ -36,17 +36,18 @@ const VOICES = `
   })();
 `;
 
-async function boot(browser, settings = {}, init = null) {
+async function boot(browser, settings = {}, init = null, review = null) {
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
   if (init) await page.addInitScript(init);
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate((s) => {
+  await page.evaluate(([s, review]) => {
+    if (review) localStorage.setItem('jp_manabu_review_v1', JSON.stringify(review));
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const cur = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     cur.onboarded = true; cur.canReadKana = true; cur.autoTTS = false;
     Object.assign(cur, s);
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(cur));
-  }, settings);
+  }, [settings, review]);
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2800);
@@ -107,18 +108,9 @@ async function boot(browser, settings = {}, init = null) {
 
   console.log('\n[ 짝 맞추기 ]');
   {
-    const page = await boot(browser);
+    const seen = Object.fromEntries(ALL_WORDS.filter((w) => w.level === 'N5').slice(0, 30).map((w) => [w.id, { box: 3, lastSeen: '2026-01-01', due: '2026-01-02', rounds: 1, level: 1 }]));
+    const page = await boot(browser, {}, null, seen);
     page.on('pageerror', (e) => errors.push(e.message));
-    await page.evaluate((words) => {
-      const review = JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}');
-      for (const w of words) review[w.id] = { box: 3, lastSeen: '2026-01-01', due: '2026-01-02', rounds: 1, level: 1 };
-      localStorage.setItem('jp_manabu_review_v1', JSON.stringify(review));
-    }, ALL_WORDS.filter((w) => w.level === 'N5').slice(0, 30));
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2800);
-    const off = page.locator('.gate-offline');
-    await off.waitFor({ timeout: 5000 }).catch(() => {});
-    if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
     await openMenu(page, '짝 맞추기');
     await page.locator('.mt-pick').first().click();
     await page.waitForTimeout(600);
@@ -127,8 +119,9 @@ async function boot(browser, settings = {}, init = null) {
     for (const t of lefts) {
       const w = byKanji.get(t.trim());
       const mean = String(w?.mean || '').split(/[;,/]/)[0].trim();
-      await page.locator('.mt-col').first().locator('.mt-tile', { hasText: t.trim() }).first().click();
-      await page.locator('.mt-col').nth(1).locator('.mt-tile', { hasText: mean }).first().click();
+      await page.locator('.mt-col').first().locator('.mt-tile:not(.gone)', { hasText: t.trim() }).first().click();
+      /* 같은 뜻이 둘이면 이미 맞춘(gone) 타일이 먼저 잡힌다 — 아직 남은 타일만 본다 */
+      await page.locator('.mt-col').nth(1).locator('.mt-tile:not(.gone)', { hasText: mean }).first().click();
       await page.waitForTimeout(120);
     }
     await page.waitForTimeout(900);
