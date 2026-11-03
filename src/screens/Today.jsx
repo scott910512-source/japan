@@ -1,5 +1,5 @@
 import {
-  IconFlame, IconChevron, IconRepeat, IconPlay, IconBook, IconGrid, IconChart, IconCheck,
+  IconFlame, IconChevron, IconRepeat, IconPlay, IconBook, IconGrid, IconCheck,
 } from '../components/Icons.jsx';
 import { todayKey } from '../lib/review.js';
 import { tripLabel } from '../lib/purpose.js';
@@ -21,11 +21,6 @@ import HunterDashboard from '../components/HunterDashboard.jsx';
  * ★ 숫자는 한 곳에서만 나온다 ★ 배정·완료·남은 시간은 오늘의 계획(plan) 하나를
  * 본다. 화면이 따로 세면 「새 단어 2개」인데 들어가면 「볼 게 없어요」가 된다. */
 
-/* 오늘의 N3 단계 이름 — 코스가 적어 둔 kind를 화면 말로 */
-const N3_KIND = {
-  vocab: '어휘', kanji: '한자', grammar: '문법', reading: '독해', listening: '청해', review: '복습',
-};
-
 const HELLO = [
   '오늘도 조금씩 쌓아볼까요?',
   '가볍게 한 판 어때요?',
@@ -41,11 +36,6 @@ export default function Today({
 
   /* N3 코스 — 요약(코스가 열릴 때 적어 둔 것)과 오늘 몫 */
   const summary = n3?.summary || null;
-  const n3Steps = n3?.days?.[today]?.steps || [];
-  const n3Left = n3Steps.filter((s) => !s.done).length;
-  const n3Note = summary
-    ? `${summary.done} / ${summary.total} 레슨${n3Steps.length ? ` · 오늘 ${n3Left === 0 ? '다 했어요' : `${n3Left}단계 남음`}` : ''}`
-    : '어휘 → 한자 → 문법 → 독해/청해 → 복습 · 약 25분';
 
   const lanes = planNow?.lanes || {};
   /* 복습 수는 복습 탭·배지와 같은 함수에서 — 여기서 따로 세지 않는다 */
@@ -109,8 +99,8 @@ export default function Today({
 
       {/* N3가 이 앱의 목표다 — 머리 밑에 한 줄. 열어 봤다고 오르지 않는다.
           준비도는 실제로 맞힌 결과에서만 나온다(코스가 적어 둔 요약). */}
-      {/* 보기만 한다 — 코스로 들어가는 길은 아래 「이어서 공부하기」와 학습 탭,
-          둘이면 된다. 입구가 넷이면 어느 것이 맞는 길인지 매번 고르게 된다. */}
+      {/* 보기만 한다 — 코스로 들어가는 길은 학습 탭의 「N3 학습하기」 하나다.
+          입구가 여럿이면 어느 것이 맞는 길인지 매번 고르게 된다. */}
       {onOpenN3 && (
         <div className="hm-goal" data-ready={summary ? summary.ready : ''}>
           <span className="hg-lab">JLPT N3</span>
@@ -189,29 +179,7 @@ export default function Today({
 
       </div>
       <div className="hunter-today-secondary">
-      {/* 현재 진행 중인 N3 코스는 오늘의 퀘스트와 나란히 계속하기로 둔다. */}
-      {onOpenN3 && (
-        <>
-          <div className="section-label">이어서 공부하기</div>
-          <div className="tdtasks hm-cont">
-            <button className={`tdtask hm-n3${n3Steps.length > 0 && n3Left === 0 ? ' done' : ''}`} onClick={onOpenN3}>
-              <span className="tt-icon"><IconChart /></span>
-              <span className="tt-body">
-                <b>한 권으로 끝내는 N3</b>
-                <span className="tt-note">{n3Note}</span>
-                {n3Steps.length > 0 && n3Left > 0 && (
-                  <span className="tt-note hm-n3steps">{n3Steps.filter((step) => !step.done).map((step) => N3_KIND[step.kind] || step.kind).join(' → ')}</span>
-                )}
-              </span>
-              {n3Steps.length > 0 && n3Left === 0
-                ? <span className="tt-done"><IconCheck /> 다 했어요</span>
-                : <span className="tt-go">{summary ? '계속하기' : '시작'}</span>}
-              <IconChevron className="chev" />
-            </button>
-          </div>
-        </>
-      )}
-
+      {/* N3 코스 입구는 학습 탭의 「N3 학습하기」 하나다 — 여기에는 두지 않는다(머리 밑 준비도 한 줄은 보기만 한다). */}
       {/* 예정량을 다 못 담은 복습과 선택 문법은 기존처럼 바로 접근할 수 있다. */}
       {backLeft === 0 && backlog > 0 && (
         <button className="tdtask slim hm-backlog" onClick={onOpenReview}>

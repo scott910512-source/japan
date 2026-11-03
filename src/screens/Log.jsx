@@ -170,7 +170,7 @@ export default function Log({
           <IconChevron className="chev" />
         </button>
         <button className="listrow me-row" data-row="quiz" onClick={onOpenQuiz}>
-          <span className="rv-body"><b>퀴즈</b><span>쭉 퀴즈 · 문장 만들기 · 상황 대화</span></span>
+          <span className="rv-body"><b>퀴즈</b><span>단어 시험 · 짝 맞추기 · 쭉 퀴즈 · 문장 만들기 · 동사 활용</span></span>
           <IconChevron className="chev" />
         </button>
       </div>
