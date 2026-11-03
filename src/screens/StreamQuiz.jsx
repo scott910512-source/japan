@@ -20,7 +20,7 @@ import {
 const AUTO_NEXT_MS = 800;
 
 export default function StreamQuiz({
-  words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit, onAttempt,
+  words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit, onAttempt, onAnswered,
 }) {
   const goal = goalOf(settings);
   const [n3, setN3] = useState(null);
@@ -92,6 +92,8 @@ export default function StreamQuiz({
     if (shouldRecord(sessionRef.current, item.id)) onVerdicts?.({ [item.id]: verdictFor(ok) });
     onAttempt?.({ id: `stream:${item.id}:${q.dir || q.kind}`, source: 'stream', ref: item.id, kind: KIND_LABEL[q.kind] || q.kind, prompt: q.prompt, correct: q.answerText, chosen: q.options?.find((o) => o.key === value)?.label || value, options: q.options?.map((o) => o.label), explanation: [extra.why, q.explain].filter(Boolean).join(' '), ok });
     onActivity?.({ quizzed: 1 });
+    /* 오늘의 퀘스트(쭉 퀴즈 열 문제)가 센다 */
+    onAnswered?.();
     setSession((s) => record(s, item, ok));
     setAnswered({ value, ok, verdict: ok ? 'correct' : 'wrong', ...extra });
     if (ok) timer.current = setTimeout(advance, AUTO_NEXT_MS);

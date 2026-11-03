@@ -26,6 +26,7 @@ import { hasSignedInOnce } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState } from './lib/weakquiz.js';
+import { noteQuest, streamQuestState } from './lib/quests.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
@@ -276,12 +277,15 @@ export default function App() {
   const weakAll = useMemo(() => weakIds(wordIds, review, progress.weak), [wordIds, review, progress.weak]);
   const weakQuiz = useMemo(() => weakQuizState(progress, weakAll, today), [progress, weakAll, today]);
   const weakQuizOn = useRef(false);
-  useEffect(() => { if (sub !== 'quiz') weakQuizOn.current = false; }, [sub]);
+  /* 화면에 말하려고 같은 값을 상태로도 둔다(결과 화면이 약점 퀴즈임을 알아야 한다) */
+  const [weakQuizMode, setWeakQuizMode] = useState(false);
+  useEffect(() => { if (sub !== 'quiz') { weakQuizOn.current = false; setWeakQuizMode(false); } }, [sub]);
   const startWeakQuiz = useCallback(() => {
     const cards = weakQuiz.ids.map((id) => byId.get(id)).filter(Boolean);
     if (!cards.length) { showToast('약점 퀴즈로 풀 낱말이 아직 없어요'); return; }
     setQuizSet(cards);
     weakQuizOn.current = true;
+    setWeakQuizMode(true);
     setActiveTab('me');
     openSub('quiz');
   }, [weakQuiz, byId, showToast, setQuizSet, setActiveTab, openSub]);
@@ -296,6 +300,12 @@ export default function App() {
       return next === p.weakQuiz ? p : { ...p, weakQuiz: next };
     });
   }, [noteWeakness, setProgress, today]);
+  /* ★ 쭉 퀴즈 퀘스트 ★ 열 문제. 쭉 퀴즈가 한 문제 풀 때마다 오늘 몫에 적는다 */
+  const streamQuest = useMemo(() => streamQuestState(progress, wordStat.seen > 0, today), [progress, wordStat.seen, today]);
+  const onStreamAnswered = useCallback(() => {
+    setProgress((p) => ({ ...p, quests: noteQuest(p.quests, 'stream', 1, today) }));
+  }, [setProgress, today]);
+  const startStreamQuest = useCallback(() => { setActiveTab('me'); openSub('stream'); }, [setActiveTab, openSub]);
   const openReview = useCallback(() => { setActiveTab('me'); openSub('review'); }, [setActiveTab, openSub]);
   const openMenu = useCallback((id, opts = {}) => {
     if (id === 'compose') setComposeStart(opts.mode || null);
@@ -467,6 +477,8 @@ export default function App() {
             onOpenReview={openReview}
             weakQuiz={weakQuiz}
             onStartWeakQuiz={startWeakQuiz}
+            streamQuest={streamQuest}
+            onStartStreamQuest={startStreamQuest}
             onOpenProgress={() => selectTab('me')}
             onLearnMore={learnMore}
           />
@@ -657,6 +669,9 @@ export default function App() {
                 onOpenDrill={(id) => openSub(id, 'drill')}
                 onVerdicts={applyVerdicts}
                 onExit={closeSub}
+                weakQuiz={weakQuiz}
+                weakQuizOn={weakQuizMode}
+                onStreamAnswered={onStreamAnswered}
               />
               )}
             </DeferredScreen>

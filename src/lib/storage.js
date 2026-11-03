@@ -190,6 +190,8 @@ const DEFAULT_PROGRESS = {
   weak: {},
   /* 오늘 약점 퀴즈로 푼 낱말 — { day, ids }. 날이 바뀌면 새로 시작한다(lib/weakquiz.js) */
   weakQuiz: {},
+  /* 오늘의 퀘스트 하루 몫 — { day, stream }. 날이 바뀌면 새로 시작한다(lib/quests.js) */
+  quests: {},
 };
 export function loadProgress() {
   const saved = read(KEYS.progress, {});
@@ -204,6 +206,7 @@ export function loadProgress() {
     n3: saved?.n3 && typeof saved.n3 === 'object' ? saved.n3 : null,
     weak: saved?.weak && typeof saved.weak === 'object' ? saved.weak : {},
     weakQuiz: saved?.weakQuiz && typeof saved.weakQuiz === 'object' ? saved.weakQuiz : {},
+    quests: saved?.quests && typeof saved.quests === 'object' ? saved.quests : {},
   };
 }
 export function saveProgress(progress) {
