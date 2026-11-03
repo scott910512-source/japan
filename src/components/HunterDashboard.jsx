@@ -42,7 +42,7 @@ const HOME_TABS = [
   { id: 'record', title: '기록', sub: '헌터 성장' },
 ];
 
-export default function HunterDashboard({ children, words, review, progress, stats, streak, settings, onOpen, onSettings, onReview, onAttempt, onLearnMistake, homeResetKey }) {
+export default function HunterDashboard({ children, words, review, progress, stats, streak, settings, onOpen, onSettings, onReview, onAttempt, onLearnMistake, onOpenProgress, homeResetKey }) {
   const profile = useMemo(() => hunterProfile({ words, review, progress }), [words, review, progress]);
   const lastReward = useRef({ xp: profile.xp, level: profile.level });
   const [reward, setReward] = useState(null);
@@ -110,6 +110,24 @@ export default function HunterDashboard({ children, words, review, progress, sta
         <section className="hunter-panel hunter-license"><div className="hunter-section-head"><h2>헌터 라이선스</h2><span className="hunter-tag">성장 기록</span></div><div className="hunter-license-main"><div className="hunter-license-card" aria-hidden="true"><small>HUNTER</small><b>H<span>×</span>H</b><span>LICENSE</span></div><div><strong>Lv. {profile.level}</strong><b>{profile.rank}</b><small>다음 레벨까지 {profile.ceiling - profile.xp} XP</small></div></div><div className="hunter-meter" role="progressbar" aria-label="다음 헌터 레벨 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={profile.percent}><i style={{ width: `${profile.percent}%` }} /></div><p className="hunter-xp-count">{profile.xp.toLocaleString()} / {profile.ceiling.toLocaleString()} XP</p><details><summary>XP는 어떻게 쌓이나요?</summary><p>직접 학습한 카드마다 10 XP, 문법·N3 레슨 완료마다 25 XP, 상황 대화 첫 통과마다 75 XP, 시험 종류별 첫 완료마다 20 XP. 같은 항목을 반복해도 보상은 한 번만 계산해요. 기존 학습 기록도 포함돼요.</p></details></section>
         <section className="hunter-panel hunter-skills"><div className="hunter-section-head"><h2>나의 넨 능력</h2><span className="hunter-tag">학습 지표</span></div>{profile.skills.map((skill) => <button key={skill.key} onClick={() => onOpen(skill.menu)}><span className="hunter-skill-symbol" aria-hidden="true">{skill.icon}</span><div><b>{skill.label}</b><div className="hunter-meter"><i style={{ width: `${skill.pct || 0}%` }} /></div><small>{skill.detail}</small></div><strong>{skill.pct == null ? '—' : `${skill.pct}%`}</strong></button>)}<p>실제 학습 기록 기준이며 공식 JLPT 등급이나 말하기 평가가 아니에요.</p></section>
         <section className="hunter-panel hunter-badges"><div className="hunter-section-head"><h2>획득한 배지 <small>{earned.length} / {profile.badges.length}</small></h2><button onClick={() => setShowAllBadges(!showAllBadges)} aria-expanded={showAllBadges}>{showAllBadges ? '접기' : '배지 보기'}</button></div><div>{(showAllBadges ? profile.badges : earned.length ? earned.slice(-3) : profile.badges.slice(0, 3)).map((badge) => <div key={badge.id} className={badge.earned ? 'earned' : 'locked'}><span aria-hidden="true">{badge.symbol}</span><b>{badge.title}</b><small>{badge.earned ? '획득' : badge.note}</small></div>)}</div></section>
+        {/* ★ 단어 회독 ★ 헌터 성장에는 요약만 둔다. 세부(기억 단계별 개수·달력)는 복습&내기록에서 본다 */}
+        <section className="hunter-panel hunter-words" data-seen={profile.wordStat.seen} data-mastered={profile.wordStat.mastered}>
+          <div className="hunter-section-head"><h2>단어 회독</h2>{onOpenProgress && <button onClick={onOpenProgress}>세부 보기 ↗</button>}</div>
+          <div className="hunter-growth-numbers">
+            <div><b>{profile.wordStat.seen}<small> / {profile.wordStat.total}</small></b><small>본 단어</small></div>
+            <div><b>{profile.wordStat.mastered}</b><small>외운 단어</small></div>
+            <div><b>{profile.wordStat.fresh}</b><small>아직 안 본 단어</small></div>
+          </div>
+          <div className="hunter-levelbars" aria-label="레벨별로 본 단어">
+            {Object.entries(profile.levels).map(([lv, v]) => (
+              <div key={lv} className="hunter-levelbar" data-level={lv}>
+                <span>{lv}</span>
+                <i role="progressbar" aria-valuemin={0} aria-valuemax={v.total} aria-valuenow={v.seen}><em style={{ width: `${v.total ? Math.round((v.seen / v.total) * 100) : 0}%` }} /></i>
+                <small>{v.seen} / {v.total}</small>
+              </div>
+            ))}
+          </div>
+        </section>
         <section className="hunter-panel hunter-growth"><div className="hunter-section-head"><h2>모험의 발자국</h2><button onClick={onReview}>복습하기 ↗</button></div><div className="hunter-growth-numbers"><div><b>{profile.seen}</b><small>학습한 카드</small></div><div><b>{profile.lessons}</b><small>N3 레슨 완료</small></div><div><b>{profile.cleared}</b><small>상황 대화 통과</small></div></div><div className="hunter-days" aria-label="최근 활동일">{todayActivity.length ? todayActivity.map(([day, activity]) => <div key={day}><i style={{ height: `${Math.min(56, 6 + (activity.studied || 0) + (activity.listen || 0))}px` }} /><small>{day.slice(5)}</small></div>) : <p>첫 수련을 마치면 여기에 기록이 쌓여요.</p>}</div><p className="hunter-diagnostic">{profile.diagnostic?.total ? `N4 문법 진단 최고 ${Math.round((profile.diagnostic.best || 0) * 100)}% · 권장 지역 ${REGIONS[profile.recommended].name}` : '문법 진단으로 나에게 맞는 시작 지역을 찾아보세요.'}</p></section>
         <section className="hunter-panel hunter-guides"><div className="hunter-section-head"><h2>함께할 가이드</h2><small>변경하면 저장돼요</small></div><div>{GUIDES.map((g) => <button key={g.id} aria-pressed={g.id === guide.id} onClick={() => onSettings({ hunterGuide: g.id })}><HunterGuide guide={g} small /><span>{g.name}</span></button>)}</div><p>캐릭터 이미지: NEN×IMPACT 공식 사이트</p></section>
       </section>

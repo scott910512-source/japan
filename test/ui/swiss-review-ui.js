@@ -135,7 +135,8 @@ async function solveOne(page, { wrong = false } = {}) {
   await page.locator('.swl-again').click();
   await page.waitForTimeout(800);
   const afterOne = await swissOf(page);
-  const goodId = itemIds.find((id) => id !== wrongId);
+  /* 약점 주머니의 낱말(L1.items[0])은 「몰라요」로 채워져 있어서 첫 정답이 level 1이다 — 좋은 예로 쓰지 않는다 */
+  const goodId = itemIds.find((id) => id !== wrongId && id !== L1.items[0].id);
   ok('★ 틀린 낱말은 「몰라요」 — 오늘 다시 나온다 ★', afterOne.mem[wrongId].box === 1 && afterOne.mem[wrongId].due === today && afterOne.mem[wrongId].level === 0, `box ${afterOne.mem[wrongId].box}`);
   ok('★ 첫 대답이 맞은 낱말은 단계가 오른다 ★', afterOne.mem[goodId].level >= 2 && afterOne.mem[goodId].box === 3, `level ${afterOne.mem[goodId].level}`);
   ok('★ 한 낱말은 한 번만 센다(틀린 뒤 다시 맞혀도 두 번 안 쌓인다) ★', afterOne.mem[wrongId].rounds === 2 && afterOne.mem[wrongId].wrongCount === (wrongId === L1.items[0].id ? 2 : 1), `rounds ${afterOne.mem[wrongId].rounds} · 틀림 ${afterOne.mem[wrongId].wrongCount}`);

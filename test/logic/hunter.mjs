@@ -27,4 +27,13 @@ check('existing records survive derivation without migration or mutation', () =>
 check('six regions have real learning routes and the kanji entry', () => {
   assert.equal(REGIONS.length, 6); assert.equal(REGIONS.flatMap((r) => r.missions).length, 18); assert.ok(REGIONS.flatMap((r) => r.missions).some((m) => m.id === 'kanji'));
 });
+check('profile carries the word-review summary from the same count as 내 학습', () => {
+  const words = [{ id: 'a', level: 'N5' }, { id: 'b', level: 'N5' }, { id: 'c', level: 'N4' }];
+  const p = hunterProfile({ words, review: { a: { lastSeen: '2026-11-01', level: 1, rounds: 1 } } });
+  assert.equal(p.wordStat.total, 3); assert.equal(p.wordStat.seen, 1); assert.equal(p.wordStat.fresh, 2);
+  assert.equal(p.wordStat.seen + p.wordStat.fresh, p.wordStat.total);
+});
+check('an empty profile has a zero word-review summary', () => {
+  const p = hunterProfile(); assert.deepEqual([p.wordStat.total, p.wordStat.seen, p.wordStat.mastered], [0, 0, 0]);
+});
 console.log(`통과 ${pass} / 실패 0`);

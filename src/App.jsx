@@ -467,6 +467,7 @@ export default function App() {
             onOpenReview={openReview}
             weakQuiz={weakQuiz}
             onStartWeakQuiz={startWeakQuiz}
+            onOpenProgress={() => selectTab('me')}
             onLearnMore={learnMore}
           />
         </ScreenSlot>
