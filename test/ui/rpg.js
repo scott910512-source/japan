@@ -61,8 +61,10 @@ const readProgress = (page) => page.evaluate(
     page.on('pageerror', (e) => errors.push(e.message));
 
     await goTab(page, '학습');
-    ok('학습 메뉴에 실전 연습이 있다',
-      await page.locator('.menutile', { hasText: '실전 연습' }).count() === 1);
+    ok('★ 학습 탭에는 실전 연습 칸이 없다(퀴즈로 모였다) ★',
+      await page.locator('.menutile', { hasText: '실전 연습' }).count() === 0);
+    await openMenu(page, '퀴즈');
+    ok('퀴즈 화면에 상황 대화가 있다', await page.locator('.pr-row[data-menu="rpg"]').count() === 1);
 
     await openMenu(page, '상황 대화');
     ok('레벨 줄이 보인다', await page.locator('.rp-lv').count() === 1);
@@ -255,9 +257,9 @@ const readProgress = (page) => page.evaluate(
        자리를 못 잡는다 — 활용 검사에서 한 번 당한 자리다. */
     const page = await boot(browser, {}, { menus: { rpg: false } });
     page.on('pageerror', (e) => errors.push(e.message));
-    await goTab(page, '학습');
-    ok('꺼 두면 메뉴에 안 나온다',
-      await page.locator('.menutile', { hasText: '실전 연습' }).count() === 0);
+    await openMenu(page, '퀴즈');
+    ok('꺼 두면 퀴즈 화면에 안 나온다',
+      await page.locator('.pr-row[data-menu="rpg"]').count() === 0);
     await page.close();
   }
 

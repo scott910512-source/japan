@@ -58,9 +58,11 @@ const open = async (page) => {
 
   // 메뉴는 학습 탭을 방문했을 때 로드된다. 사용자가 보는 경로로 확인한다.
   await openMenu(page, '문법');
+  ok('★ 문법 화면에는 더 이상 연습 줄이 없다(퀴즈로 모였다) ★', await page.locator('.pr-row').count() === 0);
+  await openMenu(page, '퀴즈');
   const menu = page.locator('.pr-row[data-menu="conjugate"]');
   await menu.waitFor({ state: 'visible' });
-  ok('문법 화면 안 「연습」 줄에 동사 활용이 보임', await menu.count() === 1 && await menu.isVisible());
+  ok('퀴즈 화면에 동사 활용이 보임', await menu.count() === 1 && await menu.isVisible());
   await open(page);
 
   const body = await page.textContent('.subscreen');

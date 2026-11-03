@@ -124,7 +124,7 @@ async function boot(browser) {
   });
   await page.waitForTimeout(800);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(2800);
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
@@ -148,7 +148,7 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   await page.locator('.tabbar .tab[data-tab="study"]').click();
   await page.waitForTimeout(500);
   const first = page.locator('.menugroup').first().locator('.menutile').first();
-  ok('★ 학습 탭 배우기 첫 칸이 「한 권으로 끝내는 N3」 ★', (await first.innerText()).includes('한 권으로 끝내는 N3'));
+  ok('★ 학습 탭 배우기 첫 칸이 「N3 학습하기」 ★', (await first.innerText()).includes('N3 학습하기'));
   await openMenu(page, '한 권으로 끝내는 N3');
   await page.locator('.n3-hub').waitFor({ timeout: 8000 });
   ok('메인 제목 JLPT N3 MASTER', (await page.locator('.n3-head').innerText()).includes('JLPT N3 MASTER'));
@@ -279,12 +279,13 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   ok('주요 버튼이 「완료 · 다시 보기」', (await page.locator('.n3-cta').getAttribute('data-state')) === 'done');
   ok('약점 버튼에 오답이 반영', (await page.locator('.n3-weakbtn').innerText()).length > 10);
 
-  console.log('\n── 오늘 화면의 N3 줄 (한 곳)');
+  console.log('\n── 오늘 화면에는 N3 입구가 없다 (학습 탭 하나)');
   await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click(); await page.waitForTimeout(400);
   await page.locator('.tabbar .tab[data-tab="home"]').click(); await page.waitForTimeout(500);
   const row = page.locator('.hm-n3');
-  ok('오늘 화면의 N3 줄은 하나이고 다 했다고 표시된다', await row.count() === 1 && (await row.getAttribute('class')).includes('done') && (await row.innerText()).includes('다 했어요'));
-  ok('★ 「오늘」 목록에 N3 줄이 또 없다 ★', await page.locator('.tdlist .tdtask', { hasText: '오늘의 N3' }).count() === 0);
+  ok('★ 오늘 화면에는 N3 입구 줄이 없다(학습 탭 「N3 학습하기」 하나) ★', await row.count() === 0);
+  ok('머리 밑 준비도 한 줄은 보기만 한다(누를 수 없다)', await page.locator('.hm-goal').count() === 1 && await page.locator('button.hm-goal, a.hm-goal').count() === 0);
+  ok('★ 「오늘」 목록에도 N3 줄이 없다 ★', await page.locator('.tdlist .tdtask', { hasText: '오늘의 N3' }).count() === 0);
 
   console.log('\n── 전체 과정 · 진단으로 건너뛰기');
   await openMenu(page, '한 권으로 끝내는 N3');

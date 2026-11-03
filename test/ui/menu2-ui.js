@@ -1,6 +1,6 @@
 /* 메뉴 정리 2단계 — 오늘·복습·내 학습의 역할이 겹치지 않는가.
  *
- *   오늘     N3 줄이 한 곳에만 (이어서 공부하기). 「오늘」 목록에 같은 줄이 또 있으면 안 된다
+ *   오늘     N3 코스 입구는 학습 탭의 「N3 학습하기」 하나다 — 오늘 탭에는 입구가 없다
  *   복습     기억 단계 안내가 있고, 이름이 내 학습 막대와 같은 말(rounds.js STAGES)이다
  *   내 학습  「계정과 동기화」「기록 백업」이 설정을 거치지 않고 그 묶음으로 바로 열린다 */
 import { existsSync } from 'node:fs';
@@ -28,7 +28,7 @@ async function boot(browser) {
   });
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(2800);
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
@@ -43,9 +43,9 @@ async function boot(browser) {
   const page = await boot(browser);
   page.on('pageerror', (e) => errors.push(e.message));
 
-  console.log('\n[ 오늘 — N3 줄은 한 곳 ]');
+  console.log('\n[ 오늘 — N3 입구는 학습 탭 하나 ]');
   await goTab(page, '오늘');
-  ok('이어서 공부하기에 N3 줄이 하나', await page.locator('.hm-n3').count() === 1);
+  ok('★ 오늘 탭에는 N3 입구(이어서 공부하기 줄)가 없다 ★', await page.locator('.hm-n3').count() === 0 && await page.locator('.hm-cont').count() === 0);
   ok('★ 「오늘」 목록에는 N3 줄이 없다 ★', await page.locator('.tdlist .tdtask', { hasText: '오늘의 N3' }).count() === 0);
   ok('N3 진도 한 줄(머리 밑)은 보기만 하는 요약으로 남는다', await page.locator('.hm-goal').count() === 1);
   ok('오늘의 문법·복습 줄은 그대로', await page.locator('.tdlist .tdtask', { hasText: '오늘의 문법' }).count() === 1);
