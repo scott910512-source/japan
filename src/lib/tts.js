@@ -306,9 +306,6 @@ export function koreanVoiceListed() {
   return voices.some((v) => v.lang?.startsWith('ko'));
 }
 
-// 옛 이름 — 부르는 곳이 있어 남겨 둔다
-export const koreanVoiceReady = speechReady;
-
 function pickKoreanVoice() {
   const voices = (typeof window !== 'undefined' && window.speechSynthesis?.getVoices()) || [];
   if (cachedKoVoice && voices.includes(cachedKoVoice)) return cachedKoVoice;

@@ -44,23 +44,6 @@ async function deriveKey(passphrase, salt) {
   );
 }
 
-/* 암호문 봉투: { v, salt, iv, ct }
- * salt를 함께 담아 두어야 다른 기기에서 같은 암호로 같은 열쇠를 만들 수 있다. */
-export async function encryptSecret(plaintext, passphrase) {
-  if (!plaintext) return null;
-  const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
-  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
-  const key = await deriveKey(passphrase, salt);
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plaintext));
-
-  return {
-    v: 1,
-    salt: toBase64(salt),
-    iv: toBase64(iv),
-    ct: toBase64(ct),
-  };
-}
-
 // 암호가 틀리면 AES-GCM 인증이 실패한다 — 조용히 쓰레기값을 돌려주지 않고 null을 준다.
 export async function decryptSecret(envelope, passphrase) {
   if (!envelope?.ct || !passphrase) return null;
@@ -75,11 +58,6 @@ export async function decryptSecret(envelope, passphrase) {
   } catch {
     return null;
   }
-}
-
-/* 암호가 맞는지 확인만 하고 싶을 때. */
-export async function canDecrypt(envelope, passphrase) {
-  return (await decryptSecret(envelope, passphrase)) !== null;
 }
 
 /* ── 계정 비밀번호에서 만드는 금고 열쇠 ──
