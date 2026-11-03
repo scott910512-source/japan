@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
+import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows } from '../lib/optionInfo.js';
 import { markBusy } from '../lib/busy.js';
 import { goalOf } from '../lib/goal.js';
 import {
@@ -44,6 +46,17 @@ export default function StreamQuiz({
   }, []);
 
   useEffect(() => () => clearTimeout(timer.current), []);
+
+  /* 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기. 펼쳐 두면 맞혀도 자동으로 넘기지 않는다. */
+  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const curQ = cur?.q;
+  const optRows = useMemo(() => (answered && curQ && curQ.mode === 'choice' && curQ.options?.length
+    ? reviewRows(curQ.options, curQ.options.map((o) => o.info), {
+      isCorrect: (i) => curQ.options[i].key === curQ.correct,
+      isMine: (i) => curQ.options[i].key === answered.value,
+    })
+    : []), [answered, curQ]);
+  const holdForReview = reviewOpen && optRows.length >= 2;
   useEffect(() => { markBusy('stream', phase === 'run'); return () => markBusy('stream', false); }, [phase]);
 
   const wordById = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
@@ -96,8 +109,14 @@ export default function StreamQuiz({
     onAnswered?.();
     setSession((s) => record(s, item, ok));
     setAnswered({ value, ok, verdict: ok ? 'correct' : 'wrong', ...extra });
-    if (ok) timer.current = setTimeout(advance, AUTO_NEXT_MS);
   };
+
+  /* 맞히면 잠깐 보여 주고 알아서 넘어간다. 보기 상세를 펼쳐 둔 때는 직접 넘긴다. */
+  useEffect(() => {
+    if (!answered || answered.verdict !== 'correct' || holdForReview) return undefined;
+    timer.current = setTimeout(advance, AUTO_NEXT_MS);
+    return () => clearTimeout(timer.current);
+  }, [answered, holdForReview, advance]);
 
   const answer = (input) => {
     if (answered || !cur) return;
@@ -222,6 +241,12 @@ export default function StreamQuiz({
         </div>
       )}
 
+      {answered && answered.verdict === 'correct' && holdForReview && (
+        <div className="qnext">
+          <button className="submit-btn st-next" onClick={advance}>다음 문제</button>
+        </div>
+      )}
+
       {answered && answered.verdict === 'wrong' && (
         <>
           {(isTyping || q.explain) && (
@@ -235,6 +260,11 @@ export default function StreamQuiz({
             <button className="submit-btn st-next" onClick={advance}>다음 문제</button>
           </div>
         </>
+      )}
+
+      {/* 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기. 「다음 문제」 아래에 둔다(위에 두면 버튼이 밀려난다). */}
+      {answered && !isTyping && (
+        <OptionReview idPrefix={`st:${q.id}`} rate={settings?.speechRate} rows={optRows} open={reviewOpen} onOpenChange={setReviewOpen} />
       )}
     </div>
   );

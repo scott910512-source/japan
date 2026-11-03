@@ -6,6 +6,8 @@ import { BLANK } from '../../data/n3/grammar.js';
 import { shuffle } from '../../lib/n3.js';
 import JpSpeak from './JpSpeak.jsx';
 import HunterTutor from '../../components/HunterTutor.jsx';
+import OptionReview, { useReviewOpen } from '../../components/OptionReview.jsx';
+import { reviewRows } from '../../lib/optionInfo.js';
 
 /* 문제 풀기 — 코스의 모든 문제가 이 하나를 지난다.
  *
@@ -27,6 +29,7 @@ export default function QuizRunner({
   const [picked, setPicked] = useState(null);
   const [results, setResults] = useState([]);
   const [finished, setFinished] = useState(false);
+  const [reviewOpen, setReviewOpen] = useReviewOpen();
   const q = questions[at];
   const total = questions.length;
 
@@ -172,6 +175,16 @@ export default function QuizRunner({
           <button className="submit-btn n3-next" onClick={() => advance()} style={{ marginTop: 10 }}>
             {at + 1 >= total ? lastLabel : '다음'}
           </button>
+          {/* 정답은 아는데 다른 보기가 궁금할 때 — 보기마다 읽기 · 뜻 · 듣기. 「다음」 아래에 둔다. */}
+          {q.type !== 'order' && (
+            <OptionReview
+              idPrefix={`n3:${q.id}`}
+              rate={rate}
+              open={reviewOpen}
+              onOpenChange={setReviewOpen}
+              rows={reviewRows(q.options, q.optionInfo, { isCorrect: (i) => q.options[i] === q.answer, isMine: (i) => q.options[i] === picked })}
+            />
+          )}
         </div>
       )}
     </div>

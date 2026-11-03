@@ -40,6 +40,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(() => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
+    localStorage.setItem('jp_optrev_open', '0');   // 보기 상세는 접어 둔다 — 맞히면 저절로 넘어가는 흐름을 본다 (펼친 상태: option-info-ui)
     const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     s.onboarded = true;
     s.autoTTS = false;

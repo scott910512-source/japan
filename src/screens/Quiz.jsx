@@ -10,6 +10,8 @@ import {
   QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf,
 } from '../lib/quiz.js';
 import { WEAK_KIND } from '../lib/weak.js';
+import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows, wordInfo } from '../lib/optionInfo.js';
 
 const COUNTS = [10, 20, 30, 50];
 
@@ -223,6 +225,17 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
   const word = q ? byId.get(q.wordId) : null;
   const answered = q ? answers[q.id] : null;
 
+  /* 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기. 펼쳐 두면 맞혀도 자동으로 넘기지 않는다 —
+     정답은 아는데 다른 보기를 보고 싶어 하는 게 바로 맞힌 때라서. */
+  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const optRows = useMemo(() => (answered && q?.type === QUIZ_TYPE.CHOICE
+    ? reviewRows(q.options, q.options.map((o) => wordInfo({ kanji: o.jp, kana: o.jpKana, mean: o.mean })), {
+      isCorrect: (i) => q.options[i].wordId === q.wordId,
+      isMine: (i) => answered.value === q.options[i].wordId,
+    })
+    : []), [answered, q]);
+  const holdForReview = reviewOpen && optRows.length >= 2;
+
   useEffect(() => {
     setTyped('');
     setShownSub(false);
@@ -329,12 +342,12 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
    * 다만 눈으로 확인할 틈은 준다 — 바로 넘기면 맞았는지도 모르고 지나간다.
    * 한→일 문제에서 답을 읽어 주는 중이면 그 소리가 끝날 때까지 기다린다. */
   useEffect(() => {
-    if (!answered || answered.verdict !== 'correct') return undefined;
+    if (!answered || answered.verdict !== 'correct' || holdForReview) return undefined;
     const speaking = settings.autoTTS && q?.dir === QUIZ_DIR.KO_JP;
     const timer = setTimeout(next, speaking ? AUTO_NEXT_SPEAK_MS : AUTO_NEXT_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answered, index]);
+  }, [answered, index, holdForReview]);
 
   // 오타로 틀리는 건 실력이 아니다. 애매한 답은 내가 인정할 수 있게 둔다.
   const acceptClose = () => {
@@ -530,8 +543,9 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
         </div>
       )}
 
-      {/* 맞힌 문제는 알아서 넘어가므로 버튼을 내지 않는다 — 눌러야 할 게 없어야 빠르다. */}
-      {answered && answered.verdict !== 'correct' && (
+      {/* 맞힌 문제는 알아서 넘어가므로 버튼을 내지 않는다 — 눌러야 할 게 없어야 빠르다.
+          다만 보기 상세를 펼쳐 둔 때는 직접 넘긴다(읽고 들을 시간을 주려고). */}
+      {answered && (answered.verdict !== 'correct' || holdForReview) && (
         <div className="qnext">
           {answered.verdict === 'close' && (
             <button className="ghost-btn" onClick={acceptClose}>맞게 처리하기</button>
@@ -541,6 +555,12 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
             {hasKeyboard && <kbd className="inline-key">Enter</kbd>}
           </button>
         </div>
+      )}
+
+      {/* ★ 정답은 아는데 다른 보기가 궁금할 때 ★ 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기.
+          「다음 문제」 버튼 아래에 둔다 — 위에 두면 버튼이 화면 밖으로 밀려난다. */}
+      {answered && q.type === QUIZ_TYPE.CHOICE && (
+        <OptionReview idPrefix={`qz:${q.id}`} rate={settings.speechRate} rows={optRows} open={reviewOpen} onOpenChange={setReviewOpen} />
       )}
     </>
   );

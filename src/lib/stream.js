@@ -2,6 +2,7 @@ import { BOX, VERDICT, daysBetween, stateOf, todayKey } from './review.js';
 import { weakEntry, weakScore } from './weak.js';
 import { QUIZ_DIR, QUIZ_TYPE, buildQuestion, judgeTyping } from './quiz.js';
 import { n3Included, withinGoal } from './goal.js';
+import { wordInfo, sentenceInfo } from './optionInfo.js';
 
 /* 쭉 퀴즈 — 외운 것을 끊지 않고 이어서 묻는다.
  *
@@ -157,7 +158,7 @@ function wordQuestion(item, ctx, rng) {
     prompt: q.prompt,
     sub: q.promptSub,
     promptJp: jpFirst,
-    options: typing ? [] : q.options.map((o) => ({ key: o.wordId, label: o.label, sub: o.sub })),
+    options: typing ? [] : q.options.map((o) => ({ key: o.wordId, label: o.label, sub: o.sub, info: wordInfo({ kanji: o.jp, kana: o.jpKana, mean: o.mean }) })),
     correct: word.id,
     answerText: q.answer,
     answerSub: q.answerSub,
@@ -188,7 +189,7 @@ function sentenceQuestion(item, ctx, rng) {
     prompt: jpFirst ? s.kanji : s.mean,
     sub: jpFirst ? s.kana : null,
     promptJp: jpFirst,
-    options: shuffle([s, ...others], rng).map((x) => ({ key: x.id, label: text(x), sub: jpFirst ? null : x.kana })),
+    options: shuffle([s, ...others], rng).map((x) => ({ key: x.id, label: text(x), sub: jpFirst ? null : x.kana, info: sentenceInfo(x) })),
     correct: s.id,
     answerText: text(s),
     answerSub: jpFirst ? null : s.kana,
@@ -209,7 +210,7 @@ function n3Question(item, ctx, rng) {
     prompt: q.q,
     sub: q.sub || null,
     promptJp: true,
-    options: q.options.map((o) => ({ key: o, label: o, sub: null })),
+    options: q.options.map((o, i) => ({ key: o, label: o, sub: null, info: q.optionInfo?.[i] || null })),
     correct: q.answer,
     answerText: q.answer,
     answerSub: null,

@@ -370,16 +370,16 @@ export function vocabQuestion(word, type, rnd = Math.random) {
   const all = shuffle([word, ...others], rnd);
   if (type === 'kana') {
     return { id: `vq:${word.id}:kana`, kind: 'vocab', cat: 'vocab', ref: word.id, refTitle: word.kanji, type: 'choice',
-      q: `【${word.kanji}】の読み方は？`, sub: word.mean, options: all.map((w) => w.kana), answer: word.kana,
+      q: `【${word.kanji}】の読み方は？`, sub: word.mean, options: all.map((w) => w.kana), optionInfo: all.map((w) => ({ jp: w.kanji, kana: w.kana !== w.kanji ? w.kana : '', ko: w.mean })), answer: word.kana,
       why: Object.fromEntries(others.map((w) => [w.kana, `「${w.kana}」는 ${w.kanji}(${w.mean})의 읽기예요.`])), expl: `${word.kanji} = ${word.kana}`, speakAfter: word.kana, d: 1 };
   }
   if (type === 'jp') {
     return { id: `vq:${word.id}:jp`, kind: 'vocab', cat: 'vocab', ref: word.id, refTitle: word.kanji, type: 'choice',
-      q: `「${word.mean}」는 일본어로?`, options: all.map((w) => w.kanji), optionSubs: all.map((w) => w.kana), answer: word.kanji,
+      q: `「${word.mean}」는 일본어로?`, options: all.map((w) => w.kanji), optionSubs: all.map((w) => w.kana), optionInfo: all.map((w) => ({ jp: w.kanji, kana: w.kana !== w.kanji ? w.kana : '', ko: w.mean })), answer: word.kanji,
       why: Object.fromEntries(others.map((w) => [w.kanji, `${w.kanji}(${w.kana})는 「${w.mean}」이에요.`])), expl: `${word.kanji}(${word.kana}) = ${word.mean}`, speakAfter: word.kana, d: 1 };
   }
   return { id: `vq:${word.id}:ko`, kind: 'vocab', cat: 'vocab', ref: word.id, refTitle: word.kanji, type: 'choice',
-    q: word.kanji, sub: word.kana, options: all.map((w) => w.mean), answer: word.mean,
+    q: word.kanji, sub: word.kana, options: all.map((w) => w.mean), optionInfo: all.map((w) => ({ jp: w.kanji, kana: w.kana !== w.kanji ? w.kana : '', ko: w.mean })), answer: word.mean,
     why: Object.fromEntries(others.map((w) => [w.mean, `「${w.mean}」는 ${w.kanji}(${w.kana})예요.`])), expl: `${word.kanji}(${word.kana}) = ${word.mean}${word.exampleKo ? `\n${word.example} — ${word.exampleKo}` : ''}`, speak: word.kana, d: 1 };
 }
 
@@ -407,7 +407,7 @@ export function kanjiQuestion(k, rnd = Math.random, which = 0) {
   }
   const all = shuffle([word, ...others], rnd);
   return { id: `kq:${k.k}:${which % k.words.length}`, kind: 'kanji', cat: 'kanji', ref: k.id, refTitle: k.k, type: 'choice',
-    q: `【${word[0]}】の読み方は？`, sub: `${k.k} — ${k.kh}`, options: all.map((w) => w[1]), answer: word[1],
+    q: `【${word[0]}】の読み方は？`, sub: `${k.k} — ${k.kh}`, options: all.map((w) => w[1]), optionInfo: all.map((w) => ({ jp: w[0], kana: w[1] !== w[0] ? w[1] : '', ko: w[2] })), answer: word[1],
     why: Object.fromEntries(others.map((w) => [w[1], `「${w[1]}」는 ${w[0]}(${w[2]})예요.`])), expl: `${word[0]}(${word[1]}) = ${word[2]} · ${k.k}: ${k.on}${k.kun && k.kun !== '—' ? ` / ${k.kun}` : ''}`, speakAfter: word[1], d: 1 };
 }
 export function kanjiQuestions(kanjiIds, rnd = Math.random) {
@@ -429,6 +429,15 @@ export function kanjiQuestions(kanjiIds, rnd = Math.random) {
 export const kanjiComponents = (k) => String(k.parts || '').split('+').map((x) => x.trim()).filter(Boolean);
 export const canShapeQuestion = (k) => kanjiComponents(k).length >= 2;
 
+/* 한자 보기 한 줄 — 음·훈을 같이 보이고, 소리는 훈독(없으면 음독)으로 낸다. */
+const hasKun = (k) => k.kun && k.kun !== '—';
+export const kanjiOptionInfo = (x) => ({
+  jp: x.k,
+  kana: `${x.on}${hasKun(x) ? ` / ${x.kun}` : ''}`,
+  say: hasKun(x) ? String(x.kun).replace(/[()（）]/g, '') : x.on,
+  ko: x.mean,
+});
+
 export function kanjiMeaningQuestion(k, rnd = Math.random) {
   const others = [];
   for (const o of shuffle(KANJI_ITEMS.filter((x) => x.k !== k.k && x.mean !== k.mean), rnd)) {
@@ -438,7 +447,7 @@ export function kanjiMeaningQuestion(k, rnd = Math.random) {
   }
   const all = shuffle([k, ...others], rnd);
   return { id: `kq:${k.k}:m`, kind: 'kanji', cat: 'kanji', ref: k.id, refTitle: k.k, type: 'choice',
-    q: `【${k.k}】の意味は？`, sub: `${k.on}${k.kun && k.kun !== '—' ? ` / ${k.kun}` : ''}`, options: all.map((x) => x.mean), answer: k.mean,
+    q: `【${k.k}】の意味は？`, sub: `${k.on}${k.kun && k.kun !== '—' ? ` / ${k.kun}` : ''}`, options: all.map((x) => x.mean), optionInfo: all.map(kanjiOptionInfo), answer: k.mean,
     why: Object.fromEntries(others.map((o) => [o.mean, `「${o.mean}」는 ${o.k}(${o.kh})예요.`])),
     expl: `${k.k} = ${k.mean} (${k.kh})${k.parts ? ` · 구성 ${k.parts}` : ''}`, d: 1 };
 }
@@ -457,7 +466,7 @@ export function kanjiShapeQuestion(k, rnd = Math.random) {
   }
   const all = shuffle([k, ...others], rnd);
   return { id: `kq:${k.k}:s`, kind: 'kanji', cat: 'kanji', ref: k.id, refTitle: k.k, type: 'choice',
-    q: `${mine.join(' + ')} 로 만든 한자는?`, sub: `뜻: ${k.mean}`, options: all.map((x) => x.k), answer: k.k,
+    q: `${mine.join(' + ')} 로 만든 한자는?`, sub: `뜻: ${k.mean}`, options: all.map((x) => x.k), optionInfo: all.map(kanjiOptionInfo), answer: k.k,
     why: Object.fromEntries(others.map((o) => [o.k, `${o.k}는 ${o.parts} 로 만들어요 (${o.mean}).`])),
     expl: `${k.k} = ${k.parts} (${k.mean})`, d: 1 };
 }

@@ -20,6 +20,8 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(() => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
+    /* 보기 상세를 접어 둔 상태 — 맞히면 저절로 넘어가는 기존 흐름을 검사한다(펼친 상태는 option-info-ui) */
+    localStorage.setItem('jp_optrev_open', '0');
     const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     s.onboarded = true; s.autoTTS = false;
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
@@ -29,7 +31,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
      자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이것 때문에
      화면 검사가 통째로 죽었다. 로그인 문을 지나가려면 오프라인이기만 하면 된다. */
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(2800);
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
