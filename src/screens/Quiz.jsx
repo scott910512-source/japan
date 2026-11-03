@@ -358,6 +358,14 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
     });
   };
 
+  const pressOption = (i) => {
+    const o = q?.options?.[i];
+    if (!o) return;
+    if (!answered) { answerChoice(o); return; }
+    const say = o.jpKana || o.jp;
+    if (say) speakJapanese(say, settings.speechRate);
+  };
+
   useHotkeys({
     Enter: () => {
       if (done) return;
@@ -366,10 +374,12 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
     },
     ' ': () => { if (answered || q?.dir === QUIZ_DIR.JP_KO) speak(); },
     Space: () => { if (answered || q?.dir === QUIZ_DIR.JP_KO) speak(); },
-    1: () => q?.options && !answered && answerChoice(q.options[0]),
-    2: () => q?.options && !answered && answerChoice(q.options[1]),
-    3: () => q?.options && !answered && answerChoice(q.options[2]),
-    4: () => q?.options && !answered && answerChoice(q.options[3]),
+    /* 고르기 전: 1~4 선택. 고른 뒤: 1~4는 그 보기의 일본어 듣기, 5는 다음 문제 */
+    1: () => pressOption(0),
+    2: () => pressOption(1),
+    3: () => pressOption(2),
+    4: () => pressOption(3),
+    5: () => { if (answered && !done) next(); },
     Escape: onQuit,
   });
 
@@ -461,12 +471,26 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
                   {o.sub && (shownOpt || answered) && <span>{o.sub}</span>}
                   {/* 설명은 정답 보기 안에 붙인다. 아래에 따로 상자를 띄우면
                       그만큼 '다음 문제'가 화면 밖으로 밀려난다. */}
-                  {answered && isAnswer && answered.verdict !== 'correct' && (
+                  {/* ★ 정답 밑에 예문 — 맞혔을 때도 ★ 소리 버튼은 예문 글자 바로 옆에 붙는다
+                      (예전엔 글자와 🔊가 따로 떨어져 있었다). */}
+                  {answered && isAnswer && (answered.verdict !== 'correct' || word?.example) && (
                     <span className="qo-why">
-                      {q.answerSub && q.answerSub !== o.label && <b>{q.answerSub}</b>}
+                      {answered.verdict !== 'correct' && q.answerSub && q.answerSub !== o.label && <b>{q.answerSub}</b>}
                       {word?.example && (
                         <>
-                          <span className="qw-jp">{word.example}</span>
+                          <span className="qw-jp">
+                            {word.example}
+                            <i
+                              className="qo-replay"
+                              role="button"
+                              tabIndex={0}
+                              aria-label="예문 듣기"
+                              onClick={(e) => { e.stopPropagation(); speakExample(); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); speakExample(); } }}
+                            >
+                              <IconSpeaker />
+                            </i>
+                          </span>
                           <span className="qw-ko">{word.exampleKo}</span>
                         </>
                       )}
@@ -483,23 +507,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
                   )}
                 </span>
                 {answered && isAnswer && (
-                  <span className="qo-mark ok">
-                    <IconCheck /> 정답
-                    {/* 예문을 다시 듣는 자리. 자동으로 한 번 읽어 주지만,
-                        놓쳤을 때 손으로 부를 길이 없으면 그걸로 끝이다. */}
-                    {word?.example && (
-                      <i
-                        className="qo-replay"
-                        role="button"
-                        tabIndex={0}
-                        aria-label="예문 다시 듣기"
-                        onClick={(e) => { e.stopPropagation(); speakExample(); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); speakExample(); } }}
-                      >
-                        <IconSpeaker />
-                      </i>
-                    )}
-                  </span>
+                  <span className="qo-mark ok"><IconCheck /> 정답</span>
                 )}
                 {answered && isMine && !isAnswer && <span className="qo-mark no"><IconX /> 내가 고른 답</span>}
               </button>

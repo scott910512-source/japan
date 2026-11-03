@@ -28,11 +28,14 @@ export default function OptionReview({ rows, open, onOpenChange, rate = 0.9, idP
           <li key={`${r.jp}-${r.ko}-${i}`} className={`optrev-row${r.tone ? ` ${r.tone}` : ''}`}>
             <span className="optrev-num">{r.n || i + 1}</span>
             <span className="optrev-body">
-              {r.jp && <b lang="ja">{r.jp}</b>}
-              {r.kana && <i lang="ja">{r.kana}</i>}
+              {/* 일본어 · 읽기 · 🔊 가 한 줄에 붙고, 뜻은 그 아래 */}
+              <span className="optrev-line">
+                {r.jp && <b lang="ja">{r.jp}</b>}
+                {r.kana && <i lang="ja">{r.kana}</i>}
+                {speakText(r) && <JpSpeak text={speakText(r)} rate={rate} id={`${idPrefix}:${i}:${speakText(r)}`} className="optrev-spk" label="듣기" />}
+              </span>
               {r.ko && <span className="optrev-ko">{r.ko}</span>}
             </span>
-            {speakText(r) && <JpSpeak text={speakText(r)} rate={rate} id={`${idPrefix}:${i}:${speakText(r)}`} className="optrev-spk" label="듣기" />}
           </li>
         ))}
       </ul>

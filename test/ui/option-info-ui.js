@@ -123,13 +123,20 @@ async function toChoice(page) {
   }
   ok('맞히는 경우를 만났다', held);
 
-  console.log('\n[ 접으면 예전처럼 저절로 넘어간다 · 기억한다 ]');
-  await page.locator('.optrev > summary').click();
-  await page.waitForTimeout(300);
-  ok('접힌다', !(await page.locator('.optrev').evaluate((e) => e.open)));
-  ok('★ 접은 것을 기억한다 ★', await page.evaluate(() => localStorage.getItem('jp_optrev_open')) === '0');
-  await page.waitForTimeout(1400);
-  ok('접으면 맞힌 문제는 알아서 넘어간다', (await page.locator('.optrev').count()) === 0);
+  console.log('\n[ 키보드 — 1~4 고르기 · 고른 뒤 1~4는 그 보기 듣기 · 5 다음 ]');
+  if (await toChoice(page)) {
+    const idNow = await page.locator('.st-run').getAttribute('data-id');
+    await page.keyboard.press('2');
+    await page.waitForTimeout(350);
+    ok('★ 2를 누르면 2번 보기를 고른다 ★', await page.locator('.st-opt.correct, .st-opt.wrong').count() >= 1 && await page.locator('.optrev').count() === 1);
+    if (!(await page.locator('.optrev').evaluate((e) => e.open))) { await page.locator('.optrev > summary').click(); await page.waitForTimeout(200); }
+    await page.keyboard.press('1');            // 답을 낸 뒤라 고르는 게 아니라 1번 보기 듣기
+    await page.waitForTimeout(300);
+    ok('★ 답을 낸 뒤 1을 눌러도 같은 문제(다시 고르지 않는다) ★', (await page.locator('.st-run').getAttribute('data-id')) === idNow);
+    await page.keyboard.press('5');
+    await page.waitForTimeout(500);
+    ok('★ 5를 누르면 다음 문제 ★', (await page.locator('.st-run').getAttribute('data-id')) !== idNow);
+  }
 
   ok('화면 오류 없음', errors.length === 0, errors[0]);
   await browser.close();

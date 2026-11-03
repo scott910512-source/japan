@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconCheck, IconSpeaker, IconX } from '../components/Icons.jsx';
+import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows } from '../lib/optionInfo.js';
 import BuildQuiz from '../components/BuildQuiz.jsx';
 import HunterTutor from '../components/HunterTutor.jsx';
 import { conversationTutor } from '../data/hunterTutors.js';
@@ -118,6 +120,12 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
 
   const item = byId.get(curId);
   const options = useMemo(() => (item ? [...item.options].sort(() => Math.random() - 0.5) : []), [item]);
+  /* 답을 낸 뒤 보기마다 읽기 · 듣기. 펼쳐 두면 맞혀도 직접 넘긴다. */
+  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const optRows = useMemo(() => (picked != null && item
+    ? reviewRows(options, null, { isCorrect: (i) => options[i] === item.answer, isMine: (i) => options[i] === picked })
+    : []), [picked, item, options]);
+  const holdForReview = reviewOpen && optRows.length >= 2;
   const advance = useCallback(() => {
     clearTimeout(timer.current);
     setPicked(null);
@@ -131,8 +139,13 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
     setPicked(opt);
     onActivity?.({ quizzed: 1 });
     setSession((s) => record(s, { id: item.id, kind: 'cloze' }, ok));
-    if (ok) timer.current = setTimeout(advance, AUTO_NEXT_MS);
   };
+
+  useEffect(() => {
+    if (picked == null || picked !== item?.answer || holdForReview) return undefined;
+    timer.current = setTimeout(advance, AUTO_NEXT_MS);
+    return () => clearTimeout(timer.current);
+  }, [picked, item, holdForReview, advance]);
 
   const { head, tail } = splitBlank(item.jp);
   const done = picked != null;
@@ -164,7 +177,8 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
             <b lang="ja">{filled(item)}</b>
             <div className="qv-ex"><span>{item.note}</span></div>
           </div>
-          {picked !== item.answer && <div className="qnext"><button className="submit-btn cmp-next" onClick={advance}>다음 문제</button></div>}
+          {(picked !== item.answer || holdForReview) && <div className="qnext"><button className="submit-btn cmp-next" onClick={advance}>다음 문제</button></div>}
+          <OptionReview idPrefix={`cmp:${item.id}`} rate={settings?.speechRate} rows={optRows} open={reviewOpen} onOpenChange={setReviewOpen} />
         </>
       )}
     </div>

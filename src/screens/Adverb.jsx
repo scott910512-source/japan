@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { IconChevron } from '../components/Icons.jsx';
 import BlankRun from '../components/BlankRun.jsx';
-import { ADVERB_SETS, buildSet, setStats, verdictsFrom } from '../lib/adverb.js';
+import { ADVERB_SETS, buildSet, cardOf, setStats, verdictsFrom } from '../lib/adverb.js';
+import { wordInfo } from '../lib/optionInfo.js';
 
 /* 부사 연습 — 빈칸 채우기.
  *
@@ -16,6 +17,8 @@ import { ADVERB_SETS, buildSet, setStats, verdictsFrom } from '../lib/adverb.js'
 export default function Adverb({ words, review, settings, onReview, onToast }) {
   const [setId, setSetId] = useState(null);
   const stats = useMemo(() => setStats(words, review), [words, review]);
+  /* 보기(부사)의 표기 · 읽기 · 뜻 — 단어장의 그 카드에서 가져온다 */
+  const infoOf = useMemo(() => (opt) => wordInfo(cardOf(words, opt)), [words]);
 
   if (!setId) {
     return (
@@ -50,6 +53,7 @@ export default function Adverb({ words, review, settings, onReview, onToast }) {
       set={ADVERB_SETS.find((s) => s.id === setId)}
       items={buildSet(setId)}
       settings={settings}
+      infoOf={infoOf}
       wrongNote="오늘의 학습에 약점으로 올라가요"
       onDone={(answers, items) => {
         const v = verdictsFrom(answers, items, words);

@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import {
   FORMS, BASIC_PAIRS, BASIC_KEYS, MORE_KEYS, ASK_KEYS, GROUP_LABEL,
-  conjugate, planDrill, applyDrill, drillRate, canDrill,
+  conjugate, planDrill, applyDrill, drillRate, canDrill, choiceInfos,
 } from '../lib/verbform.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { speakJapanese } from '../lib/tts.js';
 import { IconCheck, IconX, IconSpeaker, IconArrowLeft } from '../components/Icons.jsx';
+import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows } from '../lib/optionInfo.js';
 
 const GROUPS = ['1', '2', '3'];
 const COUNTS = [10, 20, 30];
@@ -69,6 +71,7 @@ export default function Conjugate({ words, progress, onProgress, settings, onToa
   const [count, setCount] = useState(10);
   const [run, setRun] = useState(null); // { list, at, right, answers: {id: 고른답} }
   const [look, setLook] = useState(null); // 활용표만 펼쳐 보기
+  const [reviewOpen, setReviewOpen] = useReviewOpen();
 
   const rate = settings.speechRate || 1;
 
@@ -169,6 +172,14 @@ export default function Conjugate({ words, progress, onProgress, settings, onToa
         {/* 답을 고른 뒤 기본 8형을 같은 시제끼리 비교한다. */}
         {picked && (
           <>
+            {/* 보기마다 읽기 · 뜻(무슨 모양인지) · 듣기 */}
+            <OptionReview
+              idPrefix={`cj:${q.id}`}
+              rate={rate}
+              open={reviewOpen}
+              onOpenChange={setReviewOpen}
+              rows={reviewRows(q.choices, choiceInfos(q), { isCorrect: (i) => q.choices[i] === q.answer.jp, isMine: (i) => picked === q.choices[i] })}
+            />
             <div className="section-label">{q.forms.dict.jp} 활용</div>
             <TableRows forms={q.forms} keys={['dict', ...keys]} rate={rate} mark={q.formKey} />
             {done ? (

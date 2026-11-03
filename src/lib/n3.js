@@ -205,7 +205,9 @@ export function readinessOf(n3, review) {
   };
   const total = TRACKS.reduce((s, t) => s + r[t] * READINESS_WEIGHTS[t], 0);
   const pct = (x) => Math.round(x * 100);
-  return { vocab: pct(r.vocab), kanji: pct(r.kanji), grammar: pct(r.grammar), reading: pct(r.reading), listening: pct(r.listening), total: pct(total) };
+  /* exact: 소수 첫째 자리까지 — 조금 풀었을 때도 숫자가 움직이는 게 보이게 (정수 %는 한참 0에 머문다) */
+  const exact = Math.round(total * 1000) / 10;
+  return { vocab: pct(r.vocab), kanji: pct(r.kanji), grammar: pct(r.grammar), reading: pct(r.reading), listening: pct(r.listening), total: pct(total), exact };
 }
 
 export const TRACK_ITEM_IDS = { vocab: VOCAB_IDS, kanji: KANJI_IDS, grammar: N3_GRAMMAR_IDS };

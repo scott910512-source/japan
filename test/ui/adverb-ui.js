@@ -23,6 +23,7 @@ async function boot(browser, settings = {}) {
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate((s) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
+    localStorage.setItem('jp_optrev_open', '0');   // 보기 상세는 접어 둔다 — 기존 흐름을 본다 (펼친 상태: option-info-*)
     const cur = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     cur.onboarded = true; cur.canReadKana = true; cur.autoTTS = false;
     Object.assign(cur, s);
@@ -30,7 +31,7 @@ async function boot(browser, settings = {}) {
   }, settings);
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(2800);
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});

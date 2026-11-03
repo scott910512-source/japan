@@ -27,6 +27,7 @@ async function boot(browser) {
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(() => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
+    localStorage.setItem('jp_optrev_open', '0');   // 보기 상세는 접어 둔다 — 기존 흐름을 본다 (펼친 상태: option-info-*)
     const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     s.onboarded = true; s.autoTTS = false;
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));

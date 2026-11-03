@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconSpeaker, IconCheck, IconX, IconArrowLeft } from './Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
+import OptionReview, { useReviewOpen } from './OptionReview.jsx';
+import { reviewRows, textInfo } from '../lib/optionInfo.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import {
@@ -27,7 +29,7 @@ function Say({ text, kana, rate }) {
 }
 
 export default function BlankRun({
-  set, items: initial, settings, onDone, onQuit, backLabel = '묶음 목록', wrongNote = null,
+  set, items: initial, settings, onDone, onQuit, backLabel = '묶음 목록', wrongNote = null, infoOf = null,
 }) {
   const [items, setItems] = useState(initial);
   const [at, setAt] = useState(0);
@@ -41,6 +43,17 @@ export default function BlankRun({
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const item = items[at];
+
+  /* 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기. 펼쳐 두면 맞혀도 자동으로 넘기지 않는다.
+     infoOf(보기)가 낱말 정보를 주면 그걸, 아니면 글자만 보고 나눈다. */
+  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const optRows = useMemo(() => (picked && item
+    ? reviewRows(item.options, item.options.map((o) => infoOf?.(o) || textInfo(o)), {
+      isCorrect: (i) => item.options[i] === item.answer,
+      isMine: (i) => item.options[i] === picked.opt,
+    })
+    : []), [picked, item, infoOf]);
+  const holdForReview = reviewOpen && optRows.length >= 2;
 
   /* 판이 끝나면 결과를 한 번만 넘긴다.
      그리는 중에 하지 않는다 — 같은 판이 두 번 계산되면 두 번 올라간다. */
@@ -58,13 +71,17 @@ export default function BlankRun({
     setPicked({ opt, good });
     setAnswers((prev) => ({ ...prev, [item.id]: { good, opt } }));
 
-    /* 맞히면 넘어가고, 틀리면 설명을 읽을 시간을 준다. */
-    if (!good) return;
+  };
+
+  /* 맞히면 넘어가고, 틀리면 설명을 읽을 시간을 준다. 보기 상세를 펼쳐 둔 때는 직접 넘긴다. */
+  useEffect(() => {
+    if (!picked?.good || holdForReview) return undefined;
     timer.current = setTimeout(() => {
       setPicked(null);
       if (at + 1 >= items.length) setDone(true); else setAt(at + 1);
     }, FEEDBACK_MS);
-  };
+    return () => clearTimeout(timer.current);
+  }, [picked, holdForReview, at, items.length]);
 
   const next = () => {
     clearTimeout(timer.current);
@@ -76,7 +93,7 @@ export default function BlankRun({
     1: () => item && pick(item.options[0]),
     2: () => item && pick(item.options[1]),
     3: () => item && pick(item.options[2]),
-    Enter: () => { if (picked && !picked.good) next(); },
+    Enter: () => { if (picked && (!picked.good || holdForReview)) next(); },
     ' ': () => item && speakJapanese(item.kana.replace(BLANK, item.answer), settings.speechRate),
     Escape: onQuit,
   });
@@ -198,6 +215,18 @@ export default function BlankRun({
           </button>
         </div>
       )}
+
+      {picked?.good && holdForReview && (
+        <div className="av-why">
+          <button className="submit-btn" onClick={next}>
+            {at + 1 >= items.length ? '결과 보기' : '다음'}
+            {hasKeyboard && <kbd className="inline-key">Enter</kbd>}
+          </button>
+        </div>
+      )}
+
+      {/* 정답은 아는데 다른 보기가 궁금할 때 — 「다음」 아래에 둔다 */}
+      {picked && <OptionReview idPrefix={`blank:${item.id}`} rate={settings.speechRate} rows={optRows} open={reviewOpen} onOpenChange={setReviewOpen} />}
     </>
   );
 }

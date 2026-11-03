@@ -86,6 +86,11 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
       ok('줄 수 = 보기 수', await page.locator('.optrev-row').count() === nOpts, `${nOpts}`);
       ok('줄마다 일본어 · 읽기 · 뜻 · 🔊', await page.locator('.optrev-row').evaluateAll((rows) => rows.every((r) => r.querySelector('b[lang="ja"]') && r.querySelector('.optrev-ko') && r.querySelector('.optrev-spk'))));
       ok('정답 줄이 하나', await page.locator('.optrev-row.correct').count() === 1);
+      ok('★ 🔊가 글자 바로 옆(같은 줄)에 붙는다 ★', await page.locator('.optrev-line .optrev-spk').count() === nOpts && await page.locator('.optrev-row > .optrev-spk').count() === 0);
+      ok('★ 정답 밑에 예문이 나오고 재생 버튼이 예문에 붙는다(맞혔을 때도) ★',
+        await page.locator('.qopt.correct .qo-why .qw-jp .qo-replay').count() === 1 && (await page.locator('.qopt.correct .qo-why .qw-jp').innerText()).trim().length > 2);
+      ok('정답 표시 옆 따로 떨어진 🔊는 없다', await page.locator('.qo-mark .qo-replay').count() === 0);
+      await page.screenshot({ path: process.env.SHOT || '/tmp/optrev.png', fullPage: false });
       ok('틀렸다면 내 답 줄이 하나', right || await page.locator('.optrev-row.mine').count() === 1);
       const btn = page.locator('.qnext .submit-btn');
       ok('「다음 문제」 버튼이 있다', await btn.count() === 1);

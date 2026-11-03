@@ -42,7 +42,7 @@ async function boot(browser, patch = {}) {
   }, patch);
   await page.waitForTimeout(800);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(2800);
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
@@ -58,7 +58,7 @@ async function boot(browser, patch = {}) {
 async function reboot(page) {
   await page.context().setOffline(false);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(2800);
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
