@@ -93,6 +93,7 @@ export default function FeatureScreen({
             {sub === 'listenhub' && <ListenHub onOpen={openListen} />}
             {sub === 'grammar' && (
               <GrammarHub
+                onAttempt={onAttempt}
                 words={words}
                 progress={progress}
                 settings={settings}
