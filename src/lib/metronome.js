@@ -320,7 +320,3 @@ export function beatRunning() {
   return Boolean(state);
 }
 
-/* 검사에서 쓰려고 열어 둔다 — 소리 쪽을 눌러 보지 않고 상태만 확인한다. */
-export function beatState() {
-  return state ? { bpm: state.bpm, count: state.count } : null;
-}

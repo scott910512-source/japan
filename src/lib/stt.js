@@ -117,10 +117,6 @@ export async function startRecording(onAutoStop) {
   }, HARD_LIMIT_MS);
 }
 
-export function isRecording() {
-  return rec.active;
-}
-
 function teardown() {
   rec.active = false;
   clearTimeout(rec.timer);

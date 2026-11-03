@@ -431,7 +431,6 @@ export const DEFAULT_SETTINGS = {
   useCloudTTS: true,
 
   theme: 'dark',      // 'system' | 'light' | 'dark'
-  notifications: true,
   level: 'basic',
 };
 

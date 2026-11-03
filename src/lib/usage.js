@@ -68,14 +68,6 @@ export function usedThisMonth(month = monthKey()) {
   return read()[month] || 0;
 }
 
-export function usageHistory() {
-  return read();
-}
-
-export function resetUsage() {
-  write({});
-}
-
 /* 화면에 그대로 쓸 수 있는 요약. */
 export function usageSummary(voice, month = monthKey()) {
   const used = usedThisMonth(month);

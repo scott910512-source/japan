@@ -26,10 +26,6 @@ import { SAPPORO_LINES_BY_GROUP } from '../data/situations-sapporo.js';
 
 export { SAPPORO_GROUPS, SAPPORO_LIST, SAPPORO_SOURCE };
 
-/* 이 목록이 어느 상황 묶음의 문장을 데려오는가.
-   지금은 삿포로 하나뿐이지만, 다음 여행이 생기면 여기 한 줄을 더한다. */
-export const TRIP_SITUATION_ID = 'sapporo';
-
 /* 표기 → 묶음. 목록이 한 벌이라 한 번만 만든다. */
 let byWord = null;
 function groupOf() {

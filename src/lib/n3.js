@@ -155,7 +155,6 @@ export function progressOf(n3, review) {
 }
 
 /* ═══════════ 숙련도 ═══════════ */
-export const MASTERY = ['new', 'learning', 'review', 'master'];
 export const MASTERY_LABEL = { new: 'NEW', learning: 'LEARNING', review: 'REVIEW', master: 'MASTER' };
 
 export function masteryOf(st) {
@@ -209,12 +208,6 @@ export function readinessOf(n3, review) {
   return { vocab: pct(r.vocab), kanji: pct(r.kanji), grammar: pct(r.grammar), reading: pct(r.reading), listening: pct(r.listening), total: pct(total) };
 }
 
-/* 갈래별 숙련도 분포 — 대시보드의 「어휘 42%」는 이걸로 그린다 */
-export function masterySummary(review, ids) {
-  const out = { new: 0, learning: 0, review: 0, master: 0, total: ids.length };
-  for (const id of ids) out[masteryOf(stateOf(review, id))] += 1;
-  return out;
-}
 export const TRACK_ITEM_IDS = { vocab: VOCAB_IDS, kanji: KANJI_IDS, grammar: N3_GRAMMAR_IDS };
 
 /* ═══════════ 답 기록 ═══════════ */
@@ -660,4 +653,3 @@ export const COUNTS = {
   kanji: KANJI_ITEMS.length, reading: READING_PASSAGES.length, listening: LISTENING_ITEMS.length,
   questions: GRAMMAR_QUESTIONS.length + READING_QUESTIONS.length + LISTENING_QUESTIONS.length + EXAM_QUESTIONS.length,
 };
-export const isDueCard = (review, id, today = todayKey()) => isDue(stateOf(review, id), today);

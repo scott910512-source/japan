@@ -35,9 +35,6 @@ export const IconSpeaker = (p) => (
     <path d="M17 9a3 3 0 0 1 0 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
   </svg>
 );
-export const IconShuffle = (p) => (
-  <svg {...base} {...p}><path d="M4 6h4l9 12h3M4 18h4l3-4M16 6h4v4M20 6l-5 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-);
 export const IconCheck = (p) => (
   <svg {...base} {...p}><path d="M4 12l5 5L20 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 );
@@ -61,12 +58,6 @@ export const IconList = (p) => (
 );
 export const IconGear = (p) => (
   <svg {...base} {...p}><path d="M4 10v4l3 1 1 3h4l1-3 3-1v-4l-3-1-1-3H8L7 9l-3 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><circle cx="12" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.5"/></svg>
-);
-export const IconMoon = (p) => (
-  <svg {...base} {...p}><path d="M12 3a7 7 0 1 0 9 9 8 8 0 1 1-9-9Z" fill="currentColor"/></svg>
-);
-export const IconBell = (p) => (
-  <svg {...base} {...p}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M9.5 20a2.5 2.5 0 0 0 5 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
 );
 export const IconRewind = (p) => (
   <svg {...base} {...p}><path d="M4 12a8 8 0 1 1 3 6.3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M4 16v-4h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -111,12 +102,6 @@ export const IconPlay = (p) => (
 );
 export const IconChart = (p) => (
   <svg {...base} {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
-);
-export const IconDots = (p) => (
-  <svg {...base} {...p}><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
-);
-export const IconSun = (p) => (
-  <svg {...base} {...p}><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.7"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
 );
 export const IconHeadphone = (p) => (
   <svg {...base} {...p}><path d="M4 14v-2a8 8 0 0 1 16 0v2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><rect x="2.5" y="13" width="4.5" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7"/><rect x="17" y="13" width="4.5" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.7"/></svg>

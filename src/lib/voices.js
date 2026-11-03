@@ -15,13 +15,6 @@ export const CLOUD_VOICES = [
   { id: 'ja-JP-Standard-C', label: '남성 5', tier: 'Standard', gender: 'male' },
 ];
 
-export const DEFAULT_CLOUD_VOICE = 'ja-JP-Neural2-B';
-
-export function voiceLabel(id) {
-  const found = CLOUD_VOICES.find((v) => v.id === id);
-  return found ? `${found.label} · ${found.tier}` : id;
-}
-
 // 기기에 깔린 일본어 음성. 기종·OS마다 달라 목록을 미리 정할 수 없다.
 export function deviceJapaneseVoices() {
   const all = (typeof window !== 'undefined' && window.speechSynthesis?.getVoices()) || [];
