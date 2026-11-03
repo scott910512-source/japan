@@ -130,3 +130,12 @@
   .hunter-appbar { padding-left: 12px; padding-right: 12px; }
   .hunter-app-context > span { max-width: 15ch; font-size: 10px; }
 }
+
+/* 헌터 성장 · 단어 회독 요약 */
+.hunter-words .hunter-growth-numbers b small { font-size: 12px; font-weight: 500; color: var(--ink-soft); }
+.hunter-levelbars { display: grid; gap: 8px; margin-top: 12px; }
+.hunter-levelbar { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 8px; font-size: 12.5px; }
+.hunter-levelbar > span { font-weight: 700; }
+.hunter-levelbar > i { display: block; height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.hunter-levelbar > i > em { display: block; height: 100%; border-radius: 99px; background: var(--kon); }
+.hunter-levelbar > small { color: var(--ink-soft); font-variant-numeric: tabular-nums; }

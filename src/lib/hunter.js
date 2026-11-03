@@ -1,5 +1,7 @@
 /* Hunter rewards are derived from unique saved achievements, never click counters.
  * Existing review/progress records remain the source of truth and keep syncing as before. */
+import { summarize } from './review.js';
+
 export function hunterProfile({ words = [], review = {}, progress = {} } = {}) {
   const seen = Object.entries(review).filter(([, s]) => s?.lastSeen && !s.selfKnown);
   const wordIds = new Set(words.map((w) => w.id));
@@ -33,5 +35,7 @@ export function hunterProfile({ words = [], review = {}, progress = {} } = {}) {
     { id: 'test', symbol: '✓', title: '시험에 도전', note: '진단·확인 시험 1회 완료', earned: tests > 0 },
     { id: 'level', symbol: '★', title: '싱글 스타', note: '헌터 레벨 6 달성', earned: level >= 6 },
   ];
-  return { xp, level, floor, ceiling, rank, levels, recommended, skills, badges, seen: seen.length, lessons, cleared, diagnostic, percent: Math.round((xp - floor) / (ceiling - floor) * 100) };
+  /* 단어 회독 요약 — 내 학습의 「얼마나 했나」와 같은 셈(summarize)이다. 두 곳이 따로 세면 숫자가 어긋난다 */
+  const wordStat = summarize(words.map((w) => w.id), review);
+  return { xp, level, floor, ceiling, rank, levels, wordStat, recommended, skills, badges, seen: seen.length, lessons, cleared, diagnostic, percent: Math.round((xp - floor) / (ceiling - floor) * 100) };
 }
