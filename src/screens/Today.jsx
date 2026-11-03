@@ -30,7 +30,7 @@ const HELLO = [
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
-  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, onOpenProgress,
+  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, onOpenProgress,
 }) {
   const today = todayKey();
 
@@ -73,6 +73,12 @@ export default function Today({
       key: 'weakquiz', title: '약점 퀴즈',
       note: weakQuiz.complete ? '오늘 약점 퀴즈를 마쳤어요' : `약한 낱말 ${weakQuiz.total - weakQuiz.done}문제 남았어요`,
       done: weakQuiz.done, total: weakQuiz.total, icon: <IconFlame />, onClick: onStartWeakQuiz,
+    },
+    /* ★ 쭉 퀴즈 ★ 외운 것을 끊지 않고 이어서 열 문제. 외운 게 없으면 줄이 안 뜬다 */
+    streamQuest && {
+      key: 'streamquiz', title: '쭉 퀴즈',
+      note: streamQuest.complete ? '오늘 쭉 퀴즈를 마쳤어요' : `외운 것을 이어서 ${streamQuest.total - streamQuest.done}문제 남았어요`,
+      done: streamQuest.done, total: streamQuest.total, icon: <IconPlay />, onClick: onStartStreamQuest,
     },
     freshLane.assigned > 0 && {
       key: 'fresh', title: '새로 배우기',

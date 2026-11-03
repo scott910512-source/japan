@@ -47,7 +47,7 @@ const SCOPE_OPTS = [
  * 겨루는 편이, 안 들은 낱말이 보기로 나오는 것보다 낫다. */
 export default function Quiz({
   words, review, settings, onChange, onToast, onRetryWrong, onActivity, onWeakness,
-  fixedWords = null, ledger = null, mistakes = {}, onAttempt,
+  fixedWords = null, ledger = null, mistakes = {}, onAttempt, weak = null, onExit,
 }) {
   const [config, setConfig] = useState({
     count: settings.quizCount ?? 20,
@@ -114,6 +114,8 @@ export default function Quiz({
         onToast={onToast}
         onActivity={onActivity}
         onWeakness={onWeakness}
+        weak={weak}
+        onExit={onExit}
       />
     );
   }
@@ -203,7 +205,7 @@ export default function Quiz({
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt }) {
+function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt, weak, onExit }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -369,6 +371,8 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
         onRetryWrong={onRetryWrong}
         onToast={onToast}
         onActivity={onActivity}
+        weak={weak}
+        onExit={onExit}
       />
     );
   }
@@ -544,7 +548,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
 
 /* ── 결과 ── */
 
-function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onToast, onActivity }) {
+function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onToast, onActivity, weak, onExit }) {
   const result = useMemo(() => gradeQuiz(questions, answers), [questions, answers]);
 
   /* 시험도 회독 진도를 올리지 않는다. 다만 몇 문항 풀었는지는 활동에 남긴다 —
@@ -589,11 +593,29 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
         </>
       )}
 
-      {wrongWords.length === 0 && (
-        <div className="empty-state" style={{ marginTop: 16 }}>다 맞혔어요. 다음 레벨로 넘어가 볼까요?</div>
+      {/* ★ 약점 퀴즈로 들어왔으면 말이 다르다 ★
+          「다음 레벨로 넘어가 볼까요?」는 일반 시험의 말이다. 약점 퀴즈를 마친 사람에게는 오늘 몫이 얼마나
+          찼는지, 맞힌 낱말이 약점에서 빠지는지가 궁금하다. */}
+      {weak ? (
+        <>
+          <div className="card wk-result" data-done={weak.done} data-total={weak.total}>
+            <b>{weak.complete ? '오늘 약점 퀴즈를 마쳤어요' : `오늘 약점 퀴즈 ${weak.done} / ${weak.total}`}</b>
+            <span>
+              {wrongWords.length === 0
+                ? '약한 낱말을 다 맞혔어요. 맞힌 만큼 약점 장부에서 점수가 내려가요.'
+                : '틀린 낱말은 약점 장부에 남아서 다음에 또 나와요.'}
+            </span>
+          </div>
+          <button className="submit-btn wk-resultdone" style={{ marginTop: 12 }} onClick={onExit || onQuit}>약점 퀴즈 마치기</button>
+        </>
+      ) : (
+        <>
+          {wrongWords.length === 0 && (
+            <div className="empty-state" style={{ marginTop: 16 }}>다 맞혔어요. 다음 레벨로 넘어가 볼까요?</div>
+          )}
+          <button className="ghost-btn" style={{ marginTop: 12 }} onClick={onQuit}>시험 설정으로</button>
+        </>
       )}
-
-      <button className="ghost-btn" style={{ marginTop: 12 }} onClick={onQuit}>시험 설정으로</button>
     </>
   );
 }

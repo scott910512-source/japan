@@ -14,6 +14,7 @@
 import { mergeN3 } from './n3progress.js';
 import { mergeMistakes } from './mistakes.js';
 import { mergeWeakQuiz } from './weakquiz.js';
+import { mergeQuests } from './quests.js';
 /* 약점 장부 — 규칙은 lib/weak.js. 횟수는 큰 쪽, 잊어버린 간격은 작은 쪽. */
 import { mergeWeak } from './weak.js';
 
@@ -180,6 +181,7 @@ export function mergeProgress(local = {}, remote = {}) {
     weak: mergeWeak(local.weak, remote.weak),
     /* 오늘 약점 퀴즈로 푼 낱말 — 같은 날이면 합치고, 다른 날이면 나중 날 */
     weakQuiz: mergeWeakQuiz(local.weakQuiz, remote.weakQuiz),
+    quests: mergeQuests(local.quests, remote.quests),
     /* 둘 다 없으면 null로 둔다 — 한 번도 안 연 사람에게 빈 코스 기록을 만들지 않는다 */
     n3: (local.n3 || remote.n3) ? mergeN3(local.n3, remote.n3) : null,
   };

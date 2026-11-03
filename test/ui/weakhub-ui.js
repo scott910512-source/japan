@@ -75,6 +75,9 @@ const progressOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem
     if (await nextBtn.count()) { await nextBtn.click(); await page.waitForTimeout(350); } else await page.waitForTimeout(900);
   }
   ok('결과 화면이 뜬다', await page.locator('.quizscore').count() === 1, `${steps}걸음`);
+  ok('★ 약점 퀴즈 결과는 오늘 몫을 말한다(일반 시험 문구가 아니다) ★', await page.locator('.wk-result').count() === 1 && (await page.locator('.wk-result').innerText()).includes('오늘 약점 퀴즈'), (await page.locator('.wk-result').innerText().catch(() => '')).replace(/\s+/g, ' '));
+  ok('★ 「다음 레벨로」 · 「시험 설정으로」 문구가 없다 ★', !(await page.locator('.subscreen.open').innerText()).includes('다음 레벨로') && !(await page.locator('.subscreen.open').innerText()).includes('시험 설정으로'));
+  ok('마치기 버튼이 있다', await page.locator('.wk-resultdone').count() === 1);
   const pg = await progressOf(page);
   ok('★ 푼 낱말 다섯이 오늘 몫에 적힌다 ★', pg.weakQuiz && pg.weakQuiz.ids && pg.weakQuiz.ids.length === 5, JSON.stringify(pg.weakQuiz));
 

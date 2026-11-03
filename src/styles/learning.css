@@ -450,3 +450,6 @@
 .wk-acts { display: grid; gap: 8px; margin-bottom: 12px; }
 .wk-acts .submit-btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .wk-quizsub { margin: -2px 2px 2px; }
+.wk-result { display: grid; gap: 4px; margin-top: 14px; text-align: center; }
+.wk-result b { font-size: 16px; }
+.wk-result span { color: var(--ink-soft); font-size: 13px; }

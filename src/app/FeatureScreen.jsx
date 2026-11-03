@@ -43,6 +43,9 @@ export default function FeatureScreen({
   onOpenDrill,
   onVerdicts,
   onExit,
+  weakQuiz = null,
+  weakQuizOn = false,
+  onStreamAnswered,
 }) {
   return (<>
             {sub === 'worddeck' && (
@@ -142,6 +145,9 @@ export default function FeatureScreen({
                 ledger={progress.weak}
                 /* 듣기에서 넘어온 세트가 있으면 그것만 묻는다 */
                 fixedWords={quizSet}
+                /* 약점 퀴즈로 들어왔으면 결과 화면이 오늘 몫을 말한다 */
+                weak={weakQuizOn ? weakQuiz : null}
+                onExit={onExit}
               />
             )}
             {sub === 'listen' && (
@@ -196,6 +202,7 @@ export default function FeatureScreen({
                 onActivity={noteActivity}
                 onToast={showToast}
                 onExit={onExit}
+                onAnswered={onStreamAnswered}
               />
             )}
             {sub === 'compose' && (
