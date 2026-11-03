@@ -7,7 +7,7 @@
  *   · 목표 레벨을 바꾸면 그 급수를 넘는 단어는 안 나온다 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab, openMenu, openSettings, openMore } from './_nav.js';
+import { goTab, openMenu, openSettings, openMore, openQuizHub } from './_nav.js';
 import { ALL_WORDS } from '../../src/data/allWords.js';
 import { applyVerdict, VERDICT, addDays, todayKey, BOX } from '../../src/lib/review.js';
 
@@ -41,7 +41,7 @@ async function boot(browser, { review = {}, settings = {} } = {}) {
   }, { review, settings });
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(2800);
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
@@ -60,11 +60,9 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
   console.log('\n[ 허브와 뒤로가기 ]');
   const page = await boot(browser, { review: seededReview });
   page.on('pageerror', (e) => errors.push(e.message));
-  await goTab(page, '학습');
-  await page.locator('.menutile[data-menu="rpg"]').click();
-  await page.waitForTimeout(700);
-  ok('실전 연습이 허브를 연다', await page.locator('.drillhub').count() === 1);
-  ok('허브에 쭉 퀴즈 · 문장 만들기 · 상황 대화', (await page.locator('.drillhub .pr-row b').allTextContents()).join() === '쭉 퀴즈,문장 만들기,상황 대화');
+  await openQuizHub(page);
+  ok('복습&내기록의 퀴즈가 허브를 연다', await page.locator('.drillhub').count() === 1);
+  ok('허브에 퀴즈 일곱: 단어 시험 · 짝 맞추기 · 부사 연습 · 동사 활용 · 쭉 퀴즈 · 문장 만들기 · 상황 대화', (await page.locator('.drillhub .pr-row b').allTextContents()).join() === '단어 시험,짝 맞추기,부사 연습,동사 활용,쭉 퀴즈,문장 만들기,상황 대화');
   ok('★ 목표 레벨이 N3로 보인다(기본) ★', (await page.locator('.dh-goal b').innerText()) === 'N3');
   await page.locator('.pr-row[data-menu="stream"]').click();
   await page.waitForTimeout(900);

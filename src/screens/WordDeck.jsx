@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { IconRepeat, IconSparkle } from '../components/Icons.jsx';
 import Jlpt from './Jlpt.jsx';
-import PracticeRows from '../components/PracticeRows.jsx';
 import { planDailySession, todayKey } from '../lib/review.js';
 import { normalizeGoals } from '../lib/daily.js';
 
@@ -18,7 +17,7 @@ export { LEVELS, filterByLevel } from '../lib/wordFilters.js';
  * 그래서 한 화면에 넣고 범위 고르는 방법을 둘로 뒀다.
  *   이어서 외우기 — 고른 레벨을 앱이 짜 주는 대로 이어서
  *   세트로 끊어서 — 레벨 안에서 100개씩, 어디까지 했는지 눈에 보이게 */
-export default function WordDeck({ words, review, settings, onChange, onStart, onStartSet, onToast, onOpenPractice }) {
+export default function WordDeck({ words, review, settings, onChange, onStart, onStartSet, onToast }) {
   const [how, setHow] = useState('flow');
   const levels = settings.levels?.length ? settings.levels : LEVELS;
 
@@ -120,7 +119,6 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
       )}
 
       {/* 배운 단어를 굴려 보는 연습 — 시험 · 짝 맞추기 · 부사 연습 */}
-      <PracticeRows parent="worddeck" menus={settings.menus} onOpen={onOpenPractice} />
     </>
   );
 }

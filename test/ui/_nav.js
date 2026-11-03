@@ -165,22 +165,33 @@ export const startReview = (page) => startStudy(page, '복습');
 
 /* 학습 탭의 칸을 연다. 이름이 딱 맞는 칸을 고른다 — hasText는 부분 일치라
    「단어」로 찾으면 「단어 시험」이 먼저 잡힌다. */
-/* 단어·문법 화면 안으로 들어간 연습 — [부모 칸 이름, 메뉴 id] */
+/* 퀴즈는 복습&내기록 › 퀴즈 한 곳에 모였다 — [부모, 메뉴 id].
+   (전에는 단어·문법 화면 안의 연습 줄과 학습 탭의 실전 연습 칸에 흩어져 있었다) */
 const PRACTICE = {
-  '단어 시험': ['단어', 'quiz'],
-  '짝 맞추기': ['단어', 'match'],
-  '부사 연습': ['단어', 'adverb'],
-  '동사 활용': ['문법', 'conjugate'],
-  /* 「실전 연습」 칸은 허브다 — 쭉 퀴즈와 상황 대화(전의 실전 연습)가 그 안에 있다 */
-  '쭉 퀴즈': ['실전 연습', 'stream'],
-  '문장 만들기': ['실전 연습', 'compose'],
-  '상황 대화': ['실전 연습', 'rpg'],
+  '단어 시험': ['퀴즈', 'quiz'],
+  '짝 맞추기': ['퀴즈', 'match'],
+  '부사 연습': ['퀴즈', 'adverb'],
+  '동사 활용': ['퀴즈', 'conjugate'],
+  '쭉 퀴즈': ['퀴즈', 'stream'],
+  '문장 만들기': ['퀴즈', 'compose'],
+  '상황 대화': ['퀴즈', 'rpg'],
 };
+/* 옛 칸 이름 → 지금 이름 */
+const ALIAS = { '한 권으로 끝내는 N3': 'N3 학습하기', '실전 연습': '퀴즈' };
+
+/* 퀴즈 모음 화면 — 내 학습 탭의 「퀴즈」 줄 */
+export async function openQuizHub(page) {
+  await goTab(page, '내 학습', 400);
+  await page.locator('.me-row[data-row="quiz"]').click();
+  await page.waitForTimeout(700);
+}
 
 export async function openMenu(page, label) {
+  label = ALIAS[label] || label;
+  if (label === '퀴즈') { await openQuizHub(page); return; }
   if (PRACTICE[label]) {
-    const [parent, id] = PRACTICE[label];
-    await openMenu(page, parent);
+    const [, id] = PRACTICE[label];
+    await openQuizHub(page);
     await page.locator(`.pr-row[data-menu="${id}"]`).click();
     await page.waitForTimeout(800);
     return;

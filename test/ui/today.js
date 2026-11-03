@@ -153,9 +153,9 @@ async function boot(browser, patch = {}, init = null) {
   ok('무엇이 몇 개인지 적힌다',
     tasks.some((t) => /단어 \d+|문장 \d+/.test(t)),
     tasks.find((t) => t.includes('새로 배우기'))?.replace(/\n/g, ' '));
-  const contText = await page.textContent('.hm-cont');
+  /* N3 입구는 학습 탭 하나다 — 오늘 탭의 「이어서 공부하기」 줄은 없앴다 */
   /* 「오늘 복습」 카드는 뺐다 — 바로 아래 「오늘」 목록의 복습 줄과 같은 숫자였다 */
-  ok('★ 이어서 공부하기는 N3 코스 하나 — 복습은 「오늘」 목록에만 ★', contText.includes('한 권으로 끝내는 N3') && !contText.includes('오늘 복습') && await page.locator('.hm-cont .tdtask').count() === 1, contText.replace(/\s+/g, ' ').slice(0, 80));
+  ok('★ 오늘 탭에는 N3 입구 줄이 없다(학습 탭 「N3 학습하기」 하나) ★', await page.locator('.hm-cont').count() === 0 && await page.locator('.hm-n3').count() === 0);
   ok('복습 줄에 복습·약점 개수가 적힘', /복습 \d+ · 약점 \d+/.test(tasks[0]),
     tasks[0].replace(/\n/g, ' '));
 
@@ -255,7 +255,7 @@ async function boot(browser, patch = {}, init = null) {
   await goTab(page, '학습');
   const names = await page.locator('.menugroup .mt-title').allTextContents();
   /* 학습 탭 칸으로 남은 것 */
-  for (const m of ['한 권으로 끝내는 N3', '단어', '문법', '한자', '문장', '듣기', '영상', '실전 연습', '완전기초', '독일어']) {
+  for (const m of ['N3 학습하기', '단어', '문법', '한자', '문장', '듣기', '영상', '완전기초', '독일어']) {
     ok(`${m} 그대로 있음`, names.includes(m), names.join(','));
   }
   /* 연습은 칸에서 단어·문법 화면 안 「연습」 줄로 옮겼다 — 옮긴 것도 갈 길이 있어야 한다 */

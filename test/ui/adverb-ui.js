@@ -56,7 +56,9 @@ const readReview = (page) => page.evaluate(
   await goTab(page, '학습');
   ok('학습 탭 칸에는 없고(최상위에 안 선다)', await page.locator('.menutile', { hasText: '부사 연습' }).count() === 0);
   await openMenu(page, '단어');
-  ok('단어 화면 안 「연습」 줄에 부사 연습이 있다',
+  ok('★ 단어 화면에는 더 이상 연습 줄이 없다(퀴즈로 모였다) ★', await page.locator('.pr-row').count() === 0);
+  await openMenu(page, '퀴즈');
+  ok('퀴즈 화면에 부사 연습이 있다',
     await page.locator('.pr-row[data-menu="adverb"]').count() === 1);
 
   await openMenu(page, '부사 연습');
