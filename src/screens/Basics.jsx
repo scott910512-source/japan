@@ -93,6 +93,8 @@ export default function Basics({ settings, onToast }) {
 
 // 한 행(5자)씩만 묻는다 — 46자 표를 통째로 보여주면 외우지 못하고 넘긴다.
 function KanaQuiz({ row, settings, onBack, onToast }) {
+  /* 이 퀴즈에서 정답을 누르면 `after`를 부른다 — 위 Basics에만 있고 여기엔 없어서 ReferenceError가 났다(초보 50명 시험에서 발견) */
+  const { after } = useTimeouts();
   const [queue, setQueue] = useState(() => shuffled(row.chars));
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState(null);

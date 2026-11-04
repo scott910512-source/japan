@@ -229,6 +229,13 @@ button, input, select { font-family: inherit; }
   transform: translate(-50%, 0); visibility: visible; pointer-events: auto;
   transition: transform .32s cubic-bezier(.2,.9,.25,1), visibility 0s;
 }
+/* ★ 안 보이는 탭 속의 열린 시트가 다른 탭을 가로막지 않게 ★
+ * 탭 화면(.screen)은 안 보일 때 visibility: hidden으로 숨기지만, 열린 시트는 제 규칙(.sheet.open { visibility: visible })이
+ * 그걸 덮어써서 투명한 채로 남아 터치를 받는다. 영상 탭에서 「영상 빼기」 시트를 열어 둔 채 탭을 옮기면
+ * 그 자리의 「삭제」 입력칸이 학습 탭의 칸을 가로챘다(초보 50명 시험에서 완전기초 칸이 안 눌렸다). */
+.screen:not(.active) .sheet,
+.screen:not(.active) .sheet-backdrop { visibility: hidden !important; pointer-events: none !important; }
+
 .sheet-handle { width: 36px; height: 5px; border-radius: 4px; background: var(--line); margin: 0 auto 14px; }
 .sheet h3 { font-size: 19px; margin: 0 0 4px; }
 .sheet .sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 14px; }

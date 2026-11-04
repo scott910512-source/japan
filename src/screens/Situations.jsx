@@ -220,6 +220,8 @@ function facesOf(item, mode, settings) {
 }
 
 function SentencePlayer({ part, items, mode, review, settings, onReviewChange, onToast, onShowCard, onExit }) {
+  /* 카드를 판정하면 `after`로 잠금을 푼다 — 위 Situations에만 있고 여기엔 없어서 ReferenceError가 났다 */
+  const { after } = useTimeouts();
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const [session, setSession] = useState(() => {
     const queue = buildRound1(items.map((i) => i.id), review, { size: 0, shuffle: settings.shuffle });
