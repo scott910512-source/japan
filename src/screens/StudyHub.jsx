@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import StudyMenuCard from '../components/StudyMenuCard.jsx';
-import { FAV_MAX, favMenus, groupedMenus, isFav, toggleFav } from '../lib/menu.js';
+import { FAV_MAX, favMenus, groupedMenus, isFav, starterMenu, toggleFav } from '../lib/menu.js';
 
 /* 학습 탭 — 「무엇을」 공부할지 고르는 자리.
  *
@@ -33,12 +33,15 @@ export default function StudyHub({ settings, onOpen, onChange, onToast }) {
   /* ★ 바로가기로 올라간 칸은 아래 묶음에서 뺀다 ★
      위에도 있고 아래에도 있으면 같은 칸이 두 번 보이고, 어느 쪽이 진짜인지 따지게 된다.
      고른 순간 그 칸은 위로 올라가고, 빼면 제자리 묶음으로 돌아온다. */
+  /* 「아직 못 읽어요」를 고른 사람만: 완전기초가 맨 위 「처음이라면」으로 올라간다 */
+  const starter = useMemo(() => starterMenu(settings), [settings]);
   const groups = useMemo(() => {
     const up = new Set(favs.map((m) => m.id));
+    if (starter) up.add(starter.id);
     return groupedMenus(settings.menus)
       .map((g) => ({ ...g, items: g.items.filter((m) => !up.has(m.id)) }))
       .filter((g) => g.items.length > 0);
-  }, [settings.menus, favs]);
+  }, [settings.menus, favs, starter]);
   /* 고치는 동안에만 별을 띄운다. 평소에 칸마다 별이 붙어 있으면 누를 자리가
      둘이 되고, 작은 칸에서는 열려던 메뉴 대신 별이 눌린다. */
   const [editing, setEditing] = useState(false);
@@ -66,6 +69,18 @@ export default function StudyHub({ settings, onOpen, onChange, onToast }) {
           {editing ? '다 됐어요' : '바로가기 고치기'}
         </button>
       </div>
+
+      {starter && (
+        <div className="menugroup" data-group="start">
+          <div className="section-label mg-label">
+            처음이라면
+            <span className="mg-sub">히라가나부터 차근차근</span>
+          </div>
+          <div className="menugrid mtiles">
+            <StudyMenuCard item={starter} star={editing ? false : null} onClick={() => tap(starter.id)} />
+          </div>
+        </div>
+      )}
 
       {(favs.length > 0 || editing) && (
         <div className="menugroup" data-group="fav">

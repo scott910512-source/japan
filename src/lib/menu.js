@@ -89,6 +89,21 @@ export function groupedMenus(menus = {}) {
   })).filter((g) => g.items.length > 0);
 }
 
+/* ★ 「아직 못 읽어요」를 고른 사람에게만 완전기초를 맨 위로 ★
+ *
+ * 학습 탭 첫 줄이 N3 코스라서, 히라가나도 못 읽는 초보가 처음 열었을 때 갈 곳을 못 찾았다(초보 50명 시험).
+ * 완전기초는 「자료 더 보기」 맨 아래에 있었다.
+ *
+ * 온보딩에서 「읽을 수 있어요」를 골랐거나 안 물어본 사람의 화면은 그대로다.
+ * 설정에서 완전기초를 껐거나 이미 바로가기로 올린 사람에게는 또 만들지 않는다. */
+export function starterMenu(settings = {}) {
+  if (settings.canReadKana !== false) return null;
+  const m = MENUS.find((x) => x.id === 'basics');
+  if (!m || !settings.menus?.[m.id]) return null;
+  if ((settings.favs || []).includes(m.id)) return null;
+  return m;
+}
+
 /* 어떤 화면 안 「연습」 줄에 무엇이 나오나. 설정에서 끈 것은 뺀다.
    parent는 sub id(worddeck · grammar)다. */
 export function practiceOf(parent, menus = {}) {

@@ -7,7 +7,7 @@
  * 여기서 지키는 것은 하나다 — 목록이 한 곳에만 있어야 한다. 학습 탭과
  * 설정에 따로 적어 두면, 없앤 메뉴가 설정에는 남아서 켜도 아무 데도 안 뜨는
  * 칸이 생긴다. */
-import { MENUS, MENU_GROUPS, MENU_IDS, groupedMenus, practiceOf,
+import { MENUS, MENU_GROUPS, MENU_IDS, groupedMenus, practiceOf, starterMenu,
   FAV_MAX, favMenus, isFav, toggleFav,
 } from '../../src/lib/menu.js';
 import { DEFAULT_SETTINGS } from '../../src/lib/storage.js';
@@ -138,6 +138,16 @@ console.log('\n[ ★ 바로가기 ★ ]');
 
   ok('isFav', isFav(['listen'], 'listen') === true && isFav(['listen'], 'kiju') === false);
   ok('isFav는 빈손에도 답한다', isFav(null, 'listen') === false);
+}
+
+console.log('\n[ 「아직 못 읽어요」를 고른 사람에게만 완전기초를 맨 위로 ]');
+{
+  const on = { ...DEFAULT_SETTINGS.menus };
+  ok('★ 못 읽는 사람 → 완전기초', starterMenu({ canReadKana: false, menus: on })?.id === 'basics');
+  ok('★ 읽을 수 있는 사람 → 없다(화면 그대로)', starterMenu({ canReadKana: true, menus: on }) === null);
+  ok('★ 안 물어본 사람(null) → 없다(옛 사용자 화면 그대로)', starterMenu({ canReadKana: null, menus: on }) === null && starterMenu({ menus: on }) === null);
+  ok('설정에서 완전기초를 껐으면 안 올린다', starterMenu({ canReadKana: false, menus: { ...on, basics: false } }) === null);
+  ok('이미 바로가기로 올렸으면 또 만들지 않는다', starterMenu({ canReadKana: false, menus: on, favs: ['basics'] }) === null);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
