@@ -10,6 +10,7 @@ const KEYS = {
   session: 'jp_manabu_session_v1', // 진행 중 세션 (이어하기)
   stats: 'jp_manabu_stats_v1',     // 일별 학습 집계
   vault: 'jp_manabu_vault_v1',     // 계정 비밀번호에서 파생한 금고 열쇠 (비밀번호 자체는 저장하지 않는다)
+  guest: 'jp_manabu_guest_v1',     // 로그인 없이 이 기기에서 먼저 써 보기를 골랐는지
   seen: 'jp_manabu_signed_in_v1',  // 이 기기에서 로그인한 적이 있는지 (오프라인 잠김 방지)
   memos: 'jp_manabu_memos_v1',     // 단어별 암기 메모 { 카드id: { text, at } }
   videos: 'jp_manabu_videos_v1',   // 영상으로 배우기 — 담아 둔 영상 목록
@@ -293,6 +294,15 @@ export function saveVaultKey(rawBase64) {
 export function markSignedInOnce() {
   try { localStorage.setItem(KEYS.seen, '1'); } catch { /* 무시 */ }
 }
+/* 「로그인 없이 먼저 써 보기」 — 처음 온 사람이 가입부터 요구받지 않게 한다.
+   기록은 이 기기에 쌓이고, 나중에 로그인하면 동기화가 계정 쪽 것과 합친다(lib/sync.js). */
+export function isGuest() {
+  try { return localStorage.getItem(KEYS.guest) === '1'; } catch { return false; }
+}
+export function setGuest(on) {
+  try { if (on) localStorage.setItem(KEYS.guest, '1'); else localStorage.removeItem(KEYS.guest); } catch { /* 저장 못 해도 이번 접속은 계속된다 */ }
+}
+
 export function hasSignedInOnce() {
   try { return localStorage.getItem(KEYS.seen) === '1'; } catch { return false; }
 }

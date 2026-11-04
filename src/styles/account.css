@@ -304,3 +304,6 @@
 .cmp-histrow { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .cmp-histrow:last-child { border-bottom: none; }
 .cmp-histrow small { color: var(--ink-soft); white-space: nowrap; }
+.gate-guest { margin-top: 14px; text-align: center; }
+.gate-guest .gate-guest-btn { width: 100%; }
+.gate-guest p { margin: 8px 4px 0; font-size: 12.5px; color: var(--ink-soft); }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Account from './Account.jsx';
-import { canContinueOffline } from '../lib/authboot.js';
+import { canContinueOffline, canStartAsGuest } from '../lib/authboot.js';
 
 /* 앱에 들어가기 전 로그인 관문.
  *
@@ -15,7 +15,7 @@ import { canContinueOffline } from '../lib/authboot.js';
  * 죽었을 때도 참이다. 그 경우가 제일 나빴다 — 버튼이 안 뜨고, 로그인은
  * 서버가 없어서 안 되니 이 화면에 갇힌다. 판단은 lib/authboot.js에 있다. */
 export default function Gate({
-  onVaultKey, onToast, signedInOnce, onContinueOffline, serverDown = false,
+  onVaultKey, onToast, signedInOnce, onContinueOffline, onStartGuest, serverDown = false,
 }) {
   const [online, setOnline] = useState(() => navigator.onLine);
   /* 이 화면에서 로그인을 눌렀더니 서버 쪽 문제(닿지 못함·키 거절·5xx)로 실패했다.
@@ -59,6 +59,14 @@ export default function Gate({
       <div className="gate-note">
         학습 기록이 계정에 저장돼서 기기를 바꿔도 이어집니다.
       </div>
+
+      {/* 처음 온 사람은 가입부터 하지 않아도 된다 — 써 보고 마음에 들면 그때 가입한다 */}
+      {onStartGuest && canStartAsGuest({ signedInOnce }) && (
+        <div className="gate-guest">
+          <button className="ghost-btn gate-guest-btn" onClick={onStartGuest}>로그인 없이 먼저 써 보기</button>
+          <p>기록은 이 기기에 저장돼요. 나중에 로그인하면 계정에 이어서 저장돼요.</p>
+        </div>
+      )}
 
       {canContinueOffline({ signedInOnce, online, serverDown: serverDown || loginFailed }) && (
         <button className="ghost-btn gate-offline" onClick={onContinueOffline}>

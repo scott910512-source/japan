@@ -486,3 +486,4 @@
 
 /* 온보딩 건너뛰기 — 손가락이 닿게 */
 .ob-skip { min-height: 36px; padding: 6px 10px; }
+.td-firstnote { margin: -4px 4px 10px; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }

@@ -22,7 +22,7 @@ import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
 import { dailyPool } from './lib/cards.js';
 import { kijuIndex } from './lib/kiju.js';
-import { hasSignedInOnce } from './lib/storage.js';
+import { hasSignedInOnce, isGuest, setGuest } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState } from './lib/weakquiz.js';
@@ -124,7 +124,7 @@ export default function App() {
      「새 버전이 준비됐다」 알림, iOS 오디오 열기, 연속일, 테마, 음성 설정.
      전부 바깥 시스템과 맞추는 일이라 app/useAppBoot.js에 모았다. */
   const { storeError, streak, setStreak } = useAppBoot({ settings, showToast });
-  const [offlinePass, setOfflinePass] = useState(false);
+  const [offlinePass, setOfflinePass] = useState(() => isGuest());
   const {
     authSession,
     setAuthSession,
@@ -387,6 +387,7 @@ export default function App() {
                  「이 기기 기록으로 계속하기」를 띄운다 */
               serverDown={authTimedOut || authFailed || Boolean(syncState.error)}
               onContinueOffline={() => setOfflinePass(true)}
+              onStartGuest={() => { setGuest(true); setOfflinePass(true); }}
             />
           </section>
         </div>
@@ -545,7 +546,7 @@ export default function App() {
             storeError={storeError}
             onSync={() => runSync(false)}
             onSignedOut={() => {
-              setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null); setOfflinePass(false);
+              setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null); setOfflinePass(false); setGuest(false);
               syncedFor.current = null; showToast('로그아웃했어요');
             }}
             onVaultKey={rememberVaultKey}

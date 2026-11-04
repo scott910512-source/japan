@@ -4,6 +4,7 @@ import {
 import { todayKey } from '../lib/review.js';
 import { tripLabel } from '../lib/purpose.js';
 import { reviewLeftOf } from '../lib/plan.js';
+import { goalTotal } from '../lib/daily.js';
 import HunterDashboard from '../components/HunterDashboard.jsx';
 
 /* 헌터 홈의 일일 학습 패널. 계획과 저장된 세션은 기존 엔진을 그대로 쓴다.
@@ -61,6 +62,11 @@ export default function Today({
     return `단어 ${w}개`;
   })();
 
+  /* 복습할 카드가 없는 날은 새 카드만 배정돼서 고른 양보다 적다. 말없이 적게 주면 약속을 어긴 것 같아서 이유를 적는다. */
+  const chosen = goalTotal(settings?.goals);
+  const freshOnly = (planNow?.assigned || 0) > 0 && back.assigned === 0 && chosen > (planNow?.assigned || 0);
+  /* 머리 밑 N3 줄 — 코스를 안 열었어도 배운 단어 수는 안다. 「시작 전」에서 안 움직이면 진전이 안 보인다 */
+  const learnedWords = Object.values(review || {}).filter((st) => st && st.lastSeen).length;
   const hello = HELLO[(streak.count || 0) % HELLO.length];
   const resuming = session?.date === today && session.queue?.length > 0;
   const allDone = Boolean(planNow?.finished);
@@ -117,7 +123,7 @@ export default function Today({
         <div className="hm-goal" data-ready={summary ? summary.ready : ''}>
           <span className="hg-lab">JLPT N3</span>
           <span className="hg-bar"><i style={{ width: `${summary ? readyShown(summary) : 0}%` }} /></span>
-          <b className="hg-pct">{summary ? `${readyShown(summary)}%` : '시작 전'}</b>
+          <b className="hg-pct">{summary ? `${readyShown(summary)}%` : (learnedWords > 0 ? `${learnedWords}단어 배움` : '시작 전')}</b>
         </div>
       )}
 
@@ -139,6 +145,10 @@ export default function Today({
           </span>
           <IconChevron className="chev" />
         </button>
+      )}
+
+      {!allDone && freshOnly && !resuming && (
+        <p className="td-firstnote">오늘은 복습할 카드가 없어서 새 카드 {planNow.assigned}장으로 시작해요. 복습이 생기면 고른 {chosen}장까지 채워져요.</p>
       )}
 
       {/* ★ 계획을 다 하면 거기서 끝이다 ★ 더 하고 싶으면 명시적으로 늘린다. */}

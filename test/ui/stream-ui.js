@@ -171,7 +171,7 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
   empty.on('pageerror', (e) => errors.push(e.message));
   await openMenu(empty, '쭉 퀴즈');
   await empty.waitForTimeout(700);
-  ok('★ 시작이 막혀 있고 이유를 알려 준다 ★', await empty.locator('.st-start').isDisabled() && (await empty.textContent('.st-intro')).includes('아직 외운 것이 적어요'));
+  ok('★ 시작이 막혀 있고 이유를 알려 준다 ★', await empty.locator('.st-start').isDisabled() && (await empty.textContent('.st-intro')).includes('개만 더 배우면 열려요'));
   await empty.close();
 
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | ') || '깨끗');
