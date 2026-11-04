@@ -114,15 +114,21 @@ async function boot(browser, settings = {}, init = null, review = null) {
     await openMenu(page, '짝 맞추기');
     await page.locator('.mt-pick').first().click();
     await page.waitForTimeout(600);
-    const byKanji = new Map(ALL_WORDS.map((w) => [w.kanji, w]));
-    const lefts = await page.locator('.mt-col').first().locator('.mt-tile b').allInnerTexts();
-    for (const t of lefts) {
-      const w = byKanji.get(t.trim());
-      const mean = String(w?.mean || '').split(/[;,/]/)[0].trim();
-      await page.locator('.mt-col').first().locator('.mt-tile:not(.gone)', { hasText: t.trim() }).first().click();
-      /* 같은 뜻이 둘이면 이미 맞춘(gone) 타일이 먼저 잡힌다 — 아직 남은 타일만 본다 */
-      await page.locator('.mt-col').nth(1).locator('.mt-tile:not(.gone)', { hasText: mean }).first().click();
-      await page.waitForTimeout(120);
+    /* 자료와 대조하지 않는다 — 같은 표기에 뜻이 둘인 낱말이 있어서 대조가 어긋난다.
+       왼쪽 하나를 잡고 오른쪽 타일을 차례로 눌러, 짝이 맞아 사라질 때까지 한다(사람이 그렇게 한다) */
+    const leftCount = await page.locator('.mt-col').first().locator('.mt-tile').count();
+    for (let k = 0; k < leftCount; k++) {
+      const left = page.locator('.mt-col').first().locator('.mt-tile:not(.gone)').first();
+      const rights = page.locator('.mt-col').nth(1).locator('.mt-tile:not(.gone)');
+      const rn = await rights.count();
+      for (let j = 0; j < rn; j++) {
+        await left.click();
+        await rights.nth(j).click();
+        await page.waitForTimeout(160);
+        const stillThere = await page.locator('.mt-col').first().locator('.mt-tile:not(.gone)').count();
+        if (stillThere < leftCount - k) break;           // 짝이 맞아 하나 줄었다
+        await page.waitForTimeout(450);                  // 틀린 짝이 흔들리다 돌아올 때까지
+      }
     }
     await page.waitForTimeout(900);
     ok('★ 한 판을 다 맞히면 저절로 안 넘어가고 「다음 판」이 있다 ★', await page.locator('.mt-nextround').count() === 1);
