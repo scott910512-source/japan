@@ -17,7 +17,7 @@
  * 그런 경우를 따로 센다(knownButWrong).
  *
  * 실제 가입 · 서버 동기화는 검사 환경에서 못 쓴다. 로그인 관문은 「이 기기 기록으로 계속하기」로 지난다. */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { chromium } from 'playwright-core';
 import { ALL_WORDS } from '../../src/data/allWords.js';
@@ -309,20 +309,24 @@ async function run(browser, p) {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
   const only = (process.env.ONLY || '').split(',').filter(Boolean).map(Number);
   const people = Array.from({ length: N }, (_, i) => persona(i)).filter((p) => !only.length || only.includes(p.id));
-  const results = [];
+  /* 한 명 끝날 때마다 저장한다 — 중간에 멈춰도 RESUME=1로 이어서 돌린다 */
+  let results = [];
+  if (process.env.RESUME && existsSync(OUT)) { try { results = JSON.parse(readFileSync(OUT, 'utf8')).results || []; } catch { results = []; } }
+  const doneIds = new Set(results.map((r) => r.id));
+  const todo = people.filter((p) => !doneIds.has(p.id));
+  const save = () => { mkdirSync(dirname(OUT), { recursive: true }); writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), base: BASE, n: N, results: [...results].sort((a, b) => a.id - b.id) }, null, 1)); };
   let next = 0;
   const t0 = Date.now();
   await Promise.all(Array.from({ length: PAR }, async () => {
-    while (next < people.length) {
-      const p = people[next++];
+    while (next < todo.length) {
+      const p = todo[next++];
       try { results.push(await run(browser, p)); }
       catch (e) { results.push({ id: p.id, device: p.dev.id, style: p.style.id, steps: [], issues: [{ kind: 'crash', where: 'sim', detail: String(e.message).slice(0, 200) }], metrics: {} }); }
+      save();
       console.log(`  ${results.length}/${N} 끝 — #${p.id} ${p.dev.id}/${p.style.id}  ${Math.round((Date.now() - t0) / 1000)}s`);
     }
   }));
   await browser.close();
-  results.sort((a, b) => a.id - b.id);
-  mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), base: BASE, n: N, results }, null, 1));
+  save();
   console.log(`\n저장: ${OUT}`);
 })();

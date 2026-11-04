@@ -473,11 +473,16 @@
 .optrev-ch b { font-size: 14px; }
 
 /* 소리 버튼은 글자 바로 옆에 붙는다 (떨어져 있던 것을 옆으로) */
-.qw-jp .qo-replay { display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; width: 26px; height: 26px; border-radius: 8px; cursor: pointer; vertical-align: middle; background: var(--surface-2); color: var(--ink); }
+.qw-jp .qo-replay { position: relative; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; vertical-align: middle; background: var(--surface-2); color: var(--ink); }
 .qw-jp .qo-replay svg { width: 15px; height: 15px; }
-.optrev-body .spk { width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 0; margin-left: 2px; align-self: center; }
+.optrev-body .spk { width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; margin-left: 2px; align-self: center; position: relative; }
+/* 눈에 보이는 크기는 작게, 손가락이 닿는 자리는 44px로 (초보 50명 시험에서 작은 버튼으로 잡혔다) */
+.optrev-body .spk::after, .qw-jp .qo-replay::after { content: ''; position: absolute; inset: -6px; }
 .optrev-body .spk svg { width: 15px; height: 15px; }
 .optrev-line { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; }
 .st-batch { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; }
 .st-batch-lab { font-size: 13px; color: var(--ink-soft); margin-right: 2px; }
 .st-checkpoint .st-continue, .st-checkpoint .st-enough { width: 100%; margin-top: 10px; }
+
+/* 온보딩 건너뛰기 — 손가락이 닿게 */
+.ob-skip { min-height: 36px; padding: 6px 10px; }
