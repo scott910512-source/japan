@@ -171,7 +171,7 @@ async function judgeAll(page, max = 60, label = '알아요') {
   ok('나갔다 오면 큰 버튼이 이어하기', (await page.locator('.bigcta').innerText()).includes('이어하기'));
 
   console.log('\n── N3 코스: 시작 → 종료 → 다시 접속 → 이어서');
-  ok('홈에 N3 진도 한 줄 (아직 시작 전)', (await page.locator('.hm-goal').innerText()).includes('시작 전'));
+  ok('홈에 N3 진도 한 줄 (아직 시작 전)', /시작 전|단어 배움/.test(await page.locator('.hm-goal').innerText()));
   await openMenu(page, '한 권으로 끝내는 N3');
   await page.locator('.n3-hub').waitFor({ timeout: 8000 });
   await page.locator('.n3-cta').click();

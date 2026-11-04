@@ -15,7 +15,7 @@
  * 있으면 오프라인으로 계속하는 길이 있다 — 서버가 죽어 있어도 기기에 있는
  * 것으로 공부할 수 있어야 한다. */
 import {
-  AUTH_READY_TIMEOUT, authGate, canContinueOffline, sessionFrom,
+  AUTH_READY_TIMEOUT, authGate, canContinueOffline, canStartAsGuest, sessionFrom,
   isServerProblem, readableAuthError,
 } from '../../src/lib/authboot.js';
 
@@ -151,6 +151,13 @@ console.log('\n[ ★ 영어 오류가 그대로 안 뜬다 ★ ]');
   ok('메일 인증 전', readableAuthError(new Error('Email not confirmed')) === '메일함에서 인증 링크를 먼저 눌러 주세요');
   ok('횟수 제한', readableAuthError(new Error('email rate limit exceeded')) === '잠시 후 다시 시도해 주세요');
   ok('빈 값은 기본 안내', readableAuthError(undefined) === '잠시 후 다시 시도해 주세요' && readableAuthError('') === '잠시 후 다시 시도해 주세요');
+}
+
+console.log('\n[ 처음 온 사람은 로그인 없이 써 볼 수 있다 ]');
+{
+  ok('로그인한 적 없으면 「먼저 써 보기」가 열린다', canStartAsGuest({ signedInOnce: false }) === true);
+  ok('전에 로그인한 적 있으면 이 길은 안 보인다(기록이 계정에 있다)', canStartAsGuest({ signedInOnce: true }) === false);
+  ok('「먼저 써 보기」를 고르면 확인 중·로그인 문을 건너뛴다', authGate({ configured: true, ready: true, session: null, offlinePass: true }) === 'app');
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

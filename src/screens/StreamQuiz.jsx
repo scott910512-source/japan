@@ -209,8 +209,8 @@ export default function StreamQuiz({
           </div>
           {live && live.length < MIN_POOL && (
             <p className="set-note st-few">
-              아직 외운 것이 적어요({live.length}개). 오늘 화면에서 먼저 배우고 오면 문제가 나와요.
-              목표 {goal} 안의 것만 나오니, 설정에서 목표를 바꿔 볼 수도 있어요.
+              단어 {MIN_POOL - live.length}개만 더 배우면 열려요. 지금 외운 것은 {live.length}개예요.
+              오늘 화면의 「오늘 학습 시작」에서 새 카드를 배우고 다시 오세요.
             </p>
           )}
           <button className="submit-btn st-start" onClick={start} disabled={!live || live.length < MIN_POOL}>

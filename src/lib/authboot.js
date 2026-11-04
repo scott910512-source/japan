@@ -113,6 +113,11 @@ export function readableAuthError(err) {
   return message || '잠시 후 다시 시도해 주세요';
 }
 
+/* 처음 온 사람(로그인한 적 없음)에게는 가입 없이 둘러볼 길을 연다. */
+export function canStartAsGuest({ signedInOnce = false } = {}) {
+  return !signedInOnce;
+}
+
 export function authGate({ configured = true, ready = false, session = null, offlinePass = false } = {}) {
   if (!configured) return 'app';        // 서버를 안 쓰면 그냥 들어간다
   if (session) return 'app';            // 세션이 있으면 확인이 끝나기 전이라도 들어간다
