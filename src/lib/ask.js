@@ -53,7 +53,9 @@ items에는 답에 나온 일본어 표현만 담습니다. 0개여도 됩니다
  *
  * 이게 없으면 「이거 언제 써?」 같은 말이 안 통한다. 카드를 보면서 묻는 건데
  * 카드를 안 보내면 학습자만 아는 걸 물어보는 셈이 된다. */
-export function userText(question, card = {}) {
+export function userText(question, cardIn = {}) {
+  /* 카드 없이 묻는 길(곤에게 물어보기)이 있어 null도 온다 — 기본값은 undefined만 받는다 */
+  const card = cardIn || {};
   const lines = [];
   if (card.kanji || card.kana) {
     lines.push(`[지금 보는 카드] ${card.kanji || card.kana}` +

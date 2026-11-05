@@ -132,6 +132,10 @@ console.log('\n[ 부르기 전에 ]');
   const noKey = await err(() => ask('뭐야?', CARD, {}));
   ok('키가 없으면 어디서 넣는지 알려 준다', noKey.includes('설정'), noKey);
 
+  /* ★ 카드 없이 묻기(곤에게 물어보기) ★ null 카드에서 죽으면 안 된다 */
+  ok('카드가 null이어도 질문 글이 만들어진다', userText('食べている는 뭐야?', null) === '[질문] 食べている는 뭐야?', userText('x', null));
+  ok('카드가 없으면 「지금 보는 카드」 줄이 없다', !userText('뭐야', undefined).includes('지금 보는 카드'));
+
   /* ★ 질문은 가벼운 모델로, 직접 고른 모델은 존중 ★ */
   const realFetch = globalThis.fetch;
   const urls = [];

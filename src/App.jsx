@@ -16,6 +16,7 @@ import TabBar from './components/TabBar.jsx';
 import { ensurePlan } from './lib/plan.js';
 import { LANE_DECK, useStudyQueue } from './app/useStudyQueue.js';
 import BottomSheet from './components/BottomSheet.jsx';
+import GonAsk from './components/GonAsk.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import Today from './screens/Today.jsx';
 import Gate from './screens/Gate.jsx';
@@ -712,6 +713,18 @@ export default function App() {
           </div>
         )}
       </BottomSheet>
+
+      {/* ★ 어느 화면에서든 곤에게 물어보기(AI) ★ */}
+      <GonAsk
+        settings={settings}
+        asks={asks}
+        onAsks={setAsks}
+        onAddWord={(w) => setCustomWords((prev) => (
+          prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+        ))}
+        onToast={showToast}
+        hidden={onboardingOpen}
+      />
 
       <TabBar
         active={activeTab === 'videos' ? 'study' : activeTab}
