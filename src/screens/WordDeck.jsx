@@ -100,6 +100,9 @@ export default function WordDeck({ words, review, settings, onChange, onStart, o
           </span>
         </div>
         <div className="plantotal">단어 {plan.reviewPicked + plan.newPicked}장 · 고른 레벨 {pool.length}개 중</div>
+        {plan.reviewPicked === 0 && plan.newPicked > 0 && (
+          <div className="set-note wd-firstnote">아직 복습할 카드가 없어서 새 단어로 시작해요. 오늘 배운 단어가 틀리거나 시간이 지나면 복습으로 붙어요.</div>
+        )}
         <div className="set-note">오늘 화면의 오늘 학습(단어+문장, 계획 기준)과는 별개예요. 하루 분량은 설정 → 학습 설정에서 바꿔요.</div>
       </div>
 
