@@ -5,6 +5,7 @@ import { todayKey } from '../lib/review.js';
 import { tripLabel } from '../lib/purpose.js';
 import { reviewLeftOf } from '../lib/plan.js';
 import { goalTotal } from '../lib/daily.js';
+import { goalOf, n3Included } from '../lib/goal.js';
 import HunterDashboard from '../components/HunterDashboard.jsx';
 
 /* 헌터 홈의 일일 학습 패널. 계획과 저장된 세션은 기존 엔진을 그대로 쓴다.
@@ -67,6 +68,9 @@ export default function Today({
   const freshOnly = (planNow?.assigned || 0) > 0 && back.assigned === 0 && chosen > (planNow?.assigned || 0);
   /* 머리 밑 N3 줄 — 코스를 안 열었어도 배운 단어 수는 안다. 「시작 전」에서 안 움직이면 진전이 안 보인다 */
   const learnedWords = Object.values(review || {}).filter((st) => st && st.lastSeen).length;
+  /* 줄 이름은 내가 고른 목표(N5·N4·N3). 준비도 %는 N3 코스가 계산하는 것이라 목표가 N3 이상일 때만 쓴다 */
+  const goalLevel = goalOf(settings);
+  const showReady = Boolean(summary) && n3Included(goalLevel);
   const hello = HELLO[(streak.count || 0) % HELLO.length];
   const resuming = session?.date === today && session.queue?.length > 0;
   const allDone = Boolean(planNow?.finished);
@@ -121,9 +125,9 @@ export default function Today({
           입구가 여럿이면 어느 것이 맞는 길인지 매번 고르게 된다. */}
       {onOpenN3 && (
         <div className="hm-goal" data-ready={summary ? summary.ready : ''}>
-          <span className="hg-lab">JLPT N3</span>
-          <span className="hg-bar"><i style={{ width: `${summary ? readyShown(summary) : 0}%` }} /></span>
-          <b className="hg-pct">{summary ? `${readyShown(summary)}%` : (learnedWords > 0 ? `${learnedWords}단어 배움` : '시작 전')}</b>
+          <span className="hg-lab">JLPT {goalLevel}</span>
+          <span className="hg-bar"><i style={{ width: `${showReady ? readyShown(summary) : 0}%` }} /></span>
+          <b className="hg-pct">{showReady ? `${readyShown(summary)}%` : (learnedWords > 0 ? `${learnedWords}단어 배움` : '시작 전')}</b>
         </div>
       )}
 

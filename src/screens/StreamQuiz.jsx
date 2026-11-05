@@ -5,7 +5,7 @@ import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows, speakText, textInfo } from '../lib/optionInfo.js';
 import { useHasKeyboard } from '../lib/useHotkeys.js';
 import { markBusy } from '../lib/busy.js';
-import { goalOf } from '../lib/goal.js';
+import { goalOf, n3Included } from '../lib/goal.js';
 import { useQuizHotkeys, shortcutEvent } from '../lib/useHotkeys.js';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import {
@@ -194,6 +194,9 @@ export default function StreamQuiz({
                 <span key={k} className="st-count" data-kind={k}><b>{counts[k]}</b><small>{KIND_LABEL[k]}</small></span>
               ))}
             </div>
+          )}
+          {live && counts.kanji === 0 && counts.grammar === 0 && n3Included(goal) && (
+            <p className="set-note st-n3hint">한자와 문법은 「N3 학습하기」에서 배우면 쭉 퀴즈에도 나와요.</p>
           )}
           <div className="st-batch" role="group" aria-label="한 번에 풀 문제 수">
             <span className="st-batch-lab">한 번에</span>
