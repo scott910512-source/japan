@@ -98,6 +98,10 @@ export default function BottomSheet({ open, onClose, label = '시트', children 
         tabIndex={-1}
       >
         <div className="sheet-handle" />
+        {/* ★ 닫는 길이 「바깥을 누르기」 하나뿐이었다 ★
+            바깥을 눌러도 닫히지만 눈에 보이는 단추가 없어서 못 닫는 줄 안다.
+            스크롤해도 따라오게(sticky) 오른쪽 위에 둔다. */}
+        <button type="button" className="sheet-x" aria-label="닫기" onClick={onClose}>✕</button>
         {children}
       </div>
     </>

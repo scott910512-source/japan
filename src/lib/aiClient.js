@@ -15,7 +15,9 @@ export const DEFAULT_MODEL = 'claude-sonnet-5';
 /* 제미나이 모델 이름은 자주 바뀐다. 여기 적어 둔 값이 낡으면 404가 나는데,
  * 그때 "왜 안 되지"로 끝나면 안 되니 키로 목록을 직접 받아 고를 수 있게 해 둔다
  * (listGeminiModels). 여기 값은 그 전까지 쓰는 첫 후보일 뿐이다. */
-export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
+/* 가벼운 질문(궁금해요)용 — 설정에서 모델을 따로 안 골랐을 때만 쓴다. 이름 끝의 -latest는 구글이 최신으로 옮겨 주는 별칭이다. */
+export const FAST_GEMINI_MODEL = 'gemini-flash-lite-latest';
 export const PROVIDERS = { CLAUDE: 'claude', GEMINI: 'gemini' };
 
 /* 어느 쪽이 실패했는지 알 수 있게 오류를 그대로 꺼내 준다. "실패했어요"만 뜨면
@@ -74,6 +76,30 @@ export async function listGeminiModels(apiKey) {
     .sort();
 }
 
+/* 모델이 계속 혼잡(503)할 때 갈아탈 후보 — 내 키로 쓸 수 있는 flash 계열을 새것부터, 작은 모델(lite)은 뒤로.
+ * 이미지·음성·실험용처럼 글 답에 안 맞는 것은 뺀다. */
+const FALLBACK_SKIP = /(image|tts|live|audio|thinking|exp|vision|embed|aqa|learnlm|gemma)/i;
+export function pickFallbackModels(list = [], current = '', max = 2) {
+  const ok = list.filter((n) => /flash/i.test(n) && !FALLBACK_SKIP.test(n) && n !== current).sort().reverse();
+  return [...ok.filter((n) => !/lite/i.test(n)), ...ok.filter((n) => /lite/i.test(n))].slice(0, max);
+}
+
+/* ★ 모델이 60개여도 고를 건 두세 개 ★
+ * 이 키로 쓸 수 있는 목록에서 추천만 뽑는다. 이름에 -latest가 붙은 것은 구글이 알아서 최신으로 옮겨 주는 별칭이라
+ * 모델이 바뀌어도 이름을 다시 고를 필요가 없다. 목록에 없으면 같은 계열에서 가장 새 정식(preview 아님) 모델로 대신한다.
+ *   빠름  질문·뜻 풀이처럼 가벼운 일   lite 계열
+ *   균형  문장 첨삭·번역              flash 계열 */
+const newest = (names) => [...names].sort((a, b) => b.localeCompare(a, 'en', { numeric: true }))[0];
+export function recommendModels(list = []) {
+  const usable = list.filter((n) => /flash/i.test(n) && !FALLBACK_SKIP.test(n) && !/preview/i.test(n));
+  const fast = list.includes('gemini-flash-lite-latest') ? 'gemini-flash-lite-latest' : newest(usable.filter((n) => /lite/i.test(n)));
+  const mid = list.includes('gemini-flash-latest') ? 'gemini-flash-latest' : newest(usable.filter((n) => !/lite/i.test(n)));
+  return [
+    fast && { name: fast, tag: '빠름 · 질문용 추천' },
+    mid && mid !== fast && { name: mid, tag: '균형 · 문장 첨삭 추천' },
+  ].filter(Boolean);
+}
+
 /* Gemini에 몸통을 그대로 보내고 답을 통째로 받는다.
    영상처럼 특별한 모양을 실어야 할 때 쓴다. */
 export async function geminiGenerate({ apiKey, model, body }) {
@@ -85,6 +111,7 @@ export async function geminiGenerate({ apiKey, model, body }) {
   );
   let currentModel = name;
   let retries = 0;
+  let fellBack = false;
   for (;;) {
     const res = await request(currentModel);
     // 저장된 2.5 모델 접근이 막힌 경우에만 현재 기본 모델로 바꾼다.
@@ -108,6 +135,21 @@ export async function geminiGenerate({ apiKey, model, body }) {
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
+    }
+    /* ★ 끝까지 혼잡하면 다른 모델로 한 번씩 ★
+       503은 구글 서버가 바쁘다는 말이고, 같은 모델을 계속 두드려도 안 풀릴 때가 많다.
+       내 키로 쓸 수 있는 다른 flash 모델에 한 번씩만 시도한다(아직 답을 만든 적이 없어서 중복 생성이 아니다).
+       목록을 못 받거나 다 막혀 있으면 처음 오류 그대로 알려 준다. */
+    if (res.status === 503 && !fellBack) {
+      fellBack = true;
+      const busy = await failure(res, 'Gemini');
+      try {
+        for (const alt of pickFallbackModels(await listGeminiModels(apiKey), currentModel)) {
+          const r2 = await request(alt);
+          if (r2.ok) return r2.json();
+        }
+      } catch { /* 후보를 못 찾아도 처음 오류를 그대로 */ }
+      throw busy;
     }
     if (!res.ok) throw await failure(res, 'Gemini');
     return res.json();

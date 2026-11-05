@@ -84,12 +84,13 @@ export default function Quiz({
     onChange({ quizCount: next.count, quizType: next.type, quizDir: next.dir, quizScope: next.scope });
   };
 
-  const start = (subset) => {
+  const start = (subset, over = null) => {
     const source = subset?.length ? subset : pool;
+    const cfg = over ? { ...config, ...over } : config;
     const questions = buildQuiz(source, {
-      count: subset?.length ? subset.length : config.count,
-      type: config.type,
-      dir: config.dir,
+      count: subset?.length ? subset.length : cfg.count,
+      type: cfg.type,
+      dir: cfg.dir,
       scope: subset?.length ? QUIZ_SCOPE.ALL : config.scope,
       review,
       /* 「약점」 범위가 시험 오답까지 본다 — 시험에서 틀린 낱말을 다시 묻는
@@ -104,6 +105,17 @@ export default function Quiz({
     setRun({ questions, answers: {}, index: 0 });
   };
 
+  /* ★ 약점 퀴즈는 설정을 묻지 않고 바로 시작한다 ★
+     퀘스트 한 줄은 한 번 눌러 바로 풀려야 한다. 객관식, 일본어 → 한국어로 정해 두고(약한 낱말을 알아보는 판),
+     설정은 건드리지 않는다(다음 일반 시험은 내가 정한 대로). 그만두면 이 화면의 설정이 아니라 온 곳으로 돌아간다. */
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!weak || !set?.length || run || autoStarted.current) return;
+    autoStarted.current = true;
+    start(set, { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weak, set, run]);
+
   if (run) {
     return (
       <QuizRun
@@ -112,7 +124,7 @@ export default function Quiz({
         pool={pool}
         settings={settings}
         onRun={setRun}
-        onQuit={() => setRun(null)}
+        onQuit={() => (weak && onExit ? onExit() : setRun(null))}
         onRetryWrong={onRetryWrong}
         onToast={onToast}
         onActivity={onActivity}

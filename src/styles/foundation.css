@@ -237,6 +237,13 @@ button, input, select { font-family: inherit; }
 .screen:not(.active) .sheet-backdrop { visibility: hidden !important; pointer-events: none !important; }
 
 .sheet-handle { width: 36px; height: 5px; border-radius: 4px; background: var(--line); margin: 0 auto 14px; }
+.sheet-x {
+  position: sticky; top: 0; z-index: 3; display: block; width: 40px; height: 40px;
+  margin: -44px 0 4px auto; padding: 0; border: 0; border-radius: 50%;
+  background: var(--card, rgba(127,127,127,.18)); color: var(--ink-soft); font-size: 17px; line-height: 40px;
+  cursor: pointer; box-shadow: 0 0 0 1px var(--line);
+}
+.sheet-x:active { transform: scale(.94); }
 .sheet h3 { font-size: 19px; margin: 0 0 4px; }
 .sheet .sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 14px; }
 

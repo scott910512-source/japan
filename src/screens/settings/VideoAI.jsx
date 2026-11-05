@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { geminiGenerate } from '../../lib/aiClient.js';
 import Toggle from './Toggle.jsx';
 import {
-  DEFAULT_GEMINI_MODEL, PROVIDERS, TRANSCRIBE_MINUTES,
-  listGeminiModels, resolveProvider,
+  DEFAULT_GEMINI_MODEL, FAST_GEMINI_MODEL, PROVIDERS, TRANSCRIBE_MINUTES,
+  listGeminiModels, recommendModels, resolveProvider,
 } from '../../lib/videoTutor.js';
 
 /* 문장 첨삭·번역·영상의 AI 연결. Gemini 키와 음성 키는 별도로 설정한다. */
@@ -11,6 +11,7 @@ export default function VideoAI({ settings, onChange, onToast }) {
   const { provider, apiKey } = resolveProvider(settings);
   const gemini = provider === PROVIDERS.GEMINI;
   const [models, setModels] = useState([]);
+  const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [connection, setConnection] = useState(null);
@@ -97,7 +98,7 @@ export default function VideoAI({ settings, onChange, onToast }) {
           <div className="setrow col">
             <div className="set-title">모델</div>
             <div className="set-note">
-              비우면 {DEFAULT_GEMINI_MODEL}를 씁니다. 저장된 2.5 모델을 사용할 수 없으면 새 기본 모델로 다시 연결해요. 다른 모델은 아래 목록에서 고르세요.
+              비우면 추천 모델을 씁니다(문장 첨삭은 {DEFAULT_GEMINI_MODEL}, 궁금해요 질문은 가벼운 {FAST_GEMINI_MODEL}). 저장된 2.5 모델을 사용할 수 없으면 새 기본 모델로 다시 연결해요. 직접 고르면 그 모델을 어디서나 써요.
             </div>
             <input
               type="text"
@@ -109,15 +110,35 @@ export default function VideoAI({ settings, onChange, onToast }) {
               {loading ? '받는 중…' : '쓸 수 있는 모델 보기'}
             </button>
             {models.length > 0 && (
-              <div className="modellist">
-                {models.map((m) => (
-                  <button
-                    key={m}
-                    className={`modelpick${settings.geminiModel === m ? ' on' : ''}`}
-                    onClick={() => onChange({ geminiModel: m })}
-                  >{m}</button>
-                ))}
-              </div>
+              <>
+                {/* 추천 몇 개만 먼저. 나머지는 「전체 보기」를 눌러야 나온다 */}
+                <div className="modellist modelrec">
+                  {recommendModels(models).map((r) => (
+                    <button
+                      key={r.name}
+                      className={`modelpick${settings.geminiModel === r.name ? ' on' : ''}`}
+                      onClick={() => onChange({ geminiModel: r.name })}
+                    >
+                      <span className="modeltag">{r.tag}</span>
+                      {r.name}
+                    </button>
+                  ))}
+                </div>
+                <button className="ghost-btn modelall" onClick={() => setShowAll((v) => !v)}>
+                  {showAll ? '전체 목록 접기' : `전체 ${models.length}개 보기`}
+                </button>
+                {showAll && (
+                  <div className="modellist">
+                    {models.map((m) => (
+                      <button
+                        key={m}
+                        className={`modelpick${settings.geminiModel === m ? ' on' : ''}`}
+                        onClick={() => onChange({ geminiModel: m })}
+                      >{m}</button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
             <button className="ghost-btn" disabled={!apiKey || checking} onClick={checkConnection}>
               {checking ? '연결 확인 중…' : 'Gemini 문장 첨삭 연결 확인'}

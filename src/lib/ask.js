@@ -10,7 +10,7 @@
  * 부르는 건 aiClient가 한다. 여기는 무엇을 물어볼지와, 받은 걸 어떤 모양으로
  * 넘길지만 정한다. */
 
-import { PROVIDERS, callClaude, callGemini, resolveProvider } from './aiClient.js';
+import { FAST_GEMINI_MODEL, PROVIDERS, callClaude, callGemini, resolveProvider } from './aiClient.js';
 
 export const MAX_QUESTION_CHARS = 200;
 export const MAX_ITEMS = 4;
@@ -133,7 +133,7 @@ export async function ask(question, card, settings = {}) {
     ? await callClaude({ ...args, maxTokens: 1200 })
     /* 답은 짧지만 Gemini 2.5는 생각하는 토큰도 이 한도에서 깎아 먹는다.
        빠듯하게 잡으면 생각하다 한도를 다 써서 빈 답이 온다. */
-    : await callGemini({ ...args, maxTokens: 8192 });
+    : await callGemini({ ...args, model: model || FAST_GEMINI_MODEL, maxTokens: 8192 });
 
   const shaped = parseAsk(text);
   if (!shaped.answer) throw new Error('답이 비어서 왔어요. 다시 물어봐 주세요');
