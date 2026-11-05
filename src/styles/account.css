@@ -110,6 +110,9 @@
   background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-soft);
   word-break: break-all;
 }
+.modelrec { flex-direction: column; }
+.modelrec .modelpick { text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; }
+.modeltag { font-size: 11.5px; font-weight: 700; opacity: .75; }
 .modelpick.on { border-color: var(--kon); background: var(--kon-soft); color: var(--kon); }
 
 /* ── 단어 시험 ── */

@@ -13,7 +13,7 @@ import {
 /* 화면들이 예전부터 여기서 가져다 쓰고 있다. 옮겼다고 전부 고치게 하지 않는다. */
 export {
   DEFAULT_MODEL, DEFAULT_GEMINI_MODEL, PROVIDERS,
-  listGeminiModels, looksLikeGeminiKey, resolveProvider,
+  listGeminiModels, recommendModels, looksLikeGeminiKey, resolveProvider,
 } from './aiClient.js';
 
 export const ANALYZE_CHAR_LIMIT = 4000;

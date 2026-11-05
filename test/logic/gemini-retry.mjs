@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { DEFAULT_GEMINI_MODEL, geminiGenerate, pickFallbackModels } from '../../src/lib/aiClient.js';
+import { DEFAULT_GEMINI_MODEL, geminiGenerate, pickFallbackModels, recommendModels } from '../../src/lib/aiClient.js';
 
 const original = { fetch: globalThis.fetch, setTimeout: globalThis.setTimeout, random: Math.random, now: Date.now };
 let pass = 0;
@@ -59,6 +59,13 @@ try {
   assert.equal(requests.length, 4, '갈아탈 flash가 없으면 더 안 부른다'); pass++;
 
   assert.deepEqual(pickFallbackModels(LIST, DEFAULT_GEMINI_MODEL), ['gemini-2.5-flash', 'gemini-2.5-flash-lite']); pass++;
+  /* 추천 모델: 별칭(-latest)이 있으면 그것, 없으면 같은 계열의 가장 새 정식 모델 */
+  const BIG = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.1-flash-lite-preview', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.8-flash-tts', 'gemini-3-flash-preview', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash-image'];
+  assert.deepEqual(recommendModels(BIG).map((r) => r.name), ['gemini-flash-lite-latest', 'gemini-flash-latest']); pass++;
+  assert.deepEqual(recommendModels(BIG.filter((n) => !n.includes('latest'))).map((r) => r.name), ['gemini-3.5-flash-lite', 'gemini-3.8-flash']); pass++;
+  assert.deepEqual(recommendModels(['gemini-2.5-pro', 'gemini-3-flash-preview']), []); pass++;
+  assert.deepEqual(recommendModels([]), []); pass++;
+
   assert.deepEqual(pickFallbackModels(['a-pro', 'b-flash-image', 'c-flash-tts'], 'x'), []); pass++;
 
   setup([response(503, { 'Retry-After': '3' }), response(200)]);

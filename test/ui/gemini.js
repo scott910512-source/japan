@@ -42,7 +42,8 @@ const FAKE = {
      자리를 안 잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이것 때문에
      화면 검사가 통째로 죽었다. 로그인 문을 지나가려면 오프라인이기만 하면 된다. */
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(900);
+  /* 서비스워커가 화면 조각까지 받아 두기 전에 끊으면 「화면을 불러오지 못했어요」가 뜬다 — 느린 기기·바쁜 CI에서 충분히 기다린다 */
+  await page.waitForTimeout(2800);
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
@@ -100,6 +101,9 @@ const FAKE = {
   ok('모델 목록을 키로 물어봄', Boolean(listCall));
   ok('Gemini 전용 키를 씀', listCall && listCall.url.includes('AQ.TEST-GEMINI-ONLY') && !listCall.url.includes('AIzaTESTVOICEKEY'));
   ok('글을 만드는 모델만 보여 줌', await page.locator('.modelpick').count() === 1, await page.locator('.modelpick').first().textContent());
+  ok('★ 추천에 용도 이름표가 붙고, 전체 목록은 눌러야 나온다 ★', (await page.locator('.modelrec .modeltag').first().innerText()).includes('추천') && await page.locator('.modelall').count() === 1);
+  await page.locator('.modelall').click();
+  ok('전체 보기를 누르면 목록 전체가 펼쳐진다', await page.locator('.modellist:not(.modelrec) .modelpick').count() === 1);
   await page.locator('.modelpick').first().click();
   await page.waitForTimeout(300);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1')).geminiModel);

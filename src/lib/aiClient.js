@@ -82,6 +82,22 @@ export function pickFallbackModels(list = [], current = '', max = 2) {
   return [...ok.filter((n) => !/lite/i.test(n)), ...ok.filter((n) => /lite/i.test(n))].slice(0, max);
 }
 
+/* ★ 모델이 60개여도 고를 건 두세 개 ★
+ * 이 키로 쓸 수 있는 목록에서 추천만 뽑는다. 이름에 -latest가 붙은 것은 구글이 알아서 최신으로 옮겨 주는 별칭이라
+ * 모델이 바뀌어도 이름을 다시 고를 필요가 없다. 목록에 없으면 같은 계열에서 가장 새 정식(preview 아님) 모델로 대신한다.
+ *   빠름  질문·뜻 풀이처럼 가벼운 일   lite 계열
+ *   균형  문장 첨삭·번역              flash 계열 */
+const newest = (names) => [...names].sort((a, b) => b.localeCompare(a, 'en', { numeric: true }))[0];
+export function recommendModels(list = []) {
+  const usable = list.filter((n) => /flash/i.test(n) && !FALLBACK_SKIP.test(n) && !/preview/i.test(n));
+  const fast = list.includes('gemini-flash-lite-latest') ? 'gemini-flash-lite-latest' : newest(usable.filter((n) => /lite/i.test(n)));
+  const mid = list.includes('gemini-flash-latest') ? 'gemini-flash-latest' : newest(usable.filter((n) => !/lite/i.test(n)));
+  return [
+    fast && { name: fast, tag: '빠름 · 질문용 추천' },
+    mid && mid !== fast && { name: mid, tag: '균형 · 문장 첨삭 추천' },
+  ].filter(Boolean);
+}
+
 /* Gemini에 몸통을 그대로 보내고 답을 통째로 받는다.
    영상처럼 특별한 모양을 실어야 할 때 쓴다. */
 export async function geminiGenerate({ apiKey, model, body }) {
