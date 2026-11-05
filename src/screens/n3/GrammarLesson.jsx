@@ -94,7 +94,7 @@ export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQu
       )}
 
       {step === 4 && (
-        <QuizRunner
+        <QuizRunner onQuit={onQuit}
           questions={grammarQuestionsOf(l.id)}
           rate={rate}
           autoSpeak={false}

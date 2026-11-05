@@ -209,7 +209,10 @@ const readProgress = (page) => page.evaluate(
     const scene0 = await page.locator('.rp-step').innerText();
     await page.keyboard.press('1');
     await page.waitForTimeout(1400);
-    ok('숫자 키로 답을 고른다', (await page.locator('.rp-step').innerText()) !== scene0,
+    ok('키보드 답변은 Enter 전까지 기다린다', (await page.locator('.rp-step').innerText()) === scene0);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    ok('Enter로 다음 장면', (await page.locator('.rp-step').innerText()) !== scene0,
       `${scene0} → ${await page.locator('.rp-step').innerText()}`);
 
     /* H로 힌트가 열린다 */

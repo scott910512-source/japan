@@ -4,7 +4,8 @@ import {
 } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import { markBusy } from '../lib/busy.js';
-import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
+import { useQuizHotkeys, useHasKeyboard, shortcutEvent } from '../lib/useHotkeys.js';
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
 import {
   QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf,
@@ -337,17 +338,24 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
     onRun({ ...run, index: index + 1 });
   };
 
+  const { keyboard, takeControl } = useQuizHotkeys({
+    options: !done ? q?.options : [], legacyNext: true,
+    onChoose: (o) => { if (!answered) answerChoice(o); else { const text = o.jpKana || o.jp; if (text) speakJapanese(text, settings.speechRate); } },
+    onNext: () => { if (done) onQuit(); else if (answered) next(); else if (q?.type === QUIZ_TYPE.TYPING) submitTyping(); },
+    onSpeak: () => { if (!done && (answered || q?.dir === QUIZ_DIR.JP_KO)) speak(); }, onQuit,
+  });
+
   /* 맞혔으면 버튼을 한 번 더 누르게 하지 않는다. 맞은 문제에서 더 볼 것도 없는데
    * 화면 아래 버튼까지 손을 내리는 게 스무 문제 내내 반복된다.
    * 다만 눈으로 확인할 틈은 준다 — 바로 넘기면 맞았는지도 모르고 지나간다.
    * 한→일 문제에서 답을 읽어 주는 중이면 그 소리가 끝날 때까지 기다린다. */
   useEffect(() => {
-    if (!answered || answered.verdict !== 'correct' || holdForReview) return undefined;
+    if (!answered || answered.verdict !== 'correct' || holdForReview || keyboard) return undefined;
     const speaking = settings.autoTTS && q?.dir === QUIZ_DIR.KO_JP;
     const timer = setTimeout(next, speaking ? AUTO_NEXT_SPEAK_MS : AUTO_NEXT_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answered, index, holdForReview]);
+  }, [answered, index, holdForReview, keyboard]);
 
   // 오타로 틀리는 건 실력이 아니다. 애매한 답은 내가 인정할 수 있게 둔다.
   const acceptClose = () => {
@@ -358,30 +366,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
     });
   };
 
-  const pressOption = (i) => {
-    const o = q?.options?.[i];
-    if (!o) return;
-    if (!answered) { answerChoice(o); return; }
-    const say = o.jpKana || o.jp;
-    if (say) speakJapanese(say, settings.speechRate);
-  };
 
-  useHotkeys({
-    Enter: () => {
-      if (done) return;
-      if (answered) next();
-      else if (q?.type === QUIZ_TYPE.TYPING) submitTyping();
-    },
-    ' ': () => { if (answered || q?.dir === QUIZ_DIR.JP_KO) speak(); },
-    Space: () => { if (answered || q?.dir === QUIZ_DIR.JP_KO) speak(); },
-    /* 고르기 전: 1~4 선택. 고른 뒤: 1~4는 그 보기의 일본어 듣기, 5는 다음 문제 */
-    1: () => pressOption(0),
-    2: () => pressOption(1),
-    3: () => pressOption(2),
-    4: () => pressOption(3),
-    5: () => { if (answered && !done) next(); },
-    Escape: onQuit,
-  });
 
   if (done) {
     return (
@@ -405,6 +390,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
 
   return (
     <>
+      <KeyboardHelp />
       <div className="quizhead">
         <div className="qh-row">
           <button className="sh-close" onClick={onQuit} aria-label="시험 그만두기"><IconArrowLeft /></button>
@@ -521,7 +507,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
             className="search-input"
             value={answered ? answered.value : typed}
             onChange={(e) => setTyped(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); answered ? next() : submitTyping(); } }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && shortcutEvent(e)) { takeControl(); e.preventDefault(); answered ? next() : submitTyping(); } }}
             placeholder={q.dir === QUIZ_DIR.JP_KO ? '뜻을 한국어로' : '일본어로 (한자 또는 히라가나)'}
             disabled={Boolean(answered)}
             autoComplete="off"
@@ -553,7 +539,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
 
       {/* 맞힌 문제는 알아서 넘어가므로 버튼을 내지 않는다 — 눌러야 할 게 없어야 빠르다.
           다만 보기 상세를 펼쳐 둔 때는 직접 넘긴다(읽고 들을 시간을 주려고). */}
-      {answered && (answered.verdict !== 'correct' || holdForReview) && (
+      {answered && (answered.verdict !== 'correct' || holdForReview || keyboard) && (
         <div className="qnext">
           {answered.verdict === 'close' && (
             <button className="ghost-btn" onClick={acceptClose}>맞게 처리하기</button>

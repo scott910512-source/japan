@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { IconSpeaker, IconX } from './Icons.jsx';
 import { readingText, speakJapanese } from '../lib/tts.js';
 import { shuffled } from '../lib/review.js';
+import { useHotkeys } from '../lib/useHotkeys.js';
+import KeyboardHelp from './KeyboardHelp.jsx';
 
 /* 문장 조립 퀴즈 — 흩어진 조각을 순서대로 눌러 문장을 만든다.
  *
  * 어순과 조사를 몸에 붙이는 게 목적이라, 틀려도 정답을 바로 까지 않고
  * 어디까지 맞았는지만 알려준 뒤 다시 해볼 기회를 준다. */
-export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt }) {
+export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt, onNext, onQuit }) {
   // 조각이 겹칠 수 있어(조사 は가 두 번 등) 값이 아니라 자리로 구분한다
   const tiles = useMemo(
     () => shuffled(chunks.map((text, index) => ({ id: `${index}-${text}`, text, index }))),
@@ -60,8 +62,17 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt 
     setWrongAt(-1);
   };
 
+  const scope = useHotkeys({
+    ...Object.fromEntries(remaining.slice(0, 9).map((tile, i) => [i + 1, () => put(tile)])),
+    Escape: onQuit,
+    ArrowLeft: () => { if (placed.length) takeBack(placed.length - 1); },
+    Enter: () => { if (solved) onNext?.(); },
+    Space: () => { if (solved) speakJapanese(readingText(item.kana, item.jp), settings.speechRate); },
+  }, { enabled: !solved || Boolean(onNext) });
+
   return (
-    <div className="build">
+    <div ref={scope} className="build">
+      <KeyboardHelp kind="build" />
       <div className="build-ask">{item.ko}</div>
 
       <div className={`build-line${wrongAt >= 0 ? ' shake' : ''}`}>
@@ -101,9 +112,9 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt 
       ) : (
         <>
           <div className="build-pool">
-            {remaining.map((tile) => (
+            {remaining.map((tile, i) => (
               <button key={tile.id} className="build-tile" onClick={() => put(tile)}>
-                {tile.text}
+                <span className="qo-num" aria-hidden="true" data-number={i + 1} />{tile.text}
               </button>
             ))}
           </div>

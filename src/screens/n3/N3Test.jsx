@@ -14,7 +14,7 @@ export default function N3Test({ testId, n3, review, rate, onAnswer, onFinish, o
         <div className="sub-title">{TEST_TITLES[testId] || testId}</div>
       </div>
       {diag && <p className="set-note" style={{ marginBottom: 10 }}>N4 열다섯 꼭지에서 한 문제씩. 맞힌 꼭지는 건너뛰고, 틀린 꼭지는 Chapter 0에서 다시 배워요.</p>}
-      <QuizRunner
+      <QuizRunner onQuit={onQuit}
         questions={questions}
         rate={rate}
         autoSpeak={false}

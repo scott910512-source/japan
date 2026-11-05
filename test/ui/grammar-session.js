@@ -37,7 +37,7 @@ try {
     assert.ok(word, prompt);
     const form = Object.keys(FORM_LABELS).find((key) => FORM_LABELS[key] === label);
     const answer = conjugate(word.kana, String(word.group))[form];
-    const options = await run.locator('.quiz-opt').allTextContents();
+    const options = (await run.locator('.quiz-opt').allTextContents()).map((s) => s.replace(/^\d+\s*/, ''));
     assert.equal(new Set(options.map((o) => o.trim())).size, options.length);
     return { prompt, answer, options };
   };

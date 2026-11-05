@@ -93,7 +93,7 @@ export default function ReadingLesson({ passageId, mode = 'study', rate, onAnswe
       {step === 4 && !done && (
         <>
           <PassageText p={p} rate={rate} showKo={false} />
-          <QuizRunner
+          <QuizRunner onQuit={onQuit}
             questions={questions}
             rate={rate}
             autoSpeak={false}

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconPlay, IconSpeaker, IconRepeat, IconArrowLeft } from '../components/Icons.jsx';
 import BottomSheet from '../components/BottomSheet.jsx';
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
+import { useHotkeys } from '../lib/useHotkeys.js';
 import { koreanVoiceListed, speechReady } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { todayKey } from '../lib/review.js';
@@ -130,6 +132,7 @@ export default function Listen({
      목록이 비었는데 소리는 나는 기기가 있어서, 그걸로 껐다가 「한국어가 안
      나온다」는 말을 들었다. 안내 문구를 고르는 데만 쓴다. */
   const [koListed, setKoListed] = useState(() => koreanVoiceListed());
+  const askScope = useRef(null);
   const [ask, setAsk] = useState(false);   // 시작 전에 한 번 확인
 
   const rate = settings.speechRate || 1;
@@ -274,6 +277,13 @@ export default function Listen({
     ls.saveBlocks(next);
   };
 
+  useHotkeys(run && card ? {
+    Space: () => { beat.arm(); session.togglePause(); },
+    Enter: () => skip(1), ArrowRight: () => skip(1), ArrowLeft: () => skip(-1),
+    ArrowDown: () => { beat.arm(); session.replay(); }, Escape: stop,
+  } : { Enter: () => { if (poolSize) setAsk(true); } });
+  useHotkeys({ Enter: () => { beat.arm(); setAsk(false); start(); } }, { enabled: ask, scope: askScope });
+
   // ── 재생 중 ──
   if (run && card) {
     /* 무엇을 가릴지가 방향의 전부다.
@@ -348,6 +358,7 @@ export default function Listen({
           </div>
         </div>
 
+        <KeyboardHelp kind="listen" />
         <div className="ls-controls">
           <button className="ghost-btn" onClick={() => skip(-1)} disabled={run.at === 0}>이전</button>
           {/* ★ 잠깐 멈춤 ★ 「그만」은 판을 접지만 이건 자리를 지킨다.
@@ -408,6 +419,7 @@ export default function Listen({
   // ── 시작 화면 ──
   return (
     <div className="listen">
+      <KeyboardHelp kind="listen" />
       {/* 시작 버튼을 맨 위에 작게 둔다.
           아래에 커다랗게 두었더니 화면 하나를 통째로 먹어서, 간격이나 개수를
           바꾸려면 스크롤을 해야 했다. 설정이 세 덩이인 화면에서 그건 매번 드는
@@ -860,7 +872,7 @@ export default function Listen({
 
       {/* 무엇으로 시작하는지 한 번 보여 주고 확인을 받는다 */}
       <BottomSheet open={ask} onClose={() => setAsk(false)} label="재생 시작">
-        <div className="ls-ask">
+        <div ref={askScope} className="ls-ask">
           <h3>이렇게 시작할까요?</h3>
           <div className="td-mix">
             <div className="td-cell">

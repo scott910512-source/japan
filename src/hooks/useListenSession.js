@@ -122,6 +122,7 @@ export function useListenSession({ onToast, onActivity, onWeakness, onDrop }) {
   };
 
   const togglePause = () => setPaused((v) => !v);
+  const replay = () => { skip(0); setPaused(false); };
 
   /* 「다 외웠어요」 — 이번 판에서 이 낱말을 뺀다.
      빼고 나면 그 자리에 다음 낱말이 온다. 자리(at)는 그대로 두는 게 맞다 —
@@ -164,6 +165,6 @@ export function useListenSession({ onToast, onActivity, onWeakness, onDrop }) {
   return {
     run, card, step, nudge, paused, lastSet,
     timer, alive,
-    begin, stop, skip, togglePause, dropCurrent, nextStep, advance, cancel,
+    begin, stop, skip, togglePause, replay, dropCurrent, nextStep, advance, cancel,
   };
 }

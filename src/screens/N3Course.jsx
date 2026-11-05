@@ -263,7 +263,7 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
             <div style={{ marginTop: 10 }}><button className="ghost-btn" onClick={() => setView(backFrom(view))}>돌아가기</button></div>
           </div>
         ) : (
-          <QuizRunner
+          <QuizRunner onQuit={() => setView(backFrom(view))}
             questions={session.questions} rate={rate} onAnswer={onAnswer}
             onDone={(r) => {
               applyResults(r.results);

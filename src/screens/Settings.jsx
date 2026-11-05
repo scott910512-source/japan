@@ -1,3 +1,4 @@
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { useState } from 'react';
 import { IconDownload, IconRewind, IconList, IconMap, IconChevron } from '../components/Icons.jsx';
 import { DEFAULT_SETTINGS } from '../lib/storage.js';
@@ -115,6 +116,7 @@ export default function Settings({
 
   return (
     <>
+      <KeyboardHelp />
       {!group && (
         <>
           {/* 제목은 위 헤더(설정)가 그린다 — 여기서는 묶음 목록부터 */}

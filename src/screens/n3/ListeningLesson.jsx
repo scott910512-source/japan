@@ -4,6 +4,8 @@ import { listeningById, LISTENING_QUESTIONS } from '../../data/n3/listening.js';
 import { speakJapaneseAsync, stopSpeaking } from '../../lib/tts.js';
 import QuizRunner from './QuizRunner.jsx';
 import JpSpeak from './JpSpeak.jsx';
+import { useHotkeys } from '../../lib/useHotkeys.js';
+import KeyboardHelp from '../../components/KeyboardHelp.jsx';
 
 /* 청해 — 듣기 → 문제 → 다시 듣기 → 스크립트 → 문장 분석 → 섀도잉.
  * 스크립트는 답을 고르기 전에는 보이지 않는다. 속도 0.75 / 1.0 / 1.25.
@@ -27,6 +29,13 @@ export default function ListeningLesson({ itemId, rate: baseRate, onAnswer, onFi
     alive.current = true;
     return () => { alive.current = false; gen.current += 1; stopSpeaking(); };
   }, []);
+  const keyboardScope = useHotkeys({
+    Space: () => { if (playing) stop(); else playAll(); },
+    ArrowDown: () => { stop(); playAll(); },
+    ArrowLeft: () => { if (step > 0) { stop(); setStep((s) => s - 1); } },
+    ArrowRight: () => nextStep(), Enter: () => nextStep(),
+    Escape: () => { stop(); onQuit(); },
+  }, { enabled: Boolean(it) && step !== 1 });
   if (!it) return null;
 
   const rate = Math.round(speed * (baseRate || 0.9) * 100) / 100;
@@ -54,6 +63,13 @@ export default function ListeningLesson({ itemId, rate: baseRate, onAnswer, onFi
   };
   const stop = () => { gen.current += 1; stopSpeaking(); setPlaying(false); setLine(-1); };
 
+  const nextStep = () => {
+    if (playing) return;
+    if (step === 0) { if (played) setStep(1); else playAll(); }
+    else if (step >= 2 && step < 5 && result) { stop(); setStep((s) => s + 1); }
+    else if (step === 5) { stop(); onFinish?.(result || { right: 0, total: 1, results: [] }); }
+  };
+
   const Player = ({ label }) => (
     <div className="card n3-player">
       <div className="n3-speeds">
@@ -69,11 +85,12 @@ export default function ListeningLesson({ itemId, rate: baseRate, onAnswer, onFi
   );
 
   return (
-    <div className="n3-lesson n3-listening" data-item={it.id} data-step={step}>
+    <div ref={keyboardScope} className="n3-lesson n3-listening" data-item={it.id} data-step={step}>
       <div className="sub-header inline">
         <button className="sub-back" onClick={() => { stop(); onQuit(); }}><IconArrowLeft /> 나가기</button>
         <div className="sub-title">L{it.level} · {it.title}</div>
       </div>
+      {step !== 1 && <KeyboardHelp kind="listen" />}
       {!exam && (
         <div className="n3-steps">
           {STEPS.map((s, i) => <button key={s} className={`n3-stepdot${i === step ? ' cur' : ''}${i < step ? ' past' : ''}`} disabled={i > step && !result} onClick={() => (i <= step || result) && setStep(i)}>{s}</button>)}
@@ -90,7 +107,7 @@ export default function ListeningLesson({ itemId, rate: baseRate, onAnswer, onFi
       )}
 
       {step === 1 && question && (
-        <QuizRunner
+        <QuizRunner onQuit={onQuit}
           questions={[{ ...question, type: 'choice' }]}
           rate={rate}
           autoSpeak={false}

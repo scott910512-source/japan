@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import BottomSheet from '../components/BottomSheet.jsx';
 import HunterTutor from '../components/HunterTutor.jsx';
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
+import { useQuizHotkeys } from '../lib/useHotkeys.js';
+import { speakJapanese } from '../lib/tts.js';
 import { GRAMMAR_MODULES } from '../data/grammar.js';
 import { FORM_LABELS } from '../lib/conjugate.js';
 import { grammarQuiz, grammarAttempt, shuffleGrammar, GRAMMAR_QUIZ_SIZE } from '../lib/grammarQuiz.js';
@@ -48,6 +51,13 @@ export default function Grammar({ words, progress, onProgress, onAttempt }) {
   };
   const reviewWrong = () => begin(module, wrong.map(({ question: q }) => ({ ...q, options: shuffleGrammar(q.options) })), true);
 
+  useQuizHotkeys({ scope: panel, enabled: Boolean(module && run),
+    options: run?.phase === 'quiz' ? question?.options : [],
+    onChoose: (o) => { if (answered) speakJapanese(o); else pick(o); },
+    onSpeak: () => { if (answered) speakJapanese(question.answer); },
+    onNext: () => { if (run?.phase === 'result') close(); else next(); }, onQuit: close,
+  });
+
   return <>
     <div className="gram-grid">
       {GRAMMAR_MODULES.map((m) => <div key={m.id} className="gram-card" onClick={() => fresh(m)}>
@@ -59,6 +69,7 @@ export default function Grammar({ words, progress, onProgress, onAttempt }) {
     <BottomSheet open={Boolean(module)} onClose={close} label="문법 설명">
       {module && run && <div ref={panel} className="grammar-session" data-phase={run.phase} data-review={String(run.review)}>
         <div className="grammar-session-head"><h3>{module.title}</h3><button className="ghost-btn" onClick={close}>{run.phase === 'result' ? '닫기' : '그만하기'}</button></div>
+        <KeyboardHelp />
         {!run.questions.length ? <p className="set-note">연습할 동사가 없어요. 단어 자료를 확인한 뒤 다시 시작해 주세요.</p> : run.phase === 'result' ? <>
           <div className="grammar-result" role="status">
             <h4>{run.review ? '오답 복습 완료' : `${run.questions.length}문제 세트 완료`}</h4>
@@ -85,8 +96,8 @@ export default function Grammar({ words, progress, onProgress, onAttempt }) {
             <table className="ruletable"><tbody>{module.rules.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody></table>
           </HunterTutor>
           <div className="quiz-q"><span lang="ja">{question.word.kanji || question.word.kana}({question.word.kana})</span>의 {FORM_LABELS[question.formKey]}은?</div>
-          <div>{question.options.map((opt) => <button key={opt} lang="ja" className={`quiz-opt${answered && opt === question.answer ? ' correct' : answered && opt === current.chosen ? ' wrong' : ''}`} disabled={answered} onClick={() => pick(opt)}>
-            {opt}{answered && opt === question.answer && <span className="stamp ok" lang="ko">정답</span>}{answered && opt === current.chosen && opt !== question.answer && <span className="stamp no" lang="ko">내가 고른 답</span>}
+          <div>{question.options.map((opt, i) => <button key={opt} lang="ja" aria-label={opt} aria-keyshortcuts={String(i + 1)} className={`quiz-opt${answered && opt === question.answer ? ' correct' : answered && opt === current.chosen ? ' wrong' : ''}`} disabled={answered} onClick={() => pick(opt)}>
+            <span className="qo-num" aria-hidden="true">{i + 1}</span> {opt}{answered && opt === question.answer && <span className="stamp ok" lang="ko">정답</span>}{answered && opt === current.chosen && opt !== question.answer && <span className="stamp no" lang="ko">내가 고른 답</span>}
           </button>)}</div>
           {answered && <div className={`quizverdict ${current.ok ? 'ok' : 'no'}`}>{current.ok ? '맞았어요' : <>아쉬워요 — 정답은 <b lang="ja">{question.answer}</b> 예요</>}</div>}
           {answered && <button className="swap-btn" onClick={next}>{run.at + 1 === run.questions.length ? '결과 보기' : '다음 문제 →'}</button>}

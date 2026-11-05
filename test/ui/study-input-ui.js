@@ -72,8 +72,8 @@ try {
     check(`오른쪽 숫자패드 ${code}로 판정한다`, (await session()).done === before + 1);
   }
   const bookmark = page.locator('.studyfoot button').filter({ hasText: /단어장/ });
-  await page.dispatchEvent('body', 'keydown', { key: 'ㅠ', code: 'KeyB' }); await page.waitForTimeout(100);
-  check('한글 입력 상태에서도 B로 단어장을 추가한다', (await bookmark.innerText()).includes('단어장에 있음'));
+  await bookmark.focus(); await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab'); await press('Enter');
+  check('문자 단축키 대신 Tab과 Enter로 단어장을 추가한다', (await bookmark.innerText()).includes('단어장에 있음'));
   await press('4');
   const fontsLoaded = await page.evaluate(async () => (await document.fonts.load('500 20px "Noto Sans JP Variable"', '写真を見せます。')).length > 0);
   check('오프라인에서도 앱에 포함된 일본어 글꼴을 연다', fontsLoaded);
@@ -84,8 +84,7 @@ try {
   await page.getByRole('button', { name: '취소', exact: true }).click();
   for (const key of ['z', 'x', 'c']) {
     before = (await session()).done; await press(key);
-    check(`숫자키 대체 ${key.toUpperCase()}로도 판정한다`, (await session()).done === before + 1);
-    await press('ArrowLeft'); await press('4');
+    check(`충돌하던 ${key.toUpperCase()}는 판정하지 않는다`, (await session()).done === before);
   }
   if (process.env.HUNTER_SCREENSHOTS) {
     mkdirSync('.qa', { recursive: true });

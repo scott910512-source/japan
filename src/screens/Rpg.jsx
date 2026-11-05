@@ -5,13 +5,14 @@ import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { STAGES, COMING } from '../data/rpg.js';
 import HunterTutor from '../components/HunterTutor.jsx';
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { conversationTutor } from '../data/hunterTutors.js';
 import {
   FORM, buildDrill, buildCheckpoint, reask, passed, masteryOf, MASTERY_LABEL,
   scoreForHints, gradeOf, expFor, levelOf, levelProgress, verdictsFrom, PASS, choiceInfo,
 } from '../lib/rpg.js';
 import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows } from '../lib/optionInfo.js';
+import { reviewRows, speakText } from '../lib/optionInfo.js';
 
 /* 실전 연습.
  *
@@ -130,6 +131,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
     phase === 'drill' ? buildDrill(stage, review, { canListen }) : []
   ));
   const [answered, setAnswered] = useState(null);
+  const manual = useRef(false);
   const [right, setRight] = useState(0);
   const [asked, setAsked] = useState(0);
 
@@ -151,7 +153,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
   const [waiting, setWaiting] = useState(false);
   const schedule = (fn, ms) => {
     pending.current = fn;
-    if (reviewOpen) { setWaiting(true); return; }
+    if (reviewOpen || manual.current) { setWaiting(true); return; }
     advance.current = setTimeout(() => { pending.current = null; fn(); }, ms);
   };
   const goNext = () => {
@@ -288,11 +290,20 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
   /* ── 키보드 ──
    *
    * 보기가 셋이라 1·2·3이면 끝난다. 손을 화면으로 안 옮기면 한 판이 확 빨라진다.
-   * 답을 고른 뒤에는 알아서 넘어가니 「다음」 키는 안 만든다 — 익히기만
-   * 직접 넘겨야 해서 거기만 Enter를 받는다. */
+   * 키보드로 답한 뒤에는 해설을 보고 Enter로 다음 문제로 간다.
+   * 답한 뒤 숫자키는 해당 보기의 발음을 다시 듣는다. */
   const hasKeyboard = useHasKeyboard();
   const hotPick = (i) => {
-    if (answered) return;
+    if (answered) {
+      manual.current = true;
+      clearTimeout(advance.current);
+      if (pending.current) setWaiting(true);
+      const info = q ? q.options[i]?.info : sc?.choices[i] ? choiceInfo(sc.choices[i]) : null;
+      const text = info && speakText(info);
+      if (text) speakJapanese(text, settings.speechRate);
+      return;
+    }
+    manual.current = true;
     if (q) { const o = q.options[i]; if (o) pick(o); return; }
     if (sc) { const c = sc.choices[i]; if (c) answer(c); }
   };
@@ -301,7 +312,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
     2: () => hotPick(1),
     3: () => hotPick(2),
     Enter: () => {
-      if (phase !== 'learn') return;
+      if (phase !== 'learn') { if (answered) goNext(); return; }
       if (at >= stage.expressions.length - 1) startDrill(); else setAt((n) => n + 1);
     },
     ' ': replay,
@@ -565,10 +576,13 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
 
 function Head({ label, sub, onQuit }) {
   return (
+    <>
+    <KeyboardHelp />
     <div className="rp-head">
       <button className="sh-close" onClick={onQuit} aria-label="그만두기"><IconChevron style={{ transform: 'rotate(180deg)' }} /></button>
       <div className="rp-headbody"><b>{label}</b><span>{sub}</span></div>
     </div>
+    </>
   );
 }
 

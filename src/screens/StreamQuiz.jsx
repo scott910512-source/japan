@@ -3,9 +3,11 @@ import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.js
 import { speakJapanese } from '../lib/tts.js';
 import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows, speakText, textInfo } from '../lib/optionInfo.js';
-import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
+import { useHasKeyboard } from '../lib/useHotkeys.js';
 import { markBusy } from '../lib/busy.js';
 import { goalOf } from '../lib/goal.js';
+import { useQuizHotkeys, shortcutEvent } from '../lib/useHotkeys.js';
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import {
   KIND, KIND_LABEL, MIN_POOL, buildPool, judge, newSession, pickNext, poolCounts, questionFor,
   record, shouldRecord, summarize, verdictFor,
@@ -46,6 +48,7 @@ export default function StreamQuiz({
   const sessionRef = useRef(session);
   sessionRef.current = session;
   const timer = useRef(null);
+  const inputRef = useRef(null);
 
   /* N3 코스 자료(한자·문법)는 크다. 이 화면을 열 때만 받는다. */
   useEffect(() => {
@@ -69,6 +72,8 @@ export default function StreamQuiz({
     : []), [answered, curQ]);
   const holdForReview = reviewOpen && optRows.length >= 2;
   useEffect(() => { markBusy('stream', phase === 'run'); return () => markBusy('stream', false); }, [phase]);
+
+  useEffect(() => { if (phase === 'run' && cur?.q.mode === 'typing' && !answered) inputRef.current?.focus(); }, [phase, cur, answered]);
 
   const wordById = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
   const sentenceById = useMemo(() => new Map(sentenceCards.map((s) => [s.id, s])), [sentenceCards]);
@@ -121,6 +126,20 @@ export default function StreamQuiz({
     goNext();
   }, [goNext, batch]);
 
+  const { keyboard, takeControl } = useQuizHotkeys({
+    options: phase === 'run' && !checkpoint ? cur?.q.options : [], onChoose: (o) => { if (!answered) answer(o.key); else { const text = speakText(o.info || textInfo(o.label)); if (text) speak(text); } }, legacyNext: true,
+    onNext: () => {
+      if (phase === 'intro') { if (live?.length >= MIN_POOL) start(); }
+      else if (phase === 'sum') onExit?.();
+      else if (checkpoint) goNext();
+      else if (answered?.verdict === 'close') settleClose(false);
+      else if (answered) advance();
+      else if (cur?.q.mode === 'typing' && typed.trim()) answer(typed);
+    },
+    onSpeak: () => { if (phase === 'run' && cur?.q.speak && (cur.q.promptJp || answered)) speak(cur.q.speak); },
+    onQuit: () => { clearTimeout(timer.current); if (phase === 'run') setPhase('sum'); else onExit?.(); },
+  });
+
   /* 대답이 확정됐다 — 판에 적고, 첫 대답이면 복습 기록에도 넣는다 */
   const finalize = (ok, value, extra = {}) => {
     const { item, q } = cur;
@@ -135,10 +154,10 @@ export default function StreamQuiz({
 
   /* 맞히면 잠깐 보여 주고 알아서 넘어간다. 보기 상세를 펼쳐 둔 때는 직접 넘긴다. */
   useEffect(() => {
-    if (!answered || answered.verdict !== 'correct' || holdForReview) return undefined;
+    if (phase !== 'run' || checkpoint || !answered || answered.verdict !== 'correct' || holdForReview || keyboard) return undefined;
     timer.current = setTimeout(advance, AUTO_NEXT_MS);
     return () => clearTimeout(timer.current);
-  }, [answered, holdForReview, advance]);
+  }, [phase, checkpoint, answered, holdForReview, advance, keyboard]);
 
   const answer = (input) => {
     if (answered || !cur) return;
@@ -152,31 +171,7 @@ export default function StreamQuiz({
 
   const speak = (text) => speakJapanese(text, settings?.speechRate);
 
-  /* ── 키보드 ──
-     Space  듣기(문제 · 답을 낸 뒤엔 정답)
-     1~4    고르기. 답을 낸 뒤에는 그 보기의 일본어 듣기
-     5 · Enter  다음 문제 (답을 낸 뒤) */
   const hasKeyboard = useHasKeyboard();
-  const curQ0 = cur?.q;
-  const pressOption = (i) => {
-    const o = curQ0?.options?.[i];
-    if (!o || curQ0.mode !== 'choice') return;
-    if (!answered) { answer(o.key); return; }
-    const t = speakText(o.info || textInfo(o.label));
-    if (t) speak(t);
-  };
-  const canNext = () => answered && answered.verdict !== 'close' && (answered.verdict === 'wrong' || holdForReview);
-  const hotkeys = checkpoint ? { Enter: goNext } : (phase === 'run' && curQ0) ? {
-    ' ': () => { if (curQ0.speak && (curQ0.promptJp || answered)) speak(curQ0.speak); },
-    Space: () => { if (curQ0.speak && (curQ0.promptJp || answered)) speak(curQ0.speak); },
-    1: () => pressOption(0),
-    2: () => pressOption(1),
-    3: () => pressOption(2),
-    4: () => pressOption(3),
-    5: () => { if (answered && answered.verdict !== 'close') advance(); },
-    Enter: () => { if (canNext()) advance(); },
-  } : {};
-  useHotkeys(hotkeys);
 
   /* ── 맛보기: 아직 외운 게 없을 때 ── */
   const counts = live ? poolCounts(live) : null;
@@ -184,6 +179,7 @@ export default function StreamQuiz({
   if (phase === 'intro') {
     return (
       <div className="stream st-intro">
+        <KeyboardHelp />
         <div className="card st-card">
           <div className="st-goal">목표 <b>{goal}</b></div>
           <div className="set-title">외운 것을 쭉 풀어 봐요</div>
@@ -251,6 +247,7 @@ export default function StreamQuiz({
 
   return (
     <div className="stream st-run" data-kind={q.kind} data-id={cur.item.id} data-mode={q.mode}>
+      <KeyboardHelp />
       <div className="st-head">
         <span className="st-score" aria-label="맞힌 개수"><b>{right}</b> / {total}</span>
         <span className={`st-streak${session.streak >= 3 ? ' hot' : ''}`} aria-label="연속 정답">
@@ -293,10 +290,11 @@ export default function StreamQuiz({
       ) : (
         <div className="qtyping">
           <input
+            ref={inputRef}
             className="search-input st-input"
             value={answered ? answered.value : typed}
             onChange={(e) => setTyped(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (answered?.verdict === 'wrong') advance(); else if (!answered) answer(typed); } }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && shortcutEvent(e)) { takeControl(); e.preventDefault(); if (!answered && typed.trim()) answer(typed); } }}
             placeholder={q.promptJp ? '뜻을 한국어로' : '일본어로 (한자 또는 히라가나)'}
             disabled={Boolean(answered)}
             autoComplete="off" autoCorrect="off" spellCheck={false}
@@ -315,9 +313,9 @@ export default function StreamQuiz({
         </div>
       )}
 
-      {answered && answered.verdict === 'correct' && holdForReview && (
+      {answered && answered.verdict === 'correct' && (holdForReview || keyboard) && (
         <div className="qnext">
-          <button className="submit-btn st-next" onClick={advance}>다음 문제{hasKeyboard && <kbd className="inline-key">5</kbd>}</button>
+          <button className="submit-btn st-next" onClick={advance}>다음 문제{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
         </div>
       )}
 
@@ -331,7 +329,7 @@ export default function StreamQuiz({
             </div>
           )}
           <div className="qnext">
-            <button className="submit-btn st-next" onClick={advance}>다음 문제{hasKeyboard && <kbd className="inline-key">5</kbd>}</button>
+            <button className="submit-btn st-next" onClick={advance}>다음 문제{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
           </div>
         </>
       )}

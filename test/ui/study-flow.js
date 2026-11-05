@@ -199,7 +199,7 @@ const savedToday = (page) => page.evaluate(() => {
     await page.locator('.judge.known').click();
     await page.waitForTimeout(700);
     const hint = await page.locator('.sc-hint').innerText().catch(() => '');
-    ok('화면 안내도 4다', !hint.includes('Enter'), hint.replace(/\n/g, ' '));
+    ok('화면 안내는 공통 키 Enter다', hint.includes('Enter'), hint.replace(/\n/g, ' '));
 
     /* Enter도 그대로 된다 — 두 번 누르면 뒤집고 알아요다.
        빠른 사람이 쓰던 길이라 뺏지 않는다. */
