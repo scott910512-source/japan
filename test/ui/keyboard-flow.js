@@ -179,5 +179,5 @@ try {
   await goTab(page, '설정');
   await page.locator('.keyboard-help:visible').first().click();
   check('Keyboard guide is available in settings', (await page.locator('.keyboard-help:visible').textContent()).includes('Vimium'));
-  console.log(`Keyboard flow: ${checks} passed`);
+  console.log(`통과 ${checks} / 실패 0`);
 } finally { await browser.close(); }

@@ -597,11 +597,11 @@ export default function Study({
         </button>
       </div>
       )}
-      {hasKeyboard && <p className="study-shortcut-note">Enter·4 답 보기 · 숫자가 안 되면 Z 몰라요 / X 애매해요 / C 알아요</p>}
+      <KeyboardHelp kind="study" />
 
       <div className="studyfoot">
         <button onClick={() => speakSlow(faces.speak)}>
-          <IconRewind /> 천천히 듣기{hasKeyboard && <kbd className="inline-key">Shift+Space</kbd>}
+          <IconRewind /> 천천히 듣기
         </button>
         <button className={bookmarked ? 'on' : ''} onClick={() => onBookmark(word.id)}>
           <IconPlus /> {bookmarked ? '단어장에 있음' : '단어장에 추가'}

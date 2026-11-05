@@ -430,7 +430,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
 
       <div className="studyfoot">
         <button onClick={() => speakSlow(speakText)}>
-          <IconRewind /> 천천히 듣기{hasKeyboard && <kbd className="inline-key">Shift+Space</kbd>}
+          <IconRewind /> 천천히 듣기
         </button>
         <button onClick={() => onShowCard(item)}>
           <IconEye /> 보여주기 카드
