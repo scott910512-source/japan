@@ -121,6 +121,23 @@ const openAsk = async (page) => {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(600);
     ok('글상자에서 Esc를 눌러도 닫힌다', await page.locator('.sheet.open .asksheet').count() === 0);
+
+    /* ★ 눈에 보이는 닫기 단추 ★ 전에는 바깥을 눌러야만 닫혔고 단추가 없었다 */
+    await openAsk(page);
+    ok('창이 다시 열린다', await page.locator('.sheet.open .asksheet').count() === 1);
+    const xb = page.locator('.sheet.open .sheet-x');
+    ok('★ 창 안에 닫기(✕) 단추가 있다 ★', await xb.count() === 1);
+    const box = await xb.boundingBox();
+    ok('단추는 손가락으로 누를 크기다(44px 가까이)', box && box.width >= 40 && box.height >= 40, box && `${box.width}x${box.height}`);
+    const inView = await page.evaluate(() => {
+      const r = document.querySelector('.sheet.open .sheet-x').getBoundingClientRect();
+      const s = document.querySelector('.sheet.open').getBoundingClientRect();
+      return r.top >= s.top - 1 && r.right <= s.right + 1 && r.bottom <= window.innerHeight;
+    });
+    ok('단추가 창 안쪽 위에 보인다', inView);
+    await xb.click();
+    await page.waitForTimeout(600);
+    ok('★ ✕를 누르면 창이 닫힌다 ★', await page.locator('.sheet.open .asksheet').count() === 0);
     ok('닫힌 창은 클릭을 안 먹는다',
       await page.evaluate(() => {
         const b = document.querySelector('.judge.known').getBoundingClientRect();

@@ -74,6 +74,14 @@ export async function listGeminiModels(apiKey) {
     .sort();
 }
 
+/* 모델이 계속 혼잡(503)할 때 갈아탈 후보 — 내 키로 쓸 수 있는 flash 계열을 새것부터, 작은 모델(lite)은 뒤로.
+ * 이미지·음성·실험용처럼 글 답에 안 맞는 것은 뺀다. */
+const FALLBACK_SKIP = /(image|tts|live|audio|thinking|exp|vision|embed|aqa|learnlm|gemma)/i;
+export function pickFallbackModels(list = [], current = '', max = 2) {
+  const ok = list.filter((n) => /flash/i.test(n) && !FALLBACK_SKIP.test(n) && n !== current).sort().reverse();
+  return [...ok.filter((n) => !/lite/i.test(n)), ...ok.filter((n) => /lite/i.test(n))].slice(0, max);
+}
+
 /* Gemini에 몸통을 그대로 보내고 답을 통째로 받는다.
    영상처럼 특별한 모양을 실어야 할 때 쓴다. */
 export async function geminiGenerate({ apiKey, model, body }) {
@@ -85,6 +93,7 @@ export async function geminiGenerate({ apiKey, model, body }) {
   );
   let currentModel = name;
   let retries = 0;
+  let fellBack = false;
   for (;;) {
     const res = await request(currentModel);
     // 저장된 2.5 모델 접근이 막힌 경우에만 현재 기본 모델로 바꾼다.
@@ -108,6 +117,21 @@ export async function geminiGenerate({ apiKey, model, body }) {
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
+    }
+    /* ★ 끝까지 혼잡하면 다른 모델로 한 번씩 ★
+       503은 구글 서버가 바쁘다는 말이고, 같은 모델을 계속 두드려도 안 풀릴 때가 많다.
+       내 키로 쓸 수 있는 다른 flash 모델에 한 번씩만 시도한다(아직 답을 만든 적이 없어서 중복 생성이 아니다).
+       목록을 못 받거나 다 막혀 있으면 처음 오류 그대로 알려 준다. */
+    if (res.status === 503 && !fellBack) {
+      fellBack = true;
+      const busy = await failure(res, 'Gemini');
+      try {
+        for (const alt of pickFallbackModels(await listGeminiModels(apiKey), currentModel)) {
+          const r2 = await request(alt);
+          if (r2.ok) return r2.json();
+        }
+      } catch { /* 후보를 못 찾아도 처음 오류를 그대로 */ }
+      throw busy;
     }
     if (!res.ok) throw await failure(res, 'Gemini');
     return res.json();
