@@ -30,9 +30,9 @@ export default function VideoAI({ settings, onChange, onToast }) {
         contents: [{ role: 'user', parts: [{ text: 'Reply only OK.' }] }],
         generationConfig: { maxOutputTokens: 16 },
       } });
-      if (version === checkVersion.current) setConnection({ ok: true, text: 'Gemini 문장 생성 요청이 연결됐어요. 문장 만들기에서 첨삭을 받을 수 있어요.' });
+      if (version === checkVersion.current) setConnection({ ok: true, text: `Gemini 문장 생성 요청이 연결됐어요(${settings.geminiModel || DEFAULT_GEMINI_MODEL}). 문장 만들기에서 첨삭을 받을 수 있어요.` });
     } catch (error) {
-      if (version === checkVersion.current) setConnection({ ok: false, text: error.message });
+      if (version === checkVersion.current) setConnection({ ok: false, text: `${error.message} · 확인한 모델: ${settings.geminiModel || DEFAULT_GEMINI_MODEL}` });
     } finally { if (version === checkVersion.current) setChecking(false); }
   };
 
@@ -98,14 +98,16 @@ export default function VideoAI({ settings, onChange, onToast }) {
           <div className="setrow col">
             <div className="set-title">모델</div>
             <div className="set-note">
-              비우면 추천 모델을 씁니다(문장 첨삭은 {DEFAULT_GEMINI_MODEL}, 궁금해요 질문은 가벼운 {FAST_GEMINI_MODEL}). 저장된 2.5 모델을 사용할 수 없으면 새 기본 모델로 다시 연결해요. 직접 고르면 그 모델을 어디서나 써요.
+              안 고르면 추천 모델을 써요(문장 첨삭은 {DEFAULT_GEMINI_MODEL}, 궁금해요 질문은 가벼운 {FAST_GEMINI_MODEL}). 고르면 그 모델을 어디서나 써요.
             </div>
-            <input
-              type="text"
-              value={settings.geminiModel || ''}
-              placeholder={DEFAULT_GEMINI_MODEL}
-              onChange={(e) => onChange({ geminiModel: e.target.value.trim() })}
-            />
+            {/* 이름을 손으로 치면 오타로 404가 난다 — 아래 목록에서 눌러서만 고른다 */}
+            <div className="modelnow">
+              <span>지금 쓰는 모델</span>
+              <b>{settings.geminiModel || '추천(자동)'}</b>
+              {settings.geminiModel && (
+                <button className="ghost-btn modelreset" onClick={() => onChange({ geminiModel: '' })}>추천으로 되돌리기</button>
+              )}
+            </div>
             <button className="ghost-btn" disabled={!apiKey || loading} onClick={loadModels}>
               {loading ? '받는 중…' : '쓸 수 있는 모델 보기'}
             </button>
