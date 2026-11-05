@@ -12,7 +12,7 @@ import {
   scoreForHints, gradeOf, expFor, levelOf, levelProgress, verdictsFrom, PASS, choiceInfo,
 } from '../lib/rpg.js';
 import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows } from '../lib/optionInfo.js';
+import { reviewRows, speakText } from '../lib/optionInfo.js';
 
 /* 실전 연습.
  *
@@ -290,11 +290,19 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
   /* ── 키보드 ──
    *
    * 보기가 셋이라 1·2·3이면 끝난다. 손을 화면으로 안 옮기면 한 판이 확 빨라진다.
-   * 답을 고른 뒤에는 알아서 넘어가니 「다음」 키는 안 만든다 — 익히기만
-   * 직접 넘겨야 해서 거기만 Enter를 받는다. */
+   * 키보드로 답한 뒤에는 해설을 보고 Enter로 다음 문제로 간다.
+   * 답한 뒤 숫자키는 해당 보기의 발음을 다시 듣는다. */
   const hasKeyboard = useHasKeyboard();
   const hotPick = (i) => {
-    if (answered) return;
+    if (answered) {
+      manual.current = true;
+      clearTimeout(advance.current);
+      if (pending.current) setWaiting(true);
+      const info = q ? q.options[i]?.info : sc?.choices[i] ? choiceInfo(sc.choices[i]) : null;
+      const text = info && speakText(info);
+      if (text) speakJapanese(text, settings.speechRate);
+      return;
+    }
     manual.current = true;
     if (q) { const o = q.options[i]; if (o) pick(o); return; }
     if (sc) { const c = sc.choices[i]; if (c) answer(c); }

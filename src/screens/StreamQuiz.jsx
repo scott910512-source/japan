@@ -154,10 +154,10 @@ export default function StreamQuiz({
 
   /* 맞히면 잠깐 보여 주고 알아서 넘어간다. 보기 상세를 펼쳐 둔 때는 직접 넘긴다. */
   useEffect(() => {
-    if (!answered || answered.verdict !== 'correct' || holdForReview || keyboard) return undefined;
+    if (phase !== 'run' || checkpoint || !answered || answered.verdict !== 'correct' || holdForReview || keyboard) return undefined;
     timer.current = setTimeout(advance, AUTO_NEXT_MS);
     return () => clearTimeout(timer.current);
-  }, [answered, holdForReview, advance, keyboard]);
+  }, [phase, checkpoint, answered, holdForReview, advance, keyboard]);
 
   const answer = (input) => {
     if (answered || !cur) return;

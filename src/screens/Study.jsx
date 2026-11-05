@@ -517,8 +517,7 @@ export default function Study({
             {/* 단계가 있으면 무엇을 하라는 판인지 먼저 적는다 —
                 글자가 안 보이는데 안내가 없으면 고장으로 읽힌다 */}
             {step ? STEP_HINT[step] : '탭해서 뜻 확인하기'}
-            {/* 판정이 1·2·3이라 손이 거기 있다. 뒤집기도 그 옆에 있어야
-                손을 안 옮긴다 — Enter도 그대로 되지만 안내는 4로 한다. */}
+            {/* 모든 학습 화면에서 Enter를 기본 진행 키로 안내한다. */}
             {hasKeyboard && <kbd className="inline-key">Enter</kbd>}
           </div>
         )}

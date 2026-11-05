@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconCheck, IconSpeaker, IconX } from '../components/Icons.jsx';
 import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows } from '../lib/optionInfo.js';
+import { reviewRows, speakText } from '../lib/optionInfo.js';
 import BuildQuiz from '../components/BuildQuiz.jsx';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { useQuizHotkeys, shortcutEvent } from '../lib/useHotkeys.js';
@@ -143,7 +143,8 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
     setSession((s) => record(s, { id: item.id, kind: 'cloze' }, ok));
   };
 
-  const { keyboard } = useQuizHotkeys({ options: picked == null ? options : [], onChoose: choose,
+  const { keyboard } = useQuizHotkeys({ options,
+    onChoose: (o) => { if (picked == null) choose(o); else { const text = speakText(optRows[options.indexOf(o)]); if (text) speakJapanese(text, settings?.speechRate); } },
     onNext: () => { if (picked != null) advance(); },
     onSpeak: () => { if (picked != null) speakJapanese(filled(item), settings?.speechRate); },
   });
@@ -273,7 +274,7 @@ function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivi
           onChange={(e) => setTyped(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && shortcutEvent(e)) { e.preventDefault(); takeControl(); submit(true); } }}
           placeholder="일본어 문장 (한자 또는 히라가나)" autoComplete="off" autoCorrect="off" spellCheck={false} />
-        {!res && <button className="submit-btn cmp-submit" onClick={submit} disabled={!typed.trim()}>제출</button>}
+        {!res && <button className="submit-btn cmp-submit" onClick={() => submit()} disabled={!typed.trim()}>제출</button>}
       </div>
 
       {res?.verdict === 'correct' && keyboard && <button className="submit-btn cmp-next" onClick={advance}>다음 문장 · Enter</button>}

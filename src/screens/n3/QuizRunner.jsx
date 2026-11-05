@@ -9,7 +9,7 @@ import HunterTutor from '../../components/HunterTutor.jsx';
 import KeyboardHelp from '../../components/KeyboardHelp.jsx';
 import { useQuizHotkeys } from '../../lib/useHotkeys.js';
 import OptionReview, { useReviewOpen } from '../../components/OptionReview.jsx';
-import { reviewRows } from '../../lib/optionInfo.js';
+import { reviewRows, speakText } from '../../lib/optionInfo.js';
 
 /* 문제 풀기 — 코스의 모든 문제가 이 하나를 지난다.
  *
@@ -77,7 +77,11 @@ export default function QuizRunner({
 
   const options = (q?.type === 'order' ? pieces : q?.options) || [];
   const { scope, keyboard } = useQuizHotkeys({
-    options: !finished && picked === null ? options : [], onChoose: choose,
+    options: !finished ? options : [],
+    onChoose: (o, manual) => {
+      if (picked === null) choose(o, manual);
+      else if (mode !== 'exam') { const text = speakText(reviewRows(options, q.optionInfo)[options.indexOf(o)]); if (text) speakJapanese(text, rate); }
+    },
     onNext: () => { if (finished) onDone?.({ right: results.filter((r) => r.ok).length, total, results }); else if (picked !== null) advance(); },
     onSpeak: () => { const text = picked !== null && mode !== 'exam' ? q?.speakAfter || q?.speak : q?.speak; if (text) speakJapanese(text, rate); },
     onQuit,

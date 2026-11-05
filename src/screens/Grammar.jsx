@@ -3,6 +3,7 @@ import BottomSheet from '../components/BottomSheet.jsx';
 import HunterTutor from '../components/HunterTutor.jsx';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { useQuizHotkeys } from '../lib/useHotkeys.js';
+import { speakJapanese } from '../lib/tts.js';
 import { GRAMMAR_MODULES } from '../data/grammar.js';
 import { FORM_LABELS } from '../lib/conjugate.js';
 import { grammarQuiz, grammarAttempt, shuffleGrammar, GRAMMAR_QUIZ_SIZE } from '../lib/grammarQuiz.js';
@@ -51,7 +52,9 @@ export default function Grammar({ words, progress, onProgress, onAttempt }) {
   const reviewWrong = () => begin(module, wrong.map(({ question: q }) => ({ ...q, options: shuffleGrammar(q.options) })), true);
 
   useQuizHotkeys({ scope: panel, enabled: Boolean(module && run),
-    options: run?.phase === 'quiz' && !answered ? question?.options : [], onChoose: pick,
+    options: run?.phase === 'quiz' ? question?.options : [],
+    onChoose: (o) => { if (answered) speakJapanese(o); else pick(o); },
+    onSpeak: () => { if (answered) speakJapanese(question.answer); },
     onNext: () => { if (run?.phase === 'result') close(); else next(); }, onQuit: close,
   });
 

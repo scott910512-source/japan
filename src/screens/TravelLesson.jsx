@@ -52,8 +52,8 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
   const ex = queue[at];
   const done = at >= queue.length;
   useQuizHotkeys({
-    options: !done && !checked ? ex?.options : [],
-    onChoose: (opt) => { setPick(opt.id); check(opt.id); },
+    options: !done ? ex?.options : [],
+    onChoose: (opt) => { if (checked) speakIn(say(opt), JA, rate); else { setPick(opt.id); check(opt.id); } },
     onNext: () => { if (checked) next(); else if (pick) check(); },
     onSpeak: () => { if (ex && (checked || ex.type !== 'say')) speakIn(say(ex.item), JA, rate, { id: `key:${at}` }); },
     onQuit, enabled: !done && Boolean(ex),

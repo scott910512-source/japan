@@ -54,7 +54,7 @@ export function useHotkeys(map, { enabled = true, scope: externalScope } = {}) {
       const editor = el instanceof HTMLElement && el.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
       // 채점으로 disabled 된 입력칸은 일부 브라우저에서 초점을 계속 가진다.
       // 그때 Enter까지 막으면 키보드만으로 다음 문제에 갈 수 없다.
-      if (editor && !editor.disabled) return;
+      if (editor && !editor.disabled && e.key !== 'Escape') return;
 
       // IMEs and number pads can report Process/Unidentified/End rather than
       // the printed key. Fall back to its physical position outside editors.

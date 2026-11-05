@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconSpeaker, IconCheck, IconX, IconArrowLeft } from './Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import OptionReview, { useReviewOpen } from './OptionReview.jsx';
-import { reviewRows, textInfo } from '../lib/optionInfo.js';
+import { reviewRows, textInfo, speakText } from '../lib/optionInfo.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useQuizHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import KeyboardHelp from './KeyboardHelp.jsx';
@@ -75,7 +75,8 @@ export default function BlankRun({
   };
 
   const { keyboard } = useQuizHotkeys({
-    options: !done && !picked ? item?.options : [], onChoose: pick,
+    options: !done ? item?.options : [],
+    onChoose: (o) => { if (!picked) pick(o); else { const text = speakText(optRows[item.options.indexOf(o)]); if (text) speakJapanese(text, settings.speechRate); } },
     onNext: () => { if (picked && !done) next(); },
     onSpeak: () => { if (item && picked && !done) speakJapanese(item.kana.replace(BLANK, item.answer), settings.speechRate); },
     onQuit,
