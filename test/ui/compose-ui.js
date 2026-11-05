@@ -35,7 +35,8 @@ async function boot(browser, { review = {}, settings = {}, ai = null } = {}) {
   const aiCalls = [];
   if (ai) {
     await page.route(/generativelanguage\.googleapis\.com/, async (route) => {
-      aiCalls.push(JSON.parse(route.request().postData() || '{}'));
+      /* 모델 목록 조회(GET)는 답을 만드는 호출이 아니다 — 혼잡이 길어지면 다른 모델을 찾으려고 한 번 부른다 */
+      if (route.request().method() === 'POST') aiCalls.push(JSON.parse(route.request().postData() || '{}'));
       /* ai.__status가 있으면 그 상태로 실패시킨다(키가 틀렸을 때 등) */
       if (ai.__status) { await route.fulfill({ status: ai.__status, contentType: 'application/json', body: JSON.stringify(ai.body) }); return; }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(ai) }] } }] }) });
