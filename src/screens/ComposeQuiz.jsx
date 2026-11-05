@@ -3,6 +3,8 @@ import { IconCheck, IconSpeaker, IconX } from '../components/Icons.jsx';
 import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows } from '../lib/optionInfo.js';
 import BuildQuiz from '../components/BuildQuiz.jsx';
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
+import { useQuizHotkeys, shortcutEvent } from '../lib/useHotkeys.js';
 import HunterTutor from '../components/HunterTutor.jsx';
 import { conversationTutor } from '../data/hunterTutors.js';
 import { readingText, speakJapanese } from '../lib/tts.js';
@@ -76,7 +78,7 @@ const Score = ({ session }) => {
 const Empty = ({ children }) => <div className="empty-state cmp-empty">{children}</div>;
 
 /* ── 조립 ── */
-function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivity, onAttempt }) {
+function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivity, onAttempt, onExit }) {
   const run = useRun({ sentences, review, progress, settings, mode: COMPOSE_MODE.BUILD, hasChunks: (id) => chunksOf(id) != null });
   const [cur, setCur] = useState(() => run.next());
   const [solved, setSolved] = useState(false);
@@ -96,7 +98,7 @@ function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivi
     <div className="cmp-build" data-id={cur.id}>
       <Score session={run.session} />
       <BuildQuiz key={cur.id} item={{ id: s.id, ko: s.mean, jp: s.kanji, kana: s.kana }} chunks={chunksOf(s.id)}
-        settings={settings} onSolved={onSolved} onAttempt={(result) => onAttempt?.({ id: `compose:build:${s.id}`, source: 'compose', ref: s.id, kind: '문장 어순', prompt: s.mean, correct: s.kanji, accepted: [s.kanji, s.kana].filter(Boolean), chosen: result.chosen, explanation: result.expected ? `이 자리에 들어갈 조각은 「${result.expected}」예요. 완성 문장: ${s.kanji}` : s.mean, ok: result.ok })} />
+        settings={settings} onQuit={onExit} onNext={advance} onSolved={onSolved} onAttempt={(result) => onAttempt?.({ id: `compose:build:${s.id}`, source: 'compose', ref: s.id, kind: '문장 어순', prompt: s.mean, correct: s.kanji, accepted: [s.kanji, s.kana].filter(Boolean), chosen: result.chosen, explanation: result.expected ? `이 자리에 들어갈 조각은 「${result.expected}」예요. 완성 문장: ${s.kanji}` : s.mean, ok: result.ok })} />
       {solved && <div className="qnext"><button className="submit-btn cmp-next" onClick={advance}>다음 문장</button></div>}
     </div>
   );
@@ -141,16 +143,21 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
     setSession((s) => record(s, { id: item.id, kind: 'cloze' }, ok));
   };
 
+  const { keyboard } = useQuizHotkeys({ options: picked == null ? options : [], onChoose: choose,
+    onNext: () => { if (picked != null) advance(); },
+    onSpeak: () => { if (picked != null) speakJapanese(filled(item), settings?.speechRate); },
+  });
   useEffect(() => {
-    if (picked == null || picked !== item?.answer || holdForReview) return undefined;
+    if (picked == null || picked !== item?.answer || holdForReview || keyboard) return undefined;
     timer.current = setTimeout(advance, AUTO_NEXT_MS);
     return () => clearTimeout(timer.current);
-  }, [picked, item, holdForReview, advance]);
+  }, [picked, item, holdForReview, advance, keyboard]);
 
   const { head, tail } = splitBlank(item.jp);
   const done = picked != null;
   return (
     <div className="cmp-blank" data-id={item.id}>
+      <KeyboardHelp />
       <Score session={session} />
       <div className="quizcard cmp-q">
         <div className="qc-tag">{item.set} · 빈칸을 고르세요</div>
@@ -160,12 +167,12 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
         </div>
       </div>
       <div className="qoptions">
-        {options.map((o) => {
+        {options.map((o, i) => {
           let cls = 'qopt cmp-opt';
           if (done) cls += o === item.answer ? ' correct' : o === picked ? ' wrong' : ' dim';
           return (
             <button key={o} className={cls} disabled={done} onClick={() => choose(o)}>
-              <span className="qo-body"><b lang="ja">{o}</b>{done && o !== item.answer && item.why?.[o] && <span className="qo-why">{item.why[o]}</span>}</span>
+              <span className="qo-num">{i + 1}</span><span className="qo-body"><b lang="ja">{o}</b>{done && o !== item.answer && item.why?.[o] && <span className="qo-why">{item.why[o]}</span>}</span>
               {done && o === item.answer && <span className="qo-mark ok"><IconCheck /></span>}
             </button>
           );
@@ -177,7 +184,7 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
             <b lang="ja">{filled(item)}</b>
             <div className="qv-ex"><span>{item.note}</span></div>
           </div>
-          {(picked !== item.answer || holdForReview) && <div className="qnext"><button className="submit-btn cmp-next" onClick={advance}>다음 문제</button></div>}
+          {(picked !== item.answer || holdForReview || keyboard) && <div className="qnext"><button className="submit-btn cmp-next" onClick={advance}>다음 문제</button></div>}
           <OptionReview idPrefix={`cmp:${item.id}`} rate={settings?.speechRate} rows={optRows} open={reviewOpen} onOpenChange={setReviewOpen} />
         </>
       )}
@@ -214,11 +221,11 @@ function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivi
     setCur(run.next());
   }, [run]);
 
-  const submit = () => {
+  const submit = (fromKeyboard = false) => {
     if (res || !typed.trim()) return;
     const r = judgeWrite(run.byId.get(cur.id), typed);
     setRes(r);
-    if (r.verdict === 'correct') { settle(true); timer.current = setTimeout(advance, AUTO_NEXT_MS); }
+    if (r.verdict === 'correct') { settle(true); if (!keyboard && !fromKeyboard) timer.current = setTimeout(advance, AUTO_NEXT_MS); }
   };
 
   const askAi = async () => {
@@ -242,24 +249,34 @@ function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivi
     advance();
   };
 
+  const { keyboard, takeControl } = useQuizHotkeys({
+    onNext: () => { if (ai?.busy) return; if (!res) submit(true); else if (res.verdict === 'correct') advance(); else finish(ai?.data ? 'ai' : 'wrong'); },
+    onSpeak: () => { if (res) { const s = run.byId.get(cur?.id); if (s) speakJapanese(readingText(s.kana, s.kanji), settings?.speechRate); } },
+    enabled: Boolean(run.pool.length),
+  });
+  const inputRef = useRef(null);
+  useEffect(() => { if (!res) inputRef.current?.focus(); }, [cur, res]);
+
   if (!run.pool.length) return <Empty>쓸 문장이 아직 없어요. 오늘 화면에서 문장을 먼저 배워 보세요. 목표 {goalOf(settings)} 안의 문장만 나와요.</Empty>;
   const s = run.byId.get(cur.id);
   const pending = res && res.verdict !== 'correct';
   return (
     <div className="cmp-write" data-id={cur.id}>
+      <KeyboardHelp />
       <Score session={run.session} />
       <div className="quizcard cmp-q">
         <div className="qc-tag">{s.place ? `${s.place} · ` : ''}일본어로 써 보세요</div>
         <div className="qc-prompt ko">{s.mean}</div>
       </div>
       <div className="qtyping">
-        <input className="search-input cmp-input" value={typed} lang="ja" disabled={Boolean(res)}
+        <input ref={inputRef} className="search-input cmp-input" value={typed} lang="ja" disabled={Boolean(res)}
           onChange={(e) => setTyped(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && shortcutEvent(e)) { e.preventDefault(); takeControl(); submit(true); } }}
           placeholder="일본어 문장 (한자 또는 히라가나)" autoComplete="off" autoCorrect="off" spellCheck={false} />
         {!res && <button className="submit-btn cmp-submit" onClick={submit} disabled={!typed.trim()}>제출</button>}
       </div>
 
+      {res?.verdict === 'correct' && keyboard && <button className="submit-btn cmp-next" onClick={advance}>다음 문장 · Enter</button>}
       {res?.verdict === 'correct' && <div className="qverdict correct cmp-ok"><IconCheck /> 맞아요</div>}
 
       {pending && (

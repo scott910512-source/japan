@@ -118,7 +118,7 @@ export default function KanjiLesson({ title, kanjiIds, rate, review, onAnswer, o
           <p className="set-note">한국 한자음을 아는 한자는 음독이 비슷할 때가 많아요(경→けい, 감→かん). 연상은 학습용이고 유래가 아니에요. 문제는 읽기, 뜻, 모양을 돌아가며 나와요.</p>
         </>
       )}
-      {phase === 'quiz' && <QuizRunner questions={questions} rate={rate} onAnswer={onAnswer} onDone={(r) => onFinish?.(r)} />}
+      {phase === 'quiz' && <QuizRunner onQuit={onQuit} questions={questions} rate={rate} onAnswer={onAnswer} onDone={(r) => onFinish?.(r)} />}
     </div>
   );
 }

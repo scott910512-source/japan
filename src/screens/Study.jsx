@@ -15,6 +15,7 @@ import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { STEP, STEP_HINT, STEP_LABEL, hidesFront, needsSound, settingsForStep, stepFor } from '../lib/steps.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { normalizeGoals } from '../lib/daily.js';
 import {
   VERDICT, advanceSession, buildDailySession, buildRound1, isWeak, nextRoundOf,
@@ -323,16 +324,13 @@ export default function Study({
     : asking ? { Escape: () => setAsking(false) }
       : !studyReady ? { Escape: onClose } : {
     ' ': speakCurrent,
-    Space: speakCurrent,
+    Space: (e) => e.shiftKey && faces ? speakSlow(faces.speak) : speakCurrent(),
     Enter: () => (revealed ? judge(VERDICT.KNOWN) : reveal()),
     /* 답을 열기 전에 숫자를 치면 판정이 아니라 뒤집기다. 손이 1·2·3에 가 있는
        사람이 실수로 기록을 남기는 일을 막는다 — 빠른 판정을 켜면 예전대로다. */
     1: () => (canJudge ? judge(VERDICT.UNKNOWN) : reveal()),
     2: () => (canJudge ? judge(VERDICT.VAGUE) : reveal()),
     3: () => (canJudge ? judge(VERDICT.KNOWN) : reveal()),
-    z: () => (canJudge ? judge(VERDICT.UNKNOWN) : reveal()),
-    x: () => (canJudge ? judge(VERDICT.VAGUE) : reveal()),
-    c: () => (canJudge ? judge(VERDICT.KNOWN) : reveal()),
     0: () => (canJudge ? judge(VERDICT.MASTER) : reveal()),
     ArrowLeft: undo,
     Backspace: undo,
@@ -340,18 +338,6 @@ export default function Study({
        매번 Enter까지 건너가면 그 거리가 카드마다 쌓인다. */
     4: reveal,
     ArrowDown: reveal,
-    s: () => faces && speakSlow(faces.speak),
-    S: () => faces && speakSlow(faces.speak),
-    b: () => word && onBookmark(word.id),
-    B: () => word && onBookmark(word.id),
-    e: () => { setShowExample((v) => !v); reveal(); },
-    E: () => { setShowExample((v) => !v); reveal(); },
-    k: () => setPeekKana(true),
-    K: () => setPeekKana(true),
-    m: () => micTrigger.current?.(),
-    M: () => micTrigger.current?.(),
-    a: () => { reveal(); setAsking(true); },
-    A: () => { reveal(); setAsking(true); },
     Escape: onClose,
   });
 
@@ -470,7 +456,7 @@ export default function Study({
         )}
         {!revealed && !covered && !faces.front.isKana && view.direction !== 'mean-kanji' && !view.showKana && !peekKana && (
           <button className="sc-peek" onClick={(e) => { e.stopPropagation(); setPeekKana(true); }}>
-            <IconEye /> 히라가나 보기{hasKeyboard && <kbd className="inline-key">K</kbd>}
+            <IconEye /> 히라가나 보기
           </button>
         )}
         {!revealed && !covered && !faces.front.isKana && (peekKana || view.showKana) && (
@@ -533,7 +519,7 @@ export default function Study({
             {step ? STEP_HINT[step] : '탭해서 뜻 확인하기'}
             {/* 판정이 1·2·3이라 손이 거기 있다. 뒤집기도 그 옆에 있어야
                 손을 안 옮긴다 — Enter도 그대로 되지만 안내는 4로 한다. */}
-            {hasKeyboard && <kbd className="inline-key">4</kbd>}
+            {hasKeyboard && <kbd className="inline-key">Enter</kbd>}
           </div>
         )}
       </div>
@@ -590,22 +576,22 @@ export default function Study({
           떠서 앞면에서도 판정이 눌렸다. 아예 그리지 않는다. */}
       {canJudge && (
       <div className="judgerow">
-        <button className="judge unknown" aria-keyshortcuts="1 Z" disabled={locked} onClick={() => judge(VERDICT.UNKNOWN)}>
-          {hasKeyboard && <kbd className="judge-key">1 / Z</kbd>}
+        <button className="judge unknown" aria-keyshortcuts="1" disabled={locked} onClick={() => judge(VERDICT.UNKNOWN)}>
+          {hasKeyboard && <kbd className="judge-key">1</kbd>}
           <IconX />
           <b>몰라요</b>
           {/* 이제 이번 바퀴가 아니라 다음 바퀴에 나온다. 애매해요와 때가 같아서
               같은 말을 쓴다 — 다르게 적으면 안 그런 것처럼 읽힌다. */}
           <span>다음 회독에</span>
         </button>
-        <button className="judge vague" aria-keyshortcuts="2 X" disabled={locked} onClick={() => judge(VERDICT.VAGUE)}>
-          {hasKeyboard && <kbd className="judge-key">2 / X</kbd>}
+        <button className="judge vague" aria-keyshortcuts="2" disabled={locked} onClick={() => judge(VERDICT.VAGUE)}>
+          {hasKeyboard && <kbd className="judge-key">2</kbd>}
           <IconTriangle />
           <b>애매해요</b>
           <span>다음 회독에</span>
         </button>
-        <button className="judge known" aria-keyshortcuts="3 C" disabled={locked} onClick={() => judge(VERDICT.KNOWN)}>
-          {hasKeyboard && <kbd className="judge-key">3 / C</kbd>}
+        <button className="judge known" aria-keyshortcuts="3" disabled={locked} onClick={() => judge(VERDICT.KNOWN)}>
+          {hasKeyboard && <kbd className="judge-key">3</kbd>}
           <IconCheck />
           <b>알아요</b>
           <span>기억했어요</span>
@@ -616,23 +602,23 @@ export default function Study({
 
       <div className="studyfoot">
         <button onClick={() => speakSlow(faces.speak)}>
-          <IconRewind /> 천천히 듣기{hasKeyboard && <kbd className="inline-key">S</kbd>}
+          <IconRewind /> 천천히 듣기{hasKeyboard && <kbd className="inline-key">Shift+Space</kbd>}
         </button>
         <button className={bookmarked ? 'on' : ''} onClick={() => onBookmark(word.id)}>
           <IconPlus /> {bookmarked ? '단어장에 있음' : '단어장에 추가'}
-          {hasKeyboard && <kbd className="inline-key">B</kbd>}
+          
         </button>
         <button
           className={showExample ? 'on' : ''}
           onClick={() => { setShowExample((v) => !v); reveal(); }}
         >
-          <IconBulb /> 예문 보기{hasKeyboard && <kbd className="inline-key">E</kbd>}
+          <IconBulb /> 예문 보기
         </button>
         {/* 예문 보기와 같은 규칙으로 카드를 먼저 뒤집는다.
             답을 알아내는 통로가 되면 회독 기록이 실력을 안 재게 된다 —
             뒤집고 나서 곁가지를 묻는 건 그냥 공부다. */}
         <button className={asking ? 'on' : ''} onClick={() => { reveal(); setAsking(true); }}>
-          <IconChat /> 궁금해요{hasKeyboard && <kbd className="inline-key">A</kbd>}
+          <IconChat /> 궁금해요
         </button>
       </div>
 

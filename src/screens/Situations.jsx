@@ -7,6 +7,7 @@ import MicButton from '../components/MicButton.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import BuildQuiz from '../components/BuildQuiz.jsx';
 import { ALL_SITUATIONS as SITUATIONS } from '../data/allSituations.js';
 import { chunksOf, hasChunks } from '../data/allChunks.js';
@@ -296,7 +297,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
 
   useHotkeys({
     ' ': () => speakJapanese(speakText, settings.speechRate),
-    Space: () => speakJapanese(speakText, settings.speechRate),
+    Space: (e) => e.shiftKey ? speakSlow(speakText) : speakJapanese(speakText, settings.speechRate),
     Enter: () => (revealed ? judge(VERDICT.KNOWN) : setRevealed(true)),
     1: () => judge(VERDICT.UNKNOWN),
     2: () => judge(VERDICT.VAGUE),
@@ -305,10 +306,6 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
     ArrowLeft: undo,
     Backspace: undo,
     ArrowDown: () => setRevealed(true),
-    s: () => speakSlow(speakText),
-    S: () => speakSlow(speakText),
-    c: () => onShowCard(item),
-    C: () => onShowCard(item),
     Escape: onExit,
   });
 
@@ -334,6 +331,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
 
   return (
     <div className="study">
+      <KeyboardHelp kind="study" />
       <div className="studyhead">
         <div className="sh-row">
           <button className="sh-close" onClick={onExit} aria-label="나가기"><IconArrowLeft /></button>
@@ -364,6 +362,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
         {mode === 'build' ? (
           <BuildQuiz
             item={item}
+            onQuit={onExit}
             chunks={chunksOf(item.id)}
             settings={settings}
             onSolved={() => setRevealed(true)}
@@ -431,10 +430,10 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
 
       <div className="studyfoot">
         <button onClick={() => speakSlow(speakText)}>
-          <IconRewind /> 천천히 듣기{hasKeyboard && <kbd className="inline-key">S</kbd>}
+          <IconRewind /> 천천히 듣기{hasKeyboard && <kbd className="inline-key">Shift+Space</kbd>}
         </button>
         <button onClick={() => onShowCard(item)}>
-          <IconEye /> 보여주기 카드{hasKeyboard && <kbd className="inline-key">C</kbd>}
+          <IconEye /> 보여주기 카드
         </button>
       </div>
     </div>

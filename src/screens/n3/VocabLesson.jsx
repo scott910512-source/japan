@@ -75,7 +75,7 @@ export default function VocabLesson({ title, wordIds, rate, review, onAnswer, on
         </>
       )}
       {phase === 'quiz' && (
-        <QuizRunner questions={questions} rate={rate} onAnswer={onAnswer} onDone={(r) => onFinish?.(r)} doneLabel="완료" />
+        <QuizRunner onQuit={onQuit} questions={questions} rate={rate} onAnswer={onAnswer} onDone={(r) => onFinish?.(r)} doneLabel="완료" />
       )}
     </div>
   );

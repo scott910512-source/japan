@@ -1,0 +1,6 @@
+.keyboard-help { margin: 8px 0; color: var(--ink-soft); font-size: 12px; line-height: 1.7; }
+.keyboard-help summary { cursor: pointer; }
+.keyboard-help p { margin: 6px 0; }
+.keyboard-help kbd { font: inherit; font-weight: 700; color: var(--ink); }
+
+.build-pool .qo-num::before { content: attr(data-number); }

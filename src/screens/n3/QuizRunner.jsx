@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTimeouts } from '../../hooks/useTimeouts.js';
 import { IconCheck, IconX, IconArrowLeft } from '../../components/Icons.jsx';
 import { speakJapanese, stopSpeaking } from '../../lib/tts.js';
@@ -6,6 +6,8 @@ import { BLANK } from '../../data/n3/grammar.js';
 import { shuffle } from '../../lib/n3.js';
 import JpSpeak from './JpSpeak.jsx';
 import HunterTutor from '../../components/HunterTutor.jsx';
+import KeyboardHelp from '../../components/KeyboardHelp.jsx';
+import { useQuizHotkeys } from '../../lib/useHotkeys.js';
 import OptionReview, { useReviewOpen } from '../../components/OptionReview.jsx';
 import { reviewRows } from '../../lib/optionInfo.js';
 
@@ -24,7 +26,8 @@ export default function QuizRunner({
 }) {
   /* 화면을 나가면 걸려 있던 타이머도 같이 꺼진다 — 안 그러면 나간 뒤에
      한 판이 적히거나 한 문제가 넘어간다(hooks/useTimeouts.js) */
-  const { after } = useTimeouts();
+  const { after, cancel } = useTimeouts();
+  const advanceTimer = useRef(null);
   const [at, setAt] = useState(0);
   const [picked, setPicked] = useState(null);
   const [results, setResults] = useState([]);
@@ -47,9 +50,8 @@ export default function QuizRunner({
     if (!total && !finished) { setFinished(true); onFinish?.({ right: 0, total: 0, results: [] }); }
   }, [total]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!q && !finished) return null;
 
-  const choose = (opt) => {
+  const choose = (opt, fromKeyboard = false) => {
     if (picked !== null) return;
     const ok = opt === q.answer;
     setPicked(opt);
@@ -58,10 +60,11 @@ export default function QuizRunner({
     onAnswer?.(q, ok, opt);
     if (q.speakAfter && autoSpeak && mode !== 'exam') speakJapanese(q.speakAfter, rate);
     /* 실전은 바로 다음으로 — 설명은 끝에 */
-    if (mode === 'exam') after(() => advance(next), 250);
+    if (mode === 'exam' && !fromKeyboard && !keyboard) advanceTimer.current = after(() => advance(next), 250);
   };
 
   const advance = (list = results) => {
+    cancel(advanceTimer.current);
     if (at + 1 >= total) {
       setFinished(true);
       const right = list.filter((r) => r.ok).length;
@@ -72,13 +75,22 @@ export default function QuizRunner({
     setPicked(null);
   };
 
+  const options = (q?.type === 'order' ? pieces : q?.options) || [];
+  const { scope, keyboard } = useQuizHotkeys({
+    options: !finished && picked === null ? options : [], onChoose: choose,
+    onNext: () => { if (finished) onDone?.({ right: results.filter((r) => r.ok).length, total, results }); else if (picked !== null) advance(); },
+    onSpeak: () => { const text = picked !== null && mode !== 'exam' ? q?.speakAfter || q?.speak : q?.speak; if (text) speakJapanese(text, rate); },
+    onQuit,
+  });
+  if (!q && !finished) return null;
+
   if (finished) {
     if (hideFinish) return null;
     const right = results.filter((r) => r.ok).length;
     const wrong = results.filter((r) => !r.ok);
     const pct = total ? Math.round((right / total) * 100) : 0;
     return (
-      <div className="n3-finish">
+      <div ref={scope} className="n3-finish">
         <HunterTutor guide={mode === 'exam' ? 'netero' : 'gon'} scene={mode === 'exam' ? 'exam' : 'island'} mood={pct >= 70 ? 'celebrate' : 'encourage'} title="수련 결과" line={wrong.length ? `${total}문제 중 ${right}문제를 맞혔어요. 아래에 남은 오답과 해설을 다시 확인해 봐요.` : `${right} / ${total}문제를 확인했어요. 다음 수련으로 이어가 봐요.`} compact />
         <div className="card n3-score" data-right={right} data-total={total}>
           <b>{right} / {total}</b>
@@ -105,15 +117,15 @@ export default function QuizRunner({
   }
 
   const ok = picked !== null && picked === q.answer;
-  const options = q.type === 'order' ? pieces : q.options;
 
   return (
-    <div className="n3-quiz" data-qid={q.id} data-type={q.type || 'choice'}>
+    <div ref={scope} className="n3-quiz" data-qid={q.id} data-type={q.type || 'choice'}>
       <div className="sub-header inline n3-qhead">
         {onQuit && <button className="sub-back" onClick={onQuit}><IconArrowLeft /> 그만</button>}
         <div className="swl-bar"><i style={{ width: `${(at / total) * 100}%` }} /></div>
         <span className="swl-count">{at + 1} / {total}</span>
       </div>
+      <KeyboardHelp />
       {title && <div className="n3-qtitle">{title}</div>}
       {at === 0 && <HunterTutor guide={mode === 'exam' ? 'hisoka' : 'hanzo'} scene="exam" title={mode === 'exam' ? '실전 도전' : '집중 퀴즈'} line={mode === 'exam' ? '이번에는 스스로 풀어 보자. 해설은 시험을 마친 뒤에 확인할 수 있어.' : '먼저 스스로 답을 골라 봐. 고른 뒤에 이유를 함께 살펴보자.'} compact />}
 
@@ -161,8 +173,9 @@ export default function QuizRunner({
         })}
       </div>
 
-      {picked !== null && mode !== 'exam' && (
+      {picked !== null && (mode !== 'exam' || keyboard) && (
         <div className={`swl-feedback n3-fb ${ok ? 'ok' : 'no'}`}>
+          {mode !== 'exam' && <>
           <div className="swl-fhead">{ok ? <><IconCheck /> 정답!</> : <><IconX /> 틀렸어요</>}</div>
           <HunterTutor guide={ok ? 'gon' : 'killua'} scene={ok ? 'island' : 'arena'} mood={ok ? 'celebrate' : 'encourage'} title={ok ? '정답 확인' : '고른 답과 비교하기'} line={ok ? '맞았어! 해설까지 확인하고 다음으로 가자.' : '방금 고른 보기와 정답을 비교해 보자. 차이는 아래 해설에서 확인할 수 있어.'} compact>
           <div className="swl-fbody">
@@ -172,11 +185,12 @@ export default function QuizRunner({
             {q.speakAfter && <JpSpeak text={q.speakAfter} rate={rate} id={`answer:${q.id}`} label="정답 발음 듣기" className="n3-answer-spk" />}
           </div>
           </HunterTutor>
+          </>}
           <button className="submit-btn n3-next" onClick={() => advance()} style={{ marginTop: 10 }}>
             {at + 1 >= total ? lastLabel : '다음'}
           </button>
           {/* 정답은 아는데 다른 보기가 궁금할 때 — 보기마다 읽기 · 뜻 · 듣기. 「다음」 아래에 둔다. */}
-          {q.type !== 'order' && (
+          {mode !== 'exam' && q.type !== 'order' && (
             <OptionReview
               idPrefix={`n3:${q.id}`}
               rate={rate}

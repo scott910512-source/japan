@@ -34,7 +34,7 @@ export default function N3Exam({ rate, onAnswer, onFinish, onQuit, n3, mistakes 
     return (
       <div className="n3-exam" data-sec="moji">
         {head(EXAM_SECTIONS[0].title)}
-        <QuizRunner key="moji" questions={exam.moji} rate={rate} autoSpeak={false} mode="exam" hideFinish onAnswer={onAnswer} onFinish={(r) => { add('moji', r); setSec(1); }} />
+        <QuizRunner onQuit={onQuit} key="moji" questions={exam.moji} rate={rate} autoSpeak={false} mode="exam" hideFinish onAnswer={onAnswer} onFinish={(r) => { add('moji', r); setSec(1); }} />
       </div>
     );
   }
@@ -42,7 +42,7 @@ export default function N3Exam({ rate, onAnswer, onFinish, onQuit, n3, mistakes 
     return (
       <div className="n3-exam" data-sec="bunpo">
         {head(EXAM_SECTIONS[1].title)}
-        <QuizRunner key="bunpo" questions={exam.bunpo} rate={rate} autoSpeak={false} mode="exam" hideFinish onAnswer={onAnswer} onFinish={(r) => { add('bunpo', r); setSec(2); setSub(0); }} />
+        <QuizRunner onQuit={onQuit} key="bunpo" questions={exam.bunpo} rate={rate} autoSpeak={false} mode="exam" hideFinish onAnswer={onAnswer} onFinish={(r) => { add('bunpo', r); setSec(2); setSub(0); }} />
       </div>
     );
   }

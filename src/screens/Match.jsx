@@ -5,6 +5,8 @@ import { speakJapanese } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows } from '../lib/optionInfo.js';
+
+import { useHotkeys } from '../lib/useHotkeys.js';
 import {
   MODE, MODE_HINT, MODE_LABEL, PAIRS, buildBoard, scoreOf, verdictOf,
 } from '../lib/match.js';
@@ -110,6 +112,16 @@ export default function Match({ cards, review, settings, onToast }) {
     after(proceed, 500);
   };
 
+  useHotkeys(!mode ? { 1: () => start(MODE.TEXT), 2: () => start(MODE.SOUND), Enter: () => start(MODE.TEXT) }
+    : done ? { Enter: () => setMode(null), Escape: () => setMode(null) } : {
+      ...Object.fromEntries(Array.from({ length: PAIRS }, (_, i) => [i + 1, () => {
+        const id = (picked ? board.right : board.left)[i];
+        if (id) { if (picked) tapRight(id); else tapLeft(id); }
+      }])),
+      Space: () => { if (picked && board.mode === MODE.SOUND) say(pairOf(picked).kana); },
+      ArrowLeft: () => setPicked(null), Escape: () => setMode(null),
+    });
+
   // ── 무엇을 할지 고르기 ──
   if (!mode) {
     return (
@@ -162,9 +174,10 @@ export default function Match({ cards, review, settings, onToast }) {
         <div className="qh-score">{misses}번 틀림</div>
       </div>
 
+      <p className="set-note">숫자 1–5로 왼쪽을 고른 뒤, 다시 1–5로 오른쪽 짝을 골라요. ← 선택 취소 · Space 소리 다시 듣기 · Esc 그만하기</p>
       <div className="mt-board">
         <div className="mt-col">
-          {board.left.map((id) => {
+          {board.left.map((id, i) => {
             const p = pairOf(id);
             const gone = matched.includes(id);
             return (
@@ -183,6 +196,7 @@ export default function Match({ cards, review, settings, onToast }) {
                     {settings.hangulPron && <i>{kanaToHangul(p.kana)}</i>}
                   </>
                 )}
+                <kbd className="inline-key">{i + 1}</kbd>
                 {gone && <span className="mt-ok"><IconCheck /></span>}
               </button>
             );
@@ -190,7 +204,7 @@ export default function Match({ cards, review, settings, onToast }) {
         </div>
 
         <div className="mt-col">
-          {board.right.map((id) => {
+          {board.right.map((id, i) => {
             const p = pairOf(id);
             const gone = matched.includes(id);
             return (
@@ -201,6 +215,7 @@ export default function Match({ cards, review, settings, onToast }) {
                 onClick={() => tapRight(id)}
               >
                 {board.mode === MODE.SOUND ? <b>{p.jp}</b> : <b className="mt-ko">{p.mean}</b>}
+                <kbd className="inline-key">{i + 1}</kbd>
                 {gone && <span className="mt-ok"><IconCheck /></span>}
               </button>
             );

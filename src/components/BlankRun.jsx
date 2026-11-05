@@ -4,7 +4,8 @@ import { speakJapanese } from '../lib/tts.js';
 import OptionReview, { useReviewOpen } from './OptionReview.jsx';
 import { reviewRows, textInfo } from '../lib/optionInfo.js';
 import { kanaToHangul } from '../lib/hangul.js';
-import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
+import { useQuizHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
+import KeyboardHelp from './KeyboardHelp.jsx';
 import {
   BLANK, filled, filledKana, retryOf, scoreOf, splitBlank,
 } from '../lib/blank.js';
@@ -73,15 +74,22 @@ export default function BlankRun({
 
   };
 
+  const { keyboard } = useQuizHotkeys({
+    options: !done && !picked ? item?.options : [], onChoose: pick,
+    onNext: () => { if (picked && !done) next(); },
+    onSpeak: () => { if (item && picked && !done) speakJapanese(item.kana.replace(BLANK, item.answer), settings.speechRate); },
+    onQuit,
+  });
+
   /* 맞히면 넘어가고, 틀리면 설명을 읽을 시간을 준다. 보기 상세를 펼쳐 둔 때는 직접 넘긴다. */
   useEffect(() => {
-    if (!picked?.good || holdForReview) return undefined;
+    if (!picked?.good || holdForReview || keyboard) return undefined;
     timer.current = setTimeout(() => {
       setPicked(null);
       if (at + 1 >= items.length) setDone(true); else setAt(at + 1);
     }, FEEDBACK_MS);
     return () => clearTimeout(timer.current);
-  }, [picked, holdForReview, at, items.length]);
+  }, [picked, holdForReview, keyboard, at, items.length]);
 
   const next = () => {
     clearTimeout(timer.current);
@@ -89,14 +97,7 @@ export default function BlankRun({
     if (at + 1 >= items.length) setDone(true); else setAt(at + 1);
   };
 
-  useHotkeys(done ? { Escape: onQuit } : {
-    1: () => item && pick(item.options[0]),
-    2: () => item && pick(item.options[1]),
-    3: () => item && pick(item.options[2]),
-    Enter: () => { if (picked && (!picked.good || holdForReview)) next(); },
-    ' ': () => item && speakJapanese(item.kana.replace(BLANK, item.answer), settings.speechRate),
-    Escape: onQuit,
-  });
+
 
   const wrong = useMemo(
     () => items.filter((it) => answers[it.id] && !answers[it.id].good),
@@ -149,6 +150,7 @@ export default function BlankRun({
 
   return (
     <>
+      <KeyboardHelp />
       <div className="quizhead">
         <div className="qh-row">
           <button className="sh-close" onClick={onQuit} aria-label="그만두기"><IconArrowLeft /></button>
@@ -201,7 +203,7 @@ export default function BlankRun({
       </div>
 
       {/* ★ 왜 틀렸는지가 이 화면의 전부다 ★ */}
-      {showAnswer && (
+            {showAnswer && (
         <div className="av-why">
           {item.why?.[picked.opt] && (
             <p className="av-wrong"><IconX /> {item.why[picked.opt]}</p>
@@ -216,7 +218,7 @@ export default function BlankRun({
         </div>
       )}
 
-      {picked?.good && holdForReview && (
+      {picked?.good && (holdForReview || keyboard) && (
         <div className="av-why">
           <button className="submit-btn" onClick={next}>
             {at + 1 >= items.length ? '결과 보기' : '다음'}

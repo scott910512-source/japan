@@ -4,6 +4,8 @@ import SpeakButton from '../components/SpeakButton.jsx';
 import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows } from '../lib/optionInfo.js';
 import HunterTutor from '../components/HunterTutor.jsx';
+import KeyboardHelp from '../components/KeyboardHelp.jsx';
+import { useQuizHotkeys } from '../lib/useHotkeys.js';
 import { conversationTutor } from '../data/hunterTutors.js';
 import { readingText, speakIn } from '../lib/tts.js';
 import { buildExercises, starsFor } from '../lib/travelCourse.js';
@@ -49,6 +51,13 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
 
   const ex = queue[at];
   const done = at >= queue.length;
+  useQuizHotkeys({
+    options: !done && !checked ? ex?.options : [],
+    onChoose: (opt) => { setPick(opt.id); check(opt.id); },
+    onNext: () => { if (checked) next(); else if (pick) check(); },
+    onSpeak: () => { if (ex && (checked || ex.type !== 'say')) speakIn(say(ex.item), JA, rate, { id: `key:${at}` }); },
+    onQuit, enabled: !done && Boolean(ex),
+  });
 
   /* 듣는 문제는 들어오면 읽어 준다 — 그게 문제 자체다 */
   useEffect(() => {
@@ -93,9 +102,9 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
   }
   if (!ex) return null;
 
-  const check = () => {
+  const check = (chosen = pick) => {
     if (checked) return;
-    const good = pick === ex.answerId;
+    const good = chosen === ex.answerId;
     setChecked(good ? 'ok' : 'no');
     if (good && peek && !ex.again) setQueue((q) => [...q, { ...ex, again: true }]);   // 글자를 봤으니 한 번 더 — 복사본은 다시 안 붙인다
     if (good) {
@@ -121,6 +130,7 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
         <div className="swl-count">{Math.min(at + 1, queue.length)} / {queue.length}</div>
       </div>
 
+      <KeyboardHelp />
       <div className="swl-ask">
         <span className={`tr-who ${ex.item.who}`}>{staff ? '직원' : '나'}</span>
         {ex.type === 'hear' && (mode === 'drill' ? ' 숫자를 잡아 보세요 — 소리만 듣고' : ' 뭐라고 했을까요? — 소리만 듣고')}
@@ -181,7 +191,7 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
 
       {!checked ? (
         <div className="btnrow" style={{ marginTop: 14 }}>
-          <button className="submit-btn swl-check" disabled={!pick} onClick={check}>확인</button>
+          <button className="submit-btn swl-check" disabled={!pick} onClick={() => check()}>확인</button>
         </div>
       ) : (
         <div className={`swl-feedback ${checked}`}>
