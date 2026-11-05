@@ -11,8 +11,8 @@ import {
   FORM, buildDrill, buildCheckpoint, reask, passed, masteryOf, MASTERY_LABEL,
   scoreForHints, gradeOf, expFor, levelOf, levelProgress, verdictsFrom, PASS, choiceInfo,
 } from '../lib/rpg.js';
-import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows, speakText } from '../lib/optionInfo.js';
+import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows, rowOf, speakText } from '../lib/optionInfo.js';
 
 /* 실전 연습.
  *
@@ -149,7 +149,7 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
 
   /* 답을 낸 뒤 다음으로 가는 일. 보기 상세를 펼쳐 둔 때는 「다음」을 눌러야 가고,
      접어 두면 예전처럼 잠깐 뒤 저절로 간다. */
-  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const [reviewOpen] = useReviewOpen();
   const [waiting, setWaiting] = useState(false);
   const schedule = (fn, ms) => {
     pending.current = fn;
@@ -416,6 +416,11 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
       );
     }
 
+    /* 답을 낸 뒤 보기 줄 오른쪽에 붙일 읽기·뜻 */
+    const askRows = answered ? reviewRows(q.options, q.options.map((o) => o.info), {
+      isCorrect: (i) => (q.form === FORM.REPLY ? q.options[i].ok : q.options[i].id === q.answerId),
+      isMine: (i) => answered.id === q.options[i].id,
+    }) : [];
     return (
       <div className="rp">
         <Head
@@ -450,30 +455,23 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
               else cls += ' dim';
             }
             return (
-              <button key={o.id} className={cls} disabled={Boolean(answered)} onClick={() => pick(o)}>
+              <OptWrap key={o.id} row={rowOf(askRows, i)} label={o.text} show={Boolean(answered)} rate={settings.speechRate} id={`rp:${q.key}:${i}`}>
+              {(aside) => (
+              <button className={cls} disabled={Boolean(answered)} onClick={() => pick(o)}>
                 {hasKeyboard && <span className="qo-num"><kbd>{i + 1}</kbd></span>}
                 <span className="qo-body"><b>{o.text}</b></span>
+                {aside}
                 {answered && mine && (answered.good
                   ? <span className="qo-mark ok"><IconCheck /> 통했다</span>
                   : <span className="qo-mark no"><IconX /> 다시 생각해 보자</span>)}
               </button>
+              )}
+              </OptWrap>
             );
           })}
         </div>
         {answered && !answered.good && answered.why && <p className="rp-why">{answered.why}</p>}
         {waiting && <button className="submit-btn rp-next" onClick={goNext}>다음</button>}
-        {answered && (
-          <OptionReview
-            idPrefix={`rp:${q.key}`}
-            rate={settings.speechRate}
-            open={reviewOpen}
-            onOpenChange={setReviewOpen}
-            rows={reviewRows(q.options, q.options.map((o) => o.info), {
-              isCorrect: (i) => (q.form === FORM.REPLY ? q.options[i].ok : q.options[i].id === q.answerId),
-              isMine: (i) => answered.id === q.options[i].id,
-            })}
-          />
-        )}
       </div>
     );
   }
@@ -495,6 +493,10 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
     }
     if (!sc) return null;   // 정산 중 — 위 effect가 한 프레임 뒤에 결과를 넣는다
 
+    const scRows = answered ? reviewRows(sc.choices, sc.choices.map(choiceInfo), {
+      isCorrect: (i) => sc.choices[i].ok,
+      isMine: (i) => answered.id === sc.choices[i].jp,
+    }) : [];
     return (
       <div className="rp live">
         <div className="rp-livehead">
@@ -532,13 +534,18 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
               else cls += ' dim';
             }
             return (
-              <button key={c.jp} className={cls} disabled={Boolean(answered)} onClick={() => answer(c)}>
+              <OptWrap key={c.jp} row={rowOf(scRows, i)} label={c.jp} show={Boolean(answered)} rate={settings.speechRate} id={`rp:${sc.id}:${i}`}>
+              {(aside) => (
+              <button className={cls} disabled={Boolean(answered)} onClick={() => answer(c)}>
                 {hasKeyboard && <span className="qo-num"><kbd>{i + 1}</kbd></span>}
                 <span className="qo-body"><b>{c.jp}</b></span>
+                {aside}
                 {answered && mine && (c.ok
                   ? <span className="qo-mark ok"><IconCheck /> 통했다</span>
                   : <span className="qo-mark no"><IconX /> 다시 생각해 보자</span>)}
               </button>
+              )}
+              </OptWrap>
             );
           })}
         </div>
@@ -555,18 +562,6 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
           </p>
         )}
         {waiting && <button className="submit-btn rp-next" onClick={goNext}>다음</button>}
-        {answered && (
-          <OptionReview
-            idPrefix={`rp:${sc.id}`}
-            rate={settings.speechRate}
-            open={reviewOpen}
-            onOpenChange={setReviewOpen}
-            rows={reviewRows(sc.choices, sc.choices.map(choiceInfo), {
-              isCorrect: (i) => sc.choices[i].ok,
-              isMine: (i) => answered.id === sc.choices[i].jp,
-            })}
-          />
-        )}
       </div>
     );
   }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconCheck, IconSpeaker, IconX } from '../components/Icons.jsx';
-import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows, speakText } from '../lib/optionInfo.js';
+import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows, rowOf, speakText } from '../lib/optionInfo.js';
 import BuildQuiz from '../components/BuildQuiz.jsx';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { useQuizHotkeys, shortcutEvent } from '../lib/useHotkeys.js';
@@ -123,7 +123,7 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
   const item = byId.get(curId);
   const options = useMemo(() => (item ? [...item.options].sort(() => Math.random() - 0.5) : []), [item]);
   /* 답을 낸 뒤 보기마다 읽기 · 듣기. 펼쳐 두면 맞혀도 직접 넘긴다. */
-  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const [reviewOpen] = useReviewOpen();
   const optRows = useMemo(() => (picked != null && item
     ? reviewRows(options, null, { isCorrect: (i) => options[i] === item.answer, isMine: (i) => options[i] === picked })
     : []), [picked, item, options]);
@@ -172,10 +172,15 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
           let cls = 'qopt cmp-opt';
           if (done) cls += o === item.answer ? ' correct' : o === picked ? ' wrong' : ' dim';
           return (
-            <button key={o} className={cls} disabled={done} onClick={() => choose(o)}>
+            <OptWrap key={o} row={rowOf(optRows, i)} label={o} show={done} rate={settings?.speechRate} id={`cmp:${item.id}:${i}`}>
+            {(aside) => (
+            <button className={cls} disabled={done} onClick={() => choose(o)}>
               <span className="qo-num">{i + 1}</span><span className="qo-body"><b lang="ja">{o}</b>{done && o !== item.answer && item.why?.[o] && <span className="qo-why">{item.why[o]}</span>}</span>
+              {aside}
               {done && o === item.answer && <span className="qo-mark ok"><IconCheck /></span>}
             </button>
+            )}
+            </OptWrap>
           );
         })}
       </div>
@@ -186,7 +191,6 @@ function BlankMode({ onActivity, settings, progress, onAttempt }) {
             <div className="qv-ex"><span>{item.note}</span></div>
           </div>
           {(picked !== item.answer || holdForReview || keyboard) && <div className="qnext"><button className="submit-btn cmp-next" onClick={advance}>다음 문제</button></div>}
-          <OptionReview idPrefix={`cmp:${item.id}`} rate={settings?.speechRate} rows={optRows} open={reviewOpen} onOpenChange={setReviewOpen} />
         </>
       )}
     </div>

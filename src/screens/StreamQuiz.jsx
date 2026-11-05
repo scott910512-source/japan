@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
-import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows, speakText, textInfo } from '../lib/optionInfo.js';
+import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows, rowOf, speakText, textInfo } from '../lib/optionInfo.js';
 import { useHasKeyboard } from '../lib/useHotkeys.js';
 import { markBusy } from '../lib/busy.js';
 import { goalOf, n3Included } from '../lib/goal.js';
@@ -62,7 +62,7 @@ export default function StreamQuiz({
   useEffect(() => () => clearTimeout(timer.current), []);
 
   /* 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기. 펼쳐 두면 맞혀도 자동으로 넘기지 않는다. */
-  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const [reviewOpen] = useReviewOpen();
   const curQ = cur?.q;
   const optRows = useMemo(() => (answered && curQ && curQ.mode === 'choice' && curQ.options?.length
     ? reviewRows(curQ.options, curQ.options.map((o) => o.info), {
@@ -278,15 +278,21 @@ export default function StreamQuiz({
               else cls += ' dim';
             }
             return (
-              <button key={`${o.key}-${i}`} className={cls} disabled={Boolean(answered)} onClick={() => answer(o.key)}>
+              <OptWrap key={`${o.key}-${i}`} row={rowOf(optRows, i)} label={`${o.label} ${o.sub || ''}`} show={Boolean(answered)}
+                rate={settings?.speechRate} id={`st:${q.id}:${i}`}>
+              {(aside) => (
+              <button className={cls} disabled={Boolean(answered)} onClick={() => answer(o.key)}>
                 <span className="qo-num">{hasKeyboard ? <kbd>{i + 1}</kbd> : i + 1}</span>
                 <span className="qo-body">
                   <b lang={q.promptJp ? 'ko' : 'ja'}>{o.label}</b>
                   {answered && o.sub && <span>{o.sub}</span>}
                   {answered && q.why?.[o.key] && o.key !== q.correct && <span className="qo-why">{q.why[o.key]}</span>}
                 </span>
+                {aside}
                 {answered && o.key === q.correct && <span className="qo-mark ok"><IconCheck /></span>}
               </button>
+              )}
+              </OptWrap>
             );
           })}
         </div>
@@ -337,10 +343,6 @@ export default function StreamQuiz({
         </>
       )}
 
-      {/* 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기. 「다음 문제」 아래에 둔다(위에 두면 버튼이 밀려난다). */}
-      {answered && !isTyping && (
-        <OptionReview idPrefix={`st:${q.id}`} rate={settings?.speechRate} rows={optRows} open={reviewOpen} onOpenChange={setReviewOpen} />
-      )}
     </div>
   );
 }

@@ -6,8 +6,8 @@ import {
 import { kanaToHangul } from '../lib/hangul.js';
 import { speakJapanese } from '../lib/tts.js';
 import { IconCheck, IconX, IconSpeaker, IconArrowLeft } from '../components/Icons.jsx';
-import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows } from '../lib/optionInfo.js';
+import { OptWrap } from '../components/OptionReview.jsx';
+import { reviewRows, rowOf } from '../lib/optionInfo.js';
 
 const GROUPS = ['1', '2', '3'];
 const COUNTS = [10, 20, 30];
@@ -71,8 +71,6 @@ export default function Conjugate({ words, progress, onProgress, settings, onToa
   const [count, setCount] = useState(10);
   const [run, setRun] = useState(null); // { list, at, right, answers: {id: 고른답} }
   const [look, setLook] = useState(null); // 활용표만 펼쳐 보기
-  const [reviewOpen, setReviewOpen] = useReviewOpen();
-
   const rate = settings.speechRate || 1;
 
   /* 활용은 동사만 된다. 그리고 N5부터 다 외우는 게 목표라 레벨 순으로 둔다 —
@@ -121,6 +119,8 @@ export default function Conjugate({ words, progress, onProgress, settings, onToa
     const picked = run.answers[q.id];
     const done = run.at >= run.list.length - 1 && picked;
     const pct = Math.round((run.at / run.list.length) * 100);
+    /* 답을 고른 뒤 보기 줄 오른쪽에 붙일 읽기 · 뜻(무슨 모양인지) */
+    const cjRows = picked ? reviewRows(q.choices, choiceInfos(q), { isCorrect: (i) => q.choices[i] === q.answer.jp, isMine: (i) => picked === q.choices[i] }) : [];
 
     return (
       <div className="cj">
@@ -159,12 +159,17 @@ export default function Conjugate({ words, progress, onProgress, settings, onToa
               else cls += ' dim';
             }
             return (
-              <button key={c} className={cls} disabled={Boolean(picked)} onClick={() => answer(q, c)}>
+              <OptWrap key={c} row={rowOf(cjRows, i)} label={c} show={Boolean(picked)} rate={rate} id={`cj:${q.id}:${i}`}>
+              {(aside) => (
+              <button className={cls} disabled={Boolean(picked)} onClick={() => answer(q, c)}>
                 <span className="qo-num">{i + 1}</span>
                 <span className="qo-body"><b>{c}</b></span>
+                {aside}
                 {picked && isAnswer && <span className="qo-mark ok"><IconCheck /> 정답</span>}
                 {picked && isMine && !isAnswer && <span className="qo-mark no"><IconX /> 내가 고른 답</span>}
               </button>
+              )}
+              </OptWrap>
             );
           })}
         </div>
@@ -172,14 +177,6 @@ export default function Conjugate({ words, progress, onProgress, settings, onToa
         {/* 답을 고른 뒤 기본 8형을 같은 시제끼리 비교한다. */}
         {picked && (
           <>
-            {/* 보기마다 읽기 · 뜻(무슨 모양인지) · 듣기 */}
-            <OptionReview
-              idPrefix={`cj:${q.id}`}
-              rate={rate}
-              open={reviewOpen}
-              onOpenChange={setReviewOpen}
-              rows={reviewRows(q.choices, choiceInfos(q), { isCorrect: (i) => q.choices[i] === q.answer.jp, isMine: (i) => picked === q.choices[i] })}
-            />
             <div className="section-label">{q.forms.dict.jp} 활용</div>
             <TableRows forms={q.forms} keys={['dict', ...keys]} rate={rate} mark={q.formKey} />
             {done ? (

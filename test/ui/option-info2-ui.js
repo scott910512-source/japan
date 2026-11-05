@@ -74,17 +74,15 @@ async function boot(browser, settings = {}, init = null, review = null) {
     await openMenu(page, '부사 연습');
     await page.locator('.av-set').first().click();
     await page.waitForTimeout(500);
-    ok('답을 내기 전에는 패널이 없다', await page.locator('.optrev').count() === 0);
+    ok('답을 내기 전에는 오른쪽 읽기·뜻이 없다', await page.locator('.optwrap .optaside, .optwrap .optspks').count() === 0);
     const n = await page.locator('.qopt').count();
     // 정답을 고른다 — 정답은 고른 뒤에야 알 수 있으니 첫 보기를 눌러 맞으면 홀드를, 틀리면 다음 버튼을 본다
     await page.locator('.qopt').first().click();
     await page.waitForTimeout(500);
-    ok('패널이 나오고 펼쳐져 있다', await page.locator('.optrev').count() === 1 && await page.locator('.optrev').evaluate((e) => e.open));
-    ok('줄 수 = 보기 수, 줄마다 🔊', await page.locator('.optrev-row').count() === n && await page.locator('.optrev-spk').count() === n);
-    ok('★ 부사 보기에 뜻(한국어)이 붙는다 ★', await page.locator('.optrev-ko').count() >= 1, (await page.locator('.optrev-ko').allInnerTexts()).join(' / ').slice(0, 60));
-    ok('정답 줄이 하나', await page.locator('.optrev-row.correct').count() === 1);
+    ok('★ 큰 패널 없이 줄마다 🔊가 붙는다 ★', await page.locator('.optrev').count() === 0 && await page.locator('.optwrap .optspks .spk').count() === n);
+    ok('★ 부사 보기에 뜻(한국어)이 오른쪽에 붙는다 ★', await page.locator('.optaside').count() >= 1, (await page.locator('.optaside').allInnerTexts()).join(' / ').slice(0, 60));
     await page.waitForTimeout(1500);
-    ok('★ 맞혀도 틀려도 저절로 안 넘어간다(같은 문제) ★', await page.locator('.optrev').count() === 1);
+    ok('★ 맞혀도 틀려도 저절로 안 넘어간다(같은 문제) ★', await page.locator('.optwrap .optspks').count() === n);
     await page.close();
   }
 
@@ -98,9 +96,8 @@ async function boot(browser, settings = {}, init = null, review = null) {
     const n = await page.locator('.qoptions .qopt').count();
     await page.locator('.qoptions .qopt').first().click();
     await page.waitForTimeout(400);
-    ok('패널이 나온다', await page.locator('.optrev').count() === 1);
-    ok('줄 수 = 보기 수', await page.locator('.optrev-row').count() === n, `${n}`);
-    const rows = await page.locator('.optrev-row').evaluateAll((els) => els.map((e) => ({ spk: e.querySelectorAll('.optrev-spk').length, ko: e.querySelector('.optrev-ko')?.textContent || '' })));
+    ok('★ 큰 패널 없이 줄마다 오른쪽에 붙는다 ★', await page.locator('.optrev').count() === 0 && await page.locator('.optwrap .optaside').count() >= 1);
+    const rows = await page.locator('.optwrap').evaluateAll((els) => els.map((e) => ({ spk: e.querySelectorAll('.optspks .spk').length, ko: e.querySelector('.optaside')?.textContent || '' })));
     ok('★ 진짜 활용형에는 모양 이름과 🔊 ★', rows.some((r) => r.spk === 1 && r.ko.includes('·')));
     ok('★ 틀린 활용은 소리 없이 「틀린 활용」 ★', rows.every((r) => r.spk === 1 || r.ko.includes('틀린 활용')));
     await page.close();

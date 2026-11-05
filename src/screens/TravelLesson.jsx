@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconArrowLeft, IconRewind, IconCheck } from '../components/Icons.jsx';
 import SpeakButton from '../components/SpeakButton.jsx';
-import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows } from '../lib/optionInfo.js';
+import { OptWrap } from '../components/OptionReview.jsx';
+import { reviewRows, rowOf } from '../lib/optionInfo.js';
 import HunterTutor from '../components/HunterTutor.jsx';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { useQuizHotkeys } from '../lib/useHotkeys.js';
@@ -43,7 +43,6 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
   /* 「글자 보기」 — 소리가 안 나는 기기(일본어 음성이 없거나 소리를 못 켠 자리)에서도 풀리게 한다.
      글자를 본 문제는 틀린 게 아니라서 점수는 그대로고, 대신 뒤에 한 번 더 나와서 귀로 다시 듣는다. */
   const [peek, setPeek] = useState(false);
-  const [reviewOpen, setReviewOpen] = useReviewOpen();
   /* ★ 한 판이 끝나는 순간 한 번 기록한다 ★ — 레슨·약점·숫자 훈련 모두.
      「한 번 더」로 이어 풀어도, 「완료」를 안 누르고 나가도 앞 판이 안 사라진다
      (약점 연습에서 앞 판에 푼 줄이 주머니에 남아 있던 문제). */
@@ -119,6 +118,11 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
   const next = () => { setPick(null); setChecked(null); setPeek(false); setAt((n) => n + 1); };
   const pct = Math.min(100, Math.round((Math.min(at, queue.length) / Math.max(1, queue.length)) * 100));
   const staff = ex.item.who === 'staff';
+  /* 답을 낸 뒤 보기 줄 오른쪽에 붙일 읽기 · 뜻 */
+  const trRows = checked ? reviewRows(ex.options, ex.options.map((o) => ({ jp: o.jp, kana: o.kana && o.kana !== o.jp ? o.kana : '', say: say(o), ko: o.ko })), {
+    isCorrect: (i) => ex.options[i].id === ex.answerId,
+    isMine: (i) => ex.options[i].id === pick,
+  }) : [];
 
   return (
     <>
@@ -178,13 +182,18 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
             ? (isAns ? ' correct' : (pick === opt.id ? ' wrong' : ' dim'))
             : (pick === opt.id ? ' picked' : '');
           return (
-            <button key={opt.id} className={`qopt${cls}`} data-id={opt.id} disabled={Boolean(checked)} onClick={() => setPick(opt.id)}>
+            <OptWrap key={opt.id} row={rowOf(trRows, i)} label={ex.type === 'say' ? `${opt.jp} ${opt.kana || ''}` : opt.ko} show={Boolean(checked)} rate={rate} id={`tr:${at}:${i}`}>
+            {(aside) => (
+            <button className={`qopt${cls}`} data-id={opt.id} disabled={Boolean(checked)} onClick={() => setPick(opt.id)}>
               <span className="qo-num">{i + 1}</span>
               <span className="qo-body">
                 <b lang={ex.type === 'say' ? 'ja' : undefined}>{ex.type === 'say' ? opt.jp : opt.ko}</b>
                 {ex.type === 'say' && <span>{opt.kana}</span>}
               </span>
+              {aside}
             </button>
+            )}
+            </OptWrap>
           );
         })}
       </div>
@@ -211,20 +220,6 @@ export default function TravelLesson({ lessonId, make, mode = 'lesson', rate, on
             <button className="submit-btn swl-next" onClick={next}>계속</button>
           </div>
         </div>
-      )}
-
-      {/* 정답은 아는데 다른 보기가 궁금할 때 — 「계속」 아래에 둔다 */}
-      {checked && (
-        <OptionReview
-          idPrefix={`tr:${at}`}
-          rate={rate}
-          open={reviewOpen}
-          onOpenChange={setReviewOpen}
-          rows={reviewRows(ex.options, ex.options.map((o) => ({ jp: o.jp, kana: o.kana && o.kana !== o.jp ? o.kana : '', say: say(o), ko: o.ko })), {
-            isCorrect: (i) => ex.options[i].id === ex.answerId,
-            isMine: (i) => ex.options[i].id === pick,
-          })}
-        />
       )}
     </>
   );

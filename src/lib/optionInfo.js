@@ -51,5 +51,8 @@ export function reviewRows(options, infos, { isCorrect, isMine } = {}) {
   }).filter((r) => r && (r.jp || r.ko));
 }
 
+/* i번째 보기(0부터)의 줄. reviewRows는 정보가 없는 보기를 빼서 순서가 어긋날 수 있으니 번호(n)로 찾는다. */
+export const rowOf = (rows, i) => (rows || []).find((r) => r.n === i + 1) || null;
+
 /* 소리로 낼 말 — 읽기가 있으면 읽기, 없으면 표기. 한자를 그대로 넘기면 엔진이 제멋대로 읽는다. */
 export const speakText = (row) => (row?.mute ? '' : (clean(row?.say) || clean(row?.kana) || clean(row?.jp)));

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconSpeaker, IconCheck, IconX, IconArrowLeft } from './Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
-import OptionReview, { useReviewOpen } from './OptionReview.jsx';
-import { reviewRows, textInfo, speakText } from '../lib/optionInfo.js';
+import { OptWrap, useReviewOpen } from './OptionReview.jsx';
+import { reviewRows, rowOf, textInfo, speakText } from '../lib/optionInfo.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { useQuizHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import KeyboardHelp from './KeyboardHelp.jsx';
@@ -47,7 +47,7 @@ export default function BlankRun({
 
   /* 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기. 펼쳐 두면 맞혀도 자동으로 넘기지 않는다.
      infoOf(보기)가 낱말 정보를 주면 그걸, 아니면 글자만 보고 나눈다. */
-  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const [reviewOpen] = useReviewOpen();
   const optRows = useMemo(() => (picked && item
     ? reviewRows(item.options, item.options.map((o) => infoOf?.(o) || textInfo(o)), {
       isCorrect: (i) => item.options[i] === item.answer,
@@ -191,14 +191,19 @@ export default function BlankRun({
             else cls += ' dim';
           }
           return (
-            <button key={o} className={cls} disabled={Boolean(picked)} onClick={() => pick(o)}>
+            <OptWrap key={o} row={rowOf(optRows, i)} label={o} show={Boolean(picked)} rate={settings.speechRate} id={`blank:${item.id}:${i}`}>
+            {(aside) => (
+            <button className={cls} disabled={Boolean(picked)} onClick={() => pick(o)}>
               {hasKeyboard && <span className="qo-num"><kbd>{i + 1}</kbd></span>}
               <span className="qo-body"><b>{o}</b></span>
+              {aside}
               {picked && mine && (picked.good
                 ? <span className="qo-mark ok"><IconCheck /> 맞아요</span>
                 : <span className="qo-mark no"><IconX /> 내가 고른 답</span>)}
               {picked && !mine && isAnswer && <span className="qo-mark ok"><IconCheck /> 정답</span>}
             </button>
+            )}
+            </OptWrap>
           );
         })}
       </div>
@@ -227,9 +232,6 @@ export default function BlankRun({
           </button>
         </div>
       )}
-
-      {/* 정답은 아는데 다른 보기가 궁금할 때 — 「다음」 아래에 둔다 */}
-      {picked && <OptionReview idPrefix={`blank:${item.id}`} rate={settings.speechRate} rows={optRows} open={reviewOpen} onOpenChange={setReviewOpen} />}
     </>
   );
 }
