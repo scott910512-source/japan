@@ -172,12 +172,11 @@ async function boot(browser, settings = {}, init = null, review = null) {
         await page.waitForTimeout(400);
         if (!seenChoice) {
           seenChoice = true;
-          ok('독일어 전용 칸이 나온다', await page.locator('.optrev-de').count() === 1);
-          ok('줄 수 = 보기 수', await page.locator('.optrev-de .optrev-row').count() === n, `${n}`);
-          ok('★ 독일어 줄은 lang=de · 뜻이 붙는다 ★', await page.locator('.optrev-de .optrev-row b[lang="de"]').count() === n && await page.locator('.optrev-de .optrev-ko').count() === n);
-          ok('일본어 칸(OptionReview)은 같이 안 뜬다', await page.locator('.optrev:not(.optrev-de)').count() === 0);
+          ok('★ 큰 패널 없이 보기 줄 오른쪽에 붙는다 ★', await page.locator('.optrev').count() === 0 && await page.locator('.swl-optwrap .swl-optside').count() === n, `${n}`);
+          ok('★ 같은 줄: 보기 단추와 오른쪽 말·스피커가 한 칸 안에 있다 ★', await page.evaluate(() => [...document.querySelectorAll('.swl-optwrap')].every((w) => { const b = w.querySelector('.qopt').getBoundingClientRect(); const s = w.querySelector('.swl-optspks .spk').getBoundingClientRect(); return s.top >= b.top && s.bottom <= b.bottom && s.left >= b.left; })));
+          ok('줄마다 스피커가 있다', await page.locator('.swl-optwrap .swl-optspks .spk').count() >= n);
           await page.evaluate(() => { window.__said = []; });
-          await page.locator('.optrev-de .optrev-row .spk').first().click();
+          await page.locator('.swl-optwrap .swl-optspks .spk').first().click();
           await page.waitForTimeout(300);
           const said = await page.evaluate(() => window.__said);
           ok('★ 🔊는 독일어(de-DE)로 읽는다 ★', said.length >= 1 && said[0].lang.startsWith('de'), JSON.stringify(said[0]));

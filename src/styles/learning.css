@@ -469,6 +469,20 @@
 .optrev-body i { font-style: normal; font-size: 13px; color: var(--ink-soft); }
 .optrev-ko { width: 100%; font-size: 13px; }
 .optrev .spk { flex: none; }
+
+/* 독일어 문제: 답을 낸 뒤 보기 줄 오른쪽에 짝이 되는 말(뜻 또는 독일어)과 스피커 */
+.swl-optwrap { position: relative; }
+.swl-optwrap .qopt { padding-right: 14px; }
+.swl-optwrap:has(.swl-optspks) .qopt { padding-right: 56px; }
+.swl-optwrap.has-ch:has(.swl-optspks) .qopt { padding-right: 98px; }
+.swl-optside { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 1px; max-width: 48%; margin-left: auto; min-width: 0; }
+.swl-optside b { font-size: 13px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.swl-optside span { font-size: 11px; color: var(--ink-soft); }
+.swl-optside .swl-optch { color: var(--ink-soft); }
+.swl-optspks { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; }
+.swl-optspks .spk { width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; position: relative; }
+.swl-optspks .spk::after { content: ''; position: absolute; inset: -6px; }
+.swl-optspks .spk svg { width: 15px; height: 15px; }
 .optrev-ch { width: 100%; display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .optrev-ch b { font-size: 14px; }
 

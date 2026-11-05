@@ -228,20 +228,38 @@ export default function SwissLesson({
                 const cls = checked
                   ? (isAns ? ' correct' : (pick === opt.id ? ' wrong' : ' dim'))
                   : (pick === opt.id ? ' picked' : '');
+                const koOpt = ex.type === 'choose-ko';
                 return (
-                  <button
-                    key={opt.id}
-                    className={`qopt${cls}`}
-                    data-id={opt.id}
-                    disabled={Boolean(checked)}
-                    onClick={() => setPick(opt.id)}
-                  >
-                    <span className="qo-num">{i + 1}</span>
-                    <span className="qo-body">
-                      <b lang={ex.type === 'choose-ko' ? undefined : 'de'}>{ex.type === 'choose-ko' ? opt.ko : opt.de}</b>
-                      {ex.type !== 'choose-ko' && opt.han && <span>{opt.han}</span>}
-                    </span>
-                  </button>
+                  <div key={opt.id} className={`swl-optwrap${checked && opt.ch ? ' has-ch' : ''}`}>
+                    <button
+                      className={`qopt${cls}`}
+                      data-id={opt.id}
+                      disabled={Boolean(checked)}
+                      onClick={() => setPick(opt.id)}
+                    >
+                      <span className="qo-num">{i + 1}</span>
+                      <span className="qo-body">
+                        <b lang={koOpt ? undefined : 'de'}>{koOpt ? opt.ko : opt.de}</b>
+                        {!koOpt && opt.han && <span>{opt.han}</span>}
+                      </span>
+                      {/* ★ 답을 낸 뒤 같은 줄 오른쪽에 짝이 되는 말 ★
+                          독일어 보기면 뜻, 뜻 보기면 독일어(+한글 발음). 스피커는 단추 속에 또 단추를 넣을 수 없어서 줄 오른쪽 끝에 따로 둔다. */}
+                      {checked && (
+                        <span className="swl-optside">
+                          {koOpt
+                            ? <><b lang="de">{opt.de}</b>{opt.han && <span>{opt.han}</span>}</>
+                            : <b>{opt.ko}</b>}
+                          {opt.ch && <span className="swl-optch"><span aria-hidden="true">🇨🇭</span> <b lang="de-CH">{opt.ch.text}</b></span>}
+                        </span>
+                      )}
+                    </button>
+                    {checked && (
+                      <span className="swl-optspks">
+                        <SpeakButton text={opt.de} lang={DE} rate={rate} id={`swl:${at}:de:${opt.id}`} label="독일어로 듣기" />
+                        {opt.ch && <SpeakButton text={opt.ch.text} lang={CH} rate={rate} id={`swl:${at}:ch:${opt.id}`} label="스위스 표현 듣기" />}
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -282,10 +300,6 @@ export default function SwissLesson({
             </div>
           )}
 
-          {/* 정답은 아는데 다른 보기가 궁금할 때 — 「계속」 아래에 둔다. 독일어는 독일어 음성으로 따로 만든 칸 */}
-          {checked && ex.options && !typing(ex.type) && ex.type !== 'build' && (
-            <SwissOptionReview options={ex.options} answerId={ex.answerId} pickId={pick} rate={rate} idPrefix={`swl:${at}`} />
-          )}
         </>
       )}
     </>
