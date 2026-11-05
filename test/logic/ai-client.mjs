@@ -29,7 +29,7 @@ try {
   };
   try {
     await geminiGenerate({ apiKey: 'GENERATION-KEY', body });
-    assert.match(requests[0].url, /models\/gemini-3\.8-flash:generateContent/); pass++;
+    assert.match(requests[0].url, /models\/gemini-flash-latest:generateContent/); pass++;
     requests.length = 0;
     const result = await geminiGenerate({ apiKey: 'GENERATION-KEY', model: 'models/gemini-2.5-flash', body });
     assert.equal(requests.length, 2); assert.ok(requests[1].url.includes(DEFAULT_GEMINI_MODEL)); pass++;
@@ -43,7 +43,7 @@ try {
     }
     status = 404;
     const missing = await failure(new Response('{}', { status: 404 }), 'Gemini');
-    assert.match(missing.message, /gemini-3\.8-flash.*쓸 수 있는 모델 보기/); pass++;
+    assert.match(missing.message, /gemini-flash-latest.*쓸 수 있는 모델 보기/); pass++;
     globalThis.fetch = async (url) => {
       requests.push({ url });
       return new Response('{}', { status: 404 });

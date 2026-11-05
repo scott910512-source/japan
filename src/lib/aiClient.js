@@ -15,7 +15,9 @@ export const DEFAULT_MODEL = 'claude-sonnet-5';
 /* 제미나이 모델 이름은 자주 바뀐다. 여기 적어 둔 값이 낡으면 404가 나는데,
  * 그때 "왜 안 되지"로 끝나면 안 되니 키로 목록을 직접 받아 고를 수 있게 해 둔다
  * (listGeminiModels). 여기 값은 그 전까지 쓰는 첫 후보일 뿐이다. */
-export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
+/* 가벼운 질문(궁금해요)용 — 설정에서 모델을 따로 안 골랐을 때만 쓴다. 이름 끝의 -latest는 구글이 최신으로 옮겨 주는 별칭이다. */
+export const FAST_GEMINI_MODEL = 'gemini-flash-lite-latest';
 export const PROVIDERS = { CLAUDE: 'claude', GEMINI: 'gemini' };
 
 /* 어느 쪽이 실패했는지 알 수 있게 오류를 그대로 꺼내 준다. "실패했어요"만 뜨면

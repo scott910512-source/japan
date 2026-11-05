@@ -131,6 +131,17 @@ console.log('\n[ 부르기 전에 ]');
   /* 키가 없는데 부르면 네트워크 오류로 뜬다 — 그러면 뭘 고쳐야 할지 모른다 */
   const noKey = await err(() => ask('뭐야?', CARD, {}));
   ok('키가 없으면 어디서 넣는지 알려 준다', noKey.includes('설정'), noKey);
+
+  /* ★ 질문은 가벼운 모델로, 직접 고른 모델은 존중 ★ */
+  const realFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (u) => { urls.push(String(u)); return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ answer: '네', items: [] }) }] } }] }), { status: 200 }); };
+  try {
+    await ask('뭐야?', CARD, { geminiKey: 'AQ.x' });
+    ok('모델을 안 골랐으면 가벼운 lite 별칭으로 묻는다', urls[0].includes('gemini-flash-lite-latest:generateContent'), urls[0]);
+    await ask('다른 건?', CARD, { geminiKey: 'AQ.x', geminiModel: 'gemini-3.5-flash' });
+    ok('직접 고른 모델은 그대로 쓴다', urls[1].includes('gemini-3.5-flash:generateContent'), urls[1]);
+  } finally { globalThis.fetch = realFetch; }
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { geminiGenerate } from '../../lib/aiClient.js';
 import Toggle from './Toggle.jsx';
 import {
-  DEFAULT_GEMINI_MODEL, PROVIDERS, TRANSCRIBE_MINUTES,
+  DEFAULT_GEMINI_MODEL, FAST_GEMINI_MODEL, PROVIDERS, TRANSCRIBE_MINUTES,
   listGeminiModels, recommendModels, resolveProvider,
 } from '../../lib/videoTutor.js';
 
@@ -98,7 +98,7 @@ export default function VideoAI({ settings, onChange, onToast }) {
           <div className="setrow col">
             <div className="set-title">모델</div>
             <div className="set-note">
-              비우면 {DEFAULT_GEMINI_MODEL}를 씁니다. 저장된 2.5 모델을 사용할 수 없으면 새 기본 모델로 다시 연결해요. 다른 모델은 아래 목록에서 고르세요.
+              비우면 추천 모델을 씁니다(문장 첨삭은 {DEFAULT_GEMINI_MODEL}, 궁금해요 질문은 가벼운 {FAST_GEMINI_MODEL}). 저장된 2.5 모델을 사용할 수 없으면 새 기본 모델로 다시 연결해요. 직접 고르면 그 모델을 어디서나 써요.
             </div>
             <input
               type="text"
