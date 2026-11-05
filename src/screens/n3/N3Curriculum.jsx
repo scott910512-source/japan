@@ -36,6 +36,12 @@ export default function N3Curriculum({ n3, review, onOpenLesson, onOpenTest, onB
         <button className="sub-back" onClick={onBack}><IconArrowLeft /> 코스로</button>
         <div className="sub-title">전체 과정</div>
       </div>
+      {/* 학습 탭의 「한자」 칸이 이 화면의 한자 장(ch4)을 바로 연다. 처음 온 사람이 N3 코스인 줄 모르고 들어오니 한 줄로 알려 준다 */}
+      {initialChapter === 'ch4' && (
+        <p className="set-note n3-kanjiguide">
+          여기는 N3 한자 500자 코스예요. 히라가나부터 익히려면 학습 탭의 「완전기초」를 먼저 보세요.
+        </p>
+      )}
       <div className="stack">
         {CURRICULUM.map((c, ci) => {
           const total = c.lessons.length;
