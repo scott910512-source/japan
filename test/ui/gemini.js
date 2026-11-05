@@ -101,6 +101,7 @@ const FAKE = {
   ok('모델 목록을 키로 물어봄', Boolean(listCall));
   ok('Gemini 전용 키를 씀', listCall && listCall.url.includes('AQ.TEST-GEMINI-ONLY') && !listCall.url.includes('AIzaTESTVOICEKEY'));
   ok('글을 만드는 모델만 보여 줌', await page.locator('.modelpick').count() === 1, await page.locator('.modelpick').first().textContent());
+  ok('★ 모델 이름을 손으로 치는 칸이 없다 ★', await page.locator('input[placeholder*="gemini-"]').count() === 0 && await page.locator('.modelnow b').innerText() === '추천(자동)');
   ok('★ 추천에 용도 이름표가 붙고, 전체 목록은 눌러야 나온다 ★', (await page.locator('.modelrec .modeltag').first().innerText()).includes('추천') && await page.locator('.modelall').count() === 1);
   await page.locator('.modelall').click();
   ok('전체 보기를 누르면 목록 전체가 펼쳐진다', await page.locator('.modellist:not(.modelrec) .modelpick').count() === 1);
@@ -108,6 +109,12 @@ const FAKE = {
   await page.waitForTimeout(300);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1')).geminiModel);
   ok('고른 모델이 저장됨', saved === 'gemini-3-flash', saved);
+  ok('고르면 「지금 쓰는 모델」에 보인다', await page.locator('.modelnow b').innerText() === 'gemini-3-flash');
+  await page.locator('.modelreset').click();
+  await page.waitForTimeout(300);
+  ok('★ 추천으로 되돌리면 고른 모델이 비워진다 ★', (await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1')).geminiModel)) === '' && await page.locator('.modelnow b').innerText() === '추천(자동)');
+  await page.locator('.modelpick').first().click();
+  await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Gemini 문장 첨삭 연결 확인', exact: true }).click();
   await page.waitForTimeout(300);
   ok('실제 생성 권한을 확인함', await page.getByRole('status').filter({ hasText: '문장 생성 요청이 연결됐어요' }).count() === 1);

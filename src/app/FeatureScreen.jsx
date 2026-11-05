@@ -45,6 +45,7 @@ export default function FeatureScreen({
   onExit,
   weakQuiz = null,
   weakQuizOn = false,
+  onNextQuest = null,
   onStreamAnswered,
 }) {
   return (<>
@@ -149,6 +150,7 @@ export default function FeatureScreen({
                 /* 약점 퀴즈로 들어왔으면 결과 화면이 오늘 몫을 말한다 */
                 weak={weakQuizOn ? weakQuiz : null}
                 onExit={onExit}
+                onNextQuest={weakQuizOn ? onNextQuest : null}
               />
             )}
             {sub === 'listen' && (

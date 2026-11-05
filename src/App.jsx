@@ -678,6 +678,8 @@ export default function App() {
                 onExit={closeSub}
                 weakQuiz={weakQuiz}
                 weakQuizOn={weakQuizMode}
+                /* 약점 퀴즈를 마치면 오늘 퀘스트의 다음 줄 — 쭉 퀴즈가 남았으면 바로 이어 간다 */
+                onNextQuest={streamQuest && !streamQuest.complete ? startStreamQuest : null}
                 onStreamAnswered={onStreamAnswered}
               />
               )}

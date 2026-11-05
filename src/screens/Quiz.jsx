@@ -50,7 +50,7 @@ const SCOPE_OPTS = [
  * 겨루는 편이, 안 들은 낱말이 보기로 나오는 것보다 낫다. */
 export default function Quiz({
   words, review, settings, onChange, onToast, onRetryWrong, onActivity, onWeakness,
-  fixedWords = null, ledger = null, mistakes = {}, onAttempt, weak = null, onExit,
+  fixedWords = null, ledger = null, mistakes = {}, onAttempt, weak = null, onExit, onNextQuest = null,
 }) {
   const [config, setConfig] = useState({
     count: settings.quizCount ?? 20,
@@ -131,6 +131,7 @@ export default function Quiz({
         onWeakness={onWeakness}
         weak={weak}
         onExit={onExit}
+        onNextQuest={onNextQuest}
       />
     );
   }
@@ -220,7 +221,7 @@ export default function Quiz({
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt, weak, onExit }) {
+function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onNextQuest }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -393,6 +394,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
         onActivity={onActivity}
         weak={weak}
         onExit={onExit}
+        onNextQuest={onNextQuest}
       />
     );
   }
@@ -574,7 +576,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
 
 /* ── 결과 ── */
 
-function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onToast, onActivity, weak, onExit }) {
+function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onToast, onActivity, weak, onExit, onNextQuest }) {
   const result = useMemo(() => gradeQuiz(questions, answers), [questions, answers]);
 
   /* 시험도 회독 진도를 올리지 않는다. 다만 몇 문항 풀었는지는 활동에 남긴다 —
@@ -632,7 +634,15 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
                 : '틀린 낱말은 약점 장부에 남아서 다음에 또 나와요.'}
             </span>
           </div>
-          <button className="submit-btn wk-resultdone" style={{ marginTop: 12 }} onClick={onExit || onQuit}>약점 퀴즈 마치기</button>
+          {/* ★ 오늘 퀘스트의 다음 줄(쭉 퀴즈)이 남았으면 홈으로 돌려보내지 않고 바로 이어 준다 ★ */}
+          {onNextQuest ? (
+            <>
+              <button className="submit-btn wk-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: 쭉 퀴즈로 이어서</button>
+              <button className="ghost-btn wk-resultdone" style={{ marginTop: 8 }} onClick={onExit || onQuit}>약점 퀴즈 마치고 홈으로</button>
+            </>
+          ) : (
+            <button className="submit-btn wk-resultdone" style={{ marginTop: 12 }} onClick={onExit || onQuit}>약점 퀴즈 마치기</button>
+          )}
         </>
       ) : (
         <>

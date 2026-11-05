@@ -79,6 +79,18 @@ const progressOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem
   ok('★ 약점 퀴즈 결과는 오늘 몫을 말한다(일반 시험 문구가 아니다) ★', await page.locator('.wk-result').count() === 1 && (await page.locator('.wk-result').innerText()).includes('오늘 약점 퀴즈'), (await page.locator('.wk-result').innerText().catch(() => '')).replace(/\s+/g, ' '));
   ok('★ 「다음 레벨로」 · 「시험 설정으로」 문구가 없다 ★', !(await page.locator('.subscreen.open').innerText()).includes('다음 레벨로') && !(await page.locator('.subscreen.open').innerText()).includes('시험 설정으로'));
   ok('마치기 버튼이 있다', await page.locator('.wk-resultdone').count() === 1);
+  /* ★ 오늘 쭉 퀴즈가 남았으면 홈으로 돌려보내지 않고 바로 이어 준다 ★ (이 기록은 외운 낱말이 있어 쭉 퀴즈 퀘스트가 열려 있다) */
+  const hasNext = await page.locator('.wk-next').count();
+  if (hasNext) {
+    ok('★ 「다음: 쭉 퀴즈로 이어서」가 첫째 버튼, 홈으로는 둘째 ★', (await page.locator('.wk-next').innerText()).includes('쭉 퀴즈') && (await page.locator('.wk-resultdone').innerText()).includes('홈으로'));
+    await page.locator('.wk-next').click();
+    await page.waitForTimeout(900);
+    ok('★ 누르면 쭉 퀴즈가 열린다 ★', (await page.locator('.subscreen.open .sub-title').innerText().catch(() => '')).includes('쭉'), await page.locator('.subscreen.open .sub-title').innerText().catch(() => ''));
+    await page.goBack().catch(() => {});
+    await page.waitForTimeout(500);
+  } else {
+    ok('쭉 퀴즈 퀘스트가 없으면 「약점 퀴즈 마치기」 하나만', (await page.locator('.wk-resultdone').innerText()).includes('마치기'));
+  }
   const pg = await progressOf(page);
   ok('★ 푼 낱말 다섯이 오늘 몫에 적힌다 ★', pg.weakQuiz && pg.weakQuiz.ids && pg.weakQuiz.ids.length === 5, JSON.stringify(pg.weakQuiz));
 
