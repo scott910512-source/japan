@@ -470,6 +470,18 @@
 .optrev-ko { width: 100%; font-size: 13px; }
 .optrev .spk { flex: none; }
 
+/* 일본어 보기: 답을 낸 뒤 보기 줄 오른쪽에 읽기·뜻과 🔊 (OptWrap) */
+.optwrap { position: relative; }
+.optwrap.has-spk .qopt { padding-right: 56px; }
+.optaside { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 1px; max-width: 46%; margin-left: auto; min-width: 0; }
+.optaside b { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.optaside i { font-style: normal; font-size: 11px; color: var(--ink-soft); }
+.optaside span { font-size: 12px; color: var(--ink-soft); }
+.optspks { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; }
+.optspks .spk { width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; position: relative; }
+.optspks .spk::after { content: ''; position: absolute; inset: -6px; }
+.optspks .spk svg { width: 15px; height: 15px; }
+
 /* 독일어 문제: 답을 낸 뒤 보기 줄 오른쪽에 짝이 되는 말(뜻 또는 독일어)과 스피커 */
 .swl-optwrap { position: relative; }
 .swl-optwrap .qopt { padding-right: 14px; }

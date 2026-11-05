@@ -15,6 +15,33 @@ export function useReviewOpen() {
   return [open, set];
 }
 
+/* ★ 보기 줄에 바로 붙이는 읽기·뜻·듣기 ★
+ *
+ * 아래에 따로 큰 칸을 두지 않는다. 답을 내면 각 보기 줄 오른쪽에, 그 줄이 보여 주지 않는 쪽(보기가 일본어면 뜻, 뜻이면
+ * 일본어·읽기)과 🔊가 붙는다. 소리 단추는 보기 단추 속에 또 단추를 넣을 수 없어서 줄 오른쪽 끝에 따로 얹는다.
+ *
+ *   <OptWrap row={rowOf(rows, i)} label={보기에 이미 보이는 글} show={Boolean(answered)} rate id>
+ *     {(aside) => <button className="qopt">… {aside}</button>}
+ *   </OptWrap>                                                                                */
+export function OptWrap({ row, label = '', rate = 0.9, id, show, children }) {
+  const say = show && row ? speakText(row) : '';
+  const seen = String(label);
+  const parts = show && row
+    ? [['jp', row.jp, 'ja'], ['kana', row.kana, 'ja'], ['ko', row.ko, undefined]].filter(([, t]) => t && !seen.includes(t))
+    : [];
+  const aside = parts.length ? (
+    <span className="optaside">
+      {parts.map(([k, t, lang]) => (k === 'jp' ? <b key={k} lang={lang}>{t}</b> : (k === 'kana' ? <i key={k} lang={lang}>{t}</i> : <span key={k}>{t}</span>)))}
+    </span>
+  ) : null;
+  return (
+    <div className={`optwrap${say ? ' has-spk' : ''}`}>
+      {children(aside)}
+      {say && <span className="optspks"><JpSpeak text={say} rate={rate} id={id} label="보기 듣기" /></span>}
+    </div>
+  );
+}
+
 /* 답을 낸 뒤, 보기마다 일본어 · 읽기 · 뜻 · 🔊를 한 줄씩 보여 주는 접이식 칸.
  * 열고 닫은 것은 기억해 둔다 — 답만 보고 넘기는 사람에게는 접어 둔 채로 둘 수 있게. */
 export default function OptionReview({ rows, open, onOpenChange, rate = 0.9, idPrefix = 'opt' }) {

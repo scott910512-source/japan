@@ -8,8 +8,8 @@ import JpSpeak from './JpSpeak.jsx';
 import HunterTutor from '../../components/HunterTutor.jsx';
 import KeyboardHelp from '../../components/KeyboardHelp.jsx';
 import { useQuizHotkeys } from '../../lib/useHotkeys.js';
-import OptionReview, { useReviewOpen } from '../../components/OptionReview.jsx';
-import { reviewRows, speakText } from '../../lib/optionInfo.js';
+import { OptWrap } from '../../components/OptionReview.jsx';
+import { reviewRows, rowOf, speakText } from '../../lib/optionInfo.js';
 
 /* 문제 풀기 — 코스의 모든 문제가 이 하나를 지난다.
  *
@@ -32,7 +32,6 @@ export default function QuizRunner({
   const [picked, setPicked] = useState(null);
   const [results, setResults] = useState([]);
   const [finished, setFinished] = useState(false);
-  const [reviewOpen, setReviewOpen] = useReviewOpen();
   const q = questions[at];
   const total = questions.length;
 
@@ -121,6 +120,11 @@ export default function QuizRunner({
   }
 
   const ok = picked !== null && picked === q.answer;
+  /* 답을 낸 뒤 보기 줄 오른쪽에 붙일 읽기 · 뜻 (N3 실전 시험·배열 문제는 안 붙인다) */
+  const showInline = mode !== 'exam' && q.type !== 'order';
+  const n3Rows = picked !== null && showInline && q.options
+    ? reviewRows(q.options, q.optionInfo, { isCorrect: (i) => q.options[i] === q.answer, isMine: (i) => q.options[i] === picked })
+    : [];
 
   return (
     <div ref={scope} className="n3-quiz" data-qid={q.id} data-type={q.type || 'choice'}>
@@ -164,15 +168,20 @@ export default function QuizRunner({
           const isAns = opt === q.answer;
           const cls = picked === null ? '' : (isAns ? ' correct' : (opt === picked ? ' wrong' : ' dim'));
           return (
-            <button key={`${opt}-${i}`} className={`qopt${cls}`} data-opt={opt} disabled={picked !== null} onClick={() => choose(opt)}>
+            <OptWrap key={`${opt}-${i}`} row={rowOf(n3Rows, (q.options || []).indexOf(opt))} label={`${opt} ${q.optionSubs?.[i] || ''}`} show={picked !== null && showInline} rate={rate} id={`n3:${q.id}:${i}`}>
+            {(aside) => (
+            <button className={`qopt${cls}`} data-opt={opt} disabled={picked !== null} onClick={() => choose(opt)}>
               <span className="qo-num">{i + 1}</span>
               <span className="qo-body">
                 <b>{opt}</b>
                 {q.optionSubs?.[i] && <span>{q.optionSubs[i]}</span>}
               </span>
+              {aside}
               {picked !== null && isAns && <span className="qo-mark ok"><IconCheck /></span>}
               {picked !== null && opt === picked && !isAns && <span className="qo-mark no"><IconX /></span>}
             </button>
+            )}
+            </OptWrap>
           );
         })}
       </div>
@@ -193,16 +202,6 @@ export default function QuizRunner({
           <button className="submit-btn n3-next" onClick={() => advance()} style={{ marginTop: 10 }}>
             {at + 1 >= total ? lastLabel : '다음'}
           </button>
-          {/* 정답은 아는데 다른 보기가 궁금할 때 — 보기마다 읽기 · 뜻 · 듣기. 「다음」 아래에 둔다. */}
-          {mode !== 'exam' && q.type !== 'order' && (
-            <OptionReview
-              idPrefix={`n3:${q.id}`}
-              rate={rate}
-              open={reviewOpen}
-              onOpenChange={setReviewOpen}
-              rows={reviewRows(q.options, q.optionInfo, { isCorrect: (i) => q.options[i] === q.answer, isMine: (i) => q.options[i] === picked })}
-            />
-          )}
         </div>
       )}
     </div>

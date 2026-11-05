@@ -11,8 +11,8 @@ import {
   QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf,
 } from '../lib/quiz.js';
 import { WEAK_KIND } from '../lib/weak.js';
-import OptionReview, { useReviewOpen } from '../components/OptionReview.jsx';
-import { reviewRows, wordInfo } from '../lib/optionInfo.js';
+import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
+import { reviewRows, rowOf, wordInfo } from '../lib/optionInfo.js';
 
 const COUNTS = [10, 20, 30, 50];
 
@@ -241,7 +241,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
 
   /* 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기. 펼쳐 두면 맞혀도 자동으로 넘기지 않는다 —
      정답은 아는데 다른 보기를 보고 싶어 하는 게 바로 맞힌 때라서. */
-  const [reviewOpen, setReviewOpen] = useReviewOpen();
+  const [reviewOpen] = useReviewOpen();
   const optRows = useMemo(() => (answered && q?.type === QUIZ_TYPE.CHOICE
     ? reviewRows(q.options, q.options.map((o) => wordInfo({ kanji: o.jp, kana: o.jpKana, mean: o.mean })), {
       isCorrect: (i) => q.options[i].wordId === q.wordId,
@@ -459,7 +459,10 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
               else cls += ' dim';
             }
             return (
-              <button key={o.wordId} className={cls} disabled={Boolean(answered)}
+              <OptWrap key={o.wordId} row={rowOf(optRows, i)} label={`${o.label} ${o.sub || ''}`} show={Boolean(answered)}
+                rate={settings.speechRate} id={`qz:${q.id}:${i}`}>
+              {(aside) => (
+              <button className={cls} disabled={Boolean(answered)}
                 onClick={() => answerChoice(o)}>
                 <span className="qo-num">{hasKeyboard ? <kbd>{i + 1}</kbd> : i + 1}</span>
                 <span className="qo-body">
@@ -496,21 +499,15 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
                       )}
                     </span>
                   )}
-                  {/* ★ 내가 고른 틀린 답은 무슨 낱말이었나 ★
-                      「옮기다」를 골랐다는 것만 남으면 다음에 또 고른다. 헷갈린
-                      둘을 나란히 놓고 봐야 갈린다. */}
-                  {answered && isMine && !isAnswer && o.jp && o.jp !== o.label && (
-                    <span className="qo-mine">
-                      <b>{o.jp}</b>
-                      {o.jpKana && o.jpKana !== o.jp && <i>{o.jpKana}</i>}
-                    </span>
-                  )}
                 </span>
+                {aside}
                 {answered && isAnswer && (
                   <span className="qo-mark ok"><IconCheck /> 정답</span>
                 )}
                 {answered && isMine && !isAnswer && <span className="qo-mark no"><IconX /> 내가 고른 답</span>}
               </button>
+              )}
+              </OptWrap>
             );
           })}
         </div>
@@ -565,11 +562,6 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
         </div>
       )}
 
-      {/* ★ 정답은 아는데 다른 보기가 궁금할 때 ★ 답을 낸 뒤 보기마다 읽기 · 뜻 · 듣기.
-          「다음 문제」 버튼 아래에 둔다 — 위에 두면 버튼이 화면 밖으로 밀려난다. */}
-      {answered && q.type === QUIZ_TYPE.CHOICE && (
-        <OptionReview idPrefix={`qz:${q.id}`} rate={settings.speechRate} rows={optRows} open={reviewOpen} onOpenChange={setReviewOpen} />
-      )}
     </>
   );
 }

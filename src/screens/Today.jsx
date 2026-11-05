@@ -194,7 +194,8 @@ export default function Today({
                     <small>{mission.note}</small>
                     <span className="tdq-meter" aria-hidden="true"><i style={{ width: percent + '%' }} /></span>
                   </span>
-                  <span className="tdq-count"><b>{Math.max(0, mission.total - mission.done)}</b><i>개</i></span>
+                  {/* 남은 개수가 아니라 「한 개 / 전체」 — 끝낸 줄이 0개로 보이면 안 한 것처럼 읽힌다 */}
+                  <span className="tdq-count"><b>{Math.min(mission.done, mission.total)}</b><i> / {mission.total}</i></span>
                   <IconChevron className="chev" />
                 </button>
               );

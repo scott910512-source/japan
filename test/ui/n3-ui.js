@@ -72,16 +72,17 @@ async function solve(page, { wrongAt = [], max = 40 } = {}) {
     await page.waitForTimeout(350);
     const next = page.locator('.n3-next');
     if (readingQuestion && await next.count()) ok('채점 후에는 정답 발음을 들을 수 있다', await runner.locator('.n3-answer-spk').count() === 1);
-    /* 답을 낸 뒤에는 보기마다 읽기 · 뜻 · 듣기 줄이 붙는다(어휘·한자는 🔊까지) */
+    /* 답을 낸 뒤에는 보기 줄 오른쪽에 읽기 · 뜻 · 듣기가 붙는다(어휘·한자는 🔊까지) */
     if (await next.count()) {
-      const rows = await page.locator('.optrev-row').count();
-      const spk = await page.locator('.optrev-row .optrev-spk').count();
-      if (rows !== n || (/^(vq|kq):/.test(qid) && spk !== n)) noInfo.push(`${qid} rows=${rows}/${n} spk=${spk}`);
+      const rows = await page.locator('.optwrap .optaside').count();
+      const spk = await page.locator('.optwrap .optspks .spk').count();
+      /* 문법·독해 보기는 이미 일본어가 보기에 보이니 오른쪽엔 🔊만 붙는다. 어휘·한자는 읽기·뜻도 같이 붙는다 */
+      if (spk !== n || (/^(vq|kq):/.test(qid) && rows !== n)) noInfo.push(`${qid} 뜻줄=${rows}/${n} 🔊=${spk}`);
     }
     if (await next.count()) { await next.click(); await page.waitForTimeout(300); }
     else await page.waitForTimeout(300);
   }
-  ok('★ 답을 낸 뒤 모든 보기에 읽기 · 뜻 · 듣기 줄이 붙는다 ★', noInfo.length === 0, noInfo.slice(0, 3).join(' | ') || `${seen.length}문제`);
+  ok('★ 답을 낸 뒤 모든 보기 줄에 읽기 · 뜻 · 듣기가 붙는다 ★', noInfo.length === 0, noInfo.slice(0, 3).join(' | ') || `${seen.length}문제`);
   return seen;
 }
 

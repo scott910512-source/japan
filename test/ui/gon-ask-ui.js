@@ -1,0 +1,114 @@
+/* 곤에게 물어보기(AI) — 어느 화면에서든 우측 하단의 곤 얼굴 단추로 질문 창을 연다. AI는 실제로 안 부르고 가짜 답을 놓는다. */
+import { existsSync } from 'node:fs';
+import { chromium } from 'playwright-core';
+import { goTab } from './_nav.js';
+
+const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
+const LOCAL_CHROME = '/opt/pw-browsers/chromium';
+const CHROME = process.env.CHROMIUM || (existsSync(LOCAL_CHROME) ? LOCAL_CHROME : undefined);
+
+let pass = 0; let fail = 0;
+const ok = (l, c, e) => {
+  if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); }
+};
+
+const ANSWER = {
+  answer: '食べている는 食べる의 진행형이에요. 지금 먹는 중이라는 뜻입니다.',
+  items: [
+    { jp: '食べている', kana: 'たべている', ko: '먹고 있다', note: '지금 먹는 중' },
+    { jp: '食べてる', kana: 'たべてる', ko: '먹고 있어', note: '회화에서 줄인 말' },
+  ],
+};
+
+async function boot(browser, settings = {}) {
+  const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.evaluate((s) => {
+    localStorage.setItem('jp_manabu_signed_in_v1', '1');
+    const cur = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
+    cur.onboarded = true; cur.canReadKana = true; cur.autoTTS = false;
+    Object.assign(cur, s);
+    localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(cur));
+  }, settings);
+  await page.waitForTimeout(900);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  await page.context().setOffline(true);
+  const off = page.locator('.gate-offline');
+  await off.waitFor({ timeout: 8000 }).catch(() => {});
+  if (await off.count()) { await off.click(); await page.waitForTimeout(800); }
+  /* 껍데기가 뜰 때까지 기다린다 — 안 기다리면 느린 기기에서 아직
+     안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
+     제 말로 실패하는 쪽이 읽기 쉽다. */
+  await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
+  return page;
+}
+
+/* AI 자리에 가짜 답을 놓는다. 몇 번 불렸는지도 센다 —
+   같은 걸 두 번 물었을 때 요금이 두 번 나가는지 보려면 그 숫자가 필요하다. */
+async function stubAI(page, body = ANSWER) {
+  const calls = { n: 0 };
+  await page.route('**/generativelanguage.googleapis.com/**', async (route) => {
+    calls.n += 1; calls.last = route.request().postData();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        candidates: [{ content: { parts: [{ text: JSON.stringify(body) }] } }],
+      }),
+    });
+  });
+  return calls;
+}
+
+
+
+(async () => {
+  const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
+  const errors = [];
+  const page = await boot(browser, { geminiKey: 'AQ.test-not-a-real-key' });
+  page.on('pageerror', (e) => errors.push(e.message));
+
+  console.log('\n[ 곤 얼굴 단추 ]');
+  for (const tab of ['오늘', '학습']) {
+    await goTab(page, tab);
+    await page.waitForTimeout(400);
+    ok(`${tab} 화면에도 곤 단추가 있다`, await page.locator('.gonfab').count() === 1);
+  }
+  ok('★ 단추에 「AI」 표시가 있다 ★', (await page.locator('.gonfab .gonfab-ai').innerText()).trim() === 'AI');
+  ok('곤 얼굴 그림이 있다', await page.locator('.gonfab img').count() === 1);
+  const fab = await page.locator('.gonfab').boundingBox();
+  const bar = await page.locator('.tabbar').boundingBox();
+  const vp = page.viewportSize();
+  ok('★ 우측 하단, 탭바 바로 위에 있다 ★', fab && bar && fab.x + fab.width > vp.width * 0.8 && fab.y + fab.height <= bar.y, `${Math.round(fab.x)},${Math.round(fab.y)} / 탭바 ${Math.round(bar.y)}`);
+  ok('손가락으로 누를 크기(40px 이상)', fab.width >= 40 && fab.height >= 40);
+
+  console.log('\n[ 눌러서 묻기 ]');
+  await page.locator('.gonfab').click();
+  await page.waitForTimeout(500);
+  ok('질문 창이 열린다', await page.locator('.sheet.open .asksheet').count() === 1);
+  ok('제목이 「곤에게 물어보기」 + AI 표시', (await page.locator('.asksheet h3').innerText()).includes('곤에게 물어보기') && (await page.locator('.asksheet .ask-aitag').innerText()).trim() === 'AI');
+  ok('카드 없이도 묻는다(카드 칩이 없다)', await page.locator('.ask-chip').count() === 0);
+
+  await page.context().setOffline(false);
+  const calls = await stubAI(page);
+  await page.locator('.asksheet textarea').fill('食べている는 언제 써?');
+  await page.locator('.asksheet .submit-btn').click();
+  await page.waitForTimeout(900);
+  ok('답이 뜬다', (await page.locator('.ask-text').innerText()).includes('진행형'));
+  ok('★ 답은 곤이 알려 준다 ★', (await page.locator('.ask-ans .hunter-tutor').getAttribute('data-guide')) === 'gon');
+  ok('AI가 답한 거라고 적혀 있다', (await page.locator('.ask-warn').innerText()).includes('AI'));
+  ok('한 번 불렀다', calls.n === 1, `${calls.n}번`);
+  ok('카드 정보 없이 질문만 보냈다', !JSON.stringify(calls.last || {}).includes('[지금 보는 카드]'));
+
+  console.log('\n[ 닫기 ]');
+  await page.locator('.sheet.open .sheet-x').click();
+  await page.waitForTimeout(600);
+  ok('✕로 닫힌다', await page.locator('.sheet.open .asksheet').count() === 0);
+  ok('닫으면 곤 단추가 그대로 있다', await page.locator('.gonfab').count() === 1);
+
+  ok('화면 오류 없음', errors.length === 0, errors[0]);
+  await browser.close();
+  console.log(`\n통과 ${pass} / 실패 ${fail}`);
+  process.exit(fail ? 1 : 0);
+})().catch((e) => { console.log('CRASH:', e.message); process.exit(2); });

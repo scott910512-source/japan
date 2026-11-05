@@ -100,7 +100,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
     /* ★ 내가 고른 틀린 답이 무슨 낱말이었나 ★
        「하다」를 골랐다는 것만 남으면 다음에 또 고른다. 헷갈린 둘을 나란히
        놓고 봐야 갈린다 — 틀린 보기 밑에 그 일본어를 적는다. */
-    const mine = page.locator('.qopt.wrong .qo-mine');
+    const mine = page.locator('.optwrap:has(.qopt.wrong) .optaside');   // 보기 줄 오른쪽에 그 낱말의 일본어(읽기)가 붙는다
     ok('★ 틀린 보기에 그 낱말의 일본어가 뜬다 ★', await mine.count() === 1,
       (await mine.innerText().catch(() => '없음')).replace(/\s+/g, ' '));
     ok('일본어가 비어 있지 않다', (await mine.innerText().catch(() => '')).trim().length > 0);

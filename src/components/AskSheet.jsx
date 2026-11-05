@@ -36,6 +36,7 @@ function toCard(item, from) {
 
 export default function AskSheet({
   open, card, settings, history, onHistory, onAddWord, onClose, onToast,
+  guide = null, title = '궁금한 거 물어보기',
 }) {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
@@ -96,7 +97,7 @@ export default function AskSheet({
     <BottomSheet open={open} onClose={onClose} label="궁금한 것 물어보기">
       <div className="asksheet">
         <div className="ask-head">
-          <h3>궁금한 거 물어보기</h3>
+          <h3>{title}{guide && <small className="ask-aitag">AI</small>}</h3>
           {card && (
             <span className="ask-chip">
               {card.kanji || card.kana}
@@ -120,7 +121,7 @@ export default function AskSheet({
             }}
             placeholder={card
               ? `예: ${card.kanji || card.kana}랑 비슷한 말은? / 언제 쓰는 말이야?`
-              : '궁금한 걸 적으세요'}
+              : '예: 〜ている는 언제 써? / ありがとう랑 どうも 차이는?'}
             rows={2}
             disabled={busy}
           />
@@ -137,8 +138,9 @@ export default function AskSheet({
         )}
         {ai.apiKey && !shown && !err && (
           <p className="set-note">
-            지금 보는 카드를 같이 보내니까 「이거 언제 써?」처럼 짧게 물어도 알아들어요.
-            공부하다 옆길로 새는 용이라 답은 짧게 옵니다.
+            {card
+              ? '지금 보는 카드를 같이 보내니까 「이거 언제 써?」처럼 짧게 물어도 알아들어요. 공부하다 옆길로 새는 용이라 답은 짧게 옵니다.'
+              : '일본어 공부하다 궁금한 건 뭐든 물어보세요. 어떤 카드를 보고 있는지는 몰라서, 물어볼 표현을 같이 적어 주세요. 답은 짧게 옵니다.'}
           </p>
         )}
         {err && <p className="ask-err">{err}</p>}
@@ -146,7 +148,7 @@ export default function AskSheet({
         {shown && (
           <div className="ask-ans">
             <div className="ask-q">{shown.q}</div>
-            <HunterTutor guide={questionTutor(shown.q)} scene="city" title="궁금한 표현 설명" line="지금 질문한 내용과 카드의 표현을 함께 살펴봐요." compact>
+            <HunterTutor guide={guide || questionTutor(shown.q)} scene="city" title="궁금한 표현 설명" line="지금 질문한 내용과 카드의 표현을 함께 살펴봐요." compact>
               <p className="ask-text">{shown.answer}</p>
             </HunterTutor>
             {shown.items.map((it) => (

@@ -70,7 +70,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
   });
   await page.waitForTimeout(800);
   ok('시험이 시작됨', await page.locator('.qoptions').count() === 1);
-  ok('★ 답을 내기 전에는 패널이 없다 ★', await page.locator('.optrev').count() === 0);
+  ok('★ 답을 내기 전에는 오른쪽 읽기·뜻이 없다 ★', await page.locator('.optwrap .optaside, .optwrap .optspks').count() === 0);
 
   const idxOf = async () => (await page.locator('.sh-title').first().textContent()).trim();
   let tested = false; let held = false;
@@ -82,30 +82,24 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
     const right = ((await page.locator('.qopt').first().getAttribute('class')) || '').includes('correct');
     if (!tested) {
       tested = true;
-      ok('패널이 나오고 펼쳐져 있다', await page.locator('.optrev').count() === 1 && await page.locator('.optrev').evaluate((e) => e.open));
-      ok('줄 수 = 보기 수', await page.locator('.optrev-row').count() === nOpts, `${nOpts}`);
-      ok('줄마다 일본어 · 읽기 · 뜻 · 🔊', await page.locator('.optrev-row').evaluateAll((rows) => rows.every((r) => r.querySelector('b[lang="ja"]') && r.querySelector('.optrev-ko') && r.querySelector('.optrev-spk'))));
-      ok('정답 줄이 하나', await page.locator('.optrev-row.correct').count() === 1);
-      ok('★ 🔊가 글자 바로 옆(같은 줄)에 붙는다 ★', await page.locator('.optrev-line .optrev-spk').count() === nOpts && await page.locator('.optrev-row > .optrev-spk').count() === 0);
+      ok('★ 아래 큰 패널이 없다 ★', await page.locator('.optrev').count() === 0);
+      ok('줄마다 🔊가 보기 줄 안에 있다', await page.locator('.optwrap .optspks .spk').count() === nOpts, `${nOpts}`);
+      ok('★ 보기마다 일본어 · 읽기 · 뜻이 오른쪽에 붙는다 ★', await page.locator('.optwrap').evaluateAll((ws) => ws.every((w) => (w.querySelector('.optaside')?.textContent || '').trim().length > 0)));
+      ok('★ 같은 줄: 🔊가 보기 단추 높이 안에 있다 ★', await page.locator('.optwrap').evaluateAll((ws) => ws.every((w) => { const b = w.querySelector('.qopt').getBoundingClientRect(); const k = w.querySelector('.optspks .spk').getBoundingClientRect(); return k.top >= b.top - 1 && k.bottom <= b.bottom + 1; })));
       ok('★ 정답 밑에 예문이 나오고 재생 버튼이 예문에 붙는다(맞혔을 때도) ★',
         await page.locator('.qopt.correct .qo-why .qw-jp .qo-replay').count() === 1 && (await page.locator('.qopt.correct .qo-why .qw-jp').innerText()).trim().length > 2);
       ok('정답 표시 옆 따로 떨어진 🔊는 없다', await page.locator('.qo-mark .qo-replay').count() === 0);
       await page.screenshot({ path: process.env.SHOT || '/tmp/optrev.png', fullPage: false });
-      ok('틀렸다면 내 답 줄이 하나', right || await page.locator('.optrev-row.mine').count() === 1);
       const btn = page.locator('.qnext .submit-btn');
       ok('「다음 문제」 버튼이 있다', await btn.count() === 1);
       const box = await btn.boundingBox();
-      const pbox = await page.locator('.optrev').boundingBox();
-      ok('★ 「다음 문제」가 패널 위에 있다 ★', box && pbox && box.y < pbox.y, box ? `${Math.round(box.y)} < ${Math.round(pbox.y)}` : 'none');
       ok('★ 「다음 문제」가 화면 안에 있다 ★', box && box.y + box.height <= 900, box ? `y=${Math.round(box.y + box.height)}` : 'none');
     }
     if (right && !held) {
       held = true;
       await page.waitForTimeout(1800);
-      ok('★ 펼쳐 두면 맞혀도 저절로 안 넘어간다 ★', (await idxOf()) === before, await idxOf());
-      await page.locator('.optrev > summary').click();
-      await page.waitForTimeout(2200);
-      ok('★ 접으면 맞힌 문제는 저절로 넘어간다 ★', (await idxOf()) !== before, `${before} → ${await idxOf()}`);
+      ok('★ 보기 상세가 붙어 있으니 맞혀도 저절로 안 넘어간다 ★', (await idxOf()) === before, await idxOf());
+      if (await page.locator('.qnext .submit-btn').count()) { await page.locator('.qnext .submit-btn').click(); await page.waitForTimeout(500); }
       continue;
     }
     if (await page.locator('.qnext .submit-btn').count()) { await page.locator('.qnext .submit-btn').click(); await page.waitForTimeout(500); }

@@ -83,25 +83,18 @@ async function toChoice(page) {
 
   console.log('\n[ 답을 내기 전엔 보이지 않는다 ]');
   ok('보기가 있는 문제가 나온다', await toChoice(page));
-  ok('★ 답을 내기 전에는 패널이 없다(답이 새지 않는다) ★', await page.locator('.optrev').count() === 0);
+  ok('★ 답을 내기 전에는 오른쪽 읽기·뜻이 없다(답이 새지 않는다) ★', await page.locator('.optwrap .optaside, .optwrap .optspks').count() === 0);
 
-  console.log('\n[ 답을 낸 뒤 ]');
+  console.log('\n[ 답을 낸 뒤 — 보기 줄 오른쪽에 붙는다 ]');
   const nOpts = await page.locator('.st-opt').count();
   await page.locator('.st-opt').first().click();
   await page.waitForTimeout(400);
-  ok('패널이 나온다', await page.locator('.optrev').count() === 1);
-  ok('기본은 펼쳐져 있다', await page.locator('.optrev').evaluate((e) => e.open));
-  ok('줄 수 = 보기 수', await page.locator('.optrev-row').count() === nOpts, `${nOpts}`);
-  ok('줄마다 🔊', await page.locator('.optrev-row .optrev-spk').count() === nOpts);
-  ok('정답 줄이 하나', await page.locator('.optrev-row.correct').count() === 1);
-  ok('★ 보기마다 뜻(또는 일본어)이 붙는다 ★', await page.locator('.optrev-row').evaluateAll((rows) => rows.every((r) => (r.querySelector('.optrev-ko')?.textContent || '').trim() || (r.querySelector('b')?.textContent || '').trim())));
-  ok('일본어 줄은 lang=ja', await page.locator('.optrev-row b[lang="ja"]').count() >= 1);
-  const wrongPicked = await page.locator('.st-opt.wrong').count() > 0;
-  ok('틀린 걸 골랐으면 내 답 줄이 빨갛게', !wrongPicked || await page.locator('.optrev-row.mine').count() === 1);
-  const nextY = await page.locator('.st-next').count() ? (await page.locator('.st-next').boundingBox()).y : null;
-  const panelY = (await page.locator('.optrev').boundingBox()).y;
-  ok('★ 「다음 문제」 버튼이 패널 위에 있다 ★', nextY === null || nextY < panelY, `${nextY} < ${panelY}`);
-  await page.locator('.optrev-spk').first().click().catch(() => {});
+  ok('★ 아래 큰 패널이 없다 ★', await page.locator('.optrev').count() === 0);
+  ok('줄마다 🔊가 보기 줄 안에 있다', await page.locator('.optwrap .optspks .spk').count() === nOpts);
+  ok('★ 보기마다 뜻(또는 일본어)이 오른쪽에 붙는다 ★', await page.locator('.optwrap').evaluateAll((ws) => ws.every((w) => (w.querySelector('.optaside')?.textContent || '').trim())));
+  ok('일본어 글자는 lang=ja', await page.locator('.optaside [lang="ja"], .qo-body [lang="ja"]').count() >= 1);
+  ok('★ 같은 줄: 🔊가 보기 단추 높이 안에 있다 ★', await page.locator('.optwrap').evaluateAll((ws) => ws.every((w) => { const b = w.querySelector('.qopt').getBoundingClientRect(); const k = w.querySelector('.optspks .spk').getBoundingClientRect(); return k.top >= b.top - 1 && k.bottom <= b.bottom + 1; })));
+  await page.locator('.optspks .spk').first().click().catch(() => {});
   await page.waitForTimeout(200);
   ok('🔊을 눌러도 오류가 없다', errors.length === 0, errors[0]);
 
@@ -128,8 +121,7 @@ async function toChoice(page) {
     const idNow = await page.locator('.st-run').getAttribute('data-id');
     await page.keyboard.press('2');
     await page.waitForTimeout(350);
-    ok('★ 2를 누르면 2번 보기를 고른다 ★', await page.locator('.st-opt.correct, .st-opt.wrong').count() >= 1 && await page.locator('.optrev').count() === 1);
-    if (!(await page.locator('.optrev').evaluate((e) => e.open))) { await page.locator('.optrev > summary').click(); await page.waitForTimeout(200); }
+    ok('★ 2를 누르면 2번 보기를 고른다 ★', await page.locator('.st-opt.correct, .st-opt.wrong').count() >= 1 && await page.locator('.optwrap .optspks').count() >= 2);
     await page.keyboard.press('1');            // 답을 낸 뒤라 고르는 게 아니라 1번 보기 듣기
     await page.waitForTimeout(300);
     ok('★ 답을 낸 뒤 1을 눌러도 같은 문제(다시 고르지 않는다) ★', (await page.locator('.st-run').getAttribute('data-id')) === idNow);
