@@ -122,7 +122,7 @@ export default function QuizRunner({
   const ok = picked !== null && picked === q.answer;
   /* 답을 낸 뒤 보기 줄 오른쪽에 붙일 읽기 · 뜻 (N3 실전 시험·배열 문제는 안 붙인다) */
   const showInline = mode !== 'exam' && q.type !== 'order';
-  const n3Rows = picked !== null && showInline
+  const n3Rows = picked !== null && showInline && q.options
     ? reviewRows(q.options, q.optionInfo, { isCorrect: (i) => q.options[i] === q.answer, isMine: (i) => q.options[i] === picked })
     : [];
 
@@ -168,7 +168,7 @@ export default function QuizRunner({
           const isAns = opt === q.answer;
           const cls = picked === null ? '' : (isAns ? ' correct' : (opt === picked ? ' wrong' : ' dim'));
           return (
-            <OptWrap key={`${opt}-${i}`} row={rowOf(n3Rows, q.options.indexOf(opt))} label={`${opt} ${q.optionSubs?.[i] || ''}`} show={picked !== null && showInline} rate={rate} id={`n3:${q.id}:${i}`}>
+            <OptWrap key={`${opt}-${i}`} row={rowOf(n3Rows, (q.options || []).indexOf(opt))} label={`${opt} ${q.optionSubs?.[i] || ''}`} show={picked !== null && showInline} rate={rate} id={`n3:${q.id}:${i}`}>
             {(aside) => (
             <button className={`qopt${cls}`} data-opt={opt} disabled={picked !== null} onClick={() => choose(opt)}>
               <span className="qo-num">{i + 1}</span>
