@@ -101,10 +101,11 @@ async function toChoice(page) {
   console.log('\n[ 펼쳐 두면 맞혀도 직접 넘긴다 ]');
   if (await page.locator('.st-next').count()) { await page.locator('.st-next').click(); await page.waitForTimeout(400); }
   let held = false;
-  for (let i = 0; i < 20 && !held; i++) {
+  for (let i = 0; i < 30 && !held; i++) {
     if (!(await toChoice(page))) break;
     const id = await page.locator('.st-run').getAttribute('data-id');
-    await page.locator('.st-opt').first().click();
+    /* 늘 첫 보기만 누르면 정답 자리가 우연히 안 맞는 날 맞히는 경우를 못 만난다 — 보기를 돌려 가며 누른다 */
+    await page.locator('.st-opt').nth(i % (await page.locator('.st-opt').count())).click();
     await page.waitForTimeout(300);
     if (await page.locator('.st-opt.wrong').count()) {          // 틀렸으면 넘기고 다시
       await page.locator('.st-next').click(); await page.waitForTimeout(400); continue;
