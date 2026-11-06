@@ -108,15 +108,19 @@ async function stubAI(page, body = ANSWER) {
   ok('✕로 닫힌다', await page.locator('.sheet.open .asksheet').count() === 0);
 
   console.log('\n[ 작게 접고 펼치기 ]');
-  const big = await page.locator('.gonfab').boundingBox();
-  ok('펼친 단추 옆에 접기(−) 버튼이 있다', await page.locator('.gonfab-fold').count() === 1);
+  const big = await page.locator('.gonfab img').boundingBox();
+  ok('펼친 단추 위에 접기(−) 버튼이 있다', await page.locator('.gonfab-fold').count() === 1);
+  const fb = await page.locator('.gonfab-fold').boundingBox();
+  ok('접기 버튼도 누르는 자리는 44px다', fb.width >= 43.5 && fb.height >= 43.5 && fb.y + fb.height <= big.y + 1, `${fb.width}x${fb.height}`);
   await page.locator('.gonfab-fold').click();
   await page.waitForTimeout(300);
-  const small = await page.locator('.gonfab.mini').boundingBox();
+  const small = await page.locator('.gonfab.mini img').boundingBox();
+  const miniBtn = await page.locator('.gonfab.mini').boundingBox();
+  ok('접힌 얼굴도 누르는 자리는 44px다', miniBtn.width >= 43.5 && miniBtn.height >= 43.5, `${miniBtn.width}x${miniBtn.height}`);
   ok('★ 접으면 작은 곤 얼굴만 남는다 ★', small && small.width <= 30 && small.width < big.width && await page.locator('.gonfab-ai').count() === 0, `${big.width} → ${small?.width}`);
   await page.locator('.gonfab.mini').click();
   await page.waitForTimeout(300);
-  ok('★ 접힌 얼굴을 누르면 질문 창이 아니라 다시 펼쳐진다 ★', await page.locator('.sheet.open .asksheet').count() === 0 && (await page.locator('.gonfab').boundingBox()).width >= 40);
+  ok('★ 접힌 얼굴을 누르면 질문 창이 아니라 다시 펼쳐진다 ★', await page.locator('.sheet.open .asksheet').count() === 0 && (await page.locator('.gonfab img').boundingBox()).width >= 40);
   await page.locator('.gonfab-fold').click();
   await page.waitForTimeout(200);
   /* 접힘을 기억하는지 — 저장소만 본다(오프라인 새로고침은 서비스워커 사정을 타서 이 검사의 일이 아니다) */

@@ -484,16 +484,18 @@ button, input, select { font-family: inherit; }
 }
 .gonfab img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .gonfab:active { transform: scale(.94); }
-.gonfab.mini { width: 28px; height: 28px; border-width: 1.5px; opacity: .85; box-shadow: 0 3px 8px -4px var(--shadow); }
-.gonfab.mini::after { content: ''; position: absolute; inset: -8px; }   /* 눈에 보이는 건 작게, 손가락 자리는 44px */
+.gonfab.mini { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; box-shadow: none; }   /* 누르는 자리는 44px, 눈에 보이는 얼굴만 작게 */
+.gonfab.mini img { width: 28px; height: 28px; border: 1.5px solid var(--kon); opacity: .85; box-shadow: 0 3px 8px -4px var(--shadow); }
 .gonfab-ai {
   position: absolute; right: -4px; bottom: -4px; padding: 1px 5px; border-radius: 8px;
   font-size: 9px; font-weight: 800; letter-spacing: .04em; line-height: 1.5;
   background: var(--kon); color: var(--surface); border: 1.5px solid var(--surface);
 }
 .gonfab-fold {
-  position: absolute; left: -10px; top: -10px; width: 20px; height: 20px; padding: 0; border: 1.5px solid var(--line); border-radius: 50%;
-  background: var(--surface); color: var(--ink-soft); font-size: 14px; line-height: 17px; cursor: pointer;
+  position: absolute; left: 0; top: -44px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
 }
-.gonfab-fold::after { content: ''; position: absolute; inset: -6px; }   /* 손가락 자리를 넓히되 곤 얼굴 가운데는 안 덮는다 */
+.gonfab-fold::before {   /* 눈에 보이는 건 작은 동그라미, 누르는 자리는 44px(곤 얼굴 바로 위) */
+  content: '−'; display: grid; place-items: center; width: 22px; height: 22px; border: 1.5px solid var(--line); border-radius: 50%;
+  background: var(--surface); color: var(--ink-soft); font-size: 15px; line-height: 1;
+}
 .ask-aitag { margin-left: 6px; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 800; background: var(--kon-soft); color: var(--kon); vertical-align: middle; }
