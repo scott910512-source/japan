@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLayerNavigation } from './useLayerNavigation.js';
 import { markBusy } from '../lib/busy.js';
+import { readPlace, writePlace } from '../lib/lastplace.js';
 
 /* 어디에 있나 — 탭 · 밀어 넣은 화면 · 회독 판.
  *
@@ -25,28 +26,40 @@ import { markBusy } from '../lib/busy.js';
  * 키 이름은 남겨 둔다(sub · deck · tab). 하나로 합치면 줄긴 하는데,
  * busyKeys()는 「지금 왜 안 바뀌나」를 밖에서 들여다보는 창구라서 무엇
  * 때문인지가 보여야 한다. */
-export function useAppNavigation() {
+export function useAppNavigation({ validSubs = null } = {}) {
+  /* 앱이 다시 떴을 때 마지막에 있던 자리(6시간 안·같은 날)에서 잇는다. 한 번만 읽는다 */
+  const [placeOnce] = useState(() => readPlace({ validSubs }));
   /* 탭은 넷 — 홈 · 학습 · 복습 · 내 학습. 영상(videos)은 탭이 아니라 학습 탭
      안의 화면인데, 유튜브 플레이어를 품고 있어서 밀어 넣는 화면(sub)이 아니라
      탭 자리(ScreenSlot)에 산다 — 그래서 activeTab 값으로 남아 있다. */
-  const [activeTab, setActiveTab] = useState('home');
-  const [videosSeen, setVideosSeen] = useState(false); // 영상 화면에 한 번이라도 들어갔는지
-  const [sub, setSub] = useState(null);
+  const [activeTab, setActiveTab] = useState(placeOnce?.tab || 'home');
+  const [videosSeen, setVideosSeen] = useState(placeOnce?.tab === 'videos'); // 영상 화면에 한 번이라도 들어갔는지
+  const [sub, setSub] = useState(placeOnce?.sub || null);
   /* 연습을 어느 화면 안에서 열었나(단어 → 시험). 값이 있으면 뒤로 갈 때 탭이
      아니라 그 화면으로 돌아간다. 화면은 여전히 한 겹(sub)이라 이 값이 두 번째
      층을 대신한다. */
-  const [parentSub, setParentSub] = useState(null);
+  const [parentSub, setParentSub] = useState(placeOnce?.parent || null);
   const [deck, setDeck] = useState(null); // 학습 중인 덱 (있으면 회독 화면이 전체를 덮는다)
   /* N3 코스를 어느 자리에서 열지 — 학습 탭 「한자」는 한자 과정, 복습 탭
      「틀린 문제」는 오답노트. 코스가 열릴 때 한 번 읽는다. */
-  const [n3View, setN3View] = useState(null);
+  const [n3View, setN3View] = useState(placeOnce?.n3View ?? null);
   /* 독일어 코스를 어느 자리에서 열지 — 복습 탭의 「독일어 복습」 줄은 복습 화면으로 바로 */
-  const [swissView, setSwissView] = useState(null);
+  const [swissView, setSwissView] = useState(placeOnce?.swissView ?? null);
   // 듣기에 어떤 방식으로 들어왔는지 — 자동 듣기냐 따라 말하기냐
-  const [listenMode, setListenMode] = useState('listen');
+  const [listenMode, setListenMode] = useState(placeOnce?.listenMode || 'listen');
   /* 듣기에서 시험으로 넘어갈 때 들고 가는 세트. 비어 있으면 시험은 평소대로
      제 설정(범위·개수)으로 문제를 짠다. */
   const [quizSet, setQuizSet] = useState(null);
+
+  /* ★ 어디에 있었는지 적어 둔다 ★ 바뀔 때, 그리고 앱을 떠나는 순간(시각을 새로) */
+  useEffect(() => {
+    const save = () => writePlace({ tab: activeTab, sub, parent: parentSub, n3View, swissView, listenMode });
+    save();
+    const onHide = () => { if (document.visibilityState === 'hidden') save(); };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', save);
+    return () => { document.removeEventListener('visibilitychange', onHide); window.removeEventListener('pagehide', save); };
+  }, [activeTab, sub, parentSub, n3View, swissView, listenMode]);
 
   /* 연습 화면이 부모 위에 열려 있으면 뒤로가기가 닫아야 할 층이 하나 더다 */
   const closeSub = useCallback(() => {

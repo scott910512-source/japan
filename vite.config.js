@@ -23,7 +23,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      /* ★ 갱신 시점은 앱이 정한다 — 「자동」이 아니라 「물어보고」 ★
+         autoUpdate면 새 서비스워커가 깔리자마자 라이브러리가 무조건 새로고침한다. 이 앱의 「보고 있는 화면이면 미룬다」
+         규칙(lib/swgate.js · main.jsx)은 이 모드에서 한 번도 못 쓰였다. 배포 뒤 처음 열면 몇 초 만에 홈으로 튕기던 이유다.
+         prompt 모드는 새 버전을 받아 두고(waiting) 앱이 안전하다고 할 때만 갈아끼운다. */
+      registerType: 'prompt',
       includeAssets: ['icons/hxh-gon.svg', 'icons/hxh-gon-180.png', 'fonts/OFL.noto-sans-jp.txt'],
       manifest: {
         name: '日本語 HUNTER — 매일 성장하는 일본어',
@@ -49,9 +53,9 @@ export default defineConfig({
            있었다. 같은 GitHub Pages 출처에 다른 앱도 올라가니, 남의 캐시까지
            지울 수 있는 구조다. 이름표가 있으면 우리 것만 골라 지운다. */
         cacheId: CACHE_ID,
-        // 새 서비스워커가 기다리지 않고 바로 넘겨받게 한다.
-        // 안 그러면 탭을 전부 닫기 전까지 옛 화면이 계속 나온다.
-        skipWaiting: true,
+        /* 기다리게 둔다. 새 서비스워커가 스스로 건너뛰면(skipWaiting) 앱이 아직 옛 화면인데 캐시만 새것이 돼서
+           늦게 불러오는 화면 조각이 사라진다. 갈아끼울 때(앱이 SKIP_WAITING을 보낸다)만 넘겨받고, 그때 새로고침한다. */
+        skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
       },

@@ -68,7 +68,7 @@ export default function App() {
      「지금 갈아끼우면 잃는 게 있나」 표시까지 app/useAppNavigation.js가 쥔다.
      주소가 없는 앱이라 「지금 어느 화면인가」가 전부 상태값이고, 그게 일곱
      개로 흩어져 있으면 한 자리를 열 때 함께 할 일을 빼먹는다. */
-  const nav = useAppNavigation();
+  const nav = useAppNavigation({ validSubs: Object.keys(SUB_TITLES) });
   const {
     activeTab, sub, deck, n3View, swissView, listenMode, quizSet, videosSeen,
     setActiveTab, setSub, setDeck, setQuizSet, selectTab, openListen, closeSub, openSub,
