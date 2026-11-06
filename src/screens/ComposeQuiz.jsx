@@ -207,7 +207,8 @@ function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivi
   const [res, setRes] = useState(null);        // { verdict, expected }
   const [ai, setAi] = useState(null);          // { busy, error, data }
   const timer = useRef(null);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const aiReq = useRef(0);                     // 몇 번째 AI 확인인가 — 기다리는 사이 다음 문장으로 넘어가면 늦게 온 답은 버린다
+  useEffect(() => () => { clearTimeout(timer.current); aiReq.current++; }, []);
   const aiReady = hasAiKey(settings);
 
   /* 이 문장의 기록을 확정한다 — 틀림·애매는 「다음」을 누를 때(그 사이에 AI가 고쳐 줄 수 있다) */
@@ -222,6 +223,7 @@ function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivi
 
   const advance = useCallback(() => {
     clearTimeout(timer.current);
+    aiReq.current++;
     setTyped(''); setRes(null); setAi(null);
     setCur(run.next());
   }, [run]);
@@ -235,11 +237,13 @@ function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivi
 
   const askAi = async () => {
     const s = run.byId.get(cur.id);
+    const id = ++aiReq.current;
     setAi({ busy: true });
     try {
       const data = await correctSentence({ ko: s.mean, mine: typed, expected: s.kanji }, settings);
-      setAi({ data });
+      if (id === aiReq.current) setAi({ data });
     } catch (e) {
+      if (id !== aiReq.current) return;
       setAi({ error: e.message });
       onToast?.(e.message);
     }
