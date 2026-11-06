@@ -28,7 +28,7 @@ const PROGRESS = {
   },
   n3: { v: 1, lessons: {}, skip: {}, days: {}, q: {}, tests: {}, exams: [], summary: null,
     /* q-dup는 새 쪽에도 있다(두 번 세면 안 된다). 나머지 둘은 코스에만 남은 옛 오답 */
-    wrong: { 'q-dup': { c: 1, at: 1, cat: 'grammar', ref: 'g:x', ok: 0 }, 'q-old1': { c: 2, at: 1, cat: 'vocab', ref: 'v:y', ok: 0 }, 'q-old2': { c: 1, at: 1, cat: 'grammar', ref: 'g:z', ok: 0 } } },
+    wrong: { 'q-dup': { c: 1, at: 1, cat: 'grammar', ref: 'g:x', ok: 0 }, 'x:yomi-1': { c: 2, at: 1, cat: 'kanji', ref: 'k:窓', ok: 0 }, 'q-old2': { c: 1, at: 1, cat: 'grammar', ref: 'g:z', ok: 0 } } },
 };
 
 async function boot(browser, progress) {
@@ -76,12 +76,28 @@ async function boot(browser, progress) {
   await page.locator('.subscreen.open .mistake-start').click();
   await page.waitForTimeout(300);
   ok('다시 시험이 이 화면에서 돈다', await page.locator('.subscreen.open .mistake-retest').count() === 1);
+  /* ★ 푸는 동안에도 곤이 말해 준다 ★ */
+  ok('★ 답을 내기 전에 곤이 지난번 고른 답을 짚어 준다 ★', (await page.locator('.mistake-retest .hunter-tutor').getAttribute('data-guide')) === 'gon' && (await page.locator('.mistake-retest .hunter-tutor').innerText()).includes('지난번엔'));
+  ok('정답은 곤이 말하지 않는다', !(await page.locator('.mistake-retest .hunter-tutor').innerText()).includes('정답'));
+  await page.locator('.mistake-options button').first().click();
+  await page.waitForTimeout(400);
+  ok('답을 내면 해설 카드가 뜬다', await page.locator('.mistake-feedback .hunter-tutor').count() === 1);
+  /* ★ 해설 상자의 글자가 바탕과 구별된다(어두운 바탕에 어두운 글자였다) ★ */
+  const contrast = await page.evaluate(() => {
+    const box = document.querySelector('.mistake-feedback .ht-lesson');
+    const p = box.querySelector('p');
+    const lum = (c) => { const m = c.match(/\d+(\.\d+)?/g).map(Number); const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2]); };
+    const a = lum(getComputedStyle(box).backgroundColor); const b = lum(getComputedStyle(p).color);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+  ok('★ 해설 글자와 바탕의 대비가 충분하다(4.5:1 이상) ★', contrast >= 4.5, contrast.toFixed(1));
   await page.locator('.subscreen.open .mistake-retest-head button').click();
 
   console.log('\n[ N3 코스 오답노트로 ]');
   await page.locator('.wb2-n3').click();
   await page.waitForTimeout(1200);
   ok('N3 오답노트가 열린다', await page.locator('.n3-wrong').count() === 1);
+  ok('★ N3 오답노트의 「관련 내용 →」 버튼이 손가락 크기(44px)다 ★', await page.locator('.n3-reflink').evaluateAll((els) => els.every((e) => e.getBoundingClientRect().height >= 40)), `${await page.locator('.n3-reflink').count()}개`);
   await goTab(page, '내 학습');
 
   console.log('\n[ 복습 화면에서도 같은 곳 ]');

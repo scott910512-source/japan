@@ -134,7 +134,7 @@
 .n3-wrow.no { color: var(--shu); }
 .n3-wrow.ok { color: var(--kon); }
 .n3-wmeta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-soft); }
-.n3-reflink { background: none; border: none; color: var(--kon); font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 4px 0; }
+.n3-reflink { background: none; border: none; color: var(--kon); font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 4px 8px; min-height: 44px; display: inline-flex; align-items: center; }   /* 상급자 150명 전원에게서 작은 버튼으로 잡혔다 */
 
 /* 단어 카드 */
 .n3-word { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
