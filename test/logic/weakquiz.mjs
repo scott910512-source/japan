@@ -7,7 +7,7 @@ const T = '2026-11-02'; const Y = '2026-11-01';
 
 console.log('\n[ 오늘 푼 낱말 ]');
 {
-  ok('몫은 다섯', WEAK_QUIZ_SIZE === 5);
+  ok('몫은 서른', WEAK_QUIZ_SIZE === 30);
   ok('기록이 없으면 빈 것', weakQuizOf(undefined, T).ids.length === 0 && weakQuizOf({}, T).ids.length === 0);
   ok('어제 것은 오늘 0', weakQuizOf({ weakQuiz: { day: Y, ids: ['a', 'b'] } }, T).ids.length === 0);
   const one = noteWeakQuiz(undefined, ['a'], T);
@@ -21,21 +21,23 @@ console.log('\n[ 오늘 푼 낱말 ]');
 
 console.log('\n[ 오늘 몫 ]');
 {
-  const weak = ['w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'];
+  const N = WEAK_QUIZ_SIZE;
+  const mk = (n, from = 1) => Array.from({ length: n }, (_, i) => `w${from + i}`);
+  const weak = mk(N + 2);
   const fresh = weakQuizState({}, weak, T);
-  ok('약점이 많으면 다섯 문제', fresh.total === 5 && fresh.done === 0 && fresh.ids.length === 5 && !fresh.complete, JSON.stringify(fresh));
-  ok('약한 순서대로 앞에서 고른다', fresh.ids.join() === 'w1,w2,w3,w4,w5');
+  ok('약점이 많으면 서른 문제', fresh.total === N && fresh.done === 0 && fresh.ids.length === N && !fresh.complete, `${fresh.total}/${fresh.ids.length}`);
+  ok('약한 순서대로 앞에서 고른다', fresh.ids.join() === mk(N).join());
   const few = weakQuizState({}, ['w1', 'w2'], T);
   ok('★ 약점이 모자라면 그만큼만 ★', few.total === 2 && few.ids.length === 2);
   ok('약점이 없으면 몫이 0이고 완료도 아니다', weakQuizState({}, [], T).total === 0 && !weakQuizState({}, [], T).complete);
 
-  const half = weakQuizState({ weakQuiz: { day: T, ids: ['w1', 'w2'] } }, ['w3', 'w4', 'w5', 'w6'], T);
-  ok('★ 두 개 풀고 나가면 남은 셋을 이어서 ★', half.done === 2 && half.total === 5 && half.ids.length === 3 && !half.complete, JSON.stringify(half));
+  const half = weakQuizState({ weakQuiz: { day: T, ids: ['w1', 'w2'] } }, mk(N + 4, 3), T);
+  ok('★ 두 개 풀고 나가면 남은 스물여덟을 이어서 ★', half.done === 2 && half.total === N && half.ids.length === N - 2 && !half.complete, `${half.done}/${half.total}/${half.ids.length}`);
   ok('푼 낱말은 다음 묶음에 안 나온다', !half.ids.includes('w1') && !half.ids.includes('w2'));
 
-  const done = weakQuizState({ weakQuiz: { day: T, ids: ['w1', 'w2', 'w3', 'w4', 'w5'] } }, ['w6', 'w7'], T);
-  ok('★ 다섯을 풀었으면 완료 ★', done.done === 5 && done.complete);
-  ok('완료 뒤에 또 누르면 다음 약점을 더 푼다(몫은 그대로 완료)', done.ids.join() === 'w6,w7');
+  const done = weakQuizState({ weakQuiz: { day: T, ids: mk(N) } }, [`w${N + 1}`, `w${N + 2}`], T);
+  ok('★ 서른을 풀었으면 완료 ★', done.done === N && done.complete);
+  ok('완료 뒤에 또 누르면 다음 약점을 더 푼다(몫은 그대로 완료)', done.ids.join() === `w${N + 1},w${N + 2}`);
 
   /* 맞혀서 약점에서 빠져도 푼 수는 안 줄어든다 */
   const cleared = weakQuizState({ weakQuiz: { day: T, ids: ['w1', 'w2', 'w3'] } }, ['w4'], T);

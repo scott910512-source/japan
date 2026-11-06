@@ -51,6 +51,9 @@ const SCOPE_OPTS = [
 export default function Quiz({
   words, review, settings, onChange, onToast, onRetryWrong, onActivity, onWeakness,
   fixedWords = null, ledger = null, mistakes = {}, onAttempt, weak = null, onExit, onNextQuest = null,
+  /* 하루 흐름 — flow: 오늘 랜덤 테스트(설정을 안 묻고 섞어서 바로 시작). nextLabel: 결과 화면 「다음」 버튼의 말.
+     onComplete: 결과 화면에 닿으면 한 번 부른다(오늘 몫 적기). */
+  flow = null, nextLabel = '쭉 퀴즈로 이어서', onComplete = null,
 }) {
   const [config, setConfig] = useState({
     count: settings.quizCount ?? 20,
@@ -110,11 +113,12 @@ export default function Quiz({
      설정은 건드리지 않는다(다음 일반 시험은 내가 정한 대로). 그만두면 이 화면의 설정이 아니라 온 곳으로 돌아간다. */
   const autoStarted = useRef(false);
   useEffect(() => {
-    if (!weak || !set?.length || run || autoStarted.current) return;
+    if ((!weak && !flow) || !set?.length || run || autoStarted.current) return;
     autoStarted.current = true;
-    start(set, { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO });
+    /* 랜덤 테스트는 고르는 것·쓰는 것, 일본어→한국어·한국어→일본어를 다 섞는다 */
+    start(set, flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weak, set, run]);
+  }, [weak, flow, set, run]);
 
   if (run) {
     return (
@@ -124,7 +128,7 @@ export default function Quiz({
         pool={pool}
         settings={settings}
         onRun={setRun}
-        onQuit={() => (weak && onExit ? onExit() : setRun(null))}
+        onQuit={() => ((weak || flow) && onExit ? onExit() : setRun(null))}
         onRetryWrong={onRetryWrong}
         onToast={onToast}
         onActivity={onActivity}
@@ -132,6 +136,9 @@ export default function Quiz({
         weak={weak}
         onExit={onExit}
         onNextQuest={onNextQuest}
+        flow={flow}
+        nextLabel={nextLabel}
+        onComplete={onComplete}
       />
     );
   }
@@ -221,7 +228,7 @@ export default function Quiz({
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onNextQuest }) {
+function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -395,6 +402,9 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
         weak={weak}
         onExit={onExit}
         onNextQuest={onNextQuest}
+        flow={flow}
+        nextLabel={nextLabel}
+        onComplete={onComplete}
       />
     );
   }
@@ -568,7 +578,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
 
 /* ── 결과 ── */
 
-function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onToast, onActivity, weak, onExit, onNextQuest }) {
+function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onToast, onActivity, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
   const result = useMemo(() => gradeQuiz(questions, answers), [questions, answers]);
 
   /* 시험도 회독 진도를 올리지 않는다. 다만 몇 문항 풀었는지는 활동에 남긴다 —
@@ -578,7 +588,8 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
     if (noted.current) return;
     noted.current = true;
     onActivity?.({ quizzed: questions.length });
-  }, [questions.length, onActivity]);
+    onComplete?.();      // 오늘 랜덤 테스트를 마쳤다고 적는다
+  }, [questions.length, onActivity, onComplete]);
   const grade = gradeLabel(result.score);
 
   const wrongWords = result.wrongIds.map((id) => byId.get(id)).filter(Boolean);
@@ -616,7 +627,15 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
       {/* ★ 약점 퀴즈로 들어왔으면 말이 다르다 ★
           「다음 레벨로 넘어가 볼까요?」는 일반 시험의 말이다. 약점 퀴즈를 마친 사람에게는 오늘 몫이 얼마나
           찼는지, 맞힌 낱말이 약점에서 빠지는지가 궁금하다. */}
-      {weak ? (
+      {flow ? (
+        <>
+          <div className="card wk-result" data-flow={flow.kind} data-total={result.total} data-correct={result.correct}>
+            <b>오늘 랜덤 테스트를 마쳤어요</b>
+            <span>{result.total}문제 중 {result.correct}개 맞혔어요. 틀린 건 위 목록에서 바로 다시 외울 수 있어요.</span>
+          </div>
+          <button className="submit-btn flow-done" style={{ marginTop: 12 }} onClick={onExit || onQuit}>오늘 학습 마치기</button>
+        </>
+      ) : weak ? (
         <>
           <div className="card wk-result" data-done={weak.done} data-total={weak.total}>
             <b>{weak.complete ? '오늘 약점 퀴즈를 마쳤어요' : `오늘 약점 퀴즈 ${weak.done} / ${weak.total}`}</b>
@@ -629,7 +648,7 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
           {/* ★ 오늘 퀘스트의 다음 줄(쭉 퀴즈)이 남았으면 홈으로 돌려보내지 않고 바로 이어 준다 ★ */}
           {onNextQuest ? (
             <>
-              <button className="submit-btn wk-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: 쭉 퀴즈로 이어서</button>
+              <button className="submit-btn wk-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: {nextLabel}</button>
               <button className="ghost-btn wk-resultdone" style={{ marginTop: 8 }} onClick={onExit || onQuit}>약점 퀴즈 마치고 홈으로</button>
             </>
           ) : (

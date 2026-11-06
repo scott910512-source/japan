@@ -548,14 +548,15 @@ async function boot(browser, patch = {}, init = null) {
       await p5.waitForTimeout(500);
     }
     const fin5 = await p5.locator('.finish').innerText().catch(() => '');
-    ok('복습을 끝내면 새 단어로 이어 준다', fin5.includes('다음: 새 단어'),
+    /* 하루 흐름: 복습 다음은 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기 순서다. 약점이 없고 외운 게 있는 이 기록에서는 쭉 퀴즈가 먼저 온다 */
+    ok('★ 복습을 끝내면 하루 흐름의 다음 단계로 이어 준다 ★', fin5.includes('다음: 쭉 퀴즈'),
       fin5.replace(/\n/g, ' ').slice(0, 90));
     ok('오늘로 가는 길도 남아 있다', fin5.includes('오늘로'));
 
-    await p5.locator('.finish .submit-btn').click({ timeout: 5000 }).catch(() => {});
+    await p5.locator('.finish .fin-next').click({ timeout: 5000 }).catch(() => {});
     await p5.waitForTimeout(1000);
-    const where = await p5.locator('.sh-title, .si-label').first().innerText().catch(() => '');
-    ok('눌렀더니 새 단어가 열린다', where.includes('새 단어'), where);
+    const where = await p5.locator('.sh-title, .si-label, .sub-title').first().innerText().catch(() => '');
+    ok('눌렀더니 쭉 퀴즈가 열린다', where.includes('쭉'), where);
     await p5.close();
   }
 

@@ -13,7 +13,7 @@ import { useAppNumbers } from './app/useAppNumbers.js';
 import { useToast } from './app/useToast.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TabBar from './components/TabBar.jsx';
-import { ensurePlan } from './lib/plan.js';
+import { ensurePlan, MORE_STEP } from './lib/plan.js';
 import { LANE_DECK, useStudyQueue } from './app/useStudyQueue.js';
 import BottomSheet from './components/BottomSheet.jsx';
 import GonAsk from './components/GonAsk.jsx';
@@ -26,8 +26,9 @@ import { kijuIndex } from './lib/kiju.js';
 import { hasSignedInOnce, isGuest, setGuest } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
-import { noteWeakQuiz, weakQuizState } from './lib/weakquiz.js';
-import { noteQuest, streamQuestState } from './lib/quests.js';
+import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
+import { noteQuest, streamQuestState, randomQuestState } from './lib/quests.js';
+import { nextStep, stepOfDeck, randomTestIds, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
@@ -264,7 +265,7 @@ export default function App() {
   /* 회독 판을 짜는 함수들은 app/useStudyQueue.js에 — 오늘의 학습·이어하기·
      단어·복습·취약·JLPT 세트·시험 오답. 동작은 App에 있던 그대로다. */
   const {
-    askSwap, setAskSwap, guardDeck, learnMore,
+    askSwap, setAskSwap, guardDeck, learnMore, learnMoreAndStart,
     startToday, resumeSession, startWordDeck, startKijuDeck, startDueDeck, startWeakDeck, startJlptSet, startQuizWrongDeck,
   } = useStudyQueue({
     session, plan, planNow, setPlan, words, wordIds, byId, sentenceCards, review, settings, due, todayPool, today,
@@ -306,12 +307,65 @@ export default function App() {
       return next === p.weakQuiz ? p : { ...p, weakQuiz: next };
     });
   }, [noteWeakness, setProgress, today]);
-  /* ★ 쭉 퀴즈 퀘스트 ★ 열 문제. 쭉 퀴즈가 한 문제 풀 때마다 오늘 몫에 적는다 */
+  /* ★ 쭉 퀴즈 퀘스트 ★ 스무 문제. 쭉 퀴즈가 한 문제 풀 때마다 오늘 몫에 적는다 */
   const streamQuest = useMemo(() => streamQuestState(progress, wordStat.seen > 0, today), [progress, wordStat.seen, today]);
   const onStreamAnswered = useCallback(() => {
     setProgress((p) => ({ ...p, quests: noteQuest(p.quests, 'stream', 1, today) }));
   }, [setProgress, today]);
   const startStreamQuest = useCallback(() => { setActiveTab('me'); openSub('stream'); }, [setActiveTab, openSub]);
+
+  /* ★ 오늘 랜덤 테스트 ★ 오늘 만난 낱말(오늘 계획 · 오늘 푼 약점 퀴즈)을 다 섞어서 쉰 문제. 모자라면 외운 낱말로 채운다.
+     하루 흐름의 마지막 칸이라, 앞 단계를 다 하고 나서 한 번 본다. */
+  const wordIdSet = useMemo(() => new Set(wordIds), [wordIds]);
+  const randomToday = useMemo(
+    () => [...(plan?.assigned || []).filter((x) => x.kind === 'word').map((x) => x.id), ...weakQuizOf(progress, today).ids],
+    [plan, progress, today],
+  );
+  const randomSeen = useMemo(() => Object.keys(review).filter((id) => review[id]?.lastSeen), [review]);
+  const randomOn = useRef(false);
+  const [randomMode, setRandomMode] = useState(false);
+  useEffect(() => { if (sub !== 'quiz') { randomOn.current = false; setRandomMode(false); } }, [sub]);
+  const randomAvailable = useMemo(
+    () => randomTestIds({ today: randomToday, seen: randomSeen, wordIds: wordIdSet, size: RANDOM_TEST_SIZE, rng: () => 0.5 }).length >= RANDOM_TEST_MIN,
+    [randomToday, randomSeen, wordIdSet],
+  );
+  const randomQuest = useMemo(() => randomQuestState(progress, randomAvailable, today), [progress, randomAvailable, today]);
+  const startRandomTest = useCallback(() => {
+    const cards = randomTestIds({ today: randomToday, seen: randomSeen, wordIds: wordIdSet, size: RANDOM_TEST_SIZE })
+      .map((id) => byId.get(id)).filter(Boolean);
+    if (cards.length < RANDOM_TEST_MIN) { showToast('테스트에 낼 낱말이 아직 모자라요'); return; }
+    setQuizSet(cards);
+    weakQuizOn.current = false; setWeakQuizMode(false);
+    randomOn.current = true; setRandomMode(true);
+    setActiveTab('me');
+    openSub('quiz');
+  }, [randomToday, randomSeen, wordIdSet, byId, showToast, setQuizSet, setActiveTab, openSub]);
+  const onRandomDone = useCallback(() => {
+    setProgress((p) => ({ ...p, quests: noteQuest(p.quests, 'random', 1, today) }));
+  }, [setProgress, today]);
+
+  /* ★ 하루 흐름 ★ 한 단계가 끝나면 다음 단계를 바로 내민다.
+     복습 미션 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기(끝에서 10개 더) → 오늘 랜덤 테스트.
+     할 게 없거나 이미 마친 단계는 건너뛴다(lib/dayflow.js). */
+  const freshLeft = Math.max(0, (planNow?.lanes?.fresh?.assigned || 0) - (planNow?.lanes?.fresh?.done || 0));
+  const flowOpen = {
+    review: reviewLeft > 0,
+    weakquiz: Boolean(weakQuiz && weakQuiz.total > 0 && !weakQuiz.complete),
+    stream: Boolean(streamQuest && !streamQuest.complete),
+    fresh: freshLeft > 0,
+    random: Boolean(randomQuest && !randomQuest.complete),
+  };
+  const goStep = useCallback((to) => {
+    setDeck(null);
+    if (to === 'weakquiz') startWeakQuiz();
+    else if (to === 'stream') startStreamQuest();
+    else if (to === 'fresh') startToday(['fresh']);
+    else if (to === 'random') startRandomTest();
+  }, [setDeck, startWeakQuiz, startStreamQuest, startToday, startRandomTest]);
+  const flowAfter = (step) => {
+    const n = nextStep(step, flowOpen);
+    return n ? { ...n, go: () => goStep(n.to) } : null;
+  };
   const openReview = useCallback(() => { setActiveTab('me'); openSub('review'); }, [setActiveTab, openSub]);
   const openMenu = useCallback((id, opts = {}) => {
     if (id === 'compose') setComposeStart(opts.mode || null);
@@ -425,12 +479,17 @@ export default function App() {
               onSettingsChange={patchSettings}
               onBookmark={toggleBookmark}
               onToast={showToast}
-              onNext={deck.next ? () => {
-                if (deck.next.to === 'fresh') { startToday(['fresh']); return; }
-                setDeck(null);
-                setActiveTab('study');
-                setSub('repeat');
-              } : null}
+              /* 하루 흐름의 판(복습 · 새 단어)이면 그 흐름의 다음 단계를, 아니면 덱이 정한 다음을 */
+              flowNext={stepOfDeck(deck.id) ? flowAfter(stepOfDeck(deck.id)) : undefined}
+              onMore={stepOfDeck(deck.id) === 'fresh' ? () => learnMoreAndStart(MORE_STEP) : null}
+              onNext={stepOfDeck(deck.id)
+                ? (flowAfter(stepOfDeck(deck.id))?.go || null)
+                : (deck.next ? () => {
+                  if (deck.next.to === 'fresh') { startToday(['fresh']); return; }
+                  setDeck(null);
+                  setActiveTab('study');
+                  setSub('repeat');
+                } : null)}
               onClose={() => setDeck(null)}
               /* 판을 끝내고 「홈으로」 — 어디서 시작했든 홈에서 오른 진도를 본다 */
               onHome={() => { setDeck(null); selectTab('home'); }}
@@ -487,6 +546,8 @@ export default function App() {
             onStartWeakQuiz={startWeakQuiz}
             streamQuest={streamQuest}
             onStartStreamQuest={startStreamQuest}
+            randomQuest={randomQuest}
+            onStartRandomTest={startRandomTest}
             onOpenProgress={() => selectTab('me')}
             onLearnMore={learnMore}
           />
@@ -680,7 +741,12 @@ export default function App() {
                 weakQuiz={weakQuiz}
                 weakQuizOn={weakQuizMode}
                 /* 약점 퀴즈를 마치면 오늘 퀘스트의 다음 줄 — 쭉 퀴즈가 남았으면 바로 이어 간다 */
-                onNextQuest={streamQuest && !streamQuest.complete ? startStreamQuest : null}
+                onNextQuest={flowAfter('weakquiz')?.go || null}
+                nextQuestLabel={flowAfter('weakquiz')?.to === 'stream' ? '쭉 퀴즈로 이어서' : (flowAfter('weakquiz')?.label || '')}
+                randomOn={randomMode}
+                onRandomDone={onRandomDone}
+                streamNext={flowAfter('stream')}
+                streamQuestDone={!streamQuest || streamQuest.complete}
                 onStreamAnswered={onStreamAnswered}
               />
               )}

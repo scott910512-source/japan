@@ -2,7 +2,12 @@ import HunterTutor from '../../components/HunterTutor.jsx';
 
 /* 완주 카드 — 몇 장 끝냈나 · 판정 셋 · 다음으로.
    Study.jsx에서 떼어 냈다. 동작은 그대로다. */
-export default function FinishCard({ finished, deck, settings, onClose, onHome, onNext, onUndo }) {
+export default function FinishCard({ finished, deck, settings, onClose, onHome, onNext, onUndo, flowNext, onMore: onMoreAll }) {
+  /* 「10개 더」는 끝까지 마쳤을 때만 — 오늘은 여기까지 하고 나온 자리에서는 안 낸다 */
+  const onMore = finished.reason === 'clear' ? onMoreAll : null;
+  /* 하루 흐름이 다음 단계를 정해 주면(flowNext) 그걸 쓴다. null이면 이을 게 없다는 말이고,
+     안 넘겼으면(undefined) 예전처럼 덱이 정한 다음을 쓴다. */
+  const next = flowNext !== undefined ? flowNext : deck.next;
   const t = finished.tally || {};
   const known = (t.known || 0) + (t.master || 0);
   return (
@@ -33,15 +38,19 @@ export default function FinishCard({ finished, deck, settings, onClose, onHome, 
 
         {/* 끝날 때마다 홈으로 돌려보내면 매번 「다음에 뭐 하지」를 다시 정해야 한다.
             그날의 다음 순서를 알고 있으면 그걸 먼저 내민다. */}
-        {onNext && deck.next ? (
+        {onNext && next ? (
           <>
-            <button className="submit-btn" onClick={onNext}>
-              다음: {deck.next.label}
+            <button className="submit-btn fin-next" onClick={onNext}>
+              다음: {next.label}
             </button>
+            {onMore && <button className="ghost-btn fin-more" onClick={onMore}>10개 더 배우기</button>}
             <button className="ghost-btn" onClick={onHome || onClose}>오늘로</button>
           </>
         ) : (
-          <button className="submit-btn" onClick={onHome || onClose}>오늘로</button>
+          <>
+            {onMore && <button className="submit-btn fin-more" onClick={onMore}>10개 더 배우기</button>}
+            <button className={onMore ? 'ghost-btn' : 'submit-btn'} onClick={onHome || onClose}>오늘로</button>
+          </>
         )}
         {onUndo && (
           <button className="ghost-btn" onClick={onUndo}>↩ 마지막 판정 되돌리기</button>

@@ -8,7 +8,7 @@
  * progress 안에 두어서 백업·동기화에 저절로 실린다(mergeWeakQuiz). */
 import { todayKey } from './review.js';
 
-export const WEAK_QUIZ_SIZE = 5;
+export const WEAK_QUIZ_SIZE = 30;
 
 export function weakQuizOf(progress, today = todayKey()) {
   const q = progress?.weakQuiz;
@@ -26,7 +26,7 @@ export function noteWeakQuiz(prev, wordIds = [], today = todayKey()) {
 
 /* 오늘의 약점 퀴즈 상태.
    weakList — 지금 약한 낱말 id(약한 순서). 오늘 푼 것은 다음 묶음에서 뺀다.
-   total    — 오늘 몫: 푼 것 + 앞으로 풀 것, 다섯을 넘지 않는다. 약점이 모자라면 그만큼만. */
+   total    — 오늘 몫: 푼 것 + 앞으로 풀 것, 서른을 넘지 않는다. 약점이 모자라면 그만큼만. */
 export function weakQuizState(progress, weakList = [], today = todayKey(), size = WEAK_QUIZ_SIZE) {
   const doneIds = weakQuizOf(progress, today).ids;
   const left = weakList.filter((id) => !doneIds.includes(id));
@@ -35,7 +35,7 @@ export function weakQuizState(progress, weakList = [], today = todayKey(), size 
   return {
     done, total,
     complete: total > 0 && done >= total,
-    /* 이번에 풀 낱말 — 남은 몫만큼. 오늘 몫을 다 했는데 또 누르면 새로 다섯 */
+    /* 이번에 풀 낱말 — 남은 몫만큼. 오늘 몫을 다 했는데 또 누르면 새로 서른 */
     ids: left.slice(0, done >= total ? size : total - done),
   };
 }

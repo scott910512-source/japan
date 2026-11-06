@@ -85,6 +85,8 @@ export default function Study({
   deck, review, settings, session, bookmarks, memos, onSaveMemo,
   asks, onAsks, onAddWord,
   onReviewChange, onSessionChange, onSettingsChange, onBookmark, onClose, onNext, onToast,
+  /* 하루 흐름 — 다음 단계(flowNext)와 「10개 더」(onMore). 없으면 예전 그대로 */
+  flowNext, onMore,
   /* 「홈으로」 — 닫기(onClose)는 오던 자리로 돌아가지만, 판을 끝내고 누르는
      홈으로는 글자 그대로 홈이어야 한다. 복습 탭에서 시작했어도 끝나면 홈에서
      오늘 진도가 오른 것을 본다. 없으면 닫기로 대신한다. */
@@ -170,7 +172,7 @@ export default function Study({
     startedAt.current = Date.now();
     // deck이 바뀔 때만 새 세션을 만든다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deck.id]);
+  }, [deck.id, deck.rev]);
 
   const currentId = session?.queue?.[0];
   const word = currentId ? byId.get(currentId) : null;
@@ -353,6 +355,8 @@ export default function Study({
         onClose={onClose}
         onHome={onHome}
         onNext={onNext}
+        flowNext={flowNext}
+        onMore={onMore}
         onUndo={history.current.length ? undo : null}
       />
     );

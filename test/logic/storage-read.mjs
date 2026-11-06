@@ -24,5 +24,21 @@ for (const [name, key, fn] of [['복습', KEYS.review, loadReview], ['설정', K
 mem.set(KEYS.review, JSON.stringify({ a: { box: 1 } }));
 ok('멀쩡한 값은 그대로 읽는다', loadReview().a?.box === 1);
 
+/* 하루 목표: 옛 설정(번호 없음)은 한 번 새 수량(복습 30 · 새로 10 · 약점 3)으로 바뀌고, 그 뒤로 직접 바꾼 값은 지킨다 */
+mem.set(KEYS.settings, JSON.stringify({ goals: { fresh: 8, review: 9, weak: 3 } }));
+{
+  const g = loadSettings().goals;
+  ok('★ 옛 설정은 새 수량으로 맞춰진다 ★', g.review === 30 && g.fresh === 10 && g.weak === 3, JSON.stringify(g));
+}
+mem.set(KEYS.settings, JSON.stringify({ goals: { fresh: 5, review: 12, weak: 2 }, goalsV: 2 }));
+{
+  const g = loadSettings().goals;
+  ok('★ 새 번호가 적힌 뒤 직접 바꾼 값은 지킨다 ★', g.review === 12 && g.fresh === 5 && g.weak === 2, JSON.stringify(g));
+}
+mem.set(KEYS.settings, JSON.stringify({ dailyGoal: 15 }));
+ok('옛 숫자 하나(dailyGoal)도 새 수량으로', loadSettings().goals.review === 30);
+mem.delete(KEYS.settings);
+ok('설정이 없으면 기본값이 새 수량', loadSettings().goals.review === 30 && loadSettings().goalsV === 2);
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

@@ -46,6 +46,12 @@ export default function FeatureScreen({
   weakQuiz = null,
   weakQuizOn = false,
   onNextQuest = null,
+  nextQuestLabel = '쭉 퀴즈로 이어서',
+  /* 하루 흐름 — 오늘 랜덤 테스트로 들어왔나 · 끝났다고 적기 · 쭉 퀴즈 다음 단계 */
+  randomOn = false,
+  onRandomDone = null,
+  streamNext = null,
+  streamQuestDone = false,
   onStreamAnswered,
 }) {
   return (<>
@@ -131,6 +137,7 @@ export default function FeatureScreen({
             )}
             {sub === 'quiz' && (
               <Quiz
+                key={randomOn ? 'random' : weakQuizOn ? 'weak' : 'quiz'}
                 onAttempt={onAttempt}
                 mistakes={progress.mistakes}
                 words={words}
@@ -151,6 +158,9 @@ export default function FeatureScreen({
                 weak={weakQuizOn ? weakQuiz : null}
                 onExit={onExit}
                 onNextQuest={weakQuizOn ? onNextQuest : null}
+                nextLabel={nextQuestLabel}
+                flow={randomOn ? { kind: 'random' } : null}
+                onComplete={randomOn ? onRandomDone : null}
               />
             )}
             {sub === 'listen' && (
@@ -206,6 +216,8 @@ export default function FeatureScreen({
                 onToast={showToast}
                 onExit={onExit}
                 onAnswered={onStreamAnswered}
+                next={streamNext}
+                questDone={streamQuestDone}
               />
             )}
             {sub === 'compose' && (

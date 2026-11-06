@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { addMore, remaining } from '../lib/plan.js';
+import { addMore, remaining, MORE_STEP } from '../lib/plan.js';
 import { buildPlannedStudyQueue } from '../lib/daily.js';
 import { cardsForQueue } from '../lib/cards.js';
 import { filterByLevel } from '../lib/wordFilters.js';
@@ -73,7 +73,7 @@ export function useStudyQueue({
    * 홈에서 「단어 외우기」와 「복습하기」를 따로 누른다. 큐를 갈래로 갈라
    * 짜야 그 둘이 서로 다른 판이 된다 — 한 판에 다 섞으면 「복습만 하고 싶다」가
    * 안 된다. 갈래를 안 주면 예전처럼 셋 다 담는다. */
-  const startToday = useCallback((lanes = null) => {
+  const startToday = useCallback((lanes = null, planOverride = null) => {
     /* 하던 판이 남아 있으면 그걸 잇는다.
        예전엔 여기서 큐를 새로 짰다. 그러면 카드는 새로 뽑히는데 세션은 옛것을
        그대로 써서, 남은 카드를 새 덱이 못 찾고 「학습할 카드가 없어요」에서
@@ -95,7 +95,7 @@ export function useStudyQueue({
      * 예전엔 여기서 매번 새로 뽑았다. 그래서 신규 20개를 끝내고 다시 누르면
      * 아직 안 본 다음 20개가 또 나왔다 — 끝이 없었다. 이제 계획에 배정된 것
      * 중 아직 안 끝낸 것만 담는다. 다 했으면 다 했다고 말한다. */
-    const left = remaining(plan, lanes);
+    const left = remaining(planOverride || plan, lanes);
     if (!left.length) {
       showToast(planNow.assigned > 0
         ? '오늘 몫을 다 했어요 — 더 하려면 「10개 더 배우기」를 눌러요'
@@ -120,6 +120,8 @@ export function useStudyQueue({
     setDeck({
       id: deckId,
       label: LANE_LABEL(lanes),
+      /* 「10개 더」로 같은 갈래의 판을 또 열면 id가 같다 — 번호(rev)가 달라야 회독 화면이 새 판으로 알아본다 */
+      rev: (planOverride || plan)?.extra || 0,
       cards,
       queue: built.queue.map((q) => q.id),
       /* 한 판이 끝나면 다음으로 이어 준다. 복습 → 단어 외우기 → 회독 학습.
@@ -131,6 +133,16 @@ export function useStudyQueue({
       intro: { total: cards.length, review: built.review, weak: built.weak, fresh: built.fresh, minutes: built.minutes },
     });
   }, [session, plan, planNow, words, sentenceCards, showToast, setDeck, setSub]);
+
+  /* 새로 배우기를 끝낸 자리의 「10개 더 배우기」 — 계획을 열 개 늘리고 곧바로 새 단어 판을 연다.
+     늘린 계획을 startToday에 직접 넘긴다(상태가 다음 그림에서야 바뀌어서, 안 넘기면 옛 계획으로 빈 판이 된다). */
+  const learnMoreAndStart = useCallback((count = MORE_STEP) => {
+    const next = addMore(plan, todayPool, review, { count, today, ledger });
+    if (next === plan) { showToast('더 배울 게 없어요'); return false; }
+    setPlan(next);
+    startToday(['fresh'], next);
+    return true;
+  }, [plan, todayPool, review, today, ledger, showToast, setPlan, startToday]);
 
   /* 하다 만 걸 이어서. 세션은 카드 id만 들고 있으니, 덱에는 단어와 문장을
      전부 실어 준다 — 어느 쪽에서 온 카드든 찾을 수 있어야 한다. */
@@ -217,7 +229,7 @@ export function useStudyQueue({
   }, [byId, setDeck, setSub]);
 
   return {
-    askSwap, setAskSwap, guardDeck, learnMore,
+    askSwap, setAskSwap, guardDeck, learnMore, learnMoreAndStart,
     startToday, resumeSession, startWordDeck, startKijuDeck, startDueDeck, startWeakDeck, startJlptSet, startQuizWrongDeck,
   };
 }
