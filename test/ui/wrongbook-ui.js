@@ -28,7 +28,7 @@ const PROGRESS = {
   },
   n3: { v: 1, lessons: {}, skip: {}, days: {}, q: {}, tests: {}, exams: [], summary: null,
     /* q-dup는 새 쪽에도 있다(두 번 세면 안 된다). 나머지 둘은 코스에만 남은 옛 오답 */
-    wrong: { 'q-dup': { c: 1, at: 1, cat: 'grammar', ref: 'g:x', ok: 0 }, 'q-old1': { c: 2, at: 1, cat: 'vocab', ref: 'v:y', ok: 0 }, 'q-old2': { c: 1, at: 1, cat: 'grammar', ref: 'g:z', ok: 0 } } },
+    wrong: { 'q-dup': { c: 1, at: 1, cat: 'grammar', ref: 'g:x', ok: 0 }, 'x:yomi-1': { c: 2, at: 1, cat: 'kanji', ref: 'k:窓', ok: 0 }, 'q-old2': { c: 1, at: 1, cat: 'grammar', ref: 'g:z', ok: 0 } } },
 };
 
 async function boot(browser, progress) {
@@ -97,6 +97,7 @@ async function boot(browser, progress) {
   await page.locator('.wb2-n3').click();
   await page.waitForTimeout(1200);
   ok('N3 오답노트가 열린다', await page.locator('.n3-wrong').count() === 1);
+  ok('★ N3 오답노트의 「관련 내용 →」 버튼이 손가락 크기(44px)다 ★', await page.locator('.n3-reflink').evaluateAll((els) => els.every((e) => e.getBoundingClientRect().height >= 40)), `${await page.locator('.n3-reflink').count()}개`);
   await goTab(page, '내 학습');
 
   console.log('\n[ 복습 화면에서도 같은 곳 ]');
