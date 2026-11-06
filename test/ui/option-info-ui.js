@@ -34,6 +34,7 @@ async function boot(browser, { review = {}, settings = {} } = {}) {
      서비스워커가 준비되기 전의 느린 러너에서 화면이 안 뜬다(CI에서 그랬다). */
   await page.evaluate(({ review, settings }) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
+    localStorage.setItem('jp_stream_batch', '0');   // 끝없이 — 스무 문제에서 멈추는 「계속하기」 화면이 검사를 끊지 않게
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(review));
     const cur = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     Object.assign(cur, { onboarded: true, canReadKana: true, autoTTS: false }, settings);

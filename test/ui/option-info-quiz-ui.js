@@ -74,12 +74,14 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e ? '— ' + 
 
   const idxOf = async () => (await page.locator('.sh-title').first().textContent()).trim();
   let tested = false; let held = false;
-  for (let n = 0; n < 12 && !(tested && held); n++) {
+  for (let n = 0; n < 16 && !(tested && held); n++) {
     const before = await idxOf();
     const nOpts = await page.locator('.qopt').count();
-    await page.locator('.qopt').first().click();
+    /* 늘 첫 보기만 누르면 정답 자리가 우연히 안 맞는 날 맞히는 경우를 못 만난다 — 보기를 돌려 가며 누른다 */
+    const pick = n % nOpts;
+    await page.locator('.qopt').nth(pick).click();
     await page.waitForTimeout(450);
-    const right = ((await page.locator('.qopt').first().getAttribute('class')) || '').includes('correct');
+    const right = ((await page.locator('.qopt').nth(pick).getAttribute('class')) || '').includes('correct');
     if (!tested) {
       tested = true;
       ok('★ 아래 큰 패널이 없다 ★', await page.locator('.optrev').count() === 0);
