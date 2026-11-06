@@ -28,7 +28,7 @@ import { wrongTotals } from './lib/wrongbook.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
 import { noteQuest, streamQuestState, randomQuestState } from './lib/quests.js';
-import { nextStep, stepOfDeck, randomTestIds, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
+import { nextStep, stepOfDeck, randomTestIds, n3Open, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
@@ -348,11 +348,15 @@ export default function App() {
      복습 미션 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기(끝에서 10개 더) → 오늘 랜덤 테스트.
      할 게 없거나 이미 마친 단계는 건너뛴다(lib/dayflow.js). */
   const freshLeft = Math.max(0, (planNow?.lanes?.fresh?.assigned || 0) - (planNow?.lanes?.fresh?.done || 0));
+  /* 오늘의 N3(N3 코스의 오늘 계획) — N3를 켠 사람에게만. 코스 자료는 안 불러오고 코스가 적어 둔 진도만 본다 */
+  const n3FlowOn = Boolean(settings.menus?.n3) && n3Included(goalOf(settings));
+  const n3FlowOpen = n3Open(n3FlowOn, progress.n3, today);
   const flowOpen = {
     review: reviewLeft > 0,
     weakquiz: Boolean(weakQuiz && weakQuiz.total > 0 && !weakQuiz.complete),
     stream: Boolean(streamQuest && !streamQuest.complete),
     fresh: freshLeft > 0,
+    n3: n3FlowOpen,
     random: Boolean(randomQuest && !randomQuest.complete),
   };
   const goStep = useCallback((to) => {
@@ -360,8 +364,9 @@ export default function App() {
     if (to === 'weakquiz') startWeakQuiz();
     else if (to === 'stream') startStreamQuest();
     else if (to === 'fresh') startToday(['fresh']);
+    else if (to === 'n3') nav.openMenu('n3', { view: { kind: 'today' } });
     else if (to === 'random') startRandomTest();
-  }, [setDeck, startWeakQuiz, startStreamQuest, startToday, startRandomTest]);
+  }, [setDeck, startWeakQuiz, startStreamQuest, startToday, startRandomTest, nav]);
   const flowAfter = (step) => {
     const n = nextStep(step, flowOpen);
     return n ? { ...n, go: () => goStep(n.to) } : null;
@@ -745,6 +750,7 @@ export default function App() {
                 nextQuestLabel={flowAfter('weakquiz')?.to === 'stream' ? '쭉 퀴즈로 이어서' : (flowAfter('weakquiz')?.label || '')}
                 randomOn={randomMode}
                 onRandomDone={onRandomDone}
+                n3Next={flowAfter('n3')}
                 streamNext={flowAfter('stream')}
                 streamQuestDone={!streamQuest || streamQuest.complete}
                 onStreamAnswered={onStreamAnswered}

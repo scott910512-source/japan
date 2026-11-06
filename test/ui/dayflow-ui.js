@@ -4,11 +4,11 @@
  *
  *   · 오늘 탭에 다섯 줄이 이 순서로 있고, 양이 늘었다(복습 30 이상 · 약점 30 · 쭉 20 · 새로 10)
  *   · 약점 퀴즈를 마치면 「다음: 쭉 퀴즈」, 쭉 퀴즈 20문제를 채우면 「다음: 새로 배우기」가 뜬다
- *   · 새로 배우기를 끝내면 「10개 더 배우기」와 「다음: 오늘 랜덤 테스트」
+ *   · 새로 배우기를 끝내면 「10개 더 배우기」와 「다음: 오늘의 N3」, N3를 다 하면 「다음: 오늘 랜덤 테스트」
  *   · 랜덤 테스트는 쉰 문제(모자라면 있는 만큼)고 끝나면 오늘 몫이 적힌다 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { goTab } from './_nav.js';
+import { goTab, openMenu } from './_nav.js';
 import * as allWords from '../../src/data/allWords.js';
 import { applyVerdict, VERDICT, addDays, todayKey } from '../../src/lib/review.js';
 
@@ -29,17 +29,18 @@ const review = {
   ...Object.fromEntries(weak.map((w) => [w.id, { box: 1, streak: 0, lastSeen: addDays(today, -4), rounds: 3, wrongCount: 3, vagueCount: 1, seenAt: 1, due: addDays(today, 5) }])),
 };
 
-async function boot(browser) {
+async function boot(browser, progress = null) {
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate((rv) => {
+  await page.evaluate(({ rv, progress }) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     localStorage.setItem('jp_optrev_open', '0');
     /* 옛 설정(번호 없음, 복습 9 · 새로 8)에서 시작한다 — 새 수량으로 바뀌는지도 같이 본다 */
     const s = { onboarded: true, canReadKana: true, autoTTS: false, goals: { fresh: 8, review: 9, weak: 3 } };
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(rv));
-  }, review);
+    if (progress) localStorage.setItem('jp_manabu_progress_v1', JSON.stringify(progress));
+  }, { rv: review, progress });
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
@@ -95,7 +96,7 @@ async function finishDeck(page) {
   const rows = await page.locator('.tdq-row').allInnerTexts();
   const order = ['복습 미션', '약점 퀴즈', '쭉 퀴즈', '새로 배우기', '오늘 랜덤 테스트'];
   const at = order.map((t) => rows.findIndex((r) => r.includes(t)));
-  ok('★ 다섯 줄이 이 순서로 있다 ★', at.every((i) => i >= 0) && at.every((i, k) => k === 0 || i > at[k - 1]), at.join());
+  ok('★ 다섯 줄이 이 순서로 있다(오늘의 N3는 줄이 아니라 다음 버튼으로만 이어진다) ★', at.every((i) => i >= 0) && at.every((i, k) => k === 0 || i > at[k - 1]), at.join());
   const review1 = await rowText(page, '복습 미션');
   ok('★ 복습 미션은 서른 개 이상 ★', Number((review1.match(/남은 (\d+)개/) || [])[1]) >= 30, review1);
   ok('★ 약점 퀴즈는 서른 문제 ★', (await rowText(page, '약점 퀴즈')).includes('30문제 남았어요'), await rowText(page, '약점 퀴즈'));
@@ -146,15 +147,22 @@ async function finishDeck(page) {
   ok('완주 화면이 뜬다', await page.locator('.finish').count() === 1, `${g}걸음`);
   if (await page.locator('.finish').count()) {
     ok('★ 「10개 더 배우기」가 있다 ★', await page.locator('.fin-more').count() === 1);
-    ok('★ 「다음: 오늘 랜덤 테스트」가 있다 ★', await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('오늘 랜덤 테스트'));
+    ok('★ 「다음: 오늘의 N3」가 있다 ★', await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('오늘의 N3'));
     /* ★ 「10개 더 배우기」를 누르면 새 판이 열리고, 그 판을 끝내면 또 같은 두 버튼이 뜬다 ★ */
     await page.locator('.fin-more').click();
     await page.waitForTimeout(1200);
     ok('★ 10개 더: 완주 화면이 내려가고 새 판이 열린다 ★', await page.locator('.finish').count() === 0 && await page.locator('.study').count() >= 1);
     const g2 = await finishDeck(page);
     ok('더 배운 판도 끝나면 완주 화면', await page.locator('.finish').count() === 1, `${g2}걸음`);
-    ok('★ 끝나면 또 「10개 더」와 「다음: 오늘 랜덤 테스트」 ★', await page.locator('.fin-more').count() === 1 && await page.locator('.fin-next').count() === 1);
+    ok('★ 끝나면 또 「10개 더」와 「다음: 오늘의 N3」 ★', await page.locator('.fin-more').count() === 1 && await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('오늘의 N3'));
     await page.locator('.fin-next').click();
+    await page.waitForTimeout(1500);
+    ok('★ 오늘의 N3(코스의 오늘 순서)가 열린다 ★', await page.locator('.n3-today').count() === 1, (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 80));
+    /* 오늘 순서가 짜여 있다(어휘 · 한자 · 문법 …) */
+    ok('오늘 순서 줄이 있다', await page.locator('.n3-steprow').count() >= 1);
+    await goTab(page, '오늘');
+    await page.waitForTimeout(500);
+    await page.locator('.tdq-row', { hasText: '오늘 랜덤 테스트' }).click();
     await page.waitForTimeout(1200);
 
     console.log('\n[ 오늘 랜덤 테스트 ]');
@@ -169,6 +177,23 @@ async function finishDeck(page) {
     await page.waitForTimeout(700);
     await goTab(page, '오늘');
     ok('★ 오늘 탭에서 랜덤 테스트가 마쳤어요로 바뀐다 ★', (await rowText(page, '오늘 랜덤 테스트')).includes('마쳤어요'), await rowText(page, '오늘 랜덤 테스트'));
+  }
+
+  console.log('\n[ 오늘의 N3를 다 하면 → 다음: 오늘 랜덤 테스트 ]');
+  {
+    const p2 = await boot(browser, { n3: { v: 1, days: { [today]: { steps: [{ kind: 'review', ids: [], done: true }], built: 1, answered: 0, right: 0 } } } });
+    p2.on('pageerror', (e) => errors.push(e.message));
+    await goTab(p2, '오늘');
+    ok('오늘 탭에는 N3 입구 줄이 없다(학습 탭 하나)', await p2.locator('.tdq-row', { hasText: '오늘의 N3' }).count() === 0);
+    await openMenu(p2, '한 권으로 끝내는 N3');
+    await p2.locator('.n3-hub').waitFor({ timeout: 8000 });
+    await p2.locator('.n3-cta').click();
+    await p2.waitForTimeout(1200);
+    ok('★ 끝낸 오늘의 N3에 「다음: 오늘 랜덤 테스트」가 있다 ★', await p2.locator('.n3-flownext').count() === 1 && (await p2.locator('.n3-flownext').innerText()).includes('오늘 랜덤 테스트'));
+    await p2.locator('.n3-flownext').click();
+    await p2.waitForTimeout(1200);
+    ok('★ 눌렀더니 랜덤 테스트가 바로 시작된다 ★', await p2.locator('.qoptions, .qtyping').count() >= 1 && /\/\s*50|\/\s*\d+/.test((await p2.locator('.subscreen.open').innerText()).replace(/\s+/g, ' ')));
+    await p2.close();
   }
 
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 2).join(' | ') || '깨끗');

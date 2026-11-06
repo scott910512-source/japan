@@ -51,6 +51,7 @@ export default function FeatureScreen({
   randomOn = false,
   onRandomDone = null,
   streamNext = null,
+  n3Next = null,
   streamQuestDone = false,
   onStreamAnswered,
 }) {
@@ -94,6 +95,7 @@ export default function FeatureScreen({
                 onStartSet={startJlptSet}
                 onToast={showToast}
                 initialView={n3View}
+                flowNext={n3Next}
               />
             )}
             {/* 듣기 고르기 — 자동 듣기 · 따라 말하기 · 영상. 학습 탭 「듣기」에서 연다 */}
