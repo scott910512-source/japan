@@ -55,7 +55,7 @@ function cardRef(ref) {
   return null;
 }
 
-export default function N3Course({ review, progress, setProgress, applyVerdicts, settings, streak, onStartSet, onToast, onAttempt, initialView = null }) {
+export default function N3Course({ review, progress, setProgress, applyVerdicts, settings, streak, onStartSet, onToast, onAttempt, initialView = null, flowNext = null }) {
   const today = useToday();
   const n3 = useMemo(() => normalizeN3(progress?.n3), [progress?.n3]);
   const setN3 = useCallback((fn) => setProgress((p) => ({ ...p, n3: fn(normalizeN3(p?.n3)) })), [setProgress]);
@@ -169,6 +169,7 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
       <N3Today
         day={day}
         today={today}
+        flowNext={flowNext}
         onBack={goHub}
         onRebuild={() => { setN3((p) => ({ ...p, days: { ...p.days, [today]: { ...(p.days[today] || {}), steps: buildDayPlan(p, review, today).steps, built: Date.now() } } })); }}
         onRun={(i) => {
