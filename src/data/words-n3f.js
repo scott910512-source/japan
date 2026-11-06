@@ -47,7 +47,7 @@ export const N3_WORDS_F = [
   { id: 'n3f-0023', kanji: '利点', kana: 'りてん', mean: '이점', type: 'noun', level: 'N3',
     example: 'この方法には利点があります。', exampleKana: 'このほうほうにはりてんがあります。', exampleKo: '이 방법에는 이점이 있습니다.', tags: ['추상'] },
   { id: 'n3f-0024', kanji: '影', kana: 'かげ', mean: '그림자', type: 'noun', level: 'N3',
-    example: '木の影で休みました。', exampleKana: 'きのかげでやすみました。', exampleKo: '나무 그늘에서 쉬었습니다.', tags: ['자연'] },
+    example: '木の影が長く伸びています。', exampleKana: 'きのかげがながくのびています。', exampleKo: '나무 그림자가 길게 늘어져 있습니다.', tags: ['자연'] },
   { id: 'n3f-0025', kanji: '本音', kana: 'ほんね', mean: '속마음;본심', type: 'noun', level: 'N3',
     example: 'やっと本音を聞けました。', exampleKana: 'やっとほんねをきけました。', exampleKo: '겨우 속마음을 들을 수 있었습니다.', tags: ['감정','사람'] },
   { id: 'n3f-0026', kanji: '建前', kana: 'たてまえ', mean: '겉으로 하는 말;명분', type: 'noun', level: 'N3',

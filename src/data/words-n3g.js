@@ -71,7 +71,7 @@ export const N3_WORDS_G = [
   { id: 'n3g-0035', kanji: '会員', kana: 'かいいん', mean: '회원', type: 'noun', level: 'N3',
     example: '会員になると安くなります。', exampleKana: 'かいいんになるとやすくなります。', exampleKo: '회원이 되면 싸집니다.', tags: ['쇼핑'] },
   { id: 'n3g-0036', kanji: '通販', kana: 'つうはん', mean: '통신 판매', type: 'noun', level: 'N3',
-    example: '通販で買いました。', exampleKana: 'つうはんでかいました。', exampleKo: '온라인으로 샀습니다.', tags: ['쇼핑'] },
+    example: '通販で買いました。', exampleKana: 'つうはんでかいました。', exampleKo: '통신 판매로 샀습니다.', tags: ['쇼핑'] },
   { id: 'n3g-0037', kanji: '宅配便', kana: 'たくはいびん', mean: '택배', type: 'noun', level: 'N3',
     example: '宅配便が届きました。', exampleKana: 'たくはいびんがとどきました。', exampleKo: '택배가 도착했습니다.', tags: ['일상'] },
   { id: 'n3g-0038', kanji: '荷物受け取り', kana: 'にもつうけとり', mean: '짐 수령', type: 'noun', level: 'N3',
