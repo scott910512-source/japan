@@ -72,7 +72,7 @@ export const N3_WORDS_I = [
   { id: 'n3i-0034', kanji: '気候', kana: 'きこう', mean: '기후', type: 'noun', level: 'N3',
     example: 'この地方は気候が穏やかです。', exampleKana: 'このちほうはきこうがおだやかです。', exampleKo: '이 지방은 기후가 온화합니다.', tags: ['날씨'] },
   { id: 'n3i-0035', kanji: '梅雨', kana: 'つゆ', mean: '장마', type: 'noun', level: 'N3',
-    example: '六月は梅雨に入ります。', exampleKana: 'ろくがつはつゆにはいります。', exampleKo: '6월은 장마에 들어갑니다.', tags: ['날씨'] },
+    example: '六月は梅雨の季節です。', exampleKana: 'ろくがつはつゆのきせつです。', exampleKo: '6월은 장마철입니다.', tags: ['날씨'] },
   { id: 'n3i-0036', kanji: '猛暑', kana: 'もうしょ', mean: '폭염', type: 'noun', level: 'N3',
     example: '今年は猛暑が続いています。', exampleKana: 'ことしはもうしょがつづいています。', exampleKo: '올해는 폭염이 이어지고 있습니다.', tags: ['날씨'] },
   { id: 'n3i-0037', kanji: '大雨', kana: 'おおあめ', mean: '폭우', type: 'noun', level: 'N3',

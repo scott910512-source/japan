@@ -91,7 +91,7 @@ export const N3_WORDS_H = [
   { id: 'n3h-0045', kanji: '金庫', kana: 'きんこ', mean: '금고', type: 'noun', level: 'N3',
     example: '部屋に金庫があります。', exampleKana: 'へやにきんこがあります。', exampleKo: '방에 금고가 있습니다.', tags: ['여행'] },
   { id: 'n3h-0046', kanji: '紛失', kana: 'ふんしつ', mean: '분실', type: 'noun', level: 'N3',
-    example: 'パスポートの紛失を届けました。', exampleKana: 'パスポートのふんしつをとどけました。', exampleKo: '여권 분실을 신고했습니다.', tags: ['여행','안전'] },
+    example: 'パスポートの紛失を届け出ました。', exampleKana: 'パスポートのふんしつをとどけでました。', exampleKo: '여권 분실을 신고했습니다.', tags: ['여행','안전'] },
   { id: 'n3h-0047', kanji: '保険', kana: 'ほけん', mean: '보험', type: 'noun', level: 'N3',
     example: '旅行保険に入りました。', exampleKana: 'りょこうほけんにはいりました。', exampleKo: '여행 보험에 들었습니다.', tags: ['여행'] },
   { id: 'n3h-0048', kanji: '緊急', kana: 'きんきゅう', mean: '긴급', type: 'noun', level: 'N3',

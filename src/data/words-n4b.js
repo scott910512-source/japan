@@ -112,7 +112,7 @@ export const N4_WORDS_B = [
   { id: 'n4b-0053', kanji: '不自由', kana: 'ふじゆう', mean: '불편한;부자유한', type: 'adj-na', level: 'N4',
     example: '足が不自由な人のための席です。', exampleKana: 'あしがふじゆうなひとのためのせきです。', exampleKo: '다리가 불편한 사람을 위한 자리입니다.', tags: ['사회'] },
   { id: 'n4b-0054', kanji: '真っ白', kana: 'まっしろ', mean: '새하얀', type: 'adj-na', level: 'N4',
-    example: '朝起きたら真っ白な雪でした。', exampleKana: 'あさおきたらまっしろなゆきでした。', exampleKo: '아침에 일어나니 새하얀 눈이었습니다.', tags: ['날씨','자연'] },
+    example: '朝起きたら雪で真っ白でした。', exampleKana: 'あさおきたらゆきでまっしろでした。', exampleKo: '아침에 일어나니 눈으로 새하얬습니다.', tags: ['날씨','자연'] },
   { id: 'n4b-0055', kanji: '真っ黒', kana: 'まっくろ', mean: '새까만', type: 'adj-na', level: 'N4',
     example: '空が真っ黒になりました。', exampleKana: 'そらがまっくろになりました。', exampleKo: '하늘이 새까매졌습니다.', tags: ['날씨'] },
 

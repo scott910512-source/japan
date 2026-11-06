@@ -34,7 +34,7 @@ export const N3_WORDS_D = [
   { id: 'n3d-0016', kanji: '騒々しい', kana: 'そうぞうしい', mean: '시끌벅적하다', type: 'adj-i', level: 'N3',
     example: '外が騒々しくて眠れません。', exampleKana: 'そとがそうぞうしくてねむれません。', exampleKo: '밖이 시끄러워서 잘 수 없습니다.', tags: ['일상'] },
   { id: 'n3d-0017', kanji: '頼りない', kana: 'たよりない', mean: '미덥지 않다', type: 'adj-i', level: 'N3',
-    example: '説明が頼りないです。', exampleKana: 'せつめいがたよりないです。', exampleKo: '설명이 미덥지 않습니다.', tags: ['일'] },
+    example: '彼は頼りないです。', exampleKana: 'かれはたよりないです。', exampleKo: '그는 미덥지 않습니다.', tags: ['일'] },
   { id: 'n3d-0018', kanji: '力弱い', kana: 'ちからよわい', mean: '힘없다', type: 'adj-i', level: 'N3',
     example: '力弱い声で答えました。', exampleKana: 'ちからよわいこえでこたえました。', exampleKo: '힘없는 목소리로 답했습니다.', tags: ['감정'] },
   { id: 'n3d-0019', kanji: '注意深い', kana: 'ちゅういぶかい', mean: '주의 깊다', type: 'adj-i', level: 'N3',
