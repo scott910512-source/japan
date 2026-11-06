@@ -38,7 +38,7 @@ const readyShown = (s) => {
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
-  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, onOpenProgress,
+  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, onOpenProgress,
 }) {
   const today = todayKey();
 
@@ -100,6 +100,12 @@ export default function Today({
       key: 'fresh', title: '새로 배우기',
       note: freshLeft === 0 ? '오늘 새 학습을 마쳤어요' : freshMix,
       done: freshLane.done, total: freshLane.assigned, icon: <IconBook />, onClick: onStartWords,
+    },
+    /* ★ 오늘 랜덤 테스트 ★ 하루의 마지막. 오늘 만난 것을 다 섞어서 쉰 문제 */
+    randomQuest && {
+      key: 'randomtest', title: '오늘 랜덤 테스트',
+      note: randomQuest.complete ? '오늘 랜덤 테스트를 마쳤어요' : '오늘 만난 것을 다 섞어서 쉰 문제',
+      done: randomQuest.done, total: randomQuest.total, icon: <IconFlame />, onClick: onStartRandomTest,
     },
   ].filter(Boolean);
   const missionDone = missions.filter((m) => m.done >= m.total).length;

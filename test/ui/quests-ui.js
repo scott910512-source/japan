@@ -1,8 +1,8 @@
-/* 오늘 퀘스트의 쭉 퀴즈(열 문제) — 진짜 화면에서.
+/* 오늘 퀘스트의 쭉 퀴즈(스무 문제) — 진짜 화면에서.
  *
- *   · 외운 낱말이 있으면 퀘스트에 「쭉 퀴즈」 줄(0 / 10)이 뜬다. 없으면 안 뜬다
+ *   · 외운 낱말이 있으면 퀘스트에 「쭉 퀴즈」 줄(0 / 20)이 뜬다. 없으면 안 뜬다
  *   · 누르면 쭉 퀴즈가 열리고, 한 문제 풀 때마다 오늘 몫이 오른다
- *   · 열 문제를 채우면 마쳤다고 바뀐다 */
+ *   · 스무 문제를 채우면 마쳤다고 바뀐다 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab } from './_nav.js';
@@ -55,7 +55,7 @@ const questsOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('
   await goTab(page, '오늘');
   const row = page.locator('.tdq-row', { hasText: '쭉 퀴즈' });
   ok('★ 퀘스트에 「쭉 퀴즈」 줄이 있다 ★', await row.count() === 1);
-  ok('처음엔 열 문제가 남았다고 적힌다', (await row.innerText()).includes('10문제 남았어요'), (await row.innerText()).replace(/\s+/g, ' '));
+  ok('처음엔 스무 문제가 남았다고 적힌다', (await row.innerText()).includes('20문제 남았어요'), (await row.innerText()).replace(/\s+/g, ' '));
   await row.click();
   await page.waitForTimeout(900);
   ok('쭉 퀴즈 소개가 열린다', await page.locator('.st-intro').count() === 1);
@@ -77,11 +77,11 @@ const questsOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('
   ok('★ 푼 만큼 오늘 몫에 적힌다 ★', q && q.day === today && q.stream === answered, JSON.stringify(q));
   await goTab(page, '오늘');
   const mid = page.locator('.tdq-row', { hasText: '쭉 퀴즈' });
-  ok('오늘 탭에 남은 문제 수가 줄어 있다', (await mid.innerText()).includes(`${10 - answered}문제 남았어요`), (await mid.innerText()).replace(/\s+/g, ' '));
+  ok('오늘 탭에 남은 문제 수가 줄어 있다', (await mid.innerText()).includes(`${20 - answered}문제 남았어요`), (await mid.innerText()).replace(/\s+/g, ' '));
   await page.close();
 
-  console.log('\n[ 열 문제를 채우면 ]');
-  const full = await boot(browser, { rv: review, progress: { quests: { day: today, stream: 10 } } });
+  console.log('\n[ 스무 문제를 채우면 ]');
+  const full = await boot(browser, { rv: review, progress: { quests: { day: today, stream: 20 } } });
   full.on('pageerror', (e) => errors.push(e.message));
   await goTab(full, '오늘');
   const done = full.locator('.tdq-row', { hasText: '쭉 퀴즈' });
@@ -99,7 +99,7 @@ const questsOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('
   const old = await boot(browser, { rv: review, progress: { quests: { day: '2000-01-01', stream: 10 } } });
   old.on('pageerror', (e) => errors.push(e.message));
   await goTab(old, '오늘');
-  ok('어제 열 문제를 풀었어도 오늘은 처음부터', (await old.locator('.tdq-row', { hasText: '쭉 퀴즈' }).innerText()).includes('10문제 남았어요'));
+  ok('어제 스무 문제를 풀었어도 오늘은 처음부터', (await old.locator('.tdq-row', { hasText: '쭉 퀴즈' }).innerText()).includes('20문제 남았어요'));
   await old.close();
 
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | ') || '깨끗');

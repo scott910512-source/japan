@@ -31,6 +31,8 @@ const loadBatch = () => {
 
 export default function StreamQuiz({
   words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit, onAttempt, onAnswered,
+  /* 하루 흐름 — 쭉 퀴즈 오늘 몫(스무 문제)을 마치면 다음 단계를 바로 내민다. next = { label, go } */
+  next = null, questDone = false,
 }) {
   const goal = goalOf(settings);
   const [n3, setN3] = useState(null);
@@ -222,7 +224,7 @@ export default function StreamQuiz({
 
   if (phase === 'sum') {
     return <StreamSummary session={session} goal={goal} wordById={wordById} sentenceById={sentenceById}
-      onAgain={start} onExit={onExit} />;
+      onAgain={start} onExit={onExit} next={questDone ? next : null} />;
   }
 
   const { q } = cur;
@@ -244,7 +246,8 @@ export default function StreamQuiz({
             맞힌 것 <b>{right}</b> / {total}{session.streak >= 3 ? ` · 연속 ${session.streak}` : ''}.
             더 풀면 같은 판에서 이어져요. 오늘은 여기까지 하면 지금까지의 평가가 나와요.
           </p>
-          <button className="submit-btn st-continue" onClick={goNext}>계속하기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
+          {questDone && next && <button className="submit-btn st-next" onClick={next.go}>다음: {next.label}</button>}
+          <button className={`${questDone && next ? 'ghost-btn' : 'submit-btn'} st-continue`} onClick={goNext}>계속하기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
           <button className="ghost-btn st-enough" onClick={() => { setCheckpoint(false); setPhase('sum'); }}>오늘은 여기까지</button>
         </div>
       </div>
@@ -362,7 +365,7 @@ function labelOf(id, wordById, sentenceById) {
   return { main: id, sub: '문법' };
 }
 
-function StreamSummary({ session, goal, wordById, sentenceById, onAgain, onExit }) {
+function StreamSummary({ session, goal, wordById, sentenceById, onAgain, onExit, next = null }) {
   const r = useMemo(() => summarize(session.log), [session.log]);
   const tone = r.pct >= 90 ? 'great' : r.pct >= 70 ? 'good' : r.pct >= 50 ? 'okay' : 'weak';
   if (r.total === 0) {
@@ -410,7 +413,8 @@ function StreamSummary({ session, goal, wordById, sentenceById, onAgain, onExit 
       ) : <p className="set-note">하나도 안 틀렸어요. 맞힌 것은 복습 간격이 늘어나요.</p>}
 
       <div className="qnext">
-        <button className="submit-btn st-again" onClick={onAgain}>계속 풀기</button>
+        {next && <button className="submit-btn st-next" onClick={next.go}>다음: {next.label}</button>}
+        <button className={`${next ? 'ghost-btn' : 'submit-btn'} st-again`} onClick={onAgain}>계속 풀기</button>
         <button className="ghost-btn st-exit" onClick={onExit}>나가기</button>
       </div>
     </div>

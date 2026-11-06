@@ -70,12 +70,11 @@ console.log('\n── 갈래마다 제 목표를 가진다');
   `${p.fresh}/${p.review}/${p.weak}`);
   ok('셋을 다 채우면 목표의 합', p.total === DEFAULT_GOALS.fresh + DEFAULT_GOALS.review + DEFAULT_GOALS.weak,
     `${p.total}개`);
-  /* ★ 기본값이 하루 총량이어야 한다 ★
-     셋을 각각 20으로 두었더니 자료가 쌓인 뒤 하루가 예순 장이 됐다.
-     「20」 셋을 본 사람은 스무 장을 고른 줄로 아는데 세 배였다. */
-  ok('★ 기본 하루치가 총 스무 장 ★',
-    DEFAULT_GOALS.fresh + DEFAULT_GOALS.review + DEFAULT_GOALS.weak === 20,
-    `${DEFAULT_GOALS.fresh}+${DEFAULT_GOALS.review}+${DEFAULT_GOALS.weak}`);
+  /* ★ 하루 기본값: 복습 미션 최소 서른(복습 30 + 약점 3), 새로 배우기 열 ★
+     하루 흐름이 복습 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기 → 랜덤 테스트로 이어져서 양을 키웠다. */
+  ok('★ 복습 미션은 서른 개 이상 ★', DEFAULT_GOALS.review + DEFAULT_GOALS.weak >= 30,
+    `${DEFAULT_GOALS.review}+${DEFAULT_GOALS.weak}`);
+  ok('★ 새로 배우기는 열 개 ★', DEFAULT_GOALS.fresh === 10);
   /* 복습에 제일 많이 준다 — 이미 본 걸 안 잃는 것이 새로 배우는 것보다 앞선다 */
   ok('복습 몫이 제일 크다', DEFAULT_GOALS.review >= DEFAULT_GOALS.fresh
     && DEFAULT_GOALS.review > DEFAULT_GOALS.weak);

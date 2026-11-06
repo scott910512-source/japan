@@ -1,7 +1,7 @@
 /* 약점 한 곳 + 오늘 퀘스트의 약점 퀴즈 — 진짜 화면에서.
  *
  *   · 오늘 퀘스트에 「약점 퀴즈」가 뜬다(약한 낱말이 있을 때만)
- *   · 누르면 약한 낱말 다섯으로 단어 시험이 열린다. 푼 만큼 퀘스트가 오른다
+ *   · 누르면 약한 낱말(최대 서른)으로 단어 시험이 열린다. 푼 만큼 퀘스트가 오른다
  *   · 약점을 보는 곳은 한 화면: 복습&내기록 › 약점, 복습 화면 › 약점이 같은 곳을 연다
  *   · 복습 화면에 「취약 단어」 「취약 문법」 줄이 따로 없다
  *   · 약한 게 없으면 줄이 안 뜨고 약점 줄은 잠긴다 */
@@ -58,7 +58,7 @@ const progressOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem
   await goTab(page, '오늘');
   const quest = page.locator('.tdq-row', { hasText: '약점 퀴즈' });
   ok('★ 퀘스트에 「약점 퀴즈」 줄이 있다 ★', await quest.count() === 1);
-  ok('처음엔 0 / 5이고 남은 문제 수가 적힌다', (await quest.innerText()).includes('5문제 남았어요'), (await quest.innerText()).replace(/\s+/g, ' '));
+  ok('처음엔 0 / 8(약한 낱말 8개)이고 남은 문제 수가 적힌다', (await quest.innerText()).includes('8문제 남았어요'), (await quest.innerText()).replace(/\s+/g, ' '));
 
   await quest.click();
   await page.waitForTimeout(1000);
@@ -66,7 +66,7 @@ const progressOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem
   const start = page.locator('button', { hasText: '시험 시작' }).first();
   if (await start.count()) { await start.click(); await page.waitForTimeout(900); }
   ok('시험이 시작된다', await page.locator('.qoptions').count() === 1);
-  ok('★ 다섯 문제다 ★', /\/\s*5/.test((await page.locator('.subscreen.open').innerText()).replace(/\s+/g, ' ')), (await page.locator('.subscreen.open').innerText()).replace(/\s+/g, ' ').slice(0, 60));
+  ok('★ 약한 낱말 여덟 개가 다 문제로 나온다(상한은 서른) ★', /\/\s*8/.test((await page.locator('.subscreen.open').innerText()).replace(/\s+/g, ' ')), (await page.locator('.subscreen.open').innerText()).replace(/\s+/g, ' ').slice(0, 60));
 
   let steps = 0;
   while (steps < 30 && await page.locator('.quizscore').count() === 0) {
@@ -92,7 +92,7 @@ const progressOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem
     ok('쭉 퀴즈 퀘스트가 없으면 「약점 퀴즈 마치기」 하나만', (await page.locator('.wk-resultdone').innerText()).includes('마치기'));
   }
   const pg = await progressOf(page);
-  ok('★ 푼 낱말 다섯이 오늘 몫에 적힌다 ★', pg.weakQuiz && pg.weakQuiz.ids && pg.weakQuiz.ids.length === 5, JSON.stringify(pg.weakQuiz));
+  ok('★ 푼 낱말 여덟이 오늘 몫에 적힌다 ★', pg.weakQuiz && pg.weakQuiz.ids && pg.weakQuiz.ids.length === 8, JSON.stringify(pg.weakQuiz));
 
   await goTab(page, '오늘');
   const done = page.locator('.tdq-row', { hasText: '약점 퀴즈' });
