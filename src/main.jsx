@@ -42,9 +42,16 @@ function stateNow() {
 
 let pending = false;
 let told = false;
+let applying = false;
+/* ★ 새 버전이 넘겨받으면 새로고침한다 — 우리가 갈아끼우기로 한 때만 ★
+   라이브러리가 대신 새로고침해 주긴 하는데 그 조건(새로고침 가능 여부 표시)을 믿을 수 없어서, 어느 쪽이 되든 여기서도 한 번 확실히 한다.
+   applying이 켜진 뒤(= 안전하다고 보고 갈아끼우기를 시작한 뒤)에만 움직인다 — 그 전에 넘겨받는 일은 없다(skipWaiting을 껐다). */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (applying) window.location.reload(); });
+}
 const applyIfSafe = () => {
   const why = updateGate(stateNow());
-  if (why === WHY.OK) { updateSW(true); return; }
+  if (why === WHY.OK) { applying = true; updateSW(true); return; }
   if (why === WHY.NONE) return;
   /* 한 번만 알린다. 30분마다 같은 말을 띄우면 그게 더 방해다 */
   if (told) return;
