@@ -109,6 +109,9 @@
 .mistake-question { white-space: pre-wrap; line-height: 1.8; font-size: 16px; }
 .mistake-options { display: grid; gap: 7px; }
 .mistake-options button { text-align: left; }
+/* 곤 카드 안쪽 상자가 어두운 바탕(--paper)에 어두운 글자라 안 읽혔다 — 이 패널은 밝은 종이 색이라 상자도 맞춘다 */
+.mistake-notebook .ht-lesson { background: #fffbed; color: #213a3d; border-color: #dbe2d2; }
+.mistake-notebook .ht-lesson p { color: #213a3d; margin: 0 0 6px; }
 .mistake-feedback { margin-top: 14px; background: #e9eedc; padding: 12px; border-radius: 12px; }
 .mistake-retest form { display: grid; gap: 8px; }
 .mistake-retest input { width: 100%; min-height: 44px; border: 1px solid #a9b69d; border-radius: 9px; padding: 8px; color: #213a3d; background: white; font-size: 16px; }

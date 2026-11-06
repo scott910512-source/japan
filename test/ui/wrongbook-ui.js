@@ -76,6 +76,21 @@ async function boot(browser, progress) {
   await page.locator('.subscreen.open .mistake-start').click();
   await page.waitForTimeout(300);
   ok('다시 시험이 이 화면에서 돈다', await page.locator('.subscreen.open .mistake-retest').count() === 1);
+  /* ★ 푸는 동안에도 곤이 말해 준다 ★ */
+  ok('★ 답을 내기 전에 곤이 지난번 고른 답을 짚어 준다 ★', (await page.locator('.mistake-retest .hunter-tutor').getAttribute('data-guide')) === 'gon' && (await page.locator('.mistake-retest .hunter-tutor').innerText()).includes('지난번엔'));
+  ok('정답은 곤이 말하지 않는다', !(await page.locator('.mistake-retest .hunter-tutor').innerText()).includes('정답'));
+  await page.locator('.mistake-options button').first().click();
+  await page.waitForTimeout(400);
+  ok('답을 내면 해설 카드가 뜬다', await page.locator('.mistake-feedback .hunter-tutor').count() === 1);
+  /* ★ 해설 상자의 글자가 바탕과 구별된다(어두운 바탕에 어두운 글자였다) ★ */
+  const contrast = await page.evaluate(() => {
+    const box = document.querySelector('.mistake-feedback .ht-lesson');
+    const p = box.querySelector('p');
+    const lum = (c) => { const m = c.match(/\d+(\.\d+)?/g).map(Number); const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2]); };
+    const a = lum(getComputedStyle(box).backgroundColor); const b = lum(getComputedStyle(p).color);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+  ok('★ 해설 글자와 바탕의 대비가 충분하다(4.5:1 이상) ★', contrast >= 4.5, contrast.toFixed(1));
   await page.locator('.subscreen.open .mistake-retest-head button').click();
 
   console.log('\n[ N3 코스 오답노트로 ]');

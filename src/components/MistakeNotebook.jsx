@@ -25,6 +25,17 @@ export default function MistakeNotebook({ book = {}, onAttempt, onLearn }) {
     <p>틀린 문제·내 답·해설을 바로 저장해요. 다른 날짜에 두 번 맞히면 복습 완료로 바뀌어요.</p>
     {run && cur ? <div className="mistake-retest">
       <div className="mistake-retest-head"><b>오답 재시험 {run.index + 1} / {run.items.length}</b><button onClick={() => setRun(null)}>그만하기</button></div>
+      {/* ★ 푸는 동안에도 곤이 곁에서 말해 준다 ★ 답을 내기 전엔 지난번에 뭘 골랐는지를 짚어 주고(정답은 안 말한다), 낸 뒤에는 아래 해설 */}
+      {run.picked == null && (
+        <HunterTutor
+          guide="gon"
+          scene="arena"
+          mood="encourage"
+          title="재시험 도우미"
+          line={(cur.wrongChosen ?? cur.chosen) ? `지난번엔 「${cur.wrongChosen ?? cur.chosen}」을 골랐었어. 이번엔 어디가 달랐는지 떠올려 보자!` : '틀렸던 문제야. 천천히 떠올려 보고 골라 보자!'}
+          compact
+        />
+      )}
       <p className="mistake-question" lang="ja">{cur.prompt}</p>
       {cur.speak && <button onClick={() => speakJapanese(cur.speak, .9)}>問題の音声を聞く · 문제 듣기</button>}
       {cur.options?.length > 1 ? <div className="mistake-options">{cur.options.map((option, i) => <button key={i} disabled={run.picked != null} onClick={() => answer(option)}>{option}</button>)}</div> : <form onSubmit={(e) => { e.preventDefault(); if (typed.trim()) answer(typed); }}><input aria-label="오답 재시험 답" value={typed} onChange={(e) => setTyped(e.target.value)} disabled={run.picked != null} /><button disabled={!typed.trim() || run.picked != null}>답 확인</button></form>}
