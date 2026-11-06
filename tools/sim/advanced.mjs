@@ -91,6 +91,8 @@ function seedAll(p) {
     if (track === 'reading' || track === 'listening') for (const id of ids) n3.tests[id] = { best: 0.6 + r() * 0.4, last: 0.5 + r() * 0.5, tries: 1 + Math.floor(r() * 3), right: 3, total: 4, at: Date.now() - 86400000 * 5 };
   }
   for (const l of VOCAB_LESSONS.filter((x) => n3.lessons[x.id])) for (const w of l.words) review[w.id] ||= { ...applyVerdict(undefined, VERDICT.KNOWN, addDays(today, -5)), due: addDays(today, 7) };
+  /* 문법 레슨을 끝내면 실제 앱은 그 레슨 id로 복습 기록을 남긴다(N3Course finishLesson). 이게 없으면 쭉 퀴즈에 문법이 0으로 나온다 */
+  for (const id of Object.keys(n3.lessons).filter((x) => (LESSON_ORDER.grammar || []).includes(x))) review[id] ||= { ...applyVerdict(undefined, VERDICT.KNOWN, addDays(today, -4)), due: addDays(today, 9) };
   for (const l of KANJI_LESSONS.filter((x) => n3.lessons[x.id])) for (const kk of l.kanji) review[kk.id] ||= { ...applyVerdict(undefined, VERDICT.KNOWN, addDays(today, -4)), due: addDays(today, 9) };
   /* N3 오답 노트 — 어휘 문제를 틀린 것 */
   const vwords = VOCAB_LESSONS.flatMap((l) => l.words).slice(0, 400);
