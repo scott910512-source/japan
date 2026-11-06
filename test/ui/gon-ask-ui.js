@@ -20,16 +20,17 @@ const ANSWER = {
   ],
 };
 
-async function boot(browser, settings = {}) {
+async function boot(browser, settings = {}, storage = {}) {
   const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate((s) => {
+  await page.evaluate(([s, st]) => {
+    for (const [k, v] of Object.entries(st)) localStorage.setItem(k, v);
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const cur = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     cur.onboarded = true; cur.canReadKana = true; cur.autoTTS = false;
     Object.assign(cur, s);
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(cur));
-  }, settings);
+  }, [settings, storage]);
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
@@ -105,7 +106,26 @@ async function stubAI(page, body = ANSWER) {
   await page.locator('.sheet.open .sheet-x').click();
   await page.waitForTimeout(600);
   ok('✕로 닫힌다', await page.locator('.sheet.open .asksheet').count() === 0);
-  ok('닫으면 곤 단추가 그대로 있다', await page.locator('.gonfab').count() === 1);
+
+  console.log('\n[ 작게 접고 펼치기 ]');
+  const big = await page.locator('.gonfab').boundingBox();
+  ok('펼친 단추 옆에 접기(−) 버튼이 있다', await page.locator('.gonfab-fold').count() === 1);
+  await page.locator('.gonfab-fold').click();
+  await page.waitForTimeout(300);
+  const small = await page.locator('.gonfab.mini').boundingBox();
+  ok('★ 접으면 작은 곤 얼굴만 남는다 ★', small && small.width <= 30 && small.width < big.width && await page.locator('.gonfab-ai').count() === 0, `${big.width} → ${small?.width}`);
+  await page.locator('.gonfab.mini').click();
+  await page.waitForTimeout(300);
+  ok('★ 접힌 얼굴을 누르면 질문 창이 아니라 다시 펼쳐진다 ★', await page.locator('.sheet.open .asksheet').count() === 0 && (await page.locator('.gonfab').boundingBox()).width >= 40);
+  await page.locator('.gonfab-fold').click();
+  await page.waitForTimeout(200);
+  /* 접힘을 기억하는지 — 저장소만 본다(오프라인 새로고침은 서비스워커 사정을 타서 이 검사의 일이 아니다) */
+  ok('★ 접어 둔 상태가 저장된다 ★', await page.evaluate(() => localStorage.getItem('jp_gonfab_mini')) === '1');
+  /* 접어 둔 채 저장된 기기로 새로 열면 접혀 있다 */
+  const again = await boot(browser, { geminiKey: 'AQ.test-not-a-real-key' }, { jp_gonfab_mini: '1' });
+  ok('★ 접어 둔 상태를 기억한다(다시 열어도 접혀 있다) ★', await again.locator('.gonfab.mini').count() === 1 && await again.locator('.gonfab-fold').count() === 0);
+  await again.close();
+  ok('접힌 뒤에도 곤 단추가 그대로 있다', await page.locator('.gonfab').count() === 1);
 
   ok('화면 오류 없음', errors.length === 0, errors[0]);
   await browser.close();

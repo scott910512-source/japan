@@ -24,7 +24,7 @@ export const KIJU_WORDS = [
 
   // ── 2011 ──
   { id: 'kj-0004', kanji: '応募', kana: 'おうぼ', mean: '응모', type: 'noun', level: 'N3',
-    example: 'このコンテストに応募しました。', exampleKana: 'このこんてすとにおうぼしました。', exampleKo: '이 콘테스트에 응모했습니다.', tags: ['일','사회'] },
+    example: 'このコンテストに応募しました。', exampleKana: 'このコンテストにおうぼしました。', exampleKo: '이 콘테스트에 응모했습니다.', tags: ['일','사회'] },
   { id: 'kj-0005', kanji: '発表', kana: 'はっぴょう', mean: '발표', type: 'noun', level: 'N4',
     example: '来週、研究の発表があります。', exampleKana: 'らいしゅう、けんきゅうのはっぴょうがあります。', exampleKo: '다음 주에 연구 발표가 있습니다.', tags: ['공부','일'] },
   { id: 'kj-0006', kanji: '表面', kana: 'ひょうめん', mean: '표면', type: 'noun', level: 'N3',
@@ -38,7 +38,7 @@ export const KIJU_WORDS = [
   { id: 'kj-0009', kanji: '横断', kana: 'おうだん', mean: '횡단', type: 'noun', level: 'N3',
     example: 'ここで道路を横断しないでください。', exampleKana: 'ここでどうろをおうだんしないでください。', exampleKo: '여기서 도로를 횡단하지 마세요.', tags: ['이동','안전'] },
   { id: 'kj-0010', kanji: '固い', kana: 'かたい', mean: '단단하다;딱딱하다', type: 'adj-i', level: 'N3',
-    example: 'このパンは固くて食べにくい。', exampleKana: 'このぱんはかたくてたべにくい。', exampleKo: '이 빵은 딱딱해서 먹기 힘들다.', tags: ['음식','일상'] },
+    example: 'このパンは固くて食べにくい。', exampleKana: 'このパンはかたくてたべにくい。', exampleKo: '이 빵은 딱딱해서 먹기 힘들다.', tags: ['음식','일상'] },
   { id: 'kj-0011', kanji: '完成', kana: 'かんせい', mean: '완성', type: 'noun', level: 'N3',
     example: '新しい橋が完成しました。', exampleKana: 'あたらしいはしがかんせいしました。', exampleKo: '새 다리가 완성되었습니다.', tags: ['일','사회'] },
   { id: 'kj-0012', kanji: '外科', kana: 'げか', mean: '외과', type: 'noun', level: 'N3',
@@ -56,7 +56,7 @@ export const KIJU_WORDS = [
 
   // ── 2014 ──
   { id: 'kj-0017', kanji: '替える', kana: 'かえる', mean: '바꾸다;교환하다', type: 'verb', group: '2', level: 'N3',
-    example: '円をドルに替えました。', exampleKana: 'えんをどるにかえました。', exampleKo: '엔을 달러로 바꿨습니다.', tags: ['돈','여행'] },
+    example: '円をドルに替えました。', exampleKana: 'えんをドルにかえました。', exampleKo: '엔을 달러로 바꿨습니다.', tags: ['돈','여행'] },
   { id: 'kj-0018', kanji: '集中', kana: 'しゅうちゅう', mean: '집중', type: 'noun', level: 'N3',
     example: '音がうるさくて集中できません。', exampleKana: 'おとがうるさくてしゅうちゅうできません。', exampleKo: '소리가 시끄러워서 집중할 수 없습니다.', tags: ['공부','추상'] },
   { id: 'kj-0019', kanji: '商業', kana: 'しょうぎょう', mean: '상업', type: 'noun', level: 'N3',
@@ -72,7 +72,7 @@ export const KIJU_WORDS = [
   { id: 'kj-0023', kanji: '想像', kana: 'そうぞう', mean: '상상', type: 'noun', level: 'N3',
     example: '想像していたより広い部屋でした。', exampleKana: 'そうぞうしていたよりひろいへやでした。', exampleKo: '상상했던 것보다 넓은 방이었습니다.', tags: ['추상','감정'] },
   { id: 'kj-0024', kanji: '朝食', kana: 'ちょうしょく', mean: '조식;아침 식사', type: 'noun', level: 'N4',
-    example: '朝食はパンとコーヒーです。', exampleKana: 'ちょうしょくはぱんとこーひーです。', exampleKo: '아침 식사는 빵과 커피입니다.', tags: ['음식','일상'] },
+    example: '朝食はパンとコーヒーです。', exampleKana: 'ちょうしょくはパンとコーヒーです。', exampleKo: '아침 식사는 빵과 커피입니다.', tags: ['음식','일상'] },
   { id: 'kj-0025', kanji: '伝える', kana: 'つたえる', mean: '전하다', type: 'verb', group: '2', level: 'N4',
     example: 'この話を彼に伝えてください。', exampleKana: 'このはなしをかれにつたえてください。', exampleKo: '이 이야기를 그에게 전해 주세요.', tags: ['통신','사람'] },
   { id: 'kj-0026', kanji: '分類', kana: 'ぶんるい', mean: '분류', type: 'noun', level: 'N3',
@@ -152,7 +152,7 @@ export const KIJU_WORDS = [
   { id: 'kj-0055', kanji: '高価', kana: 'こうか', mean: '고가;값비쌈', type: 'adj-na', level: 'N3',
     example: 'これは高価な時計です。', exampleKana: 'これはこうかなとけいです。', exampleKo: '이것은 값비싼 시계입니다.', tags: ['돈','쇼핑'] },
   { id: 'kj-0056', kanji: '小型', kana: 'こがた', mean: '소형', type: 'noun', level: 'N3',
-    example: '小型のカメラを買いました。', exampleKana: 'こがたのかめらをかいました。', exampleKo: '소형 카메라를 샀습니다.', tags: ['쇼핑'] },
+    example: '小型のカメラを買いました。', exampleKana: 'こがたのカメラをかいました。', exampleKo: '소형 카메라를 샀습니다.', tags: ['쇼핑'] },
   { id: 'kj-0057', kanji: '朝刊', kana: 'ちょうかん', mean: '조간', type: 'noun', level: 'N3',
     example: '毎朝、朝刊を読みます。', exampleKana: 'まいあさ、ちょうかんをよみます。', exampleKo: '매일 아침 조간을 읽습니다.', tags: ['통신','일상'] },
   { id: 'kj-0058', kanji: '広場', kana: 'ひろば', mean: '광장', type: 'noun', level: 'N3',
@@ -162,7 +162,7 @@ export const KIJU_WORDS = [
 
   // ── 2024 ──
   { id: 'kj-0060', kanji: '加熱', kana: 'かねつ', mean: '가열', type: 'noun', level: 'N3',
-    example: '電子レンジで二分加熱します。', exampleKana: 'でんしれんじでにふんかねつします。', exampleKo: '전자레인지로 2분 가열합니다.', tags: ['음식','일상'] },
+    example: '電子レンジで二分加熱します。', exampleKana: 'でんしレンジでにふんかねつします。', exampleKo: '전자레인지로 2분 가열합니다.', tags: ['음식','일상'] },
   { id: 'kj-0061', kanji: '感情的', kana: 'かんじょうてき', mean: '감정적', type: 'adj-na', level: 'N3',
     example: '感情的にならないで話しましょう。', exampleKana: 'かんじょうてきにならないではなしましょう。', exampleKo: '감정적으로 되지 말고 이야기합시다.', tags: ['감정','사람'] },
   { id: 'kj-0062', kanji: '基本', kana: 'きほん', mean: '기본', type: 'noun', level: 'N3',
