@@ -83,7 +83,7 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
   await page.locator('.st-start').click();
   await page.waitForTimeout(700);
   ok('문제가 뜬다', await page.locator('.st-q').count() === 1);
-  ok('점수 0 / 0', (await page.locator('.st-score').innerText()).replace(/\s/g, '') === '0/0');
+  ok('★ 진행 현황은 1 / 20, 맞힘은 0 ★', (await page.locator('.st-score').innerText()).replace(/\s/g, '') === '1/20' && (await page.locator('.st-right b').innerText()) === '0');
 
   const before = await reviewOf(page);
   const results = [];
@@ -128,8 +128,10 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
   ok('★ 같은 판에서 다시 만나도 기록은 한 번만(rounds가 한 번만 오른다) ★',
     [...firstOf.keys()].every((id) => (after[id]?.rounds || 0) === (before[id]?.rounds || 0) + 1),
     [...firstOf.keys()].slice(0, 3).map((id) => `${id}:${(before[id]?.rounds || 0)}→${after[id]?.rounds}`).join(' '));
-  const scoreTxt = (await page.locator('.st-score').innerText()).replace(/\s/g, '');
-  ok('점수가 푼 수와 맞는다', scoreTxt === `${rightAnswers}/${results.length}`, scoreTxt);
+  const scoreTxt = (await page.locator('.st-right b').innerText()).trim();
+  ok('맞힌 개수가 맞는다', scoreTxt === String(rightAnswers), scoreTxt);
+  const posTxt = (await page.locator('.st-score').innerText()).replace(/\s/g, '');
+  ok('★ 진행 현황이 푼 문제 수를 따라간다(n / 20) ★', posTxt === `${Math.min(results.length, 20)}/20` || posTxt === `${Math.min(results.length + 1, 20)}/20`, posTxt);
 
   console.log('\n[ 평가 ]');
   await page.locator('.st-stop').click();
@@ -142,7 +144,7 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
   ok('★ 다시 볼 것 = 한 번이라도 틀린 낱말 ★', new Set(missedIds).size === wrongAnyIds.size, `${missedIds.length}개`);
   await page.locator('.st-again').click();
   await page.waitForTimeout(700);
-  ok('계속 풀기: 새 판(점수 0)', (await page.locator('.st-score').innerText()).replace(/\s/g, '') === '0/0');
+  ok('계속 풀기: 새 판(1 / 20, 맞힘 0)', (await page.locator('.st-score').innerText()).replace(/\s/g, '') === '1/20' && (await page.locator('.st-right b').innerText()) === '0');
   await page.locator('.st-stop').click();
   await page.waitForTimeout(400);
   ok('푼 게 없으면 「푼 문제가 없어요」', (await page.textContent('.st-sum')).includes('푼 문제가 없어요'));

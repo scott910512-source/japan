@@ -25,7 +25,8 @@ const ROUNDS = 4;   // 한 게임에 네 판. 다섯 쌍씩이니 스무 개쯤 
 export default function Match({ cards, review, settings, onToast }) {
   /* 화면을 나가면 걸려 있던 타이머도 같이 꺼진다 — 안 그러면 나간 뒤에
      한 판이 적히거나 한 문제가 넘어간다(hooks/useTimeouts.js) */
-  const { after } = useTimeouts();
+  const { after, cancel } = useTimeouts();
+  const roundTimer = useRef(null);               // 한 판을 다 맞힌 뒤 「다음 판」으로 넘기는 타이머
   const [mode, setMode] = useState(null);        // null이면 무엇을 할지 고르는 화면
   const [board, setBoard] = useState(null);
   const [round, setRound] = useState(1);
@@ -54,7 +55,13 @@ export default function Match({ cards, review, settings, onToast }) {
     return true;
   }, [cards, review, onToast]);
 
+  /* 그만두거나 새로 시작할 때, 지난 판이 걸어 둔 「다음 판」을 끊는다 — 안 그러면 0.5초 뒤 지난 판이
+     새 판 위로 넘어와 판 수를 올리고 글자 판으로 바꾼다 */
+  const dropRoundTimer = () => { if (roundTimer.current != null) { cancel(roundTimer.current); roundTimer.current = null; } };
+  const leave = () => { dropRoundTimer(); setMode(null); };
+
   const start = (m) => {
+    dropRoundTimer();
     seen.current = [];
     setMisses(0);
     setRound(1);
@@ -109,17 +116,17 @@ export default function Match({ cards, review, settings, onToast }) {
      접어 두면 예전처럼 잠깐 뒤 저절로 다음 판. */
   const finishRound = () => {
     if (reviewOpen) { setRecap(true); return; }
-    after(proceed, 500);
+    roundTimer.current = after(proceed, 500);
   };
 
   useHotkeys(!mode ? { 1: () => start(MODE.TEXT), 2: () => start(MODE.SOUND), Enter: () => start(MODE.TEXT) }
-    : done ? { Enter: () => setMode(null), Escape: () => setMode(null) } : {
+    : done ? { Enter: leave, Escape: leave } : {
       ...Object.fromEntries(Array.from({ length: PAIRS }, (_, i) => [i + 1, () => {
         const id = (picked ? board.right : board.left)[i];
         if (id) { if (picked) tapRight(id); else tapLeft(id); }
       }])),
       Space: () => { if (picked && board.mode === MODE.SOUND) say(pairOf(picked).kana); },
-      ArrowLeft: () => setPicked(null), Escape: () => setMode(null),
+      ArrowLeft: () => setPicked(null), Escape: leave,
     });
 
   // ── 무엇을 할지 고르기 ──
@@ -159,7 +166,7 @@ export default function Match({ cards, review, settings, onToast }) {
             <div className="fin-cell mid"><b>{done.seconds}</b><span>초</span></div>
           </div>
           <button className="submit-btn" onClick={() => start(mode)}>한 판 더</button>
-          <button className="ghost-btn" onClick={() => setMode(null)}>다른 판으로</button>
+          <button className="ghost-btn" onClick={leave}>다른 판으로</button>
         </div>
       </div>
     );

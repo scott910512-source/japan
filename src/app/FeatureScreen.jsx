@@ -219,6 +219,7 @@ export default function FeatureScreen({
                 onVerdicts={onVerdicts}
                 onActivity={noteActivity}
                 onToast={showToast}
+                onExit={onExit}
               />
             )}
             {sub === 'rpg' && (

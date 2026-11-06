@@ -266,6 +266,9 @@
 .st-head { display: flex; align-items: center; gap: 10px; }
 .st-score { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .st-score b { color: var(--kon); font-size: 18px; }
+/* 오른쪽 위: 진행 현황(왼쪽) · 맞힌 개수와 연속(가운데) · 그만하기(맨 오른쪽) */
+.st-right { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.st-right b { color: var(--kon); font-size: 15px; }
 .st-streak { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .st-streak svg { width: 15px; height: 15px; }
 .st-streak.hot { color: var(--shu); }

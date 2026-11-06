@@ -110,7 +110,7 @@ async function toChoice(page) {
   await page.waitForTimeout(600);
   ok('★ 같은 판에서 이어서 문제가 나온다 ★', await page.locator('.st-run').count() === 1 && await page.locator('.st-checkpoint').count() === 0);
   const scoreTxt = (await page.locator('.st-score').innerText()).replace(/\s/g, '');
-  ok('점수가 이어진다(10문제째에서 새로 시작하지 않는다)', /\/10$/.test(scoreTxt), scoreTxt);
+  ok('★ 이어서 풀면 진행 현황이 1 / 10부터 다시 센다 ★', scoreTxt === '1/10', scoreTxt);
 
   console.log('\n[ 오늘은 여기까지 ]');
   guard = 0;

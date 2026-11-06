@@ -228,6 +228,10 @@ export default function StreamQuiz({
   const { q } = cur;
   const total = session.log.length;
   const right = session.log.filter((e) => e.ok).length;
+  /* 진행 현황 — 지금 몇 번째 / 한 묶음 몇 개. 맞힌 개수는 오른쪽에 따로 둔다(점수가 아니라 진행이 먼저 보여야 한다).
+     묶음을 이어서 풀면 다시 1부터 센다. 끝없이(0)는 몇 번째인지만 보인다. */
+  const idx = answered ? total : total + 1;
+  const pos = batch > 0 ? ((idx - 1) % batch) + 1 : idx;
 
   /* ── 한 묶음을 다 풀었다: 계속할지, 오늘은 여기까지 할지 ── */
   if (checkpoint) {
@@ -252,7 +256,8 @@ export default function StreamQuiz({
     <div className="stream st-run" data-kind={q.kind} data-id={cur.item.id} data-mode={q.mode}>
       <KeyboardHelp />
       <div className="st-head">
-        <span className="st-score" aria-label="맞힌 개수"><b>{right}</b> / {total}</span>
+        <span className="st-score" aria-label="진행 현황"><b>{pos}</b>{batch > 0 ? <> / {batch}</> : '번째'}</span>
+        <span className="st-right" aria-label="맞힌 개수">맞힘 <b>{right}</b></span>
         <span className={`st-streak${session.streak >= 3 ? ' hot' : ''}`} aria-label="연속 정답">
           <IconFlame />{session.streak}
         </span>
