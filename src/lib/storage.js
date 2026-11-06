@@ -47,7 +47,15 @@ export function setStorageOkHandler(fn) {
 function read(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
+    if (!raw) return fallback;
+    const value = JSON.parse(raw);
+    /* ★ 「null」이 저장돼 있으면 기본값으로 ★
+       JSON으로는 올바른 글이라 parse가 안 던지고 null이 그대로 나갔다. 받는 쪽은 객체를 기대해서
+       Object.keys(null)에서 죽고 화면이 통째로 하얘졌다(복습·설정·기록 세 곳에서 확인). 기대한 모양이
+       객체·배열인데 다른 모양이 저장돼 있어도 같다. */
+    if (value == null) return fallback;
+    if (fallback !== null && typeof fallback === 'object' && (typeof value !== 'object' || Array.isArray(value) !== Array.isArray(fallback))) return fallback;
+    return value;
   } catch {
     return fallback;
   }

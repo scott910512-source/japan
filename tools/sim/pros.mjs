@@ -10,6 +10,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab, startStudy, openMenu } from '../../test/ui/_nav.js';
+import { ALL_WORDS } from '../../src/data/allWords.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8934/japan/';
 const CHROME = process.env.CHROMIUM || (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
@@ -18,6 +19,8 @@ const SHOTS = process.env.SHOTS || null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
 const results = [];
+const ONLY = (process.env.ONLY || '').split(',').filter(Boolean);
+const wanted = (id) => !ONLY.length || ONLY.some((o) => id === o || id.startsWith(o + '-'));
 const SETTINGS = { onboarded: true, canReadKana: true, autoTTS: false };
 
 async function waitCached(page) {
@@ -32,6 +35,7 @@ async function waitCached(page) {
 
 /* 한 분야의 판. issue()로 모으고, 던져진 예외도 「stuck」으로 적는다 */
 async function persona(browser, id, title, fn, ctxOpts = {}) {
+  if (!wanted(id)) return;
   const rep = { id, title, issues: [], notes: [] };
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, ...ctxOpts });
   const page = await ctx.newPage();
@@ -76,7 +80,8 @@ async function persona(browser, id, title, fn, ctxOpts = {}) {
 const REVIEW = (() => {
   const day = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
   const r = {};
-  for (let i = 1; i <= 60; i++) r[`n5-${String(i).padStart(3, '0')}`] = { box: 2, streak: 1, lastSeen: day(3), rounds: 2, seenAt: 1, due: day(1) };
+  /* 진짜 낱말 id로 심는다 — 가짜 id면 쭉 퀴즈 재료도 퀘스트도 안 생긴다 */
+  for (const w of ALL_WORDS.filter((x) => x.level === 'N5').slice(0, 120)) r[w.id] = { box: 2, streak: 1, lastSeen: day(3), rounds: 2, seenAt: 1, due: day(1) };
   return r;
 })();
 
@@ -87,7 +92,7 @@ const REVIEW = (() => {
   /* 1 네트워크 전문가 — 끊기고 느리고 503이 오는 것 */
   await persona(browser, 'P1', '네트워크: 끊김·느림·503', async (t) => {
     const { page, ctx } = t;
-    await t.boot({}, { offline: false });
+    await t.boot({});
     t.setWhere('곤 질문 — 인터넷 없음');
     await page.locator('.gonfab').click(); await page.waitForTimeout(500);
     await page.locator('.asksheet textarea').fill('食べている는?');
@@ -124,12 +129,17 @@ const REVIEW = (() => {
     await t.boot({ jp_manabu_review_v1: REVIEW });
     t.setWhere('오늘 학습 판정 광클');
     await startStudy(page);
-    const before = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}')).length);
-    const judge = page.locator('.studyfoot button', { hasText: '알아요' }).first();
-    for (let i = 0; i < 12; i++) { await judge.click({ timeout: 1500, force: true, noWaitAfter: true }).catch(() => {}); }
+    /* 카드를 눌러 뒤집으면 판정 줄(.judgerow)이 나온다 — 그 「알아요」를 빠르게 열두 번 */
+    await page.locator('.studycard').first().click().catch(() => {}); await page.waitForTimeout(300);
+    const judge = page.locator('.judgerow button', { hasText: '알아요' }).first();
+    const seen0 = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}')).length);
+    for (let i = 0; i < 12; i++) { await judge.click({ timeout: 1200, force: true, noWaitAfter: true }).catch(() => {}); }
     await page.waitForTimeout(800);
     const prog = (await page.locator('.study').innerText().catch(() => '')).match(/(\d+)\s*\/\s*(\d+)/);
-    t.note(`판정 광클 12번 후 진행 ${prog ? prog[0] : '?'}`);
+    const rv = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}'));
+    const rounds = Object.values(rv).reduce((a, x) => a + (x.rounds || 0), 0);
+    t.note(`판정 광클 12번 후 진행 ${prog ? prog[0] : '?'} · 기록 ${Object.keys(rv).length}개 · 회독 합 ${rounds}`);
+    if (prog && Number(prog[1]) > 8) t.issue('over-count', '판정 광클', `연타로 진행이 ${prog[0]}까지 올라갔다(한 번에 한 장이어야 한다)`);
     t.setWhere('단어 시험 보기 더블클릭');
     await page.goto(BASE); await page.waitForTimeout(1500);
     await page.locator('.tabbar').waitFor({ timeout: 15000 }).catch(() => {});
@@ -147,7 +157,6 @@ const REVIEW = (() => {
       t.note(`시험 연타: ${idxBefore} → ${idxAfter}`);
     }
     if (await t.blank()) t.issue('blank', '연타 뒤', '흰 화면');
-    void before;
   });
 
   /* 3 뒤로가기 전문가 */
@@ -156,10 +165,12 @@ const REVIEW = (() => {
     await t.boot({ jp_manabu_review_v1: REVIEW });
     const states = [];
     const snap = async (name) => { states.push(name); if (await t.blank()) t.issue('blank', name, '흰 화면'); };
-    t.setWhere('탭 이동 뒤로');
+    t.setWhere('화면 안에서 뒤로');
+    /* 앱 밖으로 나가는 뒤로가기(첫 화면에서의 뒤로)는 브라우저 동작이라 검사하지 않는다 — 앱이 쌓은 화면 안에서만 */
     await goTab(page, '학습'); await snap('학습');
-    await goTab(page, '설정'); await snap('설정');
-    for (let i = 0; i < 4; i++) { await page.goBack().catch(() => {}); await page.waitForTimeout(400); await snap(`back${i}`); }
+    await openMenu(page, '단어 시험').catch(() => {}); await snap('단어 시험 메뉴');
+    await page.goBack().catch(() => {}); await page.waitForTimeout(500); await snap('단어 시험에서 뒤로');
+    if (!(await page.locator('.tabbar').count())) t.issue('left-app', '뒤로', '화면 안에서 한 번 뒤로 갔는데 앱 밖으로 나갔다');
     t.setWhere('곤 시트 열고 뒤로');
     await page.goto(BASE); await page.locator('.tabbar').waitFor({ timeout: 15000 }).catch(() => {});
     await page.locator('.gonfab').click().catch(() => {}); await page.waitForTimeout(500);
@@ -300,7 +311,7 @@ const REVIEW = (() => {
       t.setWhere(name);
       const a = await page.evaluate(() => {
         const vis = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
-        const nameless = [...document.querySelectorAll('button, [role="button"], a')].filter(vis).filter((el) => !(el.innerText || '').trim() && !el.getAttribute('aria-label') && !el.getAttribute('title') && !el.querySelector('img[alt]:not([alt=""])')).map((el) => String(el.className).slice(0, 30));
+        const nameless = [...document.querySelectorAll('button, [role="button"], a')].filter(vis).filter((el) => !(el.innerText || '').trim() && !el.getAttribute('aria-label') && !el.getAttribute('title') && !el.querySelector('img[alt]:not([alt=""])')).map((el) => (el.outerHTML || '').slice(0, 110));
         const noAlt = [...document.querySelectorAll('img')].filter(vis).filter((el) => !el.hasAttribute('alt')).map((el) => (el.src || '').slice(-30));
         const unlabeled = [...document.querySelectorAll('input:not([type=hidden]), textarea, select')].filter(vis).filter((el) => !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby') && !(el.id && document.querySelector(`label[for="${el.id}"]`)) && !el.closest('label') && !el.getAttribute('placeholder')).map((el) => String(el.className).slice(0, 30));
         const small = [...document.querySelectorAll('button, [role="button"], a')].filter(vis).filter((el) => { const r = el.getBoundingClientRect(); return r.height < 28 || r.width < 28; }).map((el) => ((el.getAttribute('aria-label') || el.innerText || el.className) + '').trim().slice(0, 20));
@@ -328,7 +339,9 @@ const REVIEW = (() => {
   await persona(browser, 'P8', '성능·메모리(CPU 6배 느리게)', async (t) => {
     const { page, ctx } = t;
     const cdp = await ctx.newCDPSession(page);
-    await t.boot({ jp_manabu_review_v1: REVIEW });
+    /* CDP 세션을 붙이면 오프라인 이어가기 버튼이 안 뜨는 도구 쪽 문제가 있어, 로그인 문이 없는 「먼저 써 보기」 상태로 잰다 */
+    await t.boot({ jp_manabu_review_v1: REVIEW, jp_manabu_guest_v1: '1' }, { offline: false }).catch(() => {});
+    await page.locator('.tabbar').waitFor({ timeout: 20000 });
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
     const heap = async () => { await cdp.send('HeapProfiler.collectGarbage').catch(() => {}); const m = await cdp.send('Performance.getMetrics').catch(() => ({ metrics: [] })); return Math.round((m.metrics.find((x) => x.name === 'JSHeapUsedSize')?.value || 0) / 1048576); };
     await cdp.send('Performance.enable').catch(() => {});
@@ -336,14 +349,16 @@ const REVIEW = (() => {
     t.setWhere('느린 CPU로 부팅');
     const t0 = Date.now();
     await page.reload({ waitUntil: 'domcontentloaded' });
-    const off = page.locator('.gate-offline'); await off.waitFor({ timeout: 8000 }).catch(() => {}); if (await off.count()) await off.click();
-    await page.locator('.tabbar').waitFor({ timeout: 30000 });
-    await page.locator('.tdq-row, .bigcta').first().waitFor({ timeout: 30000 }).catch(() => {});
+    await page.locator('.tabbar').waitFor({ timeout: 90000 });
+    await page.locator('.tdq-row, .bigcta').first().waitFor({ timeout: 60000 }).catch(() => {});
     const boot = Date.now() - t0;
     t.note(`CPU 6배 느리게 부팅 ${boot}ms`);
     if (boot > 8000) t.issue('slow-boot', '부팅', `느린 기기(CPU 6배)에서 오늘 화면까지 ${boot}ms`);
     t.setWhere('쭉 퀴즈 50문제 반응');
-    await openMenu(page, '쭉 퀴즈').catch(() => {});
+    /* 쭉 퀴즈는 오늘 퀘스트의 줄로 연다(학습 메뉴에서 찾는 길은 허브를 거친다) */
+    await goTab(page, '오늘').catch(() => {});
+    await page.locator('.tdq-row', { hasText: '쭉 퀴즈' }).first().click({ timeout: 8000 }).catch(() => t.issue('no-stream-quest', '쭉 퀴즈', '오늘 퀘스트에 쭉 퀴즈 줄이 없다'));
+    await page.waitForTimeout(600);
     await page.locator('.st-start').click({ timeout: 8000 }).catch(() => {});
     const times = [];
     for (let i = 0; i < 50; i++) {
@@ -367,7 +382,8 @@ const REVIEW = (() => {
   /* 9 위험한 입력 전문가 */
   await persona(browser, 'P9', '위험한 입력(XSS·긴 글·이모지)', async (t) => {
     const { page } = t;
-    await t.boot({ jp_manabu_review_v1: REVIEW, jp_manabu_settings_v1: { ...SETTINGS, geminiKey: 'AQ.test' } }, { offline: false });
+    await t.boot({ jp_manabu_review_v1: REVIEW, jp_manabu_settings_v1: { ...SETTINGS, geminiKey: 'AQ.test' } });
+    await t.ctx.setOffline(false);   // 로그인 문을 지난 뒤에 인터넷을 켠다
     await page.evaluate(() => { window.__x = 0; });
     const EVIL = '<img src=x onerror="window.__x=1"><script>window.__x=2</script>"\'`${7*7}{{7*7}}';
     await page.route(/generativelanguage\.googleapis\.com/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ answer: EVIL, items: [{ jp: EVIL, kana: EVIL, ko: EVIL, note: EVIL }] }) }] } }] }) }));
