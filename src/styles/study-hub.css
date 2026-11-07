@@ -1,4 +1,4 @@
-.study-hub { display: flex; flex-direction: column; gap: 24px; padding-bottom: 72px; }
+.study-hub { display: flex; flex-direction: column; gap: 20px; padding-bottom: 72px; }
 .study-hub .sh-head { margin-bottom: 0; align-items: center; }
 .study-hub .sh-head small { margin-bottom: 4px; }
 .study-hub .sh-mark { color: var(--kon); opacity: .24; font-size: 32px; font-style: italic; letter-spacing: -3px; padding-right: 4px; }
@@ -9,6 +9,12 @@
 .study-hub .sh-count { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
 .study-hub .sh-edit { border: none; border-radius: 10px; background: transparent; color: var(--kon); min-height: 44px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
 .study-hub .sh-edit[aria-pressed='true'] { background: var(--kon-soft); }
+.study-hub .sh-editbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 5px 16px var(--shadow); }
+.study-hub .sh-editbar > span { display: flex; flex-direction: column; gap: 3px; }
+.study-hub .sh-editbar b { font-size: 13px; color: var(--kon); }
+.study-hub .sh-editbar small { font-size: 12px; color: var(--ink-soft); }
+.study-hub .sh-editbar .sh-edit { flex-shrink: 0; padding: 6px 15px; }
+.study-hub .sh-editbar ~ .menugroup, .study-hub .sh-editbar ~ .menugroup .menutile { scroll-margin-top: 90px; }
 .study-hub .mtiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 0; justify-content: initial; }
 .study-hub .mtiles .menutile.mtile { flex: initial; width: 100%; min-width: 0; }
 .study-hub .menutile.sh-menu-row, .study-hub .menutile.sh-menu-shortcut { flex-direction: row; align-items: center; justify-content: flex-start; text-align: left; position: relative; gap: 11px; padding: 14px; border-radius: 15px; }
@@ -21,7 +27,7 @@
 .study-hub .sh-menu-tail { color: var(--ink-soft); flex: 0 0 16px; display: flex; }
 .study-hub .sh-menu-tail svg { width: 16px; height: 16px; }
 .study-hub .sh-menu-tail.pinned { color: var(--kon); }
-.study-hub .menutile.sh-menu-shortcut { min-height: 68px; padding: 12px; border-color: color-mix(in srgb, var(--kon) 32%, var(--line)); background: color-mix(in srgb, var(--kon-soft) 55%, var(--surface)); }
+.study-hub .menutile.sh-menu-shortcut { min-height: 64px; padding: 10px 12px; border-color: color-mix(in srgb, var(--kon) 32%, var(--line)); background: color-mix(in srgb, var(--kon-soft) 55%, var(--surface)); }
 .study-hub .sh-menu-shortcut .mt-ic { background: transparent; flex-basis: 24px; width: 24px; }
 .study-hub .sh-menu-shortcut .mt-title { font-size: 13px; }
 .study-hub .mfavs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -35,8 +41,10 @@
 .study-hub .sh-order button { display: grid; place-items: center; width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface); cursor: pointer; }
 .study-hub .sh-order button:disabled { opacity: .35; cursor: default; }
 .study-hub .sh-order svg { width: 17px; height: 17px; }
-.study-hub .sh-order-up { transform: rotate(-90deg); }
-.study-hub .sh-order-down { transform: rotate(90deg); }
+.study-hub .sh-order-prev { transform: rotate(180deg); }
+.study-hub .sh-order-position { align-self: center; margin-right: auto; color: var(--ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
+.study-hub .sh-quiz-note { margin: 12px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.7; }
+.study-hub .sh-quiz-note b { color: var(--ink); font-weight: 650; }
 .study-hub .faved { border-color: var(--kon); }
 .study-hub .sh-menu-row[data-fav], .study-hub .sh-menu-shortcut[data-fav] { padding-right: 32px; }
 .study-hub .mt-star { right: 8px; top: 8px; }
@@ -50,6 +58,7 @@
 .study-hub .sh-starter > .mtiles { margin-top: 10px; }
 @media (min-width: 680px) { .study-hub .mfavs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) {
+  .study-hub .menutile.sh-menu-shortcut { min-height: 60px; }
   .study-hub .menutile.sh-menu-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 14px; align-content: center; column-gap: 8px; row-gap: 6px; min-height: 86px; padding: 12px; }
   .study-hub .sh-menu-row .sh-menu-copy { display: contents; }
   .study-hub .sh-menu-row .mt-ic { grid-column: 1; grid-row: 1; width: 28px; height: 28px; }

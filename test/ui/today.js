@@ -255,7 +255,7 @@ async function boot(browser, patch = {}, init = null) {
   await goTab(page, '학습');
   const names = await page.locator('.menugroup .mt-title').allTextContents();
   /* 학습 탭 칸으로 남은 것 */
-  for (const m of ['N3 학습하기', '단어', '문법', '한자', '문장', '듣기', '영상', '완전기초', '독일어']) {
+  for (const m of ['N3 코스', '단어 암기', '문법', '한자', '회화 문장', '듣기', '영상', '완전기초', '독일어']) {
     ok(`${m} 그대로 있음`, names.includes(m), names.join(','));
   }
   /* 연습은 칸에서 단어·문법 화면 안 「연습」 줄로 옮겼다 — 옮긴 것도 갈 길이 있어야 한다 */
