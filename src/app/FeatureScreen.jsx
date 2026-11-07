@@ -52,6 +52,8 @@ export default function FeatureScreen({
   onRandomDone = null,
   streamNext = null,
   n3Next = null,
+  composeFocus = null,
+  composeNext = null,
   seenToday = null,
   streamQuestDone = false,
   onStreamAnswered,
@@ -227,6 +229,9 @@ export default function FeatureScreen({
             {sub === 'compose' && (
               <ComposeQuiz
                 initialMode={composeStart}
+                focusIds={composeFocus?.ids || null}
+                questTarget={composeFocus?.target || 0}
+                questNext={composeNext}
                 onAttempt={onAttempt}
                 sentences={sentenceCards}
                 review={review}

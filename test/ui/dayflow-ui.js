@@ -30,6 +30,8 @@ const review = {
 };
 
 async function boot(browser, progress = null, extraSettings = {}) {
+  /* 이 검사는 문장 퀘스트 말고의 흐름을 본다 — 오늘 문장 퀘스트는 건너뛴 것으로 심는다(문장 퀘스트는 sentence-quest-ui가 본다) */
+  progress = { quests: { day: todayKey(), sentenceSkip: true }, ...(progress || {}) };
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(({ rv, progress, extraSettings }) => {

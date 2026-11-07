@@ -27,14 +27,14 @@ import { hasSignedInOnce, isGuest, setGuest } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
-import { noteQuest, streamQuestState, randomQuestState } from './lib/quests.js';
+import { noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE } from './lib/quests.js';
 import { nextStep, stepOfDeck, randomTestIds, n3Open, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
 import { useToday } from './lib/useToday.js';
 import { useN3Summary } from './hooks/useN3Summary.js';
-import { goalOf, n3Included } from './lib/goal.js';
+import { goalOf, n3Included, withinGoal } from './lib/goal.js';
 
 const SUB_TITLES = {
   basics: '완전기초',
@@ -351,6 +351,41 @@ export default function App() {
     setProgress((p) => ({ ...p, quests: noteQuest(p.quests, 'random', 1, today) }));
   }, [setProgress, today]);
 
+  /* ★ 문장 퀘스트 ★ 새 문장 다섯 개를 배우고(회독 한 판) 바로 이어서 문장 만들기(조립)로 연습한다.
+     새로 배우기에서 문장 카드가 빠졌으니 새 문장은 여기로만 들어온다. 오늘은 건너뛸 수 있다(줄도 흐름도 빠진다). */
+  const newSentenceCards = useMemo(
+    () => sentenceCards.filter((c) => withinGoal(c.level, goalOf(settings)) && !review[c.id]?.lastSeen),
+    [sentenceCards, review, settings],
+  );
+  const sentenceQuest = useMemo(
+    () => sentenceQuestState(progress, review, newSentenceCards.length > 0, today),
+    [progress, review, newSentenceCards.length, today],
+  );
+  const [composeFocus, setComposeFocus] = useState(null);   // { ids, target } — 조립 연습을 오늘 배운 문장으로 좁힌다
+  useEffect(() => { if (sub !== 'compose') setComposeFocus(null); }, [sub]);
+  const startSentenceQuest = useCallback(() => {
+    const q = sentenceQuestState(progress, review, newSentenceCards.length > 0, today);
+    /* 오늘 배울 문장은 처음 시작할 때 정해 둔다 — 중간에 나갔다 와도 같은 문장을 이어서 배운다 */
+    let ids = q?.ids?.length ? q.ids : pickNewSentences(newSentenceCards, review, SENTENCE_QUEST_SIZE);
+    if (!ids.length) { showToast('새로 배울 문장이 아직 없어요'); return; }
+    if (!q?.ids?.length) setProgress((p) => ({ ...p, quests: planSentenceQuest(p.quests, ids, today) }));
+    const left = ids.filter((id) => review[id]?.lastSeen !== today);
+    if (!left.length) { startSentencePractice(ids); return; }
+    setSub(null);
+    setDeck({ id: 'quest:sentence', label: '새 문장', cards: [...words, ...sentenceCards], queue: left, stepped: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress, review, newSentenceCards, today, words, sentenceCards, showToast, setProgress, setDeck, setSub]);
+  const startSentencePractice = useCallback((idsArg) => {
+    const ids = idsArg || sentenceQuest?.ids || [];
+    setDeck(null);
+    setComposeFocus({ ids, target: Math.min(SENTENCE_QUEST_SIZE, ids.length) });
+    setComposeStart('build');
+    nav.openMenu('compose', { mode: 'build' });
+  }, [sentenceQuest, setDeck, nav]);
+  const skipSentence = useCallback((skip = true) => {
+    setProgress((p) => ({ ...p, quests: skipSentenceQuest(p.quests, skip, today) }));
+  }, [setProgress, today]);
+
   /* ★ 하루 흐름 ★ 한 단계가 끝나면 다음 단계를 바로 내민다.
      복습 미션 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기(끝에서 10개 더) → 오늘 랜덤 테스트.
      할 게 없거나 이미 마친 단계는 건너뛴다(lib/dayflow.js). */
@@ -363,6 +398,7 @@ export default function App() {
     weakquiz: Boolean(weakQuiz && weakQuiz.total > 0 && !weakQuiz.complete),
     stream: Boolean(streamQuest && !streamQuest.complete),
     fresh: freshLeft > 0,
+    sentence: Boolean(sentenceQuest && !sentenceQuest.skipped && !sentenceQuest.complete),
     n3: n3FlowOpen,
     random: Boolean(randomQuest && !randomQuest.complete),
   };
@@ -371,9 +407,10 @@ export default function App() {
     if (to === 'weakquiz') startWeakQuiz();
     else if (to === 'stream') startStreamQuest();
     else if (to === 'fresh') startToday(['fresh']);
+    else if (to === 'sentence') startSentenceQuest();
     else if (to === 'n3') nav.openMenu('n3', { view: { kind: 'today' } });
     else if (to === 'random') startRandomTest();
-  }, [setDeck, startWeakQuiz, startStreamQuest, startToday, startRandomTest, nav]);
+  }, [setDeck, startWeakQuiz, startStreamQuest, startToday, startSentenceQuest, startRandomTest, nav]);
   const flowAfter = (step) => {
     const n = nextStep(step, flowOpen);
     return n ? { ...n, go: () => goStep(n.to) } : null;
@@ -492,9 +529,11 @@ export default function App() {
               onBookmark={toggleBookmark}
               onToast={showToast}
               /* 하루 흐름의 판(복습 · 새 단어)이면 그 흐름의 다음 단계를, 아니면 덱이 정한 다음을 */
-              flowNext={stepOfDeck(deck.id) ? flowAfter(stepOfDeck(deck.id)) : undefined}
+              flowNext={deck.id === 'quest:sentence' ? { to: 'practice', label: '문장 만들기 연습', go: () => startSentencePractice() } : stepOfDeck(deck.id) ? flowAfter(stepOfDeck(deck.id)) : undefined}
               onMore={stepOfDeck(deck.id) === 'fresh' ? () => learnMoreAndStart(MORE_STEP) : null}
-              onNext={stepOfDeck(deck.id)
+              onNext={deck.id === 'quest:sentence'
+                ? () => startSentencePractice()
+                : stepOfDeck(deck.id)
                 ? (flowAfter(stepOfDeck(deck.id))?.go || null)
                 : (deck.next ? () => {
                   if (deck.next.to === 'fresh') { startToday(['fresh']); return; }
@@ -572,6 +611,10 @@ export default function App() {
             onStartStreamQuest={startStreamQuest}
             randomQuest={randomQuest}
             onStartRandomTest={startRandomTest}
+            sentenceQuest={sentenceQuest}
+            onStartSentenceQuest={() => guardDeck(() => startSentenceQuest(), 'quest:sentence')}
+            onSkipSentenceQuest={() => skipSentence(true)}
+            onUndoSkipSentenceQuest={() => skipSentence(false)}
             onOpenProgress={() => selectTab('me')}
             onLearnMore={learnMore}
           />
@@ -770,6 +813,8 @@ export default function App() {
                 randomOn={randomMode}
                 onRandomDone={onRandomDone}
                 n3Next={flowAfter('n3')}
+                composeFocus={composeFocus}
+                composeNext={flowAfter('sentence')}
                 seenToday={streamSeenToday}
                 streamNext={flowAfter('stream')}
                 streamQuestDone={!streamQuest || streamQuest.complete}

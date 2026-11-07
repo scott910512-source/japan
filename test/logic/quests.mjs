@@ -1,5 +1,5 @@
 /* 오늘의 퀘스트 — 쭉 퀴즈 하루 몫 */
-import { STREAM_QUEST_SIZE, questsOf, noteQuest, streamQuestState, mergeQuests, randomQuestState } from '../../src/lib/quests.js';
+import { STREAM_QUEST_SIZE, questsOf, noteQuest, streamQuestState, mergeQuests, randomQuestState, SENTENCE_QUEST_SIZE, planSentenceQuest, skipSentenceQuest, pickNewSentences, sentenceQuestState } from '../../src/lib/quests.js';
 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); } };
@@ -48,6 +48,33 @@ console.log('\n[ 오늘 랜덤 테스트 ]');
   ok('noteQuest로 적으면 stream은 그대로', noteQuest({ day: T, stream: 5 }, 'random', 1, T).stream === 5
     && noteQuest({ day: T, stream: 5 }, 'random', 1, T).random === 1);
   ok('같은 날 합칠 때 random도 큰 쪽', mergeQuests({ day: T, random: 0 }, { day: T, random: 1 }).random === 1);
+}
+
+console.log('\n[ 문장 퀘스트 ]');
+{
+  ok('몫은 다섯 문장', SENTENCE_QUEST_SIZE === 5);
+  const cards = Array.from({ length: 9 }, (_, i) => ({ id: `s${i}` }));
+  const review = { s0: { lastSeen: '2026-11-01' }, s2: { lastSeen: '2026-11-02' } };
+  ok('★ 아직 안 본 문장만 고른다(본 것은 건너뛴다) ★', pickNewSentences(cards, review, 5).join() === 's1,s3,s4,s5,s6');
+  ok('모자라면 있는 만큼', pickNewSentences(cards.slice(0, 3), review, 5).join() === 's1');
+  ok('안 본 문장이 없고 시작도 안 했으면 줄이 없다', sentenceQuestState({}, {}, false, T) === null);
+  const open = sentenceQuestState({}, {}, true, T);
+  ok('시작 전: 0 / 5', open.done === 0 && open.total === 5 && !open.complete && !open.skipped);
+  const planned = planSentenceQuest(undefined, ['s1', 's3', 's4'], T);
+  ok('정해 두면 그 id가 남는다', planned.day === T && planned.sentenceIds.join() === 's1,s3,s4');
+  ok('★ 이미 정했으면 다시 정해도 안 바뀐다(배우던 게 바뀌면 안 된다) ★', planSentenceQuest(planned, ['x1', 'x2'], T) === planned);
+  const mid = sentenceQuestState({ quests: planned }, { s1: { lastSeen: T }, s3: { lastSeen: '2026-11-01' } }, true, T);
+  ok('★ 정해 둔 것 중 오늘 판정받은 것만 센다 ★', mid.done === 1 && mid.total === 3 && !mid.complete, JSON.stringify(mid));
+  const full = sentenceQuestState({ quests: planned }, { s1: { lastSeen: T }, s3: { lastSeen: T }, s4: { lastSeen: T } }, false, T);
+  ok('다 판정받으면 완료(안 본 문장이 없어도 줄은 남는다)', full.done === 3 && full.complete);
+  ok('어제 정한 것은 오늘 0에서 시작', sentenceQuestState({ quests: { day: Y, sentenceIds: ['s1'] } }, { s1: { lastSeen: Y } }, true, T).done === 0);
+  const skipped = skipSentenceQuest(planned, true, T);
+  const sk = sentenceQuestState({ quests: skipped }, {}, true, T);
+  ok('★ 건너뛰면 줄도 흐름도 빠진다(skipped) ★', sk.skipped === true && !sk.complete);
+  ok('건너뜀을 되돌릴 수 있다', sentenceQuestState({ quests: skipSentenceQuest(skipped, false, T) }, {}, true, T).skipped === false);
+  ok('건너뛰어도 다른 몫(쭉 퀴즈)은 그대로', skipSentenceQuest({ day: T, stream: 7 }, true, T).stream === 7);
+  const m = mergeQuests({ day: T, stream: 3, sentenceIds: ['a', 'b'], sentenceSkip: false }, { day: T, stream: 9, sentenceIds: ['b', 'c'], sentenceSkip: true });
+  ok('★ 두 기기 합치기: id는 합집합 · 건너뜀은 한쪽이라도 · 숫자는 큰 쪽 ★', m.sentenceIds.join() === 'a,b,c' && m.sentenceSkip === true && m.stream === 9, JSON.stringify(m));
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

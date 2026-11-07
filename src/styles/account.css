@@ -330,3 +330,11 @@
   padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(to bottom, transparent, var(--paper) 22%);
 }
+
+/* 문장 퀘스트: 오늘은 건너뛰기 */
+.tdq-skip { display: block; margin: -2px 0 6px auto; min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--ink-soft); font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.tdq-skipped { margin: 8px 2px 0; font-size: 12.5px; color: var(--ink-soft); }
+.tdq-undo { min-height: 44px; padding: 0 8px; border: 0; background: none; color: var(--kon); font-size: 12.5px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.cmp-questdone { text-align: center; padding: 18px 16px; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.cmp-questdone b { font-size: 16px; }
+.cmp-questdone span { font-size: 13px; color: var(--ink-soft); }

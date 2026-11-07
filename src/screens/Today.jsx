@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import {
   IconFlame, IconChevron, IconRepeat, IconPlay, IconBook, IconGrid, IconCheck,
 } from '../components/Icons.jsx';
@@ -38,7 +39,7 @@ const readyShown = (s) => {
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
-  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, onOpenProgress,
+  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, sentenceQuest = null, onStartSentenceQuest, onSkipSentenceQuest, onUndoSkipSentenceQuest, onOpenProgress,
 }) {
   const today = todayKey();
 
@@ -100,6 +101,14 @@ export default function Today({
       key: 'fresh', title: '새로 배우기',
       note: freshLeft === 0 ? '오늘 새 학습을 마쳤어요' : freshMix,
       done: freshLane.done, total: freshLane.assigned, icon: <IconBook />, onClick: onStartWords,
+    },
+    /* ★ 문장 퀘스트 ★ 새 문장을 배우고 바로 조립해 본다. 새로 배우기에는 문장이 안 섞이니 새 문장은 여기로 들어온다.
+       건너뛰면(skipped) 오늘 줄에서 빠진다 */
+    sentenceQuest && !sentenceQuest.skipped && {
+      key: 'sentencequest', title: '문장 퀘스트',
+      note: sentenceQuest.complete ? '오늘 새 문장을 배웠어요' : `새 문장 ${sentenceQuest.total - sentenceQuest.done}개 · 배우고 조립해 봐요`,
+      done: sentenceQuest.done, total: sentenceQuest.total, icon: <IconBook />, onClick: onStartSentenceQuest,
+      onSkip: onSkipSentenceQuest,
     },
     /* ★ 오늘 랜덤 테스트 ★ 하루의 마지막. 오늘 만난 것을 다 섞어서 쉰 문제 */
     randomQuest && {
@@ -187,8 +196,8 @@ export default function Today({
               const complete = mission.done >= mission.total;
               const percent = Math.round((mission.done / mission.total) * 100);
               return (
+                <Fragment key={mission.key}>
                 <button
-                  key={mission.key}
                   className={'tdq-row tdtask slim' + (complete ? ' complete done' : '')}
                   onClick={mission.onClick}
                   aria-label={mission.title + ', ' + mission.done + ' / ' + mission.total + ', ' + mission.note}
@@ -204,9 +213,17 @@ export default function Today({
                   <span className="tdq-count"><b>{Math.min(mission.done, mission.total)}</b><i> / {mission.total}</i></span>
                   <IconChevron className="chev" />
                 </button>
+                {/* 오늘은 건너뛰기 — 줄을 누르는 단추와 따로 둔다(단추 안에 단추를 넣을 수 없다) */}
+                {mission.onSkip && !complete && (
+                  <button type="button" className="tdq-skip" onClick={mission.onSkip}>오늘은 건너뛰기</button>
+                )}
+                </Fragment>
               );
             })}
           </div>
+          {sentenceQuest?.skipped && (
+            <p className="tdq-skipped">문장 퀘스트는 오늘 건너뛰었어요. <button type="button" className="tdq-undo" onClick={onUndoSkipSentenceQuest}>되돌리기</button></p>
+          )}
         </section>
       )}
 
