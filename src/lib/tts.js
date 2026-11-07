@@ -469,11 +469,18 @@ export function audioUnlocked() {
   return localUnlocked && Boolean(audioEl?.dataset?.unlocked);
 }
 
+const UNLOCK_SRC = 'data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA';
+
 // 첫 사용자 제스처에서 호출한다. 성공할 때까지 계속 다시 불러도 된다.
 export function unlockAudio() {
   const a = getAudioEl();
+  /* ★ 소리가 나는 중에는 이 엘리먼트를 건드리지 않는다 ★
+   * 열릴 때까지 화면 어디를 눌러도 이 함수가 불린다. 그런데 처음 누른 게 🔊이면 열기 시도가 AI 음성에 밀려 끝내 「열림」으로
+   * 기록되지 않았고, 그 뒤로 다른 곳을 누를 때마다 재생 중인 AI 음성의 파일을 무음 파일로 갈아 끼워서 소리가 끊기고,
+   * 그 끊김이 실패로 읽혀 기기 음성이 같은 문장을 다시 읽었다. */
+  if (a.src && a.src !== UNLOCK_SRC && !a.paused && !a.ended) return;
   if (!a.dataset.unlocked) {
-    a.src = 'data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA';
+    a.src = UNLOCK_SRC;
     a.play().then(
       () => { a.dataset.unlocked = '1'; },
       () => { /* 아직 제스처가 아니면 다음 탭에서 다시 시도 */ },
@@ -607,6 +614,7 @@ async function speakCloud(text, rate, token, lang = 'ja', beforePlay = null) {
   beforePlay?.(a);
   try {
     await a.play();
+    a.dataset.unlocked = '1';   // 진짜 소리가 났다 — 열린 것이다(더는 무음 파일로 열기를 시도하지 않는다)
   } catch (err) {
     // 우리가 끊어서 난 중단은 실패가 아니다 — 여기서 폴백하면 두 번 들린다
     if (err?.name === 'AbortError' || token !== speakToken) return;
@@ -723,8 +731,12 @@ export function speakJapaneseAsync(text, rate = 0.9, opts = {}) {
       device();
     };
     const waitForPlayback = (audio) => {
-      const ended = () => finish(token === speakToken ? 'cloud' : 'interrupted');
-      const error = () => fallback(new Error('음성 파일을 재생하지 못했어요'));
+      /* 이 소리의 것이 아닌 기별은 무시한다 — 같은 엘리먼트를 쓰는 다른 파일(열기용 무음 파일 등)이 뒤늦게 보내는
+         ended·error를 우리 소리의 끝이나 실패로 읽으면, 멀쩡히 나던 AI 음성 위에 기기 음성이 또 울린다 */
+      const mine = audio.src;
+      const ours = () => audio.src === mine;
+      const ended = () => { if (ours()) finish(token === speakToken ? 'cloud' : 'interrupted'); };
+      const error = () => { if (ours() && audio.error) fallback(new Error('음성 파일을 재생하지 못했어요')); };
       audio.addEventListener('ended', ended);
       audio.addEventListener('error', error);
       clearCloud = () => { audio.removeEventListener('ended', ended); audio.removeEventListener('error', error); };
