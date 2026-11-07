@@ -105,7 +105,7 @@ const progressOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem
   ok('복습&내기록에 약점 줄과 개수', await meRow.count() === 1 && Number(await meRow.locator('.rv-cnt').innerText()) > 0, await meRow.locator('.rv-cnt').innerText());
   await meRow.click();
   await page.waitForTimeout(800);
-  ok('제목이 약점', (await page.locator('.subscreen.open .sub-title').innerText()).includes('약점'));
+  ok('★ 약점은 복습 화면의 「약점 집중」 칸이다 ★', (await page.locator('.subscreen.open .sub-title').innerText()).includes('복습') && (await page.locator('.rv-tabs [data-section="weak"]').getAttribute('aria-selected')) === 'true');
   ok('합계 카드', await page.locator('.wk-sum').count() === 1);
   ok('★ 약점 퀴즈 · 외우기 · 문법 세 가지가 한 화면에 ★', await page.locator('.wk-quiz').count() === 1 && await page.locator('.wk-deck').count() === 1 && await page.locator('.wk-grammar').count() === 1);
   ok('약점 장부(왜 약한지)가 같은 화면에 있다', await page.locator('.subscreen.open .wb-row').count() > 0);
@@ -119,13 +119,13 @@ const progressOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem
   await page.waitForTimeout(700);
   ok('★ 복습 화면에 취약 단어 · 취약 문법 줄이 따로 없다 ★', await page.locator('.rv-row[data-row="weak-words"], .rv-row[data-row="weak-grammar"]').count() === 0);
   ok('★ 복습 화면에 약점 장부도 없다(약점 화면으로 옮겼다) ★', await page.locator('.subscreen.open .wb-card').count() === 0);
-  ok('복습 화면은 줄 넷: 오답노트 · 약점 · 문장 복습 · 전체 복습', await page.locator('.rv-row').count() === 4, `${await page.locator('.rv-row').count()}줄`);
-  await page.locator('.rv-row[data-row="weak"]').click();
+  ok('복습 화면은 세 칸(오늘 복습 · 오답 다시 풀기 · 약점 집중)이고 이어서 복습은 줄 둘', await page.locator('.rv-tabs button').count() === 3 && await page.locator('.rv-row').count() === 2, `${await page.locator('.rv-row').count()}줄`);
+  await page.locator('.rv-tabs [data-section="weak"]').click();
   await page.waitForTimeout(700);
   ok('★ 같은 약점 화면이 열린다 ★', await page.locator('.wk-sum').count() === 1);
   await page.locator('.subscreen .sub-back').first().click();
   await page.waitForTimeout(500);
-  ok('뒤로 가면 복습 화면', await page.locator('.rv-top').count() === 1);
+  ok('뒤로 가면 복습 화면을 닫고 내 학습으로 (칸 전환은 화면 안에서 끝난다)', await page.locator('.subscreen.open').count() === 0);
   await page.close();
 
   console.log('\n[ 약한 게 없을 때 ]');

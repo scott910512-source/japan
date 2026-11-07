@@ -22,7 +22,7 @@ import { READING_PASSAGES, READING_QUESTIONS, READING_LEVELS, readingById } from
 import { LISTENING_ITEMS, LISTENING_QUESTIONS, LISTENING_LEVELS, listeningById } from '../data/n3/listening.js';
 import { EXAM_MOJI, EXAM_NARABE, EXAM_BUNSHOU, EXAM_BUNSHOU_QUESTIONS, EXAM_QUESTIONS } from '../data/n3/exam.js';
 import { stateOf, isMastered, isDue, todayKey, dueCards, addDays, BOX, MASTER_STREAK } from './review.js';
-import { normalizeN3 } from './n3progress.js';
+import { normalizeN3, noteN3Wrong } from './n3progress.js';
 import { activeMistakes, prioritizeMistakes } from './mistakes.js';
 
 /* ── 섞기 (검사에서 고정할 수 있게 난수를 받는다) ── */
@@ -226,18 +226,7 @@ export function recordAnswer(n3, { qid, ok, cat = 'grammar', ref = null, today =
   const p = normalizeN3(n3);
   const q = { ...(p.q[qid] || { r: 0, w: 0 }) };
   if (ok) q.r += 1; else q.w += 1;
-  const wrong = { ...p.wrong };
-  if (ok) {
-    const w = wrong[qid];
-    if (w) {
-      const okc = (w.ok || 0) + 1;
-      if (okc >= 2) delete wrong[qid];   // 두 번 이어 맞히면 오답 노트에서 뺀다
-      else wrong[qid] = { ...w, ok: okc };
-    }
-  } else {
-    const w = wrong[qid] || { c: 0 };
-    wrong[qid] = { c: (w.c || 0) + 1, at, cat, ref, ok: 0 };
-  }
+  const wrong = noteN3Wrong(p.wrong, qid, ok, { cat, ref, at });   // 오답 노트 규칙은 n3progress.js 한 곳
   const day = { ...(p.days[today] || {}) };
   day.answered = (day.answered || 0) + 1;
   day.right = (day.right || 0) + (ok ? 1 : 0);

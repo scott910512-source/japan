@@ -1,4 +1,7 @@
-import { IconRepeat, IconChevron, IconFlame, IconX, IconChat, IconBook } from '../components/Icons.jsx';
+import { useState } from 'react';
+import { IconRepeat, IconChevron, IconChat, IconBook } from '../components/Icons.jsx';
+import WrongBook from './WrongBook.jsx';
+import WeakHub from './WeakHub.jsx';
 import { reviewLeftOf } from '../lib/plan.js';
 import { STAGES } from '../lib/rounds.js';
 
@@ -16,9 +19,22 @@ import { STAGES } from '../lib/rounds.js';
  * SRS 안쪽 구조(box·level·간격)는 여기서 말하지 않는다. 「오늘 복습해야 하는
  * 것」과 「틀린 것」만 있으면 쓸 수 있어야 한다. */
 export default function ReviewHub({
-  planNow, sentenceDue, weakCount = 0, wrongCount,
-  onStartReview, onStartBacklog, onOpenSentences, onOpenWrong, onOpenWeak, onOpenRepeat,
+  planNow, sentenceDue, weakWords = 0, weakGrammar = 0, wrongCount = 0, initialSection = 'today', wrongProps = {}, weakProps = {},
+  onStartReview, onStartBacklog, onOpenSentences, onOpenRepeat,
 }) {
+  /* ★ 복습은 한 화면, 세 칸 ★ 오늘 복습 · 오답 다시 풀기 · 약점 집중. 홈의 오답 지름길도, 복습&내기록의 오답·약점 줄도 이 화면의 칸을 연다.
+     칸마다 단위를 따로 적는다(오답은 문제, 단어·문법은 개) — 서로 다른 단위를 합치지 않는다. */
+  const [section, setSection] = useState(initialSection);
+  const SECTIONS = [
+    { id: 'today', title: '오늘 복습', count: `${reviewLeftOf(planNow).left}개` },
+    { id: 'wrong', title: '오답 다시 풀기', count: `${wrongCount}문제` },
+    { id: 'weak', title: '약점 집중', count: `단어 ${weakWords} · 문법 ${weakGrammar}` },
+  ];
+  const moveTab = (e, i) => {
+    const n = e.key === 'ArrowRight' ? (i + 1) % 3 : e.key === 'ArrowLeft' ? (i + 2) % 3 : null;
+    if (n == null) return;
+    e.preventDefault(); setSection(SECTIONS[n].id); document.getElementById(`rv-tab-${SECTIONS[n].id}`)?.focus();
+  };
   /* 홈·배지와 같은 함수 — 여기서 따로 세지 않는다 */
   const { left, assigned, done, backlog, review: reviewLeft, weak: weakLeft } = reviewLeftOf(planNow);
 
@@ -28,6 +44,18 @@ export default function ReviewHub({
         <small>잊기 전에 다시</small>
         복습
       </div>
+      <div className="rv-tabs" role="tablist" aria-label="복습 세 칸">
+        {SECTIONS.map((x, i) => (
+          <button key={x.id} id={`rv-tab-${x.id}`} role="tab" aria-selected={section === x.id} aria-controls={`rv-panel-${x.id}`} tabIndex={section === x.id ? 0 : -1}
+            onClick={() => setSection(x.id)} onKeyDown={(e) => moveTab(e, i)} data-section={x.id}>
+            <b>{x.title}</b><small>{x.count}</small>
+          </button>
+        ))}
+      </div>
+
+      {section === 'wrong' && <div id="rv-panel-wrong" role="tabpanel" aria-labelledby="rv-tab-wrong"><WrongBook {...wrongProps} /></div>}
+      {section === 'weak' && <div id="rv-panel-weak" role="tabpanel" aria-labelledby="rv-tab-weak"><WeakHub {...weakProps} /></div>}
+      {section === 'today' && <div id="rv-panel-today" role="tabpanel" aria-labelledby="rv-tab-today">
 
       {/* 맨 위 — 오늘 복습해야 하는 것 */}
       <div className="card rv-top" data-left={left} data-backlog={backlog}>
@@ -67,22 +95,8 @@ export default function ReviewHub({
         )}
       </div>
 
-      <div className="section-label">더 보기</div>
+      <div className="section-label">이어서 복습</div>
       <div className="card rv-list">
-        {/* 0이면 누를 것이 없다 — 취약 단어처럼 흐리게, 설명은 「아직 없어요」로 */}
-        <button className="listrow rv-row" data-row="wrong" onClick={onOpenWrong} disabled={wrongCount === 0}>
-          <span className="rv-ic"><IconX /></span>
-          <span className="rv-body"><b>오답노트</b><span>{wrongCount ? '새로 틀린 문제와 N3 오답을 한 곳에서 · 다시 시험도 여기서' : '아직 없어요 — 문제를 풀다 틀리면 여기 모여요'}</span></span>
-          <span className="rv-cnt">{wrongCount}</span>
-          <IconChevron className="chev" />
-        </button>
-        {/* 약점은 한 곳이다 — 취약 단어 · 취약 문법 · 약점 장부 · 약점 퀴즈가 그 화면 안에 있다 */}
-        <button className="listrow rv-row" data-row="weak" onClick={onOpenWeak} disabled={weakCount === 0}>
-          <span className="rv-ic"><IconFlame /></span>
-          <span className="rv-body"><b>약점</b><span>{weakCount ? '약점 퀴즈 · 약한 단어 · 취약 문법을 한 곳에서' : '아직 없어요 — 잘하고 있어요'}</span></span>
-          <span className="rv-cnt">{weakCount}</span>
-          <IconChevron className="chev" />
-        </button>
         <button className="listrow rv-row" data-row="sentences" onClick={onOpenSentences} disabled={sentenceDue === 0}>
           <span className="rv-ic"><IconChat /></span>
           <span className="rv-body"><b>문장 복습</b><span>{sentenceDue ? '복습일이 된 상황별 문장' : '아직 없어요 — 문장을 배우면 복습일에 여기 떠요'}</span></span>
@@ -110,6 +124,7 @@ export default function ReviewHub({
         </ol>
         <p className="set-note">틀리면 확인 단계가 처음으로 돌아가요. 단계별 개수는 복습&내기록의 기억 수준에서 봐요.</p>
       </details>
+      </div>}
     </>
   );
 }
