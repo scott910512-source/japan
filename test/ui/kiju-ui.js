@@ -28,6 +28,9 @@ async function boot(browser, review = null) {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     s.onboarded = true; s.autoTTS = false;
+    /* 이 검사는 「기출이 먼저인가」라는 차례를 본다. 하루 기본이 스무 개로 커지면 기출(그 레벨 안)이 모자라 일반 낱말이 따라와서
+       차례를 볼 수 없으니, 작은 양으로 돌린다(번호를 같이 적어야 직접 정한 값으로 읽힌다) */
+    s.goals = { fresh: 8, review: 9, weak: 3 }; s.goalsV = 3;
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
     if (r) localStorage.setItem('jp_manabu_review_v1', JSON.stringify(r));
   }, review);
