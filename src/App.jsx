@@ -506,6 +506,17 @@ export default function App() {
             문제와 카드에 집중하는 자리라, 다른 메뉴가 시선을 빼앗지 않게 한다.
             나가는 길은 화면 위 닫기와 브라우저 뒤로가기(useLayerNavigation)다.
             진도는 session에 남으니 나갔다 와도 홈의 「이어하기」로 그 자리다. */}
+        {/* 곤에게 물어보기(AI)는 학습 중에도 떠 있다 — 카드의 「궁금해요」는 그 카드를 묻는 자리이고, 이건 그냥 궁금한 것을 묻는 자리다.
+            아래 판정 단추를 가리면 접어 둘 수 있다(접은 상태는 어느 화면에서나 같다). */}
+        <GonAsk
+          settings={settings}
+          asks={asks}
+          onAsks={setAsks}
+          onAddWord={(w) => setCustomWords((prev) => (
+            prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+          ))}
+          onToast={showToast}
+        />
         <Toast message={toast} />
       </div>
     );

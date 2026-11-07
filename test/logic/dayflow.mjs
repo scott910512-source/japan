@@ -45,7 +45,8 @@ console.log('\n[ 판이 어느 단계인가 ]');
 {
   ok('복습+약점 판은 복습 단계', stepOfDeck('today:review+weak') === 'review');
   ok('새 단어 판은 새로 배우기 단계', stepOfDeck('today:fresh') === 'fresh');
-  ok('오늘 전체 판이나 다른 판은 흐름 밖', stepOfDeck('today') === null && stepOfDeck('words') === null && stepOfDeck(undefined) === null);
+  ok('★ 오늘의 학습 한 판(today)도 복습 단계로 이어진다 ★', stepOfDeck('today') === 'review');
+  ok('다른 판은 흐름 밖', stepOfDeck('words') === null && stepOfDeck('kiju') === null && stepOfDeck(undefined) === null);
 }
 
 console.log('\n[ 랜덤 테스트 문제 ]');

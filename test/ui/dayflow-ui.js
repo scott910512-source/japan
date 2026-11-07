@@ -75,7 +75,7 @@ async function finishQuiz(page, cap = 140) {
 /* 회독 화면: 모두 「알아요」로 넘긴다 */
 async function finishDeck(page) {
   let g = 0;
-  while (g < 160 && !(await page.locator('.finish').count())) {
+  while (g < 260 && !(await page.locator('.finish').count())) {
     g += 1;
     const go = page.locator('.study .st-go, .study .ph-btn, .study [data-verdict="known"], .study button.known').first();
     if (await page.locator('.study .start-btn, .study .intro-start, .study .study-start').count()) { await page.locator('.study .start-btn, .study .intro-start, .study .study-start').first().click(); await page.waitForTimeout(400); continue; }
@@ -179,6 +179,22 @@ async function finishDeck(page) {
     await page.waitForTimeout(700);
     await goTab(page, '오늘');
     ok('★ 오늘 탭에서 랜덤 테스트가 마쳤어요로 바뀐다 ★', (await rowText(page, '오늘 랜덤 테스트')).includes('마쳤어요'), await rowText(page, '오늘 랜덤 테스트'));
+  }
+
+  console.log('\n[ 홈의 큰 단추(오늘의 학습 한 판)를 끝내도 다음 단계로 이어진다 ]');
+  {
+    const p3 = await boot(browser);
+    p3.on('pageerror', (e) => errors.push(e.message));
+    await goTab(p3, '오늘');
+    await p3.locator('.bigcta').first().click();
+    await p3.waitForTimeout(1200);
+    const g3 = await finishDeck(p3);
+    ok('오늘의 학습 한 판이 끝나 완주 화면이 뜬다', await p3.locator('.finish').count() === 1, `${g3}걸음`);
+    ok('★ 「오늘로」만 있지 않고 「다음: 약점 퀴즈」가 첫째 버튼이다 ★', await p3.locator('.fin-next').count() === 1 && (await p3.locator('.fin-next').innerText()).includes('약점 퀴즈'), await p3.locator('.finish').count() ? (await p3.locator('.finish .submit-btn').first().innerText()) : '');
+    await p3.locator('.fin-next').click();
+    await p3.waitForTimeout(1200);
+    ok('★ 누르면 약점 퀴즈가 바로 열린다 ★', await p3.locator('.qoptions, .qtyping').count() >= 1);
+    await p3.close();
   }
 
   console.log('\n[ 오늘의 N3를 다 하면 → 다음: 오늘 랜덤 테스트 ]');

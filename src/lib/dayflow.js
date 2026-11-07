@@ -55,8 +55,11 @@ export function nextStep(after, states = {}) {
   return null;
 }
 
-/* 덱 id가 어느 단계의 판인가. 오늘 전체(today)나 다른 판이면 null — 그때는 흐름을 안 잇는다 */
+/* 덱 id가 어느 단계의 판인가. 다른 판(고른 단어 · 취약 · 기출…)이면 null — 그때는 흐름을 안 잇는다.
+ * 「오늘의 학습」 한 판(today)은 복습 · 약점 · 새 단어를 한꺼번에 도는 판이다. 홈의 큰 단추가 여는 판이라 제일 많이 쓴다.
+ * 이 판이 끝나면 복습 단계를 마친 것으로 보고 약점 퀴즈부터 잇는다(새 단어까지 돌았으니 새로 배우기는 남은 게 있을 때만 다시 나온다). */
 export function stepOfDeck(deckId) {
+  if (deckId === 'today') return 'review';
   if (deckId === 'today:review+weak' || deckId === 'today:review' || deckId === 'today:weak') return 'review';
   if (deckId === 'today:fresh') return 'fresh';
   return null;

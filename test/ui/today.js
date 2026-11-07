@@ -509,8 +509,9 @@ async function boot(browser, patch = {}, init = null) {
     /* 「장」과 「번」을 뭉뚱그리면 거짓이 된다 — 몰라요가 섞이면 둘이 다르다 */
     ok('누른 횟수는 「번」으로 적음', fin.includes('번 봤어요'), fin);
     ok('걸린 시간도', /약 \d+분/.test(fin));
-    ok('오늘로 버튼이 있음', await p4.locator('.finish .submit-btn').count() === 1);
-    await p4.locator('.finish .submit-btn').click({ timeout: 5000 }).catch(() => {});
+    /* 하루 흐름: 다음 단계가 남았으면 「다음: ○○」가 첫째, 「오늘로」는 둘째 버튼이다 */
+    ok('오늘로 버튼이 있음', await p4.locator('.finish button', { hasText: '오늘로' }).count() === 1);
+    await p4.locator('.finish button', { hasText: '오늘로' }).click({ timeout: 5000 }).catch(() => {});
     await p4.waitForTimeout(800);
     ok('눌러서 오늘로 감', await p4.locator('.tdhead').count() === 1);
     ok('세션이 정리됨', await p4.evaluate(() => localStorage.getItem('jp_manabu_session_v1')) === null);
