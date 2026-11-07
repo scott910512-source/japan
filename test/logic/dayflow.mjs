@@ -6,12 +6,14 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
 
 console.log('\n[ 순서 ]');
 {
-  ok('★ 순서는 복습 · 약점 퀴즈 · 쭉 퀴즈 · 새로 배우기 · 오늘의 N3 · 랜덤 테스트 ★', FLOW.join() === 'review,weakquiz,stream,fresh,n3,random');
-  const all = { review: true, weakquiz: true, stream: true, fresh: true, n3: true, random: true };
+  ok('★ 순서는 복습 · 약점 퀴즈 · 쭉 퀴즈 · 새로 배우기 · 오늘의 N3 · 랜덤 테스트 ★', FLOW.join() === 'review,weakquiz,stream,fresh,sentence,n3,random');
+  const all = { review: true, weakquiz: true, stream: true, fresh: true, sentence: true, n3: true, random: true };
   ok('복습 다음은 약점 퀴즈', nextStep('review', all).to === 'weakquiz');
   ok('약점 퀴즈 다음은 쭉 퀴즈', nextStep('weakquiz', all).to === 'stream');
   ok('쭉 퀴즈 다음은 새로 배우기', nextStep('stream', all).to === 'fresh');
-  ok('새로 배우기 다음은 오늘의 N3', nextStep('fresh', all).to === 'n3' && nextStep('fresh', all).label === '오늘의 N3');
+  ok('새로 배우기 다음은 문장 퀘스트', nextStep('fresh', all).to === 'sentence' && nextStep('fresh', all).label === '문장 퀘스트');
+  ok('문장 퀘스트 다음은 오늘의 N3', nextStep('sentence', all).to === 'n3');
+  ok('★ 문장 퀘스트를 건너뛰었거나 마쳤으면(false) 새로 배우기 다음이 N3로 넘어간다 ★', nextStep('fresh', { ...all, sentence: false }).to === 'n3');
   ok('오늘의 N3 다음은 랜덤 테스트', nextStep('n3', all).to === 'random');
   ok('랜덤 테스트 다음은 없다', nextStep('random', all) === null);
   ok('이름표가 붙어 있다', nextStep('review', all).label === '약점 퀴즈' && nextStep('n3', all).label === '오늘 랜덤 테스트');

@@ -35,8 +35,17 @@ import { focusUnlessTyping } from '../lib/focus.js';
 const AUTO_NEXT_MS = 900;
 
 export default function ComposeQuiz(props) {
-  const [mode, setMode] = useState(() => Object.values(COMPOSE_MODE).includes(props.initialMode) ? props.initialMode : COMPOSE_MODE.BUILD);
+  const focused = Array.isArray(props.focusIds) && props.focusIds.length > 0;   // 문장 퀘스트 — 오늘 배운 문장으로만 조립한다
+  const [mode, setMode] = useState(() => (focused ? COMPOSE_MODE.BUILD : Object.values(COMPOSE_MODE).includes(props.initialMode) ? props.initialMode : COMPOSE_MODE.BUILD));
   const { settings } = props;
+  if (focused) {
+    return (
+      <div className="compose compose-quest">
+        <p className="set-note cmp-note">문장 퀘스트 · 오늘 배운 문장을 조각으로 맞춰 봐요</p>
+        <BuildMode key="build" {...props} />
+      </div>
+    );
+  }
   return (
     <div className="compose">
       <div className="segment cmp-tabs" role="tablist" aria-label="문장 만들기 방식">
@@ -55,12 +64,13 @@ export default function ComposeQuiz(props) {
 }
 
 /* ── 공통: 판의 풀과 점수 ── */
-function useRun({ sentences, review, progress, settings, mode, hasChunks }) {
+function useRun({ sentences, review, progress, settings, mode, hasChunks, onlyIds = null }) {
   const goal = goalOf(settings);
   const ledger = progress?.weak || null;
   const pool = useRef(null);
   if (pool.current === null) {
     pool.current = composePool({ sentences, review, ledger, goal, mode, hasChunks });
+    if (onlyIds?.length) { const only = new Set(onlyIds); pool.current = pool.current.filter((it) => only.has(it.id)); }
   }
   const [session, setSession] = useState(newSession);
   const sessionRef = useRef(session);
@@ -79,8 +89,8 @@ const Score = ({ session }) => {
 const Empty = ({ children }) => <div className="empty-state cmp-empty">{children}</div>;
 
 /* ── 조립 ── */
-function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivity, onAttempt, onExit }) {
-  const run = useRun({ sentences, review, progress, settings, mode: COMPOSE_MODE.BUILD, hasChunks: (id) => chunksOf(id) != null });
+function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivity, onAttempt, onExit, focusIds = null, questTarget = 0, questNext = null }) {
+  const run = useRun({ sentences, review, progress, settings, mode: COMPOSE_MODE.BUILD, hasChunks: (id) => chunksOf(id) != null, onlyIds: focusIds });
   const [cur, setCur] = useState(() => run.next());
   const [solved, setSolved] = useState(false);
 
@@ -93,6 +103,19 @@ function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivi
   };
   const advance = () => { setSolved(false); setCur(run.next()); };
 
+  /* 문장 퀘스트: 정해 둔 만큼 조립했거나, 조립할 수 있는 문장(조각이 있는 것)이 없으면 마무리 카드 */
+  const questOn = Array.isArray(focusIds) && focusIds.length > 0;
+  const target = questOn ? Math.min(questTarget || focusIds.length, run.pool.length) : 0;
+  if (questOn && (run.pool.length === 0 || (run.session.log.length >= target && !solved))) {
+    return (
+      <div className="card cmp-questdone" data-quest="sentence" data-done={run.session.log.length}>
+        <b>문장 퀘스트를 마쳤어요</b>
+        <span>{run.pool.length ? `새 문장을 배우고 ${run.session.log.length}문장을 조립해 봤어요.` : '새 문장을 배웠어요. 이 문장들은 조각 연습이 아직 없어요.'}</span>
+        {questNext && <button className="submit-btn cmp-questnext" onClick={questNext.go}>다음: {questNext.label}</button>}
+        <button className={questNext ? 'ghost-btn' : 'submit-btn'} onClick={onExit}>오늘로</button>
+      </div>
+    );
+  }
   if (!run.pool.length) return <Empty>조립할 문장이 아직 없어요. 오늘 화면에서 문장을 먼저 배워 보세요. 목표 {goalOf(settings)} 안의 문장만 나와요.</Empty>;
   const s = run.byId.get(cur.id);
   return (
