@@ -440,8 +440,8 @@ export const DEFAULT_SETTINGS = {
   /* 총 스무 장. 셋을 각각 20으로 두었더니 자료가 쌓인 뒤 하루가 예순 장이
      됐다 — 처음 쓰는 사람이 첫날에 접는 양이다. 갈래 배분은 daily.js가 정한다.
      이미 저장된 목표가 있으면 아래 loadSettings가 그걸 쓴다. */
-  goals: { fresh: 10, review: 30, weak: 3 },
-  goalsV: 2,          // 하루 목표를 크게 키운 판(복습 30 · 새로 10). 이 번호가 없는 옛 설정은 한 번 새 수량으로 바뀐다
+  goals: { fresh: 20, review: 30, weak: 3 },
+  goalsV: 3,          // 하루 목표를 크게 키운 판(복습 30 · 새로 20). 이 번호가 없는 옛 설정은 한 번 새 수량으로 바뀐다
   dailyGoal: 20,      // (옛 설정) 숫자 하나였던 시절
   shuffle: true,
   direction: 'kanji-mean', // 'kanji-mean' | 'mean-kanji' | 'kanji-kana'
@@ -480,7 +480,7 @@ export function loadSettings() {
        되지 않게, 자기가 정한 값을 그대로 쓴다. */
     goals: normalizeGoals(saved.goals ?? saved.dailyGoal ?? DEFAULT_SETTINGS.goals),
   };
-  /* 하루 목표를 한 번 새 수량으로 맞춘다(복습 30 · 새로 10 · 약점 3). 번호(goalsV)를 같이 적어서, 그 뒤로 직접
+  /* 하루 목표를 한 번 새 수량으로 맞춘다(복습 30 · 새로 20 · 약점 3). 번호(goalsV)를 같이 적어서, 그 뒤로 직접
      바꾼 값은 다시 덮어쓰지 않는다. 설정을 한 번도 저장한 적 없는 사람은 어차피 기본값이다. */
   if ((saved.goalsV || 0) < DEFAULT_SETTINGS.goalsV) {
     merged.goals = { ...DEFAULT_SETTINGS.goals };

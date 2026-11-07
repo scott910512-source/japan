@@ -29,18 +29,18 @@ const review = {
   ...Object.fromEntries(weak.map((w) => [w.id, { box: 1, streak: 0, lastSeen: addDays(today, -4), rounds: 3, wrongCount: 3, vagueCount: 1, seenAt: 1, due: addDays(today, 5) }])),
 };
 
-async function boot(browser, progress = null) {
+async function boot(browser, progress = null, extraSettings = {}) {
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(({ rv, progress }) => {
+  await page.evaluate(({ rv, progress, extraSettings }) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     localStorage.setItem('jp_optrev_open', '0');
     /* 옛 설정(번호 없음, 복습 9 · 새로 8)에서 시작한다 — 새 수량으로 바뀌는지도 같이 본다 */
-    const s = { onboarded: true, canReadKana: true, autoTTS: false, goals: { fresh: 8, review: 9, weak: 3 } };
+    const s = { onboarded: true, canReadKana: true, autoTTS: false, goals: { fresh: 8, review: 9, weak: 3 }, ...extraSettings };
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(rv));
     if (progress) localStorage.setItem('jp_manabu_progress_v1', JSON.stringify(progress));
-  }, { rv: review, progress });
+  }, { rv: review, progress, extraSettings });
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
@@ -75,7 +75,7 @@ async function finishQuiz(page, cap = 140) {
 /* 회독 화면: 모두 「알아요」로 넘긴다 */
 async function finishDeck(page) {
   let g = 0;
-  while (g < 160 && !(await page.locator('.finish').count())) {
+  while (g < 260 && !(await page.locator('.finish').count())) {
     g += 1;
     const go = page.locator('.study .st-go, .study .ph-btn, .study [data-verdict="known"], .study button.known').first();
     if (await page.locator('.study .start-btn, .study .intro-start, .study .study-start').count()) { await page.locator('.study .start-btn, .study .intro-start, .study .study-start').first().click(); await page.waitForTimeout(400); continue; }
@@ -103,10 +103,10 @@ async function finishDeck(page) {
   ok('★ 복습 미션은 서른 개 이상 ★', Number((review1.match(/남은 (\d+)개/) || [])[1]) >= 30, review1);
   ok('★ 약점 퀴즈는 서른 문제 ★', (await rowText(page, '약점 퀴즈')).includes('30문제 남았어요'), await rowText(page, '약점 퀴즈'));
   ok('★ 쭉 퀴즈는 스무 문제 ★', (await rowText(page, '쭉 퀴즈')).includes('20문제 남았어요'), await rowText(page, '쭉 퀴즈'));
-  ok('★ 새로 배우기는 열 개 ★', /10/.test(await rowText(page, '새로 배우기')), await rowText(page, '새로 배우기'));
+  ok('★ 새로 배우기는 스무 개 ★', /20/.test(await rowText(page, '새로 배우기')), await rowText(page, '새로 배우기'));
   ok('오늘 랜덤 테스트 줄이 있다', (await rowText(page, '오늘 랜덤 테스트')).includes('쉰 문제'));
   const st = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}'));
-  ok('★ 옛 설정(9·8·3)이 새 수량(복습 30 · 새로 10)으로 맞춰진다 ★', st.goals?.review === 30 && st.goals?.fresh === 10 && st.goalsV === 2, JSON.stringify(st.goals));
+  ok('★ 옛 설정(9·8·3)이 새 수량(복습 30 · 새로 20)으로 맞춰진다 ★', st.goals?.review === 30 && st.goals?.fresh === 20 && st.goalsV === 3, JSON.stringify(st.goals));
 
   console.log('\n[ 약점 퀴즈 30문제 → 다음: 쭉 퀴즈 ]');
   await page.locator('.tdq-row', { hasText: '약점 퀴즈' }).click();
@@ -123,6 +123,8 @@ async function finishDeck(page) {
 
   console.log('\n[ 쭉 퀴즈 20문제 → 다음: 새로 배우기 ]');
   if (await page.locator('.st-start').count()) { await page.locator('.st-start').click(); await page.waitForTimeout(700); }
+  const weakDone = new Set((await progressOf(page)).weakQuiz?.ids || []);
+  const streamIds = [];
   let n = 0;
   while (n < 80 && !(await page.locator('.st-checkpoint').count())) {
     n += 1;
@@ -130,6 +132,7 @@ async function finishDeck(page) {
     if (!(await run.count())) break;
     const head = (await page.locator('.st-score').innerText()).replace(/\s/g, '');
     if (n === 1) ok('★ 머리 줄은 진행 현황(1 / 20)이다 ★', head === '1/20', head);
+    streamIds.push(await run.getAttribute('data-id'));
     const mode = await run.getAttribute('data-mode');
     if (mode === 'typing') { await page.locator('.st-input').fill('ㅋ'); await page.locator('.st-submit').click(); } else { await page.locator('.st-opt').first().click(); }
     await page.waitForTimeout(280);
@@ -137,6 +140,7 @@ async function finishDeck(page) {
     if (await page.locator('.st-next').count()) await page.locator('.st-next').click(); else await page.waitForTimeout(1000);
     await page.waitForTimeout(220);
   }
+  ok('★ 오늘 약점 퀴즈로 푼 낱말은 쭉 퀴즈에 또 나오지 않는다(반복 줄이기) ★', weakDone.size >= 30 && streamIds.length >= 10 && streamIds.every((id) => !weakDone.has(id)), `약점 ${weakDone.size}개 · 쭉 ${streamIds.length}문제`);
   ok('스무 문제에서 멈춘다', await page.locator('.st-checkpoint').count() === 1, `${n}걸음`);
   const next = page.locator('.st-checkpoint .st-next');
   ok('★ 「다음: 새로 배우기」가 뜬다 ★', await next.count() === 1 && (await next.innerText()).includes('새로 배우기'), await next.count() ? await next.innerText() : '없음');
@@ -179,6 +183,23 @@ async function finishDeck(page) {
     await page.waitForTimeout(700);
     await goTab(page, '오늘');
     ok('★ 오늘 탭에서 랜덤 테스트가 마쳤어요로 바뀐다 ★', (await rowText(page, '오늘 랜덤 테스트')).includes('마쳤어요'), await rowText(page, '오늘 랜덤 테스트'));
+  }
+
+  console.log('\n[ 홈의 큰 단추(오늘의 학습 한 판)를 끝내도 다음 단계로 이어진다 ]');
+  {
+    /* 양을 줄여 돌린다(번호 3을 같이 적어야 직접 정한 값으로 읽힌다) — 흐름 확인이 목적이라 쉰세 장을 다 돌 필요가 없다 */
+    const p3 = await boot(browser, null, { goals: { fresh: 5, review: 6, weak: 2 }, goalsV: 3 });
+    p3.on('pageerror', (e) => errors.push(e.message));
+    await goTab(p3, '오늘');
+    await p3.locator('.bigcta').first().click();
+    await p3.waitForTimeout(1200);
+    const g3 = await finishDeck(p3);
+    ok('오늘의 학습 한 판이 끝나 완주 화면이 뜬다', await p3.locator('.finish').count() === 1, `${g3}걸음`);
+    ok('★ 「오늘로」만 있지 않고 「다음: 약점 퀴즈」가 첫째 버튼이다 ★', await p3.locator('.fin-next').count() === 1 && (await p3.locator('.fin-next').innerText()).includes('약점 퀴즈'), await p3.locator('.finish').count() ? (await p3.locator('.finish .submit-btn').first().innerText()) : '');
+    await p3.locator('.fin-next').click();
+    await p3.waitForTimeout(1200);
+    ok('★ 누르면 약점 퀴즈가 바로 열린다 ★', await p3.locator('.qoptions, .qtyping').count() >= 1);
+    await p3.close();
   }
 
   console.log('\n[ 오늘의 N3를 다 하면 → 다음: 오늘 랜덤 테스트 ]');

@@ -64,10 +64,10 @@ console.log('\n[ 계획에 반영된다 ]');
 
   const jlpt = buildPlan(pool, {}, opt('jlpt')).assigned;
   const trip = buildPlan(pool, {}, opt('trip')).assigned;
-  ok('시험이면 단어가 더 많다',
-    jlpt.filter((x) => x.kind === 'word').length > trip.filter((x) => x.kind === 'word').length,
-    `jlpt 단어 ${jlpt.filter((x) => x.kind === 'word').length} / trip 단어 ${trip.filter((x) => x.kind === 'word').length}`);
-  ok('여행이면 문장이 들어온다', trip.some((x) => x.kind === 'sentence'));
+  /* 새로 배우기는 새 낱말만이라, 목적이 달라도 새 문장은 안 섞인다(목적은 낱말의 차례만 바꾼다) */
+  ok('★ 목적이 달라도 새로 배우기에는 새 문장이 없다 ★',
+    jlpt.every((x) => x.kind === 'word') && trip.every((x) => x.kind === 'word'),
+    `jlpt 문장 ${jlpt.filter((x) => x.kind === 'sentence').length} / trip 문장 ${trip.filter((x) => x.kind === 'sentence').length}`);
   ok('배정 개수는 목적과 무관', planStatus(buildPlan(pool, {}, opt('jlpt'))).assigned
     === planStatus(buildPlan(pool, {}, opt('talk'))).assigned);
   /* 목적을 안 주면 예전처럼 자료 차례대로 — 옛 동작을 안 깬다 */

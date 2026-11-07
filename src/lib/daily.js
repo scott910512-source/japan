@@ -36,12 +36,13 @@ import { errorSignals, weakEntry, weakScore } from './weak.js';
  *
  * 이미 쓰던 사람의 목표는 안 건드린다. 저장된 값이 있으면 그걸 쓰고, 이
  * 기본값은 한 번도 고른 적 없는 사람에게만 쓰인다(loadSettings). */
-export const DEFAULT_GOALS = { fresh: 10, review: 30, weak: 3 };
-/* ★ 기본값을 크게 키웠다(스무 장 → 마흔세 장) ★
- * 복습 미션은 최소 서른 개(복습 30 + 약점 3), 새로 배우기는 열 개. 배운 게 없으면 있는 만큼만 담긴다.
+export const DEFAULT_GOALS = { fresh: 20, review: 30, weak: 3 };
+/* ★ 기본값을 크게 키웠다(스무 장 → 쉰세 장) ★
+ * 복습 미션은 최소 서른 개(복습 30 + 약점 3), 새로 배우기는 스무 개.
+ * 한 바퀴가 20~30분이라, 외운 것을 도는 양은 두고 새 낱말을 열 개에서 스무 개로 늘렸다 — 한 바퀴의 대부분이 외운 것이라 새 낱말이 적어 보였다. 배운 게 없으면 있는 만큼만 담긴다.
  * 위의 「스무 장」 이야기는 처음 설계 때의 것이다 — 지금은 하루 흐름이
  * 복습 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기 → 랜덤 테스트로 이어져서 양이 달라졌다. */
-export const GOALS_VERSION = 2;
+export const GOALS_VERSION = 3;
 export const LANES = ['review', 'weak', 'fresh'];
 
 /* 몰라요·애매해요가 이만큼 쌓이면 약점으로 본다. 회독 쪽 기준과 같은 값이다. */
@@ -92,9 +93,9 @@ export const DAY_PRESETS = [
   { id: 'light', label: '가볍게', total: 10, note: '5분 남짓' },
   { id: 'normal', label: '보통', total: 20, note: '10분 남짓' },
   { id: 'more', label: '많이', total: 40, note: '20분 남짓' },
-  { id: 'full', label: '꽉 채워', total: 43, note: '복습 30 · 새로 10 · 약점 3' },
+  { id: 'full', label: '꽉 채워', total: 53, note: '복습 30 · 새로 20 · 약점 3' },
 ];
-const FULL_TOTAL = 43;
+const FULL_TOTAL = 53;
 
 /* 총량을 갈래로 나눈다.
  *
@@ -103,7 +104,7 @@ const FULL_TOTAL = 43;
  * 약점은 적게 준다. 약점은 한 판에 두 번 나오니 몫이 적어도 자주 마주친다. */
 export function spreadGoal(total) {
   const t = Math.max(1, Math.round(total) || 1);
-  if (t === FULL_TOTAL) return { ...DEFAULT_GOALS };   // 기본값 — 복습 30 · 새로 10 · 약점 3
+  if (t === FULL_TOTAL) return { ...DEFAULT_GOALS };   // 기본값 — 복습 30 · 새로 20 · 약점 3
   const review = Math.max(1, Math.round(t * 0.45));
   const weak = t >= 7 ? Math.max(1, Math.round(t * 0.15)) : 0;
   const fresh = Math.max(0, t - review - weak);
@@ -152,7 +153,10 @@ export const SENTENCE_SHARE = 0.5;
  *
  * 복습에는 이 뚜껑을 안 씌운다. 전에 외운 문장은 복습일이 되면 나와야 하고,
  * 여기서 막으면 외운 게 조용히 새어 나간다. */
-export const FRESH_SENTENCE_MAX = 3;
+export const FRESH_SENTENCE_MAX = 0;
+/* ★ 새로 배우기는 새 낱말이다 — 문장 카드를 섞지 않는다(전엔 세 개까지 섞었다) ★
+ * 열 개 중 단어 일곱 · 문장 셋이 나오자 「새 학습인데 새 단어가 아니다」라는 말이 나왔다. 위에 적어 둔 「0으로 두지는
+ * 않는다」는 처음 설계의 판단이었고, 지금은 쓰는 사람이 단어만 원한다고 정했다. 복습에 든 문장은 그대로 나온다. */
 
 /* 큐에 담기는 한 개. 단어인지 문장인지를 들고 다녀야 화면이 다르게 그린다. */
 function item(id, kind, bucket) {

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
+import { avoidToday } from '../lib/dayflow.js';
 import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
@@ -32,7 +34,7 @@ const loadBatch = () => {
 export default function StreamQuiz({
   words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit, onAttempt, onAnswered,
   /* 하루 흐름 — 쭉 퀴즈 오늘 몫(스무 문제)을 마치면 다음 단계를 바로 내민다. next = { label, go } */
-  next = null, questDone = false,
+  next = null, questDone = false, seenToday = null,
 }) {
   const goal = goalOf(settings);
   const [n3, setN3] = useState(null);
@@ -75,15 +77,17 @@ export default function StreamQuiz({
   const holdForReview = reviewOpen && optRows.length >= 2;
   useEffect(() => { markBusy('stream', phase === 'run'); return () => markBusy('stream', false); }, [phase]);
 
-  useEffect(() => { if (phase === 'run' && cur?.q.mode === 'typing' && !answered) inputRef.current?.focus(); }, [phase, cur, answered]);
+  useEffect(() => { if (phase === 'run' && cur?.q.mode === 'typing' && !answered) focusUnlessTyping(inputRef.current); }, [phase, cur, answered]);
 
   const wordById = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
   const sentenceById = useMemo(() => new Map(sentenceCards.map((s) => [s.id, s])), [sentenceCards]);
   const ledger = progress?.weak || null;
 
-  const live = useMemo(() => (n3
+  const liveAll = useMemo(() => (n3
     ? buildPool({ words, sentences: sentenceCards, n3: n3.ids, review, ledger, goal })
     : null), [n3, words, sentenceCards, review, ledger, goal]);
+  /* 오늘 복습 · 약점 퀴즈에서 이미 본 것은 뺀다 — 한 바퀴가 같은 낱말의 반복이 되지 않게(남는 게 적으면 그대로) */
+  const live = useMemo(() => (liveAll ? avoidToday(liveAll, seenToday, MIN_POOL) : null), [liveAll, seenToday]);
 
   const ctx = useMemo(() => ({
     wordById, wordPool: words, sentenceById, sentencePool: sentenceCards, n3Question: n3?.question,
@@ -146,7 +150,7 @@ export default function StreamQuiz({
   const finalize = (ok, value, extra = {}) => {
     const { item, q } = cur;
     if (shouldRecord(sessionRef.current, item.id)) onVerdicts?.({ [item.id]: verdictFor(ok) });
-    onAttempt?.({ id: `stream:${item.id}:${q.dir || q.kind}`, source: 'stream', ref: item.id, kind: KIND_LABEL[q.kind] || q.kind, prompt: q.prompt, correct: q.answerText, chosen: q.options?.find((o) => o.key === value)?.label || value, options: q.options?.map((o) => o.label), explanation: [extra.why, q.explain].filter(Boolean).join(' '), ok });
+    onAttempt?.({ id: `stream:${item.id}:${q.dir || q.kind}`, source: 'stream', ref: item.id, kind: KIND_LABEL[q.kind] || q.kind, prompt: q.prompt, correct: q.answerText, chosen: q.options?.find((o) => o.key === value)?.label || (value ?? '잘 모르겠어요'), options: q.options?.map((o) => o.label), explanation: [extra.why, q.explain].filter(Boolean).join(' '), ok });
     onActivity?.({ quizzed: 1 });
     /* 오늘의 퀘스트(쭉 퀴즈 열 문제)가 센다 */
     onAnswered?.();
@@ -157,15 +161,28 @@ export default function StreamQuiz({
   /* 맞히면 잠깐 보여 주고 알아서 넘어간다. 보기 상세를 펼쳐 둔 때는 직접 넘긴다. */
   useEffect(() => {
     if (phase !== 'run' || checkpoint || !answered || answered.verdict !== 'correct' || holdForReview || keyboard) return undefined;
-    timer.current = setTimeout(advance, AUTO_NEXT_MS);
+    timer.current = setTimeout(() => { if (!sheetOpen()) advance(); }, AUTO_NEXT_MS);   // 곤에게 묻는 창이 열려 있으면 저절로 안 넘긴다
     return () => clearTimeout(timer.current);
   }, [phase, checkpoint, answered, holdForReview, advance, keyboard]);
 
   const answer = (input) => {
     if (answered || !cur) return;
+    /* 뜻을 묻는 직접 입력 문제에 문제 글자를 그대로 쳐서 낸 것은 오답이 아니다 — 채점하지 않고 무엇을 쓰는 칸인지 알려 준다 */
+    if (cur.q.mode === 'typing' && cur.q.promptJp && typeof input === 'string'
+      && input.trim() && [cur.q.prompt, cur.q.sub, cur.q.speak].some((t) => t && String(t).trim() === input.trim())) {
+      onToast?.('이 문제는 뜻을 한국어로 쓰는 칸이에요');
+      return;
+    }
     const res = judge(cur.q, input);
     if (res.verdict === 'close') { setAnswered({ value: input, verdict: 'close', ok: null }); return; }
     finalize(res.verdict === 'correct', input, { why: res.why, expected: res.expected });
+  };
+
+  /* ★ 잘 모르겠어요 ★ 찍어서 맞히면 모르는 것이 아는 것으로 세어져 복습 간격이 틀어진다.
+     모르면 이걸 눌러 「몰라요」로 남기고 정답을 본다. */
+  const dunno = () => {
+    if (answered || !cur) return;
+    finalize(false, null, { dunno: true, expected: cur.q.answerText });
   };
 
   /* 한 글자 오타(close)는 내가 정한다 */
@@ -309,7 +326,7 @@ export default function StreamQuiz({
           <input
             ref={inputRef}
             className="search-input st-input"
-            value={answered ? answered.value : typed}
+            value={answered ? (answered.value ?? '') : typed}
             onChange={(e) => setTyped(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && shortcutEvent(e)) { takeControl(); e.preventDefault(); if (!answered && typed.trim()) answer(typed); } }}
             placeholder={q.promptJp ? '뜻을 한국어로' : '일본어로 (한자 또는 히라가나)'}
@@ -318,6 +335,10 @@ export default function StreamQuiz({
           />
           {!answered && <button className="submit-btn st-submit" onClick={() => answer(typed)} disabled={!typed.trim()}>제출</button>}
         </div>
+      )}
+
+      {!answered && (
+        <button type="button" className="ghost-btn st-dunno" onClick={dunno}>잘 모르겠어요 · 몰라요로 남기기</button>
       )}
 
       {answered?.verdict === 'close' && (

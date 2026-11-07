@@ -131,6 +131,37 @@ async function stubAI(page, body = ANSWER) {
   await again.close();
   ok('접힌 뒤에도 곤 단추가 그대로 있다', await page.locator('.gonfab').count() === 1);
 
+  console.log('\n[ 회독(카드 학습) 화면에도 단추가 있다 ]');
+  {
+    const st = await boot(browser, { geminiKey: 'AQ.test-not-a-real-key' });
+    st.on('pageerror', (e) => errors.push(e.message));
+    await goTab(st, '오늘');
+    await st.locator('.tdq-row', { hasText: '새로 배우기' }).click();
+    await st.waitForTimeout(1200);
+    const startBtn = st.locator('.study .submit-btn, .study .intro-start, .study .start-btn').first();
+    if (await st.locator('.study-intro, .intro').count() && await startBtn.count()) { await startBtn.click(); await st.waitForTimeout(500); }
+    ok('회독 화면이 열려 있다(탭바가 없다)', await st.locator('.study').count() >= 1 && await st.locator('.tabbar').count() === 0);
+    ok('★ 회독 화면에도 곤 단추가 있다 ★', await st.locator('.gonfab').count() === 1);
+    const top = await st.evaluate(() => { const e = document.querySelector('.gonfab'); const r = e.getBoundingClientRect(); const t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e === t || e.contains(t); });
+    ok('가려지지 않고 눌린다', top);
+    /* 카드를 뒤집어 판정 단추가 나왔을 때 단추와 겹치지 않는다 */
+    await st.locator('.studycard').click().catch(() => {});
+    await st.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {});
+    if (await st.locator('.judgerow').count()) {
+      const fb2 = await st.locator('.gonfab').boundingBox();
+      const rows = await st.locator('.judgerow button').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }));
+      const overlap = rows.some((r) => !(fb2.x + fb2.width <= r.x || r.x + r.w <= fb2.x || fb2.y + fb2.height <= r.y || r.y + r.h <= fb2.y));
+      ok('★ 판정 단추를 가리지 않는다 ★', !overlap, `곤 ${Math.round(fb2.x)},${Math.round(fb2.y)}`);
+    }
+    await st.locator('.gonfab').click();
+    await st.waitForTimeout(500);
+    ok('★ 눌러서 질문 창이 열린다 ★', await st.locator('.sheet.open .asksheet').count() === 1);
+    await st.locator('.sheet.open .sheet-x').click();
+    await st.waitForTimeout(500);
+    ok('닫으면 학습 중인 자리 그대로', await st.locator('.study').count() >= 1 && await st.locator('.sheet.open .asksheet').count() === 0);
+    await st.close();
+  }
+
   ok('화면 오류 없음', errors.length === 0, errors[0]);
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

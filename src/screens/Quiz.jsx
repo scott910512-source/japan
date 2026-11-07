@@ -4,6 +4,7 @@ import {
 } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import { markBusy } from '../lib/busy.js';
+import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
 import { useQuizHotkeys, useHasKeyboard, shortcutEvent } from '../lib/useHotkeys.js';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
@@ -261,7 +262,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
     setTyped('');
     setShownSub(false);
     setShownOpt(false);
-    if (q?.type === QUIZ_TYPE.TYPING) inputRef.current?.focus();
+    if (q?.type === QUIZ_TYPE.TYPING) focusUnlessTyping(inputRef.current);
   }, [index, q?.type]);
 
   // 한자를 그대로 보내면 한 글자짜리 단어에서 음독이 나온다(「海」→ カイ).
@@ -336,7 +337,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
       id: q.wordId,
       kind: verdict === 'correct' ? WEAK_KIND.QUIZ_RIGHT : WEAK_KIND.QUIZ_WRONG,
     }]);
-    onAttempt?.({ id: `word:${q.wordId}:${q.dir}`, source: 'word', ref: q.wordId, kind: q.dir === QUIZ_DIR.JP_KO ? '단어 뜻' : '단어 표기', prompt: q.prompt, correct: q.answer, accepted: q.dir === QUIZ_DIR.JP_KO ? meaningsOf(word) : acceptedJp(word), chosen: q.options?.find((o) => o.wordId === value)?.label || value, options: q.options?.map((o) => o.label), explanation: [word?.note, word?.example, word?.exampleKo].filter(Boolean).join(' · '), ok: verdict === 'correct' });
+    onAttempt?.({ id: `word:${q.wordId}:${q.dir}`, source: 'word', ref: q.wordId, kind: q.dir === QUIZ_DIR.JP_KO ? '단어 뜻' : '단어 표기', prompt: q.prompt, correct: q.answer, accepted: q.dir === QUIZ_DIR.JP_KO ? meaningsOf(word) : acceptedJp(word), chosen: q.options?.find((o) => o.wordId === value)?.label || (value ?? '잘 모르겠어요'), options: q.options?.map((o) => o.label), explanation: [word?.note, word?.example, word?.exampleKo].filter(Boolean).join(' · '), ok: verdict === 'correct' });
   }, [q, word, onWeakness, onAttempt]);
 
   const record = (verdict, value) => {
@@ -349,8 +350,18 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
 
   const submitTyping = () => {
     if (answered || !word) return;
+    /* 뜻을 묻는 문제에 문제 글자(한자·가나)를 그대로 쳐서 낸 것은 오답이 아니라 문제를 잘못 읽은 것이다.
+       채점하지 않고 무엇을 쓰는 칸인지 알려 준다. */
+    if (q.dir === QUIZ_DIR.JP_KO) {
+      const t = typed.trim();
+      if (t && (t === word.kanji || t === word.kana)) { onToast?.('이 문제는 뜻을 한국어로 쓰는 칸이에요'); return; }
+    }
     record(checkTyping(word, q.dir, typed), typed);
   };
+
+  /* ★ 잘 모르겠어요 ★ 찍어서 맞히면 모르는 것이 아는 것으로 센다. 모르면 찍지 말고 이걸 눌러 「몰라요」로 남긴다.
+     오답과 같이 약점 장부에 오르고, 정답을 바로 보여 준다. */
+  const dunno = () => record('wrong', null);
 
   const next = () => {
     // 인정하지 않고 넘어간 「거의 맞았어요」는 오답이다 — 점수도 그렇게 센다
@@ -372,7 +383,8 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
   useEffect(() => {
     if (!answered || answered.verdict !== 'correct' || holdForReview || keyboard) return undefined;
     const speaking = settings.autoTTS && q?.dir === QUIZ_DIR.KO_JP;
-    const timer = setTimeout(next, speaking ? AUTO_NEXT_SPEAK_MS : AUTO_NEXT_MS);
+    /* 곤에게 묻는 창이 열려 있으면 저절로 안 넘긴다 — 묻던 문제가 사라지면 안 된다 */
+    const timer = setTimeout(() => { if (!sheetOpen()) next(); }, speaking ? AUTO_NEXT_SPEAK_MS : AUTO_NEXT_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answered, index, holdForReview, keyboard]);
@@ -526,7 +538,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
           <input
             ref={inputRef}
             className="search-input"
-            value={answered ? answered.value : typed}
+            value={answered ? (answered.value ?? '') : typed}
             onChange={(e) => setTyped(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && shortcutEvent(e)) { takeControl(); e.preventDefault(); answered ? next() : submitTyping(); } }}
             placeholder={q.dir === QUIZ_DIR.JP_KO ? '뜻을 한국어로' : '일본어로 (한자 또는 히라가나)'}
@@ -541,6 +553,12 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
             </button>
           )}
         </div>
+      )}
+
+      {!answered && (
+        <button type="button" className="ghost-btn qz-dunno" onClick={dunno}>
+          잘 모르겠어요 · 몰라요로 남기기
+        </button>
       )}
 
       {/* 객관식은 정답 보기 안에서 설명하니 상자를 또 띄우지 않는다.

@@ -55,11 +55,25 @@ export function nextStep(after, states = {}) {
   return null;
 }
 
-/* 덱 id가 어느 단계의 판인가. 오늘 전체(today)나 다른 판이면 null — 그때는 흐름을 안 잇는다 */
+/* 덱 id가 어느 단계의 판인가. 다른 판(고른 단어 · 취약 · 기출…)이면 null — 그때는 흐름을 안 잇는다.
+ * 「오늘의 학습」 한 판(today)은 복습 · 약점 · 새 단어를 한꺼번에 도는 판이다. 홈의 큰 단추가 여는 판이라 제일 많이 쓴다.
+ * 이 판이 끝나면 복습 단계를 마친 것으로 보고 약점 퀴즈부터 잇는다(새 단어까지 돌았으니 새로 배우기는 남은 게 있을 때만 다시 나온다). */
 export function stepOfDeck(deckId) {
+  if (deckId === 'today') return 'review';
   if (deckId === 'today:review+weak' || deckId === 'today:review' || deckId === 'today:weak') return 'review';
   if (deckId === 'today:fresh') return 'fresh';
   return null;
+}
+
+/* 오늘 이미 본 것을 뒤 단계에서 뺀다.
+ * 복습 미션에서 만난 낱말이 약점 퀴즈 · 쭉 퀴즈에서 또 나오면 한 바퀴가 같은 것의 반복이 된다.
+ * 빼고 나서 min개보다 적게 남으면(외운 것이 적은 사람) 빼지 않고 그대로 쓴다 — 풀이 비면 퀴즈가 안 열린다.
+ *   pool — [{ id, ... }]   seen — 오늘 본 id 모음(Set 또는 배열) */
+export function avoidToday(pool, seen, min = 4) {
+  if (!Array.isArray(pool) || !seen || (seen.size ?? seen.length) === 0) return pool;
+  const s = seen instanceof Set ? seen : new Set(seen);
+  const rest = pool.filter((it) => !s.has(it.id));
+  return rest.length >= min ? rest : pool;
 }
 
 /* 오늘 랜덤 테스트에 낼 낱말 id 목록.

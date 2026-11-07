@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AskSheet from './AskSheet.jsx';
 import gonFace from '../assets/hunter/characters/gon-thumb.png';
 
@@ -12,6 +12,20 @@ const loadMini = () => { try { return localStorage.getItem(MINI_KEY) === '1'; } 
 
 export default function GonAsk({ settings, asks, onAsks, onAddWord, onToast, hidden = false }) {
   const [open, setOpen] = useState(false);
+  /* 질문 창은 열려 있을 때만 DOM에 둔다. 닫아 둔 창까지 늘 붙어 있으면 학습 화면의 카드 「궁금해요」 창과 같은 모양이 둘이 되어
+     「어느 창」인지 가릴 수 없다(검사도 사람도). 닫을 때는 미끄러져 내려갈 시간을 준 뒤에 뗀다. */
+  const [mounted, setMounted] = useState(false);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      const f = requestAnimationFrame(() => setShown(true));
+      return () => cancelAnimationFrame(f);
+    }
+    setShown(false);
+    const t = setTimeout(() => setMounted(false), 500);
+    return () => clearTimeout(t);
+  }, [open]);
   /* ★ 작게 접고 펼칠 수 있다 ★ 단추가 아래쪽 버튼(다음 문제 등)을 가릴 때 접어 두면 작은 얼굴만 남는다.
      접은 상태는 기억한다. 접힌 얼굴을 누르면 질문 창이 아니라 다시 펼쳐진다. */
   const [mini, setMini] = useState(loadMini);
@@ -35,8 +49,9 @@ export default function GonAsk({ settings, asks, onAsks, onAddWord, onToast, hid
           )}
         </div>
       )}
+      {mounted && (
       <AskSheet
-        open={open}
+        open={shown}
         card={null}
         guide="gon"
         title="곤에게 물어보기"
@@ -47,6 +62,7 @@ export default function GonAsk({ settings, asks, onAsks, onAddWord, onToast, hid
         onClose={() => setOpen(false)}
         onToast={onToast}
       />
+      )}
     </>
   );
 }

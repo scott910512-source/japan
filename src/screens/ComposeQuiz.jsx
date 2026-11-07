@@ -22,6 +22,7 @@ import {
 } from '../lib/compose.js';
 import { shouldRecord } from '../lib/stream.js';
 import { correctSentence, hasAiKey } from '../lib/composeAi.js';
+import { focusUnlessTyping } from '../lib/focus.js';
 
 /* 문장 만들기 — 배운 문장을 내 손으로 만들어 본다.
  *
@@ -264,7 +265,7 @@ function WriteMode({ sentences, review, progress, settings, onVerdicts, onActivi
     enabled: Boolean(run.pool.length),
   });
   const inputRef = useRef(null);
-  useEffect(() => { if (!res) inputRef.current?.focus(); }, [cur, res]);
+  useEffect(() => { if (!res) focusUnlessTyping(inputRef.current); }, [cur, res]);
 
   if (!run.pool.length) return <Empty>쓸 문장이 아직 없어요. 오늘 화면에서 문장을 먼저 배워 보세요. 목표 {goalOf(settings)} 안의 문장만 나와요.</Empty>;
   const s = run.byId.get(cur.id);

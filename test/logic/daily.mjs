@@ -74,7 +74,7 @@ console.log('\n── 갈래마다 제 목표를 가진다');
      하루 흐름이 복습 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기 → 랜덤 테스트로 이어져서 양을 키웠다. */
   ok('★ 복습 미션은 서른 개 이상 ★', DEFAULT_GOALS.review + DEFAULT_GOALS.weak >= 30,
     `${DEFAULT_GOALS.review}+${DEFAULT_GOALS.weak}`);
-  ok('★ 새로 배우기는 열 개 ★', DEFAULT_GOALS.fresh === 10);
+  ok('★ 새로 배우기는 스무 개 ★', DEFAULT_GOALS.fresh === 20);
   /* 복습에 제일 많이 준다 — 이미 본 걸 안 잃는 것이 새로 배우는 것보다 앞선다 */
   ok('복습 몫이 제일 크다', DEFAULT_GOALS.review >= DEFAULT_GOALS.fresh
     && DEFAULT_GOALS.review > DEFAULT_GOALS.weak);
@@ -202,10 +202,10 @@ console.log('\n── 새로 배우는 문장은 세 개까지');
   const pool = [...W(300), ...S(300)];
 
   const f = planToday(pool, {}, { lanes: ['fresh'], today: TODAY });
-  ok('단어 외우기에는 문장이 세 개까지', f.sentences <= FRESH_SENTENCE_MAX,
+  ok('★ 새로 배우기에는 문장이 없다(새 낱말만) ★', f.sentences <= FRESH_SENTENCE_MAX,
     `단어 ${f.words} 문장 ${f.sentences}`);
   ok('그래도 개수는 채운다', f.total === DEFAULT_GOALS.fresh, `${f.total}개`);
-  ok('아예 빼지는 않는다', f.sentences >= 2, `문장 ${f.sentences}`);
+  ok('★ 문장은 하나도 안 섞인다 ★', f.sentences === 0 && f.words === f.total, `문장 ${f.sentences}`);
 
   /* ★ 복습에는 이 뚜껑을 안 씌운다 ★
      전에 외운 문장은 복습일이 되면 나와야 한다. 여기서 막으면 외운 게
@@ -226,7 +226,7 @@ console.log('\n── 새로 배우는 문장은 세 개까지');
   const only = planToday(S(100), {}, { lanes: ['fresh'], today: TODAY });
   ok('바꿔 넣을 단어가 없으면 개수를 지킨다', only.total === DEFAULT_GOALS.fresh, `${only.total}개`);
 
-  ok('상한이 셋', FRESH_SENTENCE_MAX === 3);
+  ok('상한이 0(새로 배우기는 새 낱말만)', FRESH_SENTENCE_MAX === 0);
 }
 
 console.log('\n── 옛 설정도 읽힌다');
@@ -321,15 +321,16 @@ console.log('\n── 단어와 문장을 한 큐에');
 {
   const pool = [...W(50), ...S(50)];
   const b = buildDailyStudyQueue(pool, {}, { goals: 30, today: TODAY });
-  ok('둘 다 섞여 나옴',
-    b.queue.some((x) => x.kind === 'word') && b.queue.some((x) => x.kind === 'sentence'),
+  /* 새로 배우기는 새 낱말만 — 문장 카드는 복습에 든 것만 나온다(이 풀은 전부 새것이라 낱말만) */
+  ok('새것만 있는 풀에서는 낱말만 나온다',
+    b.queue.some((x) => x.kind === 'word') && !b.queue.some((x) => x.kind === 'sentence'),
     `단어 ${b.queue.filter((x) => x.kind === 'word').length} 문장 ${b.queue.filter((x) => x.kind === 'sentence').length}`);
   const p = planToday(pool, {}, { goals: 30, today: TODAY });
   ok('미리 보는 숫자에도 나뉘어 있음', p.words + p.sentences === p.total, `${p.words}+${p.sentences}=${p.total}`);
   /* 반반이어도 새로 배우는 문장은 세 개까지다. 단어 외우기는 단어를 외우는
      자리고, 문장 한 장은 단어 한 장의 두 배 가까이 걸린다 — 「단어 30개」라고
      적어 놓고 45개어치를 시키면 안 된다. */
-  ok('새 문장은 세 개까지', p.sentences <= FRESH_SENTENCE_MAX, `단어 ${p.words} 문장 ${p.sentences}`);
+  ok('새 문장은 없다', p.sentences <= FRESH_SENTENCE_MAX, `단어 ${p.words} 문장 ${p.sentences}`);
   ok('그래도 개수는 그대로 채운다', p.total === 30, `${p.total}개`);
 
   /* 실제 비율 — 단어가 문장보다 훨씬 많다. 1:1로 뽑으면 문장이 먼저 동나고
@@ -337,9 +338,8 @@ console.log('\n── 단어와 문장을 한 큐에');
   const real = [...W(2330), ...S(600)];
   const q = planToday(real, {}, { goals: 20, today: TODAY });
   ok('많은 쪽이 더 많이 나옴', q.words > q.sentences, `단어 ${q.words} 문장 ${q.sentences}`);
-  /* 0으로 두지는 않는다. 단어만 외우면 그 단어가 문장 안에서 어떻게 서는지를
-     영영 안 보게 된다. */
-  ok('적은 쪽도 빠지진 않음', q.sentences >= 2, `문장 ${q.sentences}`);
+  /* 새로 배우기는 새 낱말만 — 새 문장은 안 섞인다(복습에 든 문장은 복습일에 나온다) */
+  ok('새 문장은 안 섞인다', q.sentences === 0, `문장 ${q.sentences}`);
 
   /* 한 종류밖에 없으면 그냥 그것만 */
   ok('단어만 있으면 단어만', planToday(W(50), {}, { goals: 10, today: TODAY }).words === 10);
@@ -358,8 +358,7 @@ console.log('\n── 문장이 오늘을 다 차지하지 않게 (뚜껑)');
   ok('목표가 커도 비율은 같음', planToday(n5, {}, { goals: 30, today: TODAY }).sentences <= 15);
   ok('목표가 작아도', planToday(n5, {}, { goals: 10, today: TODAY }).sentences <= 5);
 
-  /* 뚜껑이 문장을 0으로 만들면 안 된다 — 그러려고 비례배분을 넣었다 */
-  ok('문장이 아예 빠지진 않음', planToday(n5, {}, { goals: 20, today: TODAY }).sentences >= 2);
+  ok('새로 배우기에는 문장이 안 들어간다', planToday(n5, {}, { goals: 20, today: TODAY }).sentences === 0);
 
   /* 단어가 모자라면 억지로 채우느라 개수를 줄이지는 않는다 */
   const few = [...W(5), ...S(600)];
