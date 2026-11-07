@@ -225,7 +225,8 @@ async function boot(browser, patch = {}, init = null) {
   if (await introGo.count()) { await introGo.click(); await page.waitForTimeout(800); }
   const queue = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_session_v1') || '{}').queue || []);
   const sent = queue.filter((id) => /^(mv|fd|dl)-/.test(id));
-  ok('한 판에 문장이 섞여 있음', sent.length > 0, `문장 ${sent.length} / ${queue.length}`);
+  /* 새로 배우기는 새 낱말만 — 문장 카드는 안 섞인다(복습에 든 문장은 복습일에 복습 판에서 나온다) */
+  ok('★ 새로 배우기 판에는 새 문장이 안 섞인다 ★', sent.length === 0 && queue.length > 0, `문장 ${sent.length} / ${queue.length}`);
 
   console.log('\n── 나갔다 와도 이어진다');
   /* 방금 새로 연 판이라 아직 0장이다. 한 장 풀어야 「이어진다」가 볼 게 생긴다. */

@@ -201,6 +201,7 @@ export function addMore(plan, pool, review, { count = MORE_STEP, today = todayKe
     for (const it of lane) {
       if (add.length >= count) break;
       if (taken.has(it.id)) continue;
+      if (it.bucket === 'fresh' && it.kind !== 'word') continue;   // 새로 배우기는 새 낱말만(문장 카드는 복습에 든 것만)
       taken.add(it.id);
       add.push({ id: it.id, kind: it.kind, bucket: it.bucket });
     }

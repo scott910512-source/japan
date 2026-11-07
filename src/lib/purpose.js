@@ -82,8 +82,8 @@ export function orderByPurpose(pool, purpose, cardOf) {
  *
  * 0으로는 안 내린다. 시험을 준비해도 낱말만 외우면 그 낱말이 문장 안에서
  * 어떻게 서는지를 영영 안 보게 된다. */
-export function freshSentenceMax(purpose, base = 3) {
-  if (purpose === 'jlpt') return 1;
+export function freshSentenceMax(purpose, base = 0) {
+  if (purpose === 'jlpt') return Math.min(1, base);
   return base;
 }
 

@@ -29,18 +29,18 @@ const review = {
   ...Object.fromEntries(weak.map((w) => [w.id, { box: 1, streak: 0, lastSeen: addDays(today, -4), rounds: 3, wrongCount: 3, vagueCount: 1, seenAt: 1, due: addDays(today, 5) }])),
 };
 
-async function boot(browser, progress = null) {
+async function boot(browser, progress = null, extraSettings = {}) {
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(({ rv, progress }) => {
+  await page.evaluate(({ rv, progress, extraSettings }) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     localStorage.setItem('jp_optrev_open', '0');
     /* 옛 설정(번호 없음, 복습 9 · 새로 8)에서 시작한다 — 새 수량으로 바뀌는지도 같이 본다 */
-    const s = { onboarded: true, canReadKana: true, autoTTS: false, goals: { fresh: 8, review: 9, weak: 3 } };
+    const s = { onboarded: true, canReadKana: true, autoTTS: false, goals: { fresh: 8, review: 9, weak: 3 }, ...extraSettings };
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(rv));
     if (progress) localStorage.setItem('jp_manabu_progress_v1', JSON.stringify(progress));
-  }, { rv: review, progress });
+  }, { rv: review, progress, extraSettings });
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
@@ -187,7 +187,8 @@ async function finishDeck(page) {
 
   console.log('\n[ 홈의 큰 단추(오늘의 학습 한 판)를 끝내도 다음 단계로 이어진다 ]');
   {
-    const p3 = await boot(browser);
+    /* 양을 줄여 돌린다(번호 3을 같이 적어야 직접 정한 값으로 읽힌다) — 흐름 확인이 목적이라 쉰세 장을 다 돌 필요가 없다 */
+    const p3 = await boot(browser, null, { goals: { fresh: 5, review: 6, weak: 2 }, goalsV: 3 });
     p3.on('pageerror', (e) => errors.push(e.message));
     await goTab(p3, '오늘');
     await p3.locator('.bigcta').first().click();
