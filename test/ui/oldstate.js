@@ -100,6 +100,8 @@ const OLD = {
     const tile = page.locator('.menutile').nth(i);
     const label = (await tile.textContent()).trim().slice(0, 10);
     if (await tile.isDisabled()) continue;
+    const collapsed = tile.locator('xpath=ancestor::details[not(@open)]');
+    if (await collapsed.count()) await collapsed.locator('summary').click();
     await tile.click();
     await page.waitForTimeout(800);
     const shown = (await page.textContent('body')).trim().length;
