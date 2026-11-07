@@ -59,8 +59,8 @@ const ok = (label, cond, extra) => {
   await goTab(page, '학습');
   ok('JLPT 단어가 따로 있지 않다',
     await page.locator('.menutile', { hasText: 'JLPT 단어' }).count() === 0);
-  /* 단어는 이제 콘텐츠 묶음의 작은 칸이다 — 이름이 딱 맞는 칸 */
-  const card = page.locator('.menutile').filter({ has: page.locator('.mt-title', { hasText: /^단어$/ }) }).first();
+  /* 표시 이름이 바뀌어도 같은 단어 학습으로 들어간다. */
+  const card = page.locator('.menutile[data-menu="words"]').first();
   ok('단어로 들어간다', await card.count() > 0);
   await card.first().click();
   await page.waitForTimeout(600);
