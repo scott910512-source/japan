@@ -202,6 +202,9 @@ export async function openMenu(page, label) {
   });
   const target = await exact.count() ? exact.first()
     : page.locator('.menutile', { hasText: label }).first();
+  // 추가 자료는 평소 접혀 있다. 실제 사용자처럼 먼저 요약을 연다.
+  const collapsed = target.locator('xpath=ancestor::details[not(@open)]');
+  if (await collapsed.count()) await collapsed.locator('summary').click();
   await target.click();
   await page.waitForTimeout(800);
 }

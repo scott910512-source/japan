@@ -35,7 +35,7 @@ const GLYPHS = { kanji: '漢' };
  * 평소에는 별을 안 띄운다. 칸마다 별이 붙어 있으면 누를 자리가 둘이 되고,
  * 작은 칸에서는 열려던 메뉴 대신 별이 눌린다. 고치는 동안에만 보여 주고,
  * 그동안에는 누르는 곳이 한 자리다(별이 아니라 칸 전체). */
-export default function StudyMenuCard({ item, note, onClick, star = null, big = null }) {
+export default function StudyMenuCard({ item, note, onClick, star = null, big = null, layout = 'tile', pinned = false }) {
   const Icon = ICONS[item.icon] || null;
   const glyph = GLYPHS[item.icon] || null;
   const pic = glyph ? <span className="mt-glyph" lang="ja">{glyph}</span> : (Icon ? <Icon /> : <IconGrid />);
@@ -43,7 +43,7 @@ export default function StudyMenuCard({ item, note, onClick, star = null, big = 
   if (!wide) {
     return (
       <button
-        className={`menutile mtile${star ? ' faved' : ''}`}
+        className={`menutile mtile${star ? ' faved' : ''}${layout !== 'tile' ? ` sh-menu-${layout}` : ''}`}
         data-menu={item.id}
         data-fav={star === null ? undefined : String(Boolean(star))}
         aria-pressed={star === null ? undefined : Boolean(star)}
@@ -53,7 +53,8 @@ export default function StudyMenuCard({ item, note, onClick, star = null, big = 
           <span className={`mt-star${star ? ' on' : ''}`} aria-hidden="true"><IconSparkle /></span>
         )}
         <span className="mt-ic">{pic}</span>
-        <span className="mt-title">{item.label}</span>
+        <span className="sh-menu-copy"><span className="mt-title">{item.label}</span>{layout === 'row' && <span className="mt-sub">{note || item.sub}</span>}</span>
+        {layout === 'row' && star === null && <span className={`sh-menu-tail${pinned ? ' pinned' : ''}`} aria-hidden="true">{pinned ? <IconSparkle /> : <IconChevron />}</span>}
       </button>
     );
   }

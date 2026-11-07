@@ -52,38 +52,25 @@ async function boot(browser, settings = {}) {
   const page = await boot(browser);
   page.on('pageerror', (e) => errors.push(e.message));
 
-  console.log('\n[ 세 영역으로 갈렸다 — 추천 경로 · 원하는 것 골라 학습 · 자료 더 보기 ]');
+  console.log('\n[ 내 바로가기 · 전체 학습 · 추가 자료 ]');
   await goTab(page, '학습');
   const labels = await page.locator('.menugroup .mg-label').allTextContents();
-  ok('묶음이 셋', await page.locator('.menugroup').count() === 3,
-    labels.map((t) => t.split('\n')[0]).join(' / '));
-  /* 목표(코스)가 먼저, 그다음 무엇을(골라 학습), 곁가지(자료 더 보기) */
-  ok('추천 경로가 먼저', labels[0].includes('추천 경로'));
-  ok('그다음 원하는 것 골라 학습', labels[1].includes('원하는 것 골라 학습'));
-  ok('마지막이 자료 더 보기', labels[2].includes('자료 더 보기'));
-  ok('왜 여기 있는지 한 줄로 적힌다',
-    await page.locator('.menugroup .mg-sub').count() === 3,
-    (await page.locator('.mg-sub').allTextContents()).join(' / '));
-
-  const inGroup = async (n) => (await page.locator('.menugroup').nth(n)
-    .locator('.mt-title').allTextContents());
-  const course = await inGroup(0);
-  const pick = await inGroup(1);
-  const more = await inGroup(2);
-  /* 모든 칸은 같은 크기다 — 코스 카드를 크게 그렸더니 한 화면의 절반을 차지했다 */
-  ok('코스와 기출 단어는 다른 칸과 같은 크기', course.join() === 'N3 학습하기,기출 단어' && await page.locator('.mbig').count() === 0, course.join(','));
-  const sizes = await page.locator('.menutile').evaluateAll((els) => [...new Set(els.map((e) => `${Math.round(e.getBoundingClientRect().width)}x${Math.round(e.getBoundingClientRect().height)}`))]);
-  ok('★ 학습 탭의 칸 크기가 하나다 ★', sizes.length === 1, sizes.join(' / '));
-  ok('★ 골라 학습은 단어 · 문법 · 한자 · 문장 · 듣기 (실전 연습 칸은 퀴즈로 모였다) ★', pick.join() === '단어,문법,한자,문장,듣기', pick.join(','));
-  ok('★ 자료 더 보기는 여행 일본어 · 영상 · 완전기초 · 독일어 ★', more.join() === '여행 일본어,영상,완전기초,독일어', more.join(','));
-  /* 연습은 학습 탭 최상위에 안 선다 */
-  const everything = [...course, ...pick, ...more];
-  ok('★ 시험 · 짝 맞추기 · 부사 연습 · 동사 활용은 학습 탭 칸에 없다 ★',
-    !['단어 시험', '짝 맞추기', '부사 연습', '동사 활용'].some((t) => everything.includes(t)), everything.join(','));
-  /* 행동은 학습 탭에 없다 — 회독 학습·약점 복습은 복습 탭이 한다 */
-  ok('회독 학습·약점 복습은 학습 탭에 없다',
-    !everything.some((t) => t === '회독 학습' || t === '약점 복습'));
-  /* 공부가 아닌 것은 학습 탭에 없다 */
+  ok('세 영역으로 정리된다', await page.locator('.menugroup').count() === 3);
+  ok('바로가기가 먼저', labels[0].includes('내 바로가기'));
+  ok('그다음 전체 학습', labels[1].includes('전체 학습'));
+  ok('마지막 추가 자료', labels[2].includes('추가 자료'));
+  const catalog = await page.locator('[data-group="catalog"] .mt-title').allTextContents();
+  const more = await page.locator('[data-group="more"] .mt-title').allTextContents();
+  ok('전체 학습 일곱 과정의 위치가 고정된다', catalog.join() === 'N3 학습하기,기출 단어,단어,문법,한자,문장,듣기', catalog.join());
+  ok('추가 자료 네 메뉴를 보존한다', more.join() === '여행 일본어,영상,완전기초,독일어', more.join());
+  ok('추가 자료는 처음에 접혀 있다', !(await page.locator('.sh-more').evaluate((el) => el.open)));
+  await page.locator('.sh-more summary').click();
+  ok('요약을 누르면 자료를 펼친다', await page.locator('.sh-more').evaluate((el) => el.open));
+  await page.locator('.sh-more summary').click();
+  ok('다시 누르면 접는다', !(await page.locator('.sh-more').evaluate((el) => el.open)));
+  const everything = [...catalog, ...more];
+  ok('퀴즈 메뉴는 복습&내기록에 유지한다', !['단어 시험', '짝 맞추기', '부사 연습', '동사 활용'].some((t) => everything.includes(t)));
+  ok('회독 학습·약점 복습은 학습 탭에 없다', !everything.some((t) => t === '회독 학습' || t === '약점 복습'));
   ok('번역기는 학습 탭에 없다', !everything.includes('번역기'));
 
   console.log('\n[ 퀴즈는 복습&내기록 › 퀴즈 한 곳으로 ]');
@@ -257,7 +244,7 @@ async function boot(browser, settings = {}) {
     await page.waitForTimeout(500);
     ok('고치는 길이 늘 보인다', await page.locator('.sh-edit').count() === 1,
       (await page.locator('.sh-edit').innerText()).trim());
-    ok('고르기 전에는 바로가기 줄이 없다', await page.locator('[data-group="fav"]').count() === 0);
+    ok('고르기 전에는 빈 바로가기 안내가 있다', await page.locator('.sh-fav-empty').count() === 1);
     ok('평소에는 별이 안 뜬다 — 누를 자리가 둘이 되면 안 된다',
       await page.locator('.mt-star').count() === 0);
 
@@ -273,8 +260,8 @@ async function boot(browser, settings = {}) {
     ok('★ 고른 것이 바로가기에 올라온다 ★',
       (await page.locator('.mfavs .mt-title').allTextContents()).join(' · ') === '듣기 · 기출 단어 · 문장',
       (await page.locator('.mfavs .mt-title').allTextContents()).join(' · '));
-    ok('★ 바로가기로 올라간 칸은 아래 묶음에서 빠진다(한 번만 보인다) ★',
-      await page.locator('.menutile[data-menu="listen"]').count() === 1 && await page.locator('.menutile[data-menu="kiju"]').count() === 1 && await page.locator('.menutile[data-menu="sentences"]').count() === 1);
+    ok('★ 즐겨찾기를 골라도 전체 목록에는 남는다 ★',
+      await page.locator('.menutile[data-menu="listen"]').count() === 2 && await page.locator('.menutile[data-menu="kiju"]').count() === 2 && await page.locator('.menutile[data-menu="sentences"]').count() === 2);
     ok('★ 고르지 않은 칸은 제자리에 남는다 ★', await page.locator('.menugroup:not([data-group="fav"]) .menutile[data-menu="words"]').count() === 1);
     ok('고른 칸에는 별이 켜져 있다(눌러서 뺄 수 있다)', await page.locator('.mfavs .menutile[data-fav="true"]').count() === 3);
     ok('기기에 남는다',
@@ -282,11 +269,24 @@ async function boot(browser, settings = {}) {
         JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').favs,
       )) === '["listen","kiju","sentences"]');
 
+    await page.getByRole('button', { name: '문장 순서를 앞으로', exact: true }).click();
+    ok('화살표로 저장 순서가 바뀐다', (await page.locator('.mfavs .mt-title').allTextContents()).join() === '듣기,문장,기출 단어');
+    await page.getByRole('button', { name: '문장 순서를 뒤로', exact: true }).click();
+    for (const id of ['n3', 'words', 'grammar']) await page.locator(`[data-group="catalog"] .menutile[data-menu="${id}"]`).click();
+    ok('기존 최대 여섯 개를 유지한다', await page.locator('.mfavs .menutile').count() === 6);
+    await page.locator('[data-group="catalog"] .menutile[data-menu="kanji"]').click();
+    ok('일곱 번째는 추가하지 않는다', await page.locator('.mfavs .menutile').count() === 6);
+    await page.setViewportSize({ width: 1024, height: 900 });
+    ok('PC 바로가기는 세 열', await page.locator('.mfavs').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length === 3));
+    await page.setViewportSize({ width: 390, height: 844 });
+    ok('휴대폰 바로가기는 두 열', await page.locator('.mfavs').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length === 2));
+    for (const id of ['n3', 'words', 'grammar']) await page.locator(`.mfavs .menutile[data-menu="${id}"]`).click();
+
     await page.locator('.sh-edit').click();
     await page.waitForTimeout(350);
     ok('끝내면 별이 사라진다', await page.locator('.mt-star').count() === 0);
-    ok('★ 바로가기 칸 수 + 아래 칸 수 = 전체 메뉴(겹치지 않는다) ★',
-      await page.locator('.menutile').count() === 11, `${await page.locator('.menutile').count()}칸`);
+    ok('★ 바로가기 세 개 외 전체 열한 메뉴는 보존한다 ★',
+      await page.locator('.menutile').count() === 14, `${await page.locator('.menutile').count()}칸`);
     ok('★ 맨 앞 묶음이 바로가기 ★',
       await page.locator('.menugroup').first().getAttribute('data-group') === 'fav');
 
