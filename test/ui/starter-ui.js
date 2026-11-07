@@ -45,7 +45,7 @@ async function boot(browser, settings) {
   ok('★ 「처음이라면」 묶음이 맨 위 ★', groupsA[0] === 'start', groupsA.join(','));
   ok('그 안에 완전기초 칸', await a.locator('.menugroup[data-group="start"] .menutile[data-menu="basics"]').count() === 1);
   ok('「자료 더 보기」에는 또 없다(두 번 안 보인다)', await a.locator('.menutile[data-menu="basics"]').count() === 1);
-  ok('N3 학습하기는 그 아래에 그대로 있다', await a.locator('.menugroup[data-group="course"] .menutile[data-menu="n3"]').count() === 1);
+  ok('N3 학습하기는 그 아래에 그대로 있다', await a.locator('.menugroup[data-group="catalog"] .menutile[data-menu="n3"]').count() === 1);
   await a.locator('.menugroup[data-group="start"] .menutile[data-menu="basics"]').click();
   await a.waitForTimeout(900);
   ok('눌러서 완전기초가 열린다', (await a.locator('body').innerText()).includes('히라가나'));

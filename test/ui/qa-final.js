@@ -63,6 +63,8 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
     const card = p.locator('.menutile').nth(i);
     const label = (await card.textContent()).trim().slice(0, 12);
     if (await card.isDisabled()) { ok(`아직 안 여는 메뉴는 잠김 · ${label}`, true); continue; }
+    const collapsed = card.locator('xpath=ancestor::details[not(@open)]');
+    if (await collapsed.count()) await collapsed.locator('summary').click();
     await card.click();
     await p.waitForTimeout(800);
     const shown = (await p.textContent('body')).trim().length;

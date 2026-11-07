@@ -1,160 +1,81 @@
 import { useMemo, useState } from 'react';
 import StudyMenuCard from '../components/StudyMenuCard.jsx';
+import { IconChevron } from '../components/Icons.jsx';
 import { FAV_MAX, favMenus, groupedMenus, isFav, starterMenu, toggleFav } from '../lib/menu.js';
+import '../styles/study-hub.css';
 
-/* 학습 탭 — 「무엇을」 공부할지 고르는 자리.
- *
- * 오늘이 「앱이 정해 주는 공부」라면 여기는 「내가 고르는 공부」다. 오늘의 학습이
- * 생겼다고 이 길을 없애지 않는다 — "오늘은 식당 회화만 3회독 하고 싶다"는
- * 사람이 있고, 그건 앱이 대신 정해 줄 수 있는 게 아니다.
- *
- * 추천 경로(N3 코스, 옆에 기출 단어) → 원하는 것 골라 학습(단어·
- * 문법·한자·문장·듣기·실전 연습) → 자료 더 보기(여행·영상·완전기초·독일어).
- * 어디에 무엇이 들어가는지는 lib/menu.js가 정한다. 시험·짝 맞추기·부사 연습·
- * 동사 활용은 단어·문법 화면 안의 「연습」 줄에 있다.
- *
- * 여기에는 행동(새로 배우기·복습하기)이 없다. 그건 오늘과 내 학습의 복습이 한다.
- * 진행률 숫자도 안 둔다 — 고르는 화면에 통계가 같이 있으면 고르러 왔다가
- * 통계를 읽고 나간다. N3 진도·준비도는 내 학습에서 본다.
- *
- * 모든 칸은 같은 크기다. 코스 카드를 크게 그렸더니 한 화면의 절반을 차지했다. */
+const HINTS = {
+  n3: 'N4 복습부터 N3 실전까지', kiju: '많이 나온 단어부터', words: '회독으로 익히기',
+  grammar: '기초·일상·문형', kanji: '모양·구성·연상', sentences: '상황별 표현과 회화',
+  listen: '자동 듣기·따라 말하기', travel: '공항·식당·호텔', videos: '유튜브·자막 학습',
+  basics: '히라가나부터 차근차근', swiss: '기초·여행 표현',
+};
 
+/* 바로가기의 저장 순서와 메뉴 id를 유지하고, 전체 목록은 즐겨찾기와 관계없이 고정한다. */
 export default function StudyHub({ settings, onOpen, onChange, onToast }) {
-
-  /* ★ 바로가기 ★
-     묶음은 「처음 오는 사람이 무엇이 있는지 알아보는」 차례다. 그건 그대로
-     맞는데, 날마다 듣기와 기출만 쓰는 사람은 날마다 그 두 칸을 찾아 내려가야
-     한다. 자주 쓴 것이 저절로 올라오게 하면 눈 감고 누르던 자리가 매번
-     달라져서 더 나쁘다 — 사람이 고른 것만, 고른 차례 그대로 맨 앞에 둔다. */
-  const favs = useMemo(
-    () => favMenus(settings.favs, settings.menus),
-    [settings.favs, settings.menus],
-  );
-  /* ★ 바로가기로 올라간 칸은 아래 묶음에서 뺀다 ★
-     위에도 있고 아래에도 있으면 같은 칸이 두 번 보이고, 어느 쪽이 진짜인지 따지게 된다.
-     고른 순간 그 칸은 위로 올라가고, 빼면 제자리 묶음으로 돌아온다. */
-  /* 「아직 못 읽어요」를 고른 사람만: 완전기초가 맨 위 「처음이라면」으로 올라간다 */
+  const savedFavs = Array.isArray(settings.favs) ? settings.favs : [];
+  const favs = useMemo(() => favMenus(settings.favs, settings.menus), [settings.favs, settings.menus]);
   const starter = useMemo(() => starterMenu(settings), [settings]);
-  const groups = useMemo(() => {
-    const up = new Set(favs.map((m) => m.id));
-    if (starter) up.add(starter.id);
-    return groupedMenus(settings.menus)
-      .map((g) => ({ ...g, items: g.items.filter((m) => !up.has(m.id)) }))
-      .filter((g) => g.items.length > 0);
-  }, [settings.menus, favs, starter]);
-  /* 고치는 동안에만 별을 띄운다. 평소에 칸마다 별이 붙어 있으면 누를 자리가
-     둘이 되고, 작은 칸에서는 열려던 메뉴 대신 별이 눌린다. */
+  const groups = useMemo(() => groupedMenus(settings.menus), [settings.menus]);
+  const catalog = groups.filter((g) => g.id !== 'more').flatMap((g) => g.items);
+  const extras = (groups.find((g) => g.id === 'more')?.items || []).filter((m) => m.id !== starter?.id);
   const [editing, setEditing] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const flipFav = (id) => {
-    const next = toggleFav(settings.favs || [], id);
-    if (next === (settings.favs || [])) {
-      onToast?.(`바로가기는 ${FAV_MAX}개까지예요 — 하나를 먼저 빼 주세요`);
-      return;
-    }
+    const next = toggleFav(savedFavs, id);
+    if (next === savedFavs) { onToast?.(`바로가기는 ${FAV_MAX}개까지예요 — 하나를 먼저 빼 주세요`); return; }
     onChange?.({ favs: next });
   };
-
+  const moveFav = (id, direction) => {
+    const target = favs[favs.findIndex((m) => m.id === id) + direction];
+    if (!target) return;
+    // 설정에서 잠시 꺼 둔 바로가기는 지우거나 다시 정렬하지 않는다.
+    const next = [...savedFavs], a = next.indexOf(id), b = next.indexOf(target.id);
+    [next[a], next[b]] = [next[b], next[a]];
+    onChange?.({ favs: next });
+  };
   const tap = (id) => (editing ? flipFav(id) : onOpen(id));
+  const card = (m) => <StudyMenuCard key={m.id} item={m} note={HINTS[m.id]} layout="row" pinned={isFav(savedFavs, m.id)}
+    star={editing ? isFav(savedFavs, m.id) : null} onClick={() => tap(m.id)} />;
 
-  return (
-    <>
-      <div className="navtitle sh-head">
-        <span>
-          <small>골라서 공부하기</small>
-          학습
-        </span>
-        {/* 바로가기를 고치는 자리. 늘 보여야 처음 오는 사람도 이런 게 있는 줄 안다 */}
-        <button className="ghost-btn sh-edit" onClick={() => setEditing((v) => !v)} aria-pressed={editing}>
-          {editing ? '다 됐어요' : '바로가기 고치기'}
-        </button>
+  return <div className="study-hub">
+    <div className="navtitle sh-head"><span><small>나의 수련실</small>학습</span><span className="sh-mark" aria-hidden="true">H×H</span></div>
+    {starter && <section className="menugroup sh-starter" data-group="start" aria-labelledby="sh-start-title">
+      <div className="section-label mg-label" id="sh-start-title">처음이라면<span className="mg-sub">히라가나부터 차근차근</span></div>
+      <div className="menugrid mtiles">{card(starter)}</div>
+    </section>}
+
+    <section className="menugroup sh-favorites" data-group="fav" aria-labelledby="sh-fav-title">
+      <div className="sh-section-head">
+        <div className="section-label mg-label" id="sh-fav-title">내 바로가기<span className="mg-sub">{editing ? `${favs.length} / ${FAV_MAX}개` : '자주 쓰는 학습'}</span></div>
+        <button className="sh-edit" type="button" onClick={() => setEditing((v) => !v)} aria-pressed={editing}>{editing ? '완료' : '편집'}</button>
       </div>
+      {favs.length ? <div className="menugrid mtiles mfavs">
+        {favs.map((m, index) => <div className="sh-favorite-item" key={m.id}>
+          <StudyMenuCard item={m} layout="shortcut" star={editing ? true : null} onClick={() => tap(m.id)} />
+          {editing && <div className="sh-order" role="group" aria-label={`${m.label} 순서 변경`}>
+            <button type="button" onClick={() => moveFav(m.id, -1)} disabled={index === 0} aria-label={`${m.label} 순서를 앞으로`}><IconChevron className="sh-order-up" /></button>
+            <button type="button" onClick={() => moveFav(m.id, 1)} disabled={index === favs.length - 1} aria-label={`${m.label} 순서를 뒤로`}><IconChevron className="sh-order-down" /></button>
+          </div>}
+        </div>)}
+      </div> : <button className="sh-fav-empty" type="button" onClick={() => setEditing(true)}>
+        <b>자주 쓰는 학습을 담아보세요</b><span>편집에서 최대 {FAV_MAX}개를 고를 수 있어요 <IconChevron /></span>
+      </button>}
+      {editing && <p className="sh-edit-note" role="status">칸을 눌러 추가·삭제하고, 화살표로 순서를 바꿔요.</p>}
+    </section>
 
-      {starter && (
-        <div className="menugroup" data-group="start">
-          <div className="section-label mg-label">
-            처음이라면
-            <span className="mg-sub">히라가나부터 차근차근</span>
-          </div>
-          <div className="menugrid mtiles">
-            <StudyMenuCard item={starter} star={editing ? false : null} onClick={() => tap(starter.id)} />
-          </div>
-        </div>
-      )}
-
-      {(favs.length > 0 || editing) && (
-        <div className="menugroup" data-group="fav">
-          <div className="section-label mg-label">
-            바로가기
-            <span className="mg-sub">
-              {editing
-                ? `칸을 눌러 넣고 빼요 — ${favs.length} / ${FAV_MAX}개`
-                : '자주 쓰는 것만 앞에'}
-            </span>
-          </div>
-          {favs.length > 0 ? (
-            <div className="menugrid mtiles mfavs">
-              {favs.map((m) => (
-                <StudyMenuCard
-                  key={m.id}
-                  item={m}
-                  big={false}
-                  star={editing ? true : null}
-                  onClick={() => (editing ? flipFav(m.id) : onOpen(m.id))}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="set-note sh-favnote">
-              아래 칸을 눌러 자주 쓰는 메뉴를 여기 올려 두세요. {FAV_MAX}개까지 돼요.
-            </p>
-          )}
-        </div>
-      )}
-
-      {groups.map((g) => {
-        const big = g.items.filter((m) => m.big);
-        const small = g.items.filter((m) => !m.big);
-        return (
-          <div key={g.id} className="menugroup" data-group={g.id}>
-            <div className="section-label mg-label">
-              {g.label}
-              <span className="mg-sub">{g.sub}</span>
-            </div>
-            {big.length > 0 && (
-              <div className="mbigs">
-                {big.map((m) => (
-                  <StudyMenuCard
-                    key={m.id}
-                    item={m}
-                    /* 고치는 중에는 큰 칸도 작은 칸으로 — 별을 달 자리가
-                       같아야 어느 것이 고를 수 있는 칸인지 헷갈리지 않는다 */
-                    big={editing ? false : null}
-                    star={editing ? isFav(settings.favs, m.id) : null}
-                    onClick={() => tap(m.id)}
-                  />
-                ))}
-              </div>
-            )}
-            {small.length > 0 && (
-              <div className="menugrid mtiles">
-                {small.map((m) => (
-                  <StudyMenuCard
-                    key={m.id}
-                    item={m}
-                    star={editing ? isFav(settings.favs, m.id) : null}
-                    onClick={() => tap(m.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {groups.length === 0 && (
-        <div className="empty-state">설정 → 학습 설정에서 학습 메뉴를 켜 주세요</div>
-      )}
-    </>
-  );
+    {catalog.length > 0 && <section className="menugroup sh-catalog" data-group="catalog" aria-labelledby="sh-catalog-title">
+      <div className="sh-section-head"><div className="section-label mg-label" id="sh-catalog-title">전체 학습</div><span className="sh-count">{catalog.length}개 과정</span></div>
+      <div className="menugrid mtiles">{catalog.map(card)}</div>
+    </section>}
+    {extras.length > 0 && <details className="menugroup sh-more" data-group="more" open={editing || moreOpen}
+      onToggle={(e) => { if (!editing) setMoreOpen(e.currentTarget.open); }}>
+      <summary onClick={(e) => { if (editing) e.preventDefault(); }}>
+        <span><b className="mg-label">추가 자료</b><span className="mg-sub">{extras.map((m) => m.label).join(' · ')}</span></span><IconChevron className="sh-more-chevron" />
+      </summary>
+      <div className="menugrid mtiles">{extras.map(card)}</div>
+    </details>}
+    {!catalog.length && !extras.length && !starter && <div className="empty-state">설정 → 학습 설정에서 학습 메뉴를 켜 주세요</div>}
+  </div>;
 }
