@@ -1,5 +1,5 @@
 /* 하루 흐름 — 복습 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기 → 랜덤 테스트 */
-import { FLOW, nextStep, stepOfDeck, randomTestIds, RANDOM_TEST_SIZE, RANDOM_TEST_MIN, n3Open, n3Progress } from '../../src/lib/dayflow.js';
+import { FLOW, nextStep, stepOfDeck, randomTestIds, RANDOM_TEST_SIZE, RANDOM_TEST_MIN, n3Open, n3Progress, avoidToday } from '../../src/lib/dayflow.js';
 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); } };
@@ -39,6 +39,15 @@ console.log('\n[ 오늘의 N3 ]');
   ok('진행: 계획이 없으면 null', n3Progress({}, T) === null);
   const p = n3Progress({ days: { [T]: { steps: [{ done: true }, { done: false }, { done: false }] } } }, T);
   ok('진행: 3단계 중 1', p.done === 1 && p.total === 3);
+}
+
+console.log('\n[ 오늘 이미 본 것은 뒤 단계에서 뺀다 ]');
+{
+  const pool = Array.from({ length: 10 }, (_, i) => ({ id: `w${i}` }));
+  ok('★ 본 것을 뺀다 ★', avoidToday(pool, new Set(['w0', 'w1', 'w2']), 4).map((x) => x.id).join() === 'w3,w4,w5,w6,w7,w8,w9');
+  ok('배열로 줘도 된다', avoidToday(pool, ['w0'], 4).length === 9);
+  ok('★ 빼고 나서 너무 적게 남으면 그대로 쓴다(퀴즈가 안 열리면 안 된다) ★', avoidToday(pool, pool.map((x) => x.id).slice(0, 8), 4).length === 10);
+  ok('본 게 없으면 그대로', avoidToday(pool, new Set(), 4) === pool && avoidToday(pool, null, 4) === pool);
 }
 
 console.log('\n[ 판이 어느 단계인가 ]');

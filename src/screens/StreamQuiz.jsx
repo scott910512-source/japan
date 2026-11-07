@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
+import { avoidToday } from '../lib/dayflow.js';
 import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
 import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
@@ -33,7 +34,7 @@ const loadBatch = () => {
 export default function StreamQuiz({
   words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit, onAttempt, onAnswered,
   /* 하루 흐름 — 쭉 퀴즈 오늘 몫(스무 문제)을 마치면 다음 단계를 바로 내민다. next = { label, go } */
-  next = null, questDone = false,
+  next = null, questDone = false, seenToday = null,
 }) {
   const goal = goalOf(settings);
   const [n3, setN3] = useState(null);
@@ -82,9 +83,11 @@ export default function StreamQuiz({
   const sentenceById = useMemo(() => new Map(sentenceCards.map((s) => [s.id, s])), [sentenceCards]);
   const ledger = progress?.weak || null;
 
-  const live = useMemo(() => (n3
+  const liveAll = useMemo(() => (n3
     ? buildPool({ words, sentences: sentenceCards, n3: n3.ids, review, ledger, goal })
     : null), [n3, words, sentenceCards, review, ledger, goal]);
+  /* 오늘 복습 · 약점 퀴즈에서 이미 본 것은 뺀다 — 한 바퀴가 같은 낱말의 반복이 되지 않게(남는 게 적으면 그대로) */
+  const live = useMemo(() => (liveAll ? avoidToday(liveAll, seenToday, MIN_POOL) : null), [liveAll, seenToday]);
 
   const ctx = useMemo(() => ({
     wordById, wordPool: words, sentenceById, sentencePool: sentenceCards, n3Question: n3?.question,

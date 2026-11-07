@@ -164,7 +164,8 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
   await openMenu(page, '쭉 퀴즈');
   await page.waitForTimeout(700);
   const c4 = await countsOf(page);
-  ok('★ 목표 N4: N3 단어(12개)는 안 나온다 ★', c4.word === 12, JSON.stringify(c4));
+  /* N4 목표의 풀은 열두 개다(N3 단어 열두 개는 안 나온다). 오늘 이미 푼 것은 뒤 단계에서 빠지니 열두 개 이하다 */
+  ok('★ 목표 N4: N3 단어(12개)는 안 나온다 ★', c4.word > 0 && c4.word <= 12, JSON.stringify(c4));
   ok('허브·소개에 목표가 보인다', (await page.textContent('.st-intro')).includes('N4'));
   await page.close();
 

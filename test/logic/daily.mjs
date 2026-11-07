@@ -74,7 +74,7 @@ console.log('\n── 갈래마다 제 목표를 가진다');
      하루 흐름이 복습 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기 → 랜덤 테스트로 이어져서 양을 키웠다. */
   ok('★ 복습 미션은 서른 개 이상 ★', DEFAULT_GOALS.review + DEFAULT_GOALS.weak >= 30,
     `${DEFAULT_GOALS.review}+${DEFAULT_GOALS.weak}`);
-  ok('★ 새로 배우기는 열 개 ★', DEFAULT_GOALS.fresh === 10);
+  ok('★ 새로 배우기는 스무 개 ★', DEFAULT_GOALS.fresh === 20);
   /* 복습에 제일 많이 준다 — 이미 본 걸 안 잃는 것이 새로 배우는 것보다 앞선다 */
   ok('복습 몫이 제일 크다', DEFAULT_GOALS.review >= DEFAULT_GOALS.fresh
     && DEFAULT_GOALS.review > DEFAULT_GOALS.weak);

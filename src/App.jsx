@@ -282,7 +282,10 @@ export default function App() {
   /* ★ 약점 퀴즈 ★ 지금 제일 약한 낱말로 단어 시험을 열고, 푼 낱말을 오늘 몫에 적는다.
      시험 화면은 그대로 쓴다 — 듣기에서 넘어오는 세트(quizSet)와 같은 길이다. */
   const weakAll = useMemo(() => weakIds(wordIds, review, progress.weak), [wordIds, review, progress.weak]);
-  const weakQuiz = useMemo(() => weakQuizState(progress, weakAll, today), [progress, weakAll, today]);
+  /* 오늘 복습 미션에서 이미 본 낱말은 약점 퀴즈에서 뺀다 — 같은 낱말을 한 바퀴에 또 묻지 않게 */
+  const studiedToday = useMemo(() => new Set(Object.keys(plan?.done || {})), [plan]);
+  const weakFresh = useMemo(() => weakAll.filter((id) => !studiedToday.has(id)), [weakAll, studiedToday]);
+  const weakQuiz = useMemo(() => weakQuizState(progress, weakFresh, today), [progress, weakFresh, today]);
   const weakQuizOn = useRef(false);
   /* 화면에 말하려고 같은 값을 상태로도 둔다(결과 화면이 약점 퀴즈임을 알아야 한다) */
   const [weakQuizMode, setWeakQuizMode] = useState(false);
@@ -322,6 +325,8 @@ export default function App() {
     [plan, progress, today],
   );
   const randomSeen = useMemo(() => Object.keys(review).filter((id) => review[id]?.lastSeen), [review]);
+  /* 쭉 퀴즈에서 뺄 것 — 오늘 복습 미션에서 본 것과 오늘 푼 약점 퀴즈 낱말 */
+  const streamSeenToday = useMemo(() => new Set([...studiedToday, ...weakQuizOf(progress, today).ids]), [studiedToday, progress, today]);
   const randomOn = useRef(false);
   const [randomMode, setRandomMode] = useState(false);
   useEffect(() => { if (sub !== 'quiz') { randomOn.current = false; setRandomMode(false); } }, [sub]);
@@ -762,6 +767,7 @@ export default function App() {
                 randomOn={randomMode}
                 onRandomDone={onRandomDone}
                 n3Next={flowAfter('n3')}
+                seenToday={streamSeenToday}
                 streamNext={flowAfter('stream')}
                 streamQuestDone={!streamQuest || streamQuest.complete}
                 onStreamAnswered={onStreamAnswered}

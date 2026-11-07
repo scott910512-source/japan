@@ -103,10 +103,10 @@ async function finishDeck(page) {
   ok('★ 복습 미션은 서른 개 이상 ★', Number((review1.match(/남은 (\d+)개/) || [])[1]) >= 30, review1);
   ok('★ 약점 퀴즈는 서른 문제 ★', (await rowText(page, '약점 퀴즈')).includes('30문제 남았어요'), await rowText(page, '약점 퀴즈'));
   ok('★ 쭉 퀴즈는 스무 문제 ★', (await rowText(page, '쭉 퀴즈')).includes('20문제 남았어요'), await rowText(page, '쭉 퀴즈'));
-  ok('★ 새로 배우기는 열 개 ★', /10/.test(await rowText(page, '새로 배우기')), await rowText(page, '새로 배우기'));
+  ok('★ 새로 배우기는 스무 개 ★', /20/.test(await rowText(page, '새로 배우기')), await rowText(page, '새로 배우기'));
   ok('오늘 랜덤 테스트 줄이 있다', (await rowText(page, '오늘 랜덤 테스트')).includes('쉰 문제'));
   const st = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}'));
-  ok('★ 옛 설정(9·8·3)이 새 수량(복습 30 · 새로 10)으로 맞춰진다 ★', st.goals?.review === 30 && st.goals?.fresh === 10 && st.goalsV === 2, JSON.stringify(st.goals));
+  ok('★ 옛 설정(9·8·3)이 새 수량(복습 30 · 새로 20)으로 맞춰진다 ★', st.goals?.review === 30 && st.goals?.fresh === 20 && st.goalsV === 3, JSON.stringify(st.goals));
 
   console.log('\n[ 약점 퀴즈 30문제 → 다음: 쭉 퀴즈 ]');
   await page.locator('.tdq-row', { hasText: '약점 퀴즈' }).click();
@@ -123,6 +123,8 @@ async function finishDeck(page) {
 
   console.log('\n[ 쭉 퀴즈 20문제 → 다음: 새로 배우기 ]');
   if (await page.locator('.st-start').count()) { await page.locator('.st-start').click(); await page.waitForTimeout(700); }
+  const weakDone = new Set((await progressOf(page)).weakQuiz?.ids || []);
+  const streamIds = [];
   let n = 0;
   while (n < 80 && !(await page.locator('.st-checkpoint').count())) {
     n += 1;
@@ -130,6 +132,7 @@ async function finishDeck(page) {
     if (!(await run.count())) break;
     const head = (await page.locator('.st-score').innerText()).replace(/\s/g, '');
     if (n === 1) ok('★ 머리 줄은 진행 현황(1 / 20)이다 ★', head === '1/20', head);
+    streamIds.push(await run.getAttribute('data-id'));
     const mode = await run.getAttribute('data-mode');
     if (mode === 'typing') { await page.locator('.st-input').fill('ㅋ'); await page.locator('.st-submit').click(); } else { await page.locator('.st-opt').first().click(); }
     await page.waitForTimeout(280);
@@ -137,6 +140,7 @@ async function finishDeck(page) {
     if (await page.locator('.st-next').count()) await page.locator('.st-next').click(); else await page.waitForTimeout(1000);
     await page.waitForTimeout(220);
   }
+  ok('★ 오늘 약점 퀴즈로 푼 낱말은 쭉 퀴즈에 또 나오지 않는다(반복 줄이기) ★', weakDone.size >= 30 && streamIds.length >= 10 && streamIds.every((id) => !weakDone.has(id)), `약점 ${weakDone.size}개 · 쭉 ${streamIds.length}문제`);
   ok('스무 문제에서 멈춘다', await page.locator('.st-checkpoint').count() === 1, `${n}걸음`);
   const next = page.locator('.st-checkpoint .st-next');
   ok('★ 「다음: 새로 배우기」가 뜬다 ★', await next.count() === 1 && (await next.innerText()).includes('새로 배우기'), await next.count() ? await next.innerText() : '없음');

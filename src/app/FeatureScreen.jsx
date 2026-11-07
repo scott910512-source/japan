@@ -52,6 +52,7 @@ export default function FeatureScreen({
   onRandomDone = null,
   streamNext = null,
   n3Next = null,
+  seenToday = null,
   streamQuestDone = false,
   onStreamAnswered,
 }) {
@@ -219,6 +220,7 @@ export default function FeatureScreen({
                 onExit={onExit}
                 onAnswered={onStreamAnswered}
                 next={streamNext}
+                seenToday={seenToday}
                 questDone={streamQuestDone}
               />
             )}
