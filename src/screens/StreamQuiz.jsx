@@ -285,6 +285,9 @@ export default function StreamQuiz({
       </div>
 
       <div className="quizcard st-q">
+        {!answered && (
+          <button type="button" className="ghost-btn st-dunno qc-dunno" onClick={dunno} aria-label="잘 모르겠어요, 몰라요로 남기기">잘 모르겠어요</button>
+        )}
         <div className="qc-tag"><span className="st-kind" data-kind={q.kind}>{KIND_LABEL[q.kind]}</span> {q.tag}</div>
         <div className={`qc-prompt${q.promptJp ? '' : ' ko'}`} lang={q.promptJp ? 'ja' : 'ko'}>{q.prompt}</div>
         {q.sub && (answered || q.kind === KIND.KANJI) && <div className="qc-sub">{q.sub}</div>}
@@ -335,10 +338,6 @@ export default function StreamQuiz({
           />
           {!answered && <button className="submit-btn st-submit" onClick={() => answer(typed)} disabled={!typed.trim()}>제출</button>}
         </div>
-      )}
-
-      {!answered && (
-        <button type="button" className="ghost-btn st-dunno" onClick={dunno}>잘 모르겠어요 · 몰라요로 남기기</button>
       )}
 
       {answered?.verdict === 'close' && (

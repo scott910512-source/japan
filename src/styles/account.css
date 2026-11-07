@@ -317,3 +317,16 @@
 .gate-guest { margin-top: 14px; text-align: center; }
 .gate-guest .gate-guest-btn { width: 100%; }
 .gate-guest p { margin: 8px 4px 0; font-size: 12.5px; color: var(--ink-soft); }
+
+/* ── 잘 모르겠어요는 카드 모서리에, 다음 문제 · 판정 줄은 화면 아래에 붙인다 ──
+   500명 시험에서 짧은 화면(iPhone SE · 폰 가로 · 노트북)은 이 버튼들이 아래로 밀려 스크롤해야 보였다. */
+.quizcard { position: relative; }
+.qc-dunno { position: absolute; top: 6px; right: 6px; z-index: 2; min-height: 44px; padding: 0 12px; font-size: 12.5px; margin: 0; width: auto; }
+@media (max-width: 340px) {
+  .qc-dunno { position: static; display: block; margin: 0 auto 6px; }   /* 아주 좁은 화면에서는 태그와 겹치지 않게 위에 따로 */
+}
+.qnext, .study .judgerow, .study .revealrow {
+  position: sticky; bottom: 0; z-index: 4;
+  padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to bottom, transparent, var(--paper) 22%);
+}

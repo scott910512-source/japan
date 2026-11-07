@@ -289,6 +289,8 @@ export default function App() {
   const weakQuizOn = useRef(false);
   /* 화면에 말하려고 같은 값을 상태로도 둔다(결과 화면이 약점 퀴즈임을 알아야 한다) */
   const [weakQuizMode, setWeakQuizMode] = useState(false);
+  /* 곤에게 물어보기 창 — 떠 있는 단추(오늘 화면)와 상단 곤 얼굴(그 밖의 화면)이 같이 연다 */
+  const [gonOpen, setGonOpen] = useState(false);
   useEffect(() => { if (sub !== 'quiz') { weakQuizOn.current = false; setWeakQuizMode(false); } }, [sub]);
   const startWeakQuiz = useCallback(() => {
     const cards = weakQuiz.ids.map((id) => byId.get(id)).filter(Boolean);
@@ -521,6 +523,7 @@ export default function App() {
             prev.some((x) => x.id === w.id) ? prev : [...prev, w]
           ))}
           onToast={showToast}
+          placement="top"
         />
         <Toast message={toast} />
       </div>
@@ -530,7 +533,7 @@ export default function App() {
   return (
     <div className="app-shell hunter-app">
       <Onboarding open={onboardingOpen} onFinish={finishOnboarding} />
-      {(activeTab !== 'home' || sub) && <HunterAppHeader guideId={settings.hunterGuide} section={SUB_TITLES[sub] || { study: '학습 본부', me: '나의 헌터 기록', settings: '설정', videos: '영상 수련' }[activeTab]} onHome={() => selectAppTab('home')} />}
+      {(activeTab !== 'home' || sub) && <HunterAppHeader guideId={settings.hunterGuide} section={SUB_TITLES[sub] || { study: '학습 본부', me: '나의 헌터 기록', settings: '설정', videos: '영상 수련' }[activeTab]} onAsk={() => setGonOpen(true)} onHome={() => selectAppTab('home')} />}
 
       <div className="screens">
         <ScreenSlot active={activeTab === 'home' && !sub}>
@@ -812,7 +815,11 @@ export default function App() {
           prev.some((x) => x.id === w.id) ? prev : [...prev, w]
         ))}
         onToast={showToast}
-        hidden={onboardingOpen}
+        /* 상단 바가 있는 화면(오늘이 아닌 탭 · 하위 화면)에서는 떠 있는 단추를 두지 않는다 — 아래 버튼을 가리던 것을
+           상단 곤 얼굴이 대신 연다. 창은 그대로 같은 것이다. */
+        hidden={onboardingOpen || activeTab !== 'home' || Boolean(sub)}
+        open={gonOpen}
+        onOpenChange={setGonOpen}
       />
 
       <TabBar
