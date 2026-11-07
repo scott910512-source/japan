@@ -437,6 +437,10 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
       </div>
 
       <div className="quizcard">
+        {/* 카드 모서리 — 화면이 짧아도 늘 보인다(예전엔 보기 아래라 아래로 밀려났다) */}
+        {!answered && (
+          <button type="button" className="ghost-btn qz-dunno qc-dunno" onClick={dunno} aria-label="잘 모르겠어요, 몰라요로 남기기">잘 모르겠어요</button>
+        )}
         <div className="qc-tag">
           {q.dir === QUIZ_DIR.JP_KO ? '뜻을 고르세요' : '일본어로 뭘까요'}
           {q.type === QUIZ_TYPE.TYPING && ' · 직접 입력'}
@@ -553,12 +557,6 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
             </button>
           )}
         </div>
-      )}
-
-      {!answered && (
-        <button type="button" className="ghost-btn qz-dunno" onClick={dunno}>
-          잘 모르겠어요 · 몰라요로 남기기
-        </button>
       )}
 
       {/* 객관식은 정답 보기 안에서 설명하니 상자를 또 띄우지 않는다.

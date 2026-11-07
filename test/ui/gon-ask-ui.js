@@ -71,11 +71,22 @@ async function stubAI(page, body = ANSWER) {
   page.on('pageerror', (e) => errors.push(e.message));
 
   console.log('\n[ 곤 얼굴 단추 ]');
-  for (const tab of ['오늘', '학습']) {
-    await goTab(page, tab);
-    await page.waitForTimeout(400);
-    ok(`${tab} 화면에도 곤 단추가 있다`, await page.locator('.gonfab').count() === 1);
-  }
+  await goTab(page, '오늘');
+  await page.waitForTimeout(400);
+  ok('오늘 화면에는 떠 있는 곤 단추가 있다', await page.locator('.gonfab').count() === 1);
+  /* 상단 바가 있는 화면은 떠 있는 단추 대신 상단 곤 얼굴이 연다(아래 버튼을 안 가리게) */
+  await goTab(page, '학습');
+  await page.waitForTimeout(400);
+  ok('★ 학습 탭에는 떠 있는 단추 대신 상단 곤 얼굴(AI)이 있다 ★', await page.locator('.gonfab').count() === 0 && await page.locator('.hunter-app-ask').count() === 1 && (await page.locator('.hunter-app-ask .hunter-app-ai').innerText()).trim() === 'AI');
+  const hb = await page.locator('.hunter-app-ask').boundingBox();
+  ok('상단 곤 얼굴도 누르는 자리가 44px다', hb.width >= 43.5 && hb.height >= 43.5, `${hb.width}x${hb.height}`);
+  await page.locator('.hunter-app-ask').click();
+  await page.waitForTimeout(500);
+  ok('★ 상단 곤 얼굴을 누르면 같은 질문 창이 열린다 ★', await page.locator('.sheet.open .asksheet').count() === 1);
+  await page.locator('.sheet.open .sheet-x').click();
+  await page.waitForTimeout(500);
+  await goTab(page, '오늘');
+  await page.waitForTimeout(400);
   ok('★ 단추에 「AI」 표시가 있다 ★', (await page.locator('.gonfab .gonfab-ai').innerText()).trim() === 'AI');
   ok('곤 얼굴 그림이 있다', await page.locator('.gonfab img').count() === 1);
   const fab = await page.locator('.gonfab').boundingBox();
@@ -141,7 +152,7 @@ async function stubAI(page, body = ANSWER) {
     const startBtn = st.locator('.study .submit-btn, .study .intro-start, .study .start-btn').first();
     if (await st.locator('.study-intro, .intro').count() && await startBtn.count()) { await startBtn.click(); await st.waitForTimeout(500); }
     ok('회독 화면이 열려 있다(탭바가 없다)', await st.locator('.study').count() >= 1 && await st.locator('.tabbar').count() === 0);
-    ok('★ 회독 화면에도 곤 단추가 있다 ★', await st.locator('.gonfab').count() === 1);
+    ok('★ 회독 화면에도 곤 단추가 있다(위쪽 모서리) ★', await st.locator('.gonfab').count() === 1 && (await st.locator('.gonfab').boundingBox()).y < 60, String((await st.locator('.gonfab').boundingBox()).y));
     const top = await st.evaluate(() => { const e = document.querySelector('.gonfab'); const r = e.getBoundingClientRect(); const t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e === t || e.contains(t); });
     ok('가려지지 않고 눌린다', top);
     /* 카드를 뒤집어 판정 단추가 나왔을 때 단추와 겹치지 않는다 */

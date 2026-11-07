@@ -20,8 +20,8 @@ const WORDS = allWords.ALL_WORDS || allWords.default;
 const N5 = WORDS.filter((w) => String(w.level).toUpperCase() === 'N5').slice(0, 40);
 const review = Object.fromEntries(N5.map((w) => [w.id, { ...applyVerdict(undefined, VERDICT.KNOWN, addDays(today, -5)), due: addDays(today, -1) }]));
 
-async function boot(browser, { settings = {}, touch = false } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, ...(touch ? { hasTouch: true, isMobile: true } : {}) });
+async function boot(browser, { settings = {}, touch = false, size = { width: 390, height: 900 } } = {}) {
+  const ctx = await browser.newContext({ viewport: size, ...(touch ? { hasTouch: true, isMobile: true } : {}) });
   const page = await ctx.newPage();
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(({ settings, rv }) => {
@@ -131,7 +131,7 @@ async function startWordQuiz(page) {
     await page.locator('.qtyping input').fill(w.kana);
     await page.locator('.qtyping .submit-btn').click();      // 맞히면 0.8초 뒤 저절로 다음 문제(터치 기기)
     await page.waitForTimeout(150);
-    await page.locator('.gonfab').click();
+    await page.locator('.hunter-app-ask').click();         // 퀴즈 화면은 상단 곤 얼굴이 연다
     await page.waitForTimeout(450);                          // 질문 창 초점이 자리 잡을 시간
     const ta = page.locator('.asksheet textarea');
     ok('질문 창이 열렸다', await ta.count() === 1);
@@ -143,6 +143,33 @@ async function startWordQuiz(page) {
     ok('★ 질문 칸이 계속 초점을 갖고 있다 ★', await page.evaluate(() => document.activeElement?.tagName === 'TEXTAREA'));
     ok('★ 묻는 동안 문제가 저절로 안 넘어갔다 ★', (await page.locator('.sh-title').first().innerText()).trim() === head0);
     await page.close();
+  }
+
+  console.log('\n[ 짧은 화면(iPhone SE 375x667)에서도 핵심 버튼이 화면 안에 있다 ]');
+  {
+    const page = await boot(browser, { touch: true, size: { width: 375, height: 667 } });
+    page.on('pageerror', (e) => errors.push(e.message));
+    const inView = async (sel) => { const b = await page.locator(sel).first().boundingBox(); return b && b.y >= 0 && b.y + b.height <= 667 + 1; };
+    await startWordQuiz(page);
+    ok('★ 「잘 모르겠어요」가 문제 카드 모서리에 있어 늘 보인다 ★', await inView('.qz-dunno'));
+    await page.locator('.qopt').first().click();
+    await page.waitForTimeout(500);
+    ok('★ 답을 본 뒤 「다음 문제」가 화면 아래에 붙어 있어 스크롤 없이 누른다 ★', (await page.locator('.qnext .submit-btn').count()) === 0 || await inView('.qnext .submit-btn'));
+    await page.locator('.hunter-app-ask').waitFor({ timeout: 3000 }).catch(() => {});
+    ok('퀴즈 화면에는 떠 있는 곤 단추가 없다(상단 곤 얼굴이 연다)', await page.locator('.gonfab').count() === 0 && await page.locator('.hunter-app-ask').count() === 1);
+    await page.close();
+    const p2 = await boot(browser, { touch: true, size: { width: 375, height: 667 } });
+    p2.on('pageerror', (e) => errors.push(e.message));
+    await p2.locator('.tabbar .tab[data-tab="home"]').click().catch(() => {});
+    await p2.locator('.bigcta').first().click(); await p2.waitForTimeout(1100);
+    const intro = p2.locator('.study.intro .bigstart'); if (await intro.count()) { await intro.click(); await p2.waitForTimeout(600); }
+    await p2.locator('.studycard').click(); await p2.waitForTimeout(400);
+    const jb = await p2.locator('.judgerow').boundingBox();
+    ok('★ 카드를 뒤집으면 판정 단추가 화면 아래에 붙어 스크롤 없이 누른다 ★', jb && jb.y + jb.height <= 667 + 1, jb ? `${Math.round(jb.y + jb.height)} / 667` : '없음');
+    const fb = await p2.locator('.gonfab').boundingBox();
+    const overlap = fb && jb && !(fb.x + fb.width <= jb.x || jb.x + jb.width <= fb.x || fb.y + fb.height <= jb.y || jb.y + jb.height <= fb.y);
+    ok('★ 곤 단추가 위쪽 모서리라 판정 단추와 안 겹친다 ★', fb && !overlap, fb ? `곤 y=${Math.round(fb.y)}` : '없음');
+    await p2.close();
   }
 
   ok('화면 오류 없음', errors.length === 0, errors[0]);
