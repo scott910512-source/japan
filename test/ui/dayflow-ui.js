@@ -183,7 +183,7 @@ async function finishDeck(page) {
 
   console.log('\n[ 오늘의 N3를 다 하면 → 다음: 오늘 랜덤 테스트 ]');
   {
-    const p2 = await boot(browser, { n3: { v: 1, days: { [today]: { steps: [{ kind: 'review', ids: [], done: true }], built: 1, answered: 0, right: 0 } } } });
+    const p2 = await boot(browser, { n3: { v: 1, days: { [todayKey()]: { steps: [{ kind: 'review', ids: [], done: true }], built: 1, answered: 0, right: 0 } } } });
     p2.on('pageerror', (e) => errors.push(e.message));
     await goTab(p2, '오늘');
     ok('오늘 탭에는 N3 입구 줄이 없다(학습 탭 하나)', await p2.locator('.tdq-row', { hasText: '오늘의 N3' }).count() === 0);
