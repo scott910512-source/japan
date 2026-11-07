@@ -604,8 +604,9 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
     if (noted.current) return;
     noted.current = true;
     onActivity?.({ quizzed: questions.length });
-    onComplete?.();      // 오늘 랜덤 테스트를 마쳤다고 적는다
-  }, [questions.length, onActivity, onComplete]);
+    /* 오늘 랜덤 테스트 · 지역 승급시험을 마쳤다고 적는다. 점수를 같이 넘겨 승급시험이 기록하게 한다 */
+    onComplete?.({ correct: result.correct, total: result.total });
+  }, [questions.length, onActivity, onComplete, result.correct, result.total]);
   const grade = gradeLabel(result.score);
 
   const wrongWords = result.wrongIds.map((id) => byId.get(id)).filter(Boolean);
@@ -645,11 +646,18 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
           찼는지, 맞힌 낱말이 약점에서 빠지는지가 궁금하다. */}
       {flow ? (
         <>
-          <div className="card wk-result" data-flow={flow.kind} data-total={result.total} data-correct={result.correct}>
-            <b>오늘 랜덤 테스트를 마쳤어요</b>
-            <span>{result.total}문제 중 {result.correct}개 맞혔어요. 틀린 건 위 목록에서 바로 다시 외울 수 있어요.</span>
-          </div>
-          <button className="submit-btn flow-done" style={{ marginTop: 12 }} onClick={onExit || onQuit}>오늘 학습 마치기</button>
+          {flow.kind === 'region' ? (
+            <div className="card wk-result region-result" data-flow="region" data-total={result.total} data-correct={result.correct}>
+              <b>{flow.label || '승급시험'} 결과 · {result.correct} / {result.total}</b>
+              <span>정답률 {Math.round((result.correct / Math.max(1, result.total)) * 100)}% · 통과 기준 {Math.round((flow.pass || 0.8) * 100)}% 이상. {result.correct / Math.max(1, result.total) >= (flow.pass || 0.8) ? '통과예요! 지도에서 지역이 클리어로 바뀌어요.' : '기준에 못 미쳤어요. 틀린 건 위 목록에서 다시 외우고 또 도전해요.'}</span>
+            </div>
+          ) : (
+            <div className="card wk-result" data-flow={flow.kind} data-total={result.total} data-correct={result.correct}>
+              <b>오늘 랜덤 테스트를 마쳤어요</b>
+              <span>{result.total}문제 중 {result.correct}개 맞혔어요. 틀린 건 위 목록에서 바로 다시 외울 수 있어요.</span>
+            </div>
+          )}
+          <button className="submit-btn flow-done" style={{ marginTop: 12 }} onClick={onExit || onQuit}>{flow.kind === 'region' ? '지도로 돌아가기' : '오늘 학습 마치기'}</button>
         </>
       ) : weak ? (
         <>

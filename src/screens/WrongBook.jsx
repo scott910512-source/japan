@@ -15,11 +15,22 @@ export default function WrongBook({ book, n3WrongCount, onAttempt, onLearn, onOp
     <>
       <HunterTutor guide="killua" scene="arena" mood="encourage" title="오답부터 다시 수련" line={t.total ? `다시 볼 문제 ${t.total}개가 있어. 기록과 해설을 보고 헷갈린 부분부터 확인해 보자.` : '아직 남아 있는 오답이 없어. 문제를 풀다 헷갈린 부분이 생기면 여기서 다시 확인하자.'} compact />
       <div className="card wb2-sum" data-total={t.total}>
-        <div className="wb2-head"><span>다시 볼 오답</span><b>{t.total}<small>개</small></b></div>
-        <div className="set-note">새 오답노트 {t.fresh}개 · N3 코스에만 남은 오답 {t.n3Only}개. 같은 문제는 한 번만 세요.</div>
+        <div className="wb2-head"><span>다시 볼 오답</span><b>{t.total}<small>문제</small></b></div>
+        <div className="set-note">새 오답노트 {t.fresh}문제 · N3 코스에만 남은 오답 {t.n3Only}문제. 같은 문제는 한 번만 세요.</div>
       </div>
 
       <MistakeNotebook book={book} onAttempt={onAttempt} onLearn={onLearn} />
+
+      <p className="set-note wb2-link">다시 풀어서 맞히면 그 낱말의 약점 점수도 1 줄고, 또 틀리면 같이 올라요. 한 번 맞혔다고 약점이 한꺼번에 사라지지는 않아요.</p>
+      <details className="card wb2-rules">
+        <summary>해결·사라지는 기준이 왜 달라요?</summary>
+        <ul className="wb2-rulelist">
+          <li><b>새 오답노트</b> 서로 다른 두 날에 맞히면 해결, 7일 뒤 기억 확인이 잡혀요. 같은 날 여러 번 맞혀도 한 번이에요.</li>
+          <li><b>N3 코스 오답</b> 문제를 두 번 이어 맞히면 빠져요. 틀리면 연속 기록이 처음으로 돌아가요.</li>
+          <li><b>약점 장부</b> 맞히면 점수가 1 줄고, 틀림 신호가 기준 아래로 내려가야 약점에서 빠져요.</li>
+          <li><b>복습 기록</b> 복습일에 맞혀야 기억 단계가 하루 한 칸씩 올라요. 이 간격은 오답 풀이와 상관없이 그대로예요.</li>
+        </ul>
+      </details>
 
       <div className="section-label">N3 코스 오답노트</div>
       <button className="listrow wb2-n3" onClick={onOpenN3Wrong} disabled={t.n3All === 0}>

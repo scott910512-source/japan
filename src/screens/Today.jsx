@@ -39,7 +39,7 @@ const readyShown = (s) => {
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
-  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, sentenceQuest = null, onStartSentenceQuest, onSkipSentenceQuest, onUndoSkipSentenceQuest, onOpenProgress,
+  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, sentenceQuest = null, onStartSentenceQuest, onSkipSentenceQuest, onUndoSkipSentenceQuest, onOpenProgress, wrongCount = 0, onOpenWrong, onStartRegionExam,
 }) {
   const today = todayKey();
 
@@ -120,7 +120,7 @@ export default function Today({
   const missionDone = missions.filter((m) => m.done >= m.total).length;
 
   return (
-    <HunterDashboard words={words} review={review} progress={progress} stats={stats} streak={streak} settings={settings} onOpen={onOpen} onSettings={onSettings} onReview={onOpenReview} onAttempt={onAttempt} onLearnMistake={onLearnMistake} onOpenProgress={onOpenProgress} homeResetKey={homeResetKey}>
+    <HunterDashboard words={words} review={review} progress={progress} stats={stats} streak={streak} settings={settings} onOpen={onOpen} onSettings={onSettings} onReview={onOpenReview} onStartRegionExam={onStartRegionExam} onOpenProgress={onOpenProgress} homeResetKey={homeResetKey}>
       <div className="hunter-today-main">
       {/* 머리는 한 줄로. 여기에 장식을 얹으면 정작 눌러야 할 것이 아래로 밀린다 */}
       <div className="tdhead">
@@ -235,6 +235,15 @@ export default function Today({
         <button className="tdtask slim hm-backlog" onClick={onOpenReview}>
           <span className="tt-icon"><IconRepeat /></span>
           <span className="tt-body"><b>{backLane.assigned > 0 ? '더 복습할 수도 있어요' : '밀린 복습'}</b><span className="tt-note">오늘 안 담은 복습 {backlog}개 · 복습 탭에서</span></span>
+          <IconChevron className="chev" />
+        </button>
+      )}
+
+      {/* 오답 복습 지름길 — 오답노트는 복습 화면(오답 다시 풀기)에 한 곳이다. 여기는 거기로 가는 짧은 줄만 둔다 */}
+      {wrongCount > 0 && (
+        <button className="tdtask slim hm-wrong" onClick={onOpenWrong}>
+          <span className="tt-icon"><IconRepeat /></span>
+          <span className="tt-body"><b>오답 복습 {wrongCount}문제 시작</b><span className="tt-note">틀린 문제를 다시 풀어요 · 복습 화면의 오답 칸으로</span></span>
           <IconChevron className="chev" />
         </button>
       )}

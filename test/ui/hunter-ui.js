@@ -39,10 +39,12 @@ try {
   await tab('지도').click();
   for (let i = 0; i < 6; i++) {
     await page.locator('.hunter-region').nth(i).click();
-    assert.equal(await page.locator('.hunter-region-missions button').count(), 3);
+    assert.equal(await page.locator('.hunter-region-missions button').count(), 3);   // 자유 탐험 줄은 접힌 칸 안에 있다
+    assert.equal(await page.locator('.hunter-reqs li').count() >= 1, true);
     assert.equal(await page.locator('.hunter-region').nth(i).getAttribute('aria-pressed'), 'true'); pass++;
   }
   await page.locator('.hunter-region').nth(2).click();
+  await page.locator('.hunter-free > summary').click();
   await page.locator('.hunter-region-missions button').filter({ hasText: '한자 구조' }).click();
   await page.locator('.n3-curriculum').waitFor();
   assert.equal(await page.locator('.n3-curriculum').count(), 1); pass++;
@@ -86,7 +88,7 @@ try {
   if (process.env.HUNTER_SCREENSHOTS) await page.screenshot({ path: '.qa/hunter-map-mobile.png' });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); pass++;
   assert.equal(await page.locator('.hunter-tabpanel:visible').count(), 1); pass++;
-  await tab('오답').click();
+  assert.equal(await homeTabs.getByRole('tab', { name: /^오답/ }).count(), 0); pass++;   // 오답은 복습 화면 한 곳 — 홈 탭에는 없다
   if (process.env.HUNTER_SCREENSHOTS) await page.screenshot({ path: '.qa/hunter-mistakes-mobile.png' });
   await goTab(page, '학습');
   if (process.env.HUNTER_SCREENSHOTS) await page.screenshot({ path: '.qa/hunter-study-mobile.png' });

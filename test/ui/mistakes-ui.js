@@ -27,16 +27,25 @@ try {
   let book = await read();
   assert.equal(book[`n3:${id}`].wrongChosen, chosen); assert.equal(book[`n3:${id}`].correct, q.answer); pass += 2;
   await goTab(page, '오늘', 100);
-  await page.getByRole('tab', { name: /^오답/ }).click();
-  const notebook = page.locator('.screen.active .mistake-notebook');
+  /* 홈에는 오답 탭이 없다 — 오늘 화면의 「오답 복습 N문제 시작」 지름길이 복습 화면의 오답 칸을 연다 */
+  assert.equal(await page.getByRole('tab', { name: /^오답/ }).count(), 0); pass++;
+  await page.locator('.hm-wrong').click();
+  await page.locator('.subscreen.open .rv-tabs').waitFor();
+  assert.equal(await page.locator('.rv-tabs [data-section="wrong"]').getAttribute('aria-selected'), 'true'); pass++;
+  const notebook = page.locator('.subscreen.open .mistake-notebook');
   await notebook.locator('.mistake-start').click();
   await notebook.getByRole('button', { name: q.answer, exact: true }).click();
   assert.match(await notebook.locator('.mistake-feedback').innerText(), /맞았어요/); pass++;
   book = await read(); assert.equal(book[`n3:${id}`].resolved, false); assert.equal(book[`n3:${id}`].wrongChosen, chosen); pass += 2;
+  /* 기록 연결 — 같은 N3 문제의 코스 오답 기록에도 한 번만 닿는다(연속 정답 1) */
+  const n3wrong = await page.evaluate((qid) => JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}').n3?.wrong?.[qid] || null, id);
+  assert.equal(n3wrong?.ok, 1); pass++;
+  assert.equal(book[`n3:${id}`].retest, true); pass++;
   await notebook.getByRole('button', { name: '재시험 마치기', exact: true }).click();
   await notebook.getByRole('button', { name: '기록 보기', exact: true }).click();
   assert.match(await notebook.locator('.mistake-list').innerText(), new RegExp(chosen.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))); pass++;
   if (process.env.HUNTER_SCREENSHOTS) await notebook.screenshot({ path: '.qa/mistake-notebook.png' });
+  await page.locator('.subscreen.open .sub-back').click();   // 복습 화면을 닫고 홈으로 — 다시 켰을 때 홈에서 시작한다
   // Reload online first, then emit the offline transition after the new Gate has
   // mounted. Loading offline from the outset can miss that transition in CI.
   await context.setOffline(false);

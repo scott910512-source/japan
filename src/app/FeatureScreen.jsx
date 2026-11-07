@@ -50,6 +50,9 @@ export default function FeatureScreen({
   /* 하루 흐름 — 오늘 랜덤 테스트로 들어왔나 · 끝났다고 적기 · 쭉 퀴즈 다음 단계 */
   randomOn = false,
   onRandomDone = null,
+  /* 지역 승급시험 — { id, label, pass } 이면 단어 시험을 그 낱말들로 바로 시작한다 */
+  regionExam = null,
+  onRegionDone = null,
   streamNext = null,
   n3Next = null,
   composeFocus = null,
@@ -142,7 +145,7 @@ export default function FeatureScreen({
             )}
             {sub === 'quiz' && (
               <Quiz
-                key={randomOn ? 'random' : weakQuizOn ? 'weak' : 'quiz'}
+                key={regionExam ? 'region' : randomOn ? 'random' : weakQuizOn ? 'weak' : 'quiz'}
                 onAttempt={onAttempt}
                 mistakes={progress.mistakes}
                 words={words}
@@ -164,8 +167,8 @@ export default function FeatureScreen({
                 onExit={onExit}
                 onNextQuest={weakQuizOn ? onNextQuest : null}
                 nextLabel={nextQuestLabel}
-                flow={randomOn ? { kind: 'random' } : null}
-                onComplete={randomOn ? onRandomDone : null}
+                flow={regionExam ? { kind: 'region', label: regionExam.label, pass: regionExam.pass } : randomOn ? { kind: 'random' } : null}
+                onComplete={regionExam ? onRegionDone : randomOn ? onRandomDone : null}
               />
             )}
             {sub === 'listen' && (

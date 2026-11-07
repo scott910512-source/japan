@@ -177,3 +177,54 @@
   .hunter-region b { font-size: 11px; }.hunter-region small { font-size: 8px; }.hunter-region-detail { padding: 17px; }
 }
 @media (prefers-reduced-motion: reduce) { .hunter-home *, .hunter-home *::before { scroll-behavior: auto !important; transition: none !important; } }
+
+/* ── 성장 지도: 목표 · 필수 수련 · 승급시험 · 다음 행동 ── */
+.hunter-region small { font-size: 10px; }
+.hunter-region.cleared .hunter-region-icon { background: #d8ecc4; border-color: #6ea56b; }
+.hunter-region em.hunter-region-clear { background: #2f6b46; }
+.hunter-region.recommended:not(.cleared) .hunter-region-icon { border-color: #e69a3a; }
+.hunter-goal { margin: 6px 0 10px; font-size: 13px; line-height: 1.6; color: #3f5148; }
+.hunter-goal b { color: #355f44; margin-right: 4px; }
+.hunter-status { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: #eef3e2; border: 1px solid #d5dfbf; margin-bottom: 10px; }
+.hunter-status b { font-size: 13px; color: #294740; line-height: 1.5; }
+.hunter-status small { font-size: 12px; color: #5a6a5f; line-height: 1.5; }
+.hunter-reqs { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+.hunter-reqs li button { width: 100%; min-height: 56px; display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid #e1e4d6; border-radius: 12px; background: #f7f8ef; text-align: left; }
+.hunter-reqs li.ok button { background: #e9f3dc; border-color: #bcd6a4; }
+.hunter-req-mark { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #b9c2a6; display: grid; place-items: center; font-size: 13px; font-weight: 900; color: #fff; }
+.hunter-reqs li.ok .hunter-req-mark { background: #4d8a52; border-color: #4d8a52; }
+.hunter-req-body { display: grid; gap: 4px; min-width: 0; }
+.hunter-req-body b { font-size: 13px; color: #294740; }
+.hunter-req-body > i { display: block; height: 6px; border-radius: 6px; background: #dfe5cf; overflow: hidden; }
+.hunter-req-body > i em { display: block; height: 100%; background: #e69a3a; border-radius: 6px; }
+.hunter-reqs li.ok .hunter-req-body > i em { background: #4d8a52; }
+.hunter-req-body small { font-size: 11px; color: #6a7a6f; }
+.hunter-reqs li button > strong { font-size: 15px; color: #294740; white-space: nowrap; text-align: right; }
+.hunter-reqs li button > strong small { font-size: 11px; font-weight: 600; color: #6a7a6f; }
+.hunter-exam { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px dashed #c9b58a; background: #fbf5e4; margin-bottom: 10px; }
+.hunter-exam > div { display: flex; flex-direction: column; }
+.hunter-exam small { font-size: 10px; letter-spacing: .1em; color: #8a7a4d; }
+.hunter-exam b { font-size: 14px; color: #4a3b1c; }
+.hunter-exam p { margin: 0; font-size: 12px; line-height: 1.6; color: #6a5a34; }
+.hunter-exam .hunter-exam-state { font-weight: 800; color: #4a3b1c; }
+.hunter-exam[data-exam="passed"] { border-color: #86b383; background: #eef7e6; }
+.hunter-nextact { display: grid; gap: 8px; margin-bottom: 10px; }
+.hunter-nextact button { min-height: 48px; }
+.hunter-free { margin-top: 6px; }
+.hunter-free summary { cursor: pointer; font-size: 12px; font-weight: 700; color: #5a6a5f; min-height: 40px; display: flex; align-items: center; }
+.hunter-free .hunter-region-missions { margin-top: 6px; }
+@media (max-width: 420px) {
+  .hunter-reqs li button { grid-template-columns: 22px 1fr; }
+  .hunter-reqs li button > strong { grid-column: 2; text-align: left; }
+}
+
+/* ── 복습 한 화면 세 칸 ── */
+.rv-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 4px 0 12px; }
+.rv-tabs button { display: grid; gap: 2px; min-height: 52px; padding: 8px 6px; border: 1px solid var(--line, #dfe3d3); border-radius: 12px; background: var(--surface, #fff); text-align: center; }
+.rv-tabs button b { font-size: 13px; }
+.rv-tabs button small { font-size: 11px; opacity: .75; }
+.rv-tabs button[aria-selected="true"] { background: #355f44; color: #fff; border-color: #355f44; }
+.wb2-rules summary { cursor: pointer; font-weight: 700; min-height: 40px; display: flex; align-items: center; }
+.wb2-rulelist { margin: 4px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.7; }
+.wb2-rulelist b { margin-right: 4px; }
+.hm-wrong .tt-icon { background: #fde5dc; }

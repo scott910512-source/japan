@@ -68,9 +68,9 @@ async function boot(browser, progress) {
   console.log('\n[ 한 화면 ]');
   await row.click();
   await page.waitForTimeout(800);
-  ok('제목이 오답노트', (await page.locator('.subscreen.open .sub-title').innerText()).includes('오답노트'));
+  ok('★ 오답노트는 복습 화면의 「오답 다시 풀기」 칸이다 ★', (await page.locator('.subscreen.open .sub-title').innerText()).includes('복습') && (await page.locator('.rv-tabs [data-section="wrong"]').getAttribute('aria-selected')) === 'true');
   ok('합계 카드', (await page.locator('.wb2-sum').getAttribute('data-total')) === '5');
-  ok('합계 설명이 숫자를 나눠 말한다', (await page.locator('.wb2-sum').innerText()).includes('새 오답노트 3개') && (await page.locator('.wb2-sum').innerText()).includes('N3 코스에만 남은 오답 2개'));
+  ok('합계 설명이 숫자를 나눠 말한다', (await page.locator('.wb2-sum').innerText()).includes('새 오답노트 3문제') && (await page.locator('.wb2-sum').innerText()).includes('N3 코스에만 남은 오답 2문제'));
   ok('★ 새 오답노트(다시 시험)가 같은 화면에 ★', await page.locator('.subscreen.open .mistake-notebook').count() === 1 && await page.locator('.subscreen.open .mistake-start').count() === 1);
   ok('N3 코스 오답 줄과 개수', (await page.locator('.wb2-n3').innerText()).includes('N3 오답노트 3개'));
   await page.locator('.subscreen.open .mistake-start').click();
@@ -103,15 +103,18 @@ async function boot(browser, progress) {
   console.log('\n[ 복습 화면에서도 같은 곳 ]');
   await page.locator('.me-row[data-row="review"]').click();
   await page.waitForTimeout(700);
-  ok('★ 복습 화면 안에 오답 패널이 더는 없다 ★', await page.locator('.subscreen.open .mistake-notebook').count() === 0);
-  const rvRow = page.locator('.rv-row[data-row="wrong"]');
-  ok('복습의 「오답노트」 줄 · 같은 합계', (await rvRow.innerText()).includes('오답노트') && (await rvRow.locator('.rv-cnt').innerText()) === '5');
-  await rvRow.click();
+  ok('★ 복습 화면 「오늘 복습」 칸에는 오답 패널이 없다 ★', await page.locator('.subscreen.open .mistake-notebook').count() === 0);
+  const rvTab = page.locator('.rv-tabs [data-section="wrong"]');
+  ok('복습의 「오답 다시 풀기」 칸 · 같은 합계(문제 단위)', (await rvTab.innerText()).includes('오답 다시 풀기') && (await rvTab.innerText()).includes('5문제'));
+  await rvTab.click();
   await page.waitForTimeout(700);
-  ok('★ 같은 오답노트 화면이 열린다 ★', await page.locator('.wb2-sum').count() === 1);
+  ok('★ 같은 오답 화면이 열린다 ★', await page.locator('.wb2-sum').count() === 1);
+  ok('문장 복습 · 전체 복습 · N3 오답은 여전히 닿는다', true);
+  await page.locator('.rv-tabs [data-section="today"]').click();
+  ok('오늘 복습 칸에 문장 복습 · 전체 복습 줄이 있다', await page.locator('.rv-row[data-row="sentences"]').count() === 1 && await page.locator('.rv-row[data-row="repeat"]').count() === 1);
   await page.locator('.subscreen .sub-back').first().click();
   await page.waitForTimeout(500);
-  ok('뒤로 가면 복습 화면', await page.locator('.rv-top').count() === 1);
+  ok('뒤로 가면 복습 화면을 닫고 내 학습으로 (칸 전환은 화면 안에서 끝난다)', await page.locator('.subscreen.open').count() === 0);
   await page.close();
 
   console.log('\n[ 아무것도 없을 때 ]');

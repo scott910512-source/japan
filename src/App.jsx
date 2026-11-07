@@ -1,8 +1,7 @@
 import { useAppData, usePersistAppData } from './app/useAppData.js';
 import FeatureScreen from './app/FeatureScreen.jsx';
 import HunterAppHeader from './components/HunterAppHeader.jsx';
-import { recordMistake } from './lib/mistakes.js';
-import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub, WrongBook, WeakHub } from './app/screens.js';
+import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
 import { filterByLevel } from './lib/wordFilters.js';
 import { useAccountSync } from './app/useAccountSync.js';
@@ -25,6 +24,8 @@ import { dailyPool } from './lib/cards.js';
 import { kijuIndex } from './lib/kiju.js';
 import { hasSignedInOnce, isGuest, setGuest } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
+import { applyAttempt } from './lib/retestlink.js';
+import { REGION_RULES, REGION_QUIZ_MIN, regionQuizIds, noteRegionExam, PASS_RATIO } from './lib/regions.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
 import { noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE } from './lib/quests.js';
@@ -60,8 +61,8 @@ const SUB_TITLES = {
   travel: '여행 일본어',
   n3: '한 권으로 끝내는 N3',
   review: '복습',
-  wrongbook: '오답노트',
-  weakbook: '약점',
+  wrongbook: '복습',
+  weakbook: '복습',
 };
 
 export default function App() {
@@ -262,13 +263,18 @@ export default function App() {
     words, wordIds, byId, review, progress, plan, sentenceIds, today,
   });
 
+  /* 지도에서 연 화면의 레벨 — 설정의 레벨 필터 대신 이 화면에서만 쓴다(설정 값은 그대로) */
+  const [levelOverride, setLevelOverride] = useState(null);
+  useEffect(() => { if (!sub && !deck) setLevelOverride(null); }, [sub, deck]);
+  const effSettings = useMemo(() => (levelOverride ? { ...settings, levels: levelOverride } : settings), [settings, levelOverride]);
+
   /* 회독 판을 짜는 함수들은 app/useStudyQueue.js에 — 오늘의 학습·이어하기·
      단어·복습·취약·JLPT 세트·시험 오답. 동작은 App에 있던 그대로다. */
   const {
     askSwap, setAskSwap, guardDeck, learnMore, learnMoreAndStart,
     startToday, resumeSession, startWordDeck, startKijuDeck, startDueDeck, startWeakDeck, startJlptSet, startQuizWrongDeck,
   } = useStudyQueue({
-    session, plan, planNow, setPlan, words, wordIds, byId, sentenceCards, review, settings, due, todayPool, today,
+    session, plan, planNow, setPlan, words, wordIds, byId, sentenceCards, review, settings: effSettings, due, todayPool, today,
     setDeck, setSub, showToast,
     /* 약점 장부 — 취약 단어 판과 「10개 더」가 본다 */
     ledger: progress.weak,
@@ -347,6 +353,38 @@ export default function App() {
     setActiveTab('me');
     openSub('quiz');
   }, [randomToday, randomSeen, wordIdSet, byId, showToast, setQuizSet, setActiveTab, openSub]);
+  /* ★ 지역 승급시험 ★ 성장 지도에서 시작한다. N3 코스에 있는 시험(진단 · 확인 테스트 · 모의고사)은 그 화면으로 보내고,
+     N5·N4 지역은 본 낱말 중에서 내는 확인 퀴즈를 단어 시험 화면으로 돈다. 결과는 progress.regions에 적는다. */
+  const regionExamRef = useRef(null);
+  const [regionExam, setRegionExam] = useState(null);
+  useEffect(() => { if (sub !== 'quiz') { regionExamRef.current = null; setRegionExam(null); } }, [sub]);
+  const startRegionExam = useCallback((id) => {
+    const rule = REGION_RULES.find((r) => r.id === id);
+    if (!rule) return;
+    if (rule.exam.source === 'n3') {
+      const tid = rule.exam.testId;
+      nav.openMenu('n3', { view: tid === 'exam' ? { kind: 'exam', from: 'curriculum' } : { kind: 'test', id: tid, from: 'curriculum' } });
+      return;
+    }
+    const cards = regionQuizIds(rule, words, review).map((wid) => byId.get(wid)).filter(Boolean);
+    if (cards.length < REGION_QUIZ_MIN) { showToast(`본 낱말이 ${REGION_QUIZ_MIN}개 이상 있어야 승급시험을 낼 수 있어요`); return; }
+    setQuizSet(cards);
+    weakQuizOn.current = false; setWeakQuizMode(false);
+    randomOn.current = false; setRandomMode(false);
+    const info = { id, label: rule.exam.label, pass: rule.exam.pass ?? PASS_RATIO, stamp: Date.now() };
+    regionExamRef.current = info;
+    setRegionExam(info);
+    setActiveTab('me');
+    openSub('quiz');
+  }, [words, review, byId, showToast, setQuizSet, setActiveTab, openSub, nav]);
+  const onRegionDone = useCallback(({ correct, total } = {}) => {
+    const info = regionExamRef.current;
+    if (!info || !(total > 0)) return;
+    setProgress((p) => {
+      const regions = noteRegionExam(p.regions, info.id, { right: correct, total }, info.stamp, today);
+      return regions === p.regions ? p : { ...p, regions };
+    });
+  }, [setProgress, today]);
   const onRandomDone = useCallback(() => {
     setProgress((p) => ({ ...p, quests: noteQuest(p.quests, 'random', 1, today) }));
   }, [setProgress, today]);
@@ -417,19 +455,24 @@ export default function App() {
   };
   const openReview = useCallback(() => { setActiveTab('me'); openSub('review'); }, [setActiveTab, openSub]);
   const openMenu = useCallback((id, opts = {}) => {
+    /* 지도에서 N5 지역을 눌렀는데 설정의 레벨(N3 등)로 열리면 안 된다 — 그 화면에서만 레벨을 덮어쓴다(설정은 안 바꾼다) */
+    setLevelOverride(opts.levels?.length ? opts.levels : null);
     if (id === 'compose') setComposeStart(opts.mode || null);
     if (id === 'weak') { startWeakDeck(); return; }
     nav.openMenu(id, opts);
   }, [startWeakDeck, nav.openMenu]);
 
+  /* 틀린 문제를 적는 한 길. 오답노트의 「다시 풀기」(attempt.retest)는 약점 장부 · N3 오답에도 한 번씩 이어진다(lib/retestlink.js) */
   const recordAttempt = useCallback((attempt) => {
-    setProgress((p) => {
-      const mistakes = recordMistake(p.mistakes, attempt);
-      return mistakes === p.mistakes ? p : { ...p, mistakes };
-    });
-  }, [setProgress]);
+    setProgress((p) => applyAttempt(p, attempt, { wordIds: byId }));
+  }, [setProgress, byId]);
 
   const learnMistake = useCallback((row) => {
+    /* 다시 학습한 기록 — 「오답 → 다시 학습 → 다시 풀기」 순서가 오답 기록에 남는다 */
+    setProgress((p) => {
+      const cur = p.mistakes?.[row.id];
+      return cur ? { ...p, mistakes: { ...p.mistakes, [row.id]: { ...cur, relearnedAt: Date.now(), relearned: (cur.relearned || 0) + 1 } } } : p;
+    });
     const word = byId.get(row.ref);
     if (word) {
       guardDeck(() => startJlptSet([word], '틀린 단어 다시 학습', `mistake:${word.id}`), `mistake:${word.id}`);
@@ -438,7 +481,7 @@ export default function App() {
     else if (row.source === 'compose') openMenu('compose', { mode: row.id.includes(':cloze:') ? 'blank' : row.id.includes(':write:') ? 'write' : 'build' });
     else if (row.source === 'grammar') openMenu('grammar');
     else openMenu('sentences');
-  }, [byId, guardDeck, startJlptSet, openMenu]);
+  }, [byId, guardDeck, startJlptSet, openMenu, setProgress]);
 
   const finishOnboarding = (patch) => {
     patchSettings(patch);
@@ -579,8 +622,9 @@ export default function App() {
 
           <Today
             homeResetKey={homeResetKey}
-            onAttempt={recordAttempt}
-            onLearnMistake={learnMistake}
+            wrongCount={wrongTotal.total}
+            onOpenWrong={() => openSub('wrongbook', 'home')}
+            onStartRegionExam={startRegionExam}
             words={words}
             review={review}
             progress={progress}
@@ -728,37 +772,35 @@ export default function App() {
           <div className="sub-body">
             <DeferredScreen key={sub}>
               {/* 복습은 내 학습 안에서 밀어 넣는 화면이다 — 오늘 복습 · 약점 · 틀린 문제 · 전체 복습 */}
-              {sub === 'wrongbook' ? (
-                <WrongBook
-                  book={progress.mistakes}
-                  n3WrongCount={n3Wrong.all}
-                  onAttempt={recordAttempt}
-                  onLearn={learnMistake}
-                  onOpenN3Wrong={() => openMenu('n3', { view: { kind: 'wrong' } })}
-                />
-              ) : sub === 'weakbook' ? (
-                <WeakHub
-                  weakWords={weakWords}
-                  weakGrammar={n3Wrong.grammar}
-                  weakBook={weakBook}
-                  weakRows={weakRows}
-                  quiz={weakQuiz}
-                  onStartQuiz={startWeakQuiz}
-                  onStartDeck={startWeakDeck}
-                  onOpenGrammar={() => openMenu('n3', { view: { kind: 'weak', from: 'hub' } })}
-                />
-              ) : sub === 'review' ? (
+              {sub === 'review' || sub === 'wrongbook' || sub === 'weakbook' ? (
                   <ReviewHub
+                    initialSection={sub === 'wrongbook' ? 'wrong' : sub === 'weakbook' ? 'weak' : 'today'}
                     planNow={planNow}
                     sentenceDue={sentenceDue}
-                    weakCount={weakWords + n3Wrong.grammar}
+                    weakWords={weakWords}
+                    weakGrammar={n3Wrong.grammar}
                     wrongCount={wrongTotal.total}
                     onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
                     onStartBacklog={startDueDeck}
                     onOpenSentences={() => setSub('sentences')}
-                    onOpenWrong={() => openSub('wrongbook', 'review')}
-                    onOpenWeak={() => openSub('weakbook', 'review')}
                     onOpenRepeat={() => setSub('repeat')}
+                    wrongProps={{
+                      book: progress.mistakes,
+                      n3WrongCount: n3Wrong.all,
+                      onAttempt: recordAttempt,
+                      onLearn: learnMistake,
+                      onOpenN3Wrong: () => openMenu('n3', { view: { kind: 'wrong' } }),
+                    }}
+                    weakProps={{
+                      weakWords,
+                      weakGrammar: n3Wrong.grammar,
+                      weakBook,
+                      weakRows,
+                      quiz: weakQuiz,
+                      onStartQuiz: startWeakQuiz,
+                      onStartDeck: startWeakDeck,
+                      onOpenGrammar: () => openMenu('n3', { view: { kind: 'weak', from: 'hub' } }),
+                    }}
                   />
               ) : (
               <FeatureScreen
@@ -767,7 +809,7 @@ export default function App() {
                 sub={sub}
                 words={words}
                 review={review}
-                settings={settings}
+                settings={effSettings}
                 patchSettings={patchSettings}
                 startWordDeck={startWordDeck}
                 startKijuDeck={startKijuDeck}
@@ -812,6 +854,8 @@ export default function App() {
                 nextQuestLabel={flowAfter('weakquiz')?.to === 'stream' ? '쭉 퀴즈로 이어서' : (flowAfter('weakquiz')?.label || '')}
                 randomOn={randomMode}
                 onRandomDone={onRandomDone}
+                regionExam={regionExam}
+                onRegionDone={onRegionDone}
                 n3Next={flowAfter('n3')}
                 composeFocus={composeFocus}
                 composeNext={flowAfter('sentence')}

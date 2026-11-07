@@ -1,4 +1,5 @@
 import { IconFlame } from '../components/Icons.jsx';
+import HunterTutor from '../components/HunterTutor.jsx';
 
 /* 약점 — 약한 것을 보는 곳은 여기 하나다.
  *
@@ -13,6 +14,7 @@ export default function WeakHub({
   const total = weakWords + weakGrammar;
   return (
     <>
+      <HunterTutor guide="killua" scene="arena" mood="encourage" title="약점부터 하나씩" line={total ? '자주 틀리거나 금방 잊는 것부터 모았어. 가장 약한 것부터 다른 문제로 다시 확인해 보자.' : '지금은 약한 곳이 안 보여. 이대로 꾸준히 가자.'} compact />
       <div className="card wk-sum" data-words={weakWords} data-grammar={weakGrammar}>
         <div className="wk-head"><span>지금 약한 것</span><b>{total}<small>개</small></b></div>
         <div className="set-note">취약 단어 {weakWords}개 · 취약 문법 {weakGrammar}개</div>
@@ -20,7 +22,7 @@ export default function WeakHub({
 
       <div className="card wk-acts">
         <button className="submit-btn wk-quiz" onClick={onStartQuiz} disabled={quiz.ids.length === 0}>
-          <IconFlame /> 약점 퀴즈 {quiz.ids.length > 0 ? `${quiz.ids.length}문제` : ''}
+          <IconFlame /> 다른 문제로 확인 · 약점 퀴즈 {quiz.ids.length > 0 ? `${quiz.ids.length}문제` : ''}
         </button>
         <div className="set-note wk-quizsub">
           {quiz.total === 0
@@ -28,7 +30,7 @@ export default function WeakHub({
             : quiz.complete ? `오늘 약점 퀴즈를 마쳤어요 · ${quiz.done} / ${quiz.total}` : `오늘 퀘스트 ${quiz.done} / ${quiz.total}`}
         </div>
         <button className="ghost-btn wk-deck" onClick={onStartDeck} disabled={weakWords === 0}>
-          {weakWords > 0 ? `약한 것부터 ${weakWords}개 외우기` : '외울 약한 단어가 없어요'}
+          {weakWords > 0 ? `약한 것부터 단어 ${weakWords}개 다시 외우기` : '외울 약한 단어가 없어요'}
         </button>
         <button className="ghost-btn wk-grammar" onClick={onOpenGrammar} disabled={weakGrammar === 0}>
           {weakGrammar > 0 ? `취약 문법 ${weakGrammar}개 공부하기` : '취약 문법이 없어요'}

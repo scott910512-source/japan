@@ -201,6 +201,8 @@ const DEFAULT_PROGRESS = {
   weakQuiz: {},
   /* 오늘의 퀘스트 하루 몫 — { day, stream }. 날이 바뀌면 새로 시작한다(lib/quests.js) */
   quests: {},
+  /* 지역 확인 퀴즈 결과 — { 지역id: { exam: { best, last, tries, right, total, at } } } (lib/regions.js) */
+  regions: {},
 };
 export function loadProgress() {
   const saved = read(KEYS.progress, {});
@@ -216,6 +218,7 @@ export function loadProgress() {
     weak: saved?.weak && typeof saved.weak === 'object' ? saved.weak : {},
     weakQuiz: saved?.weakQuiz && typeof saved.weakQuiz === 'object' ? saved.weakQuiz : {},
     quests: saved?.quests && typeof saved.quests === 'object' ? saved.quests : {},
+    regions: saved?.regions && typeof saved.regions === 'object' && !Array.isArray(saved.regions) ? saved.regions : {},
   };
 }
 export function saveProgress(progress) {

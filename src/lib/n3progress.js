@@ -5,6 +5,25 @@
  * 모양과 합치기만 여기 둔다. */
 export const N3_VERSION = 1;
 
+/* 오답 노트 한 칸을 고친다 — 문제 하나의 결과가 오답 노트에 어떻게 닿는지의 규칙이 이 한 군데다.
+ *   틀리면 올린다(c+1, 연속 정답 0). 맞히면 연속 정답을 올리고, 두 번 이어 맞히면 노트에서 뺀다.
+ *   노트에 없는 문제를 맞힌 것은 아무것도 안 바꾼다(맞힌다고 오답이 생기지 않는다).
+ * lib/n3.js의 recordAnswer(코스 안에서 푼 것)와 복습의 다시 풀기(retestlink.js)가 같이 쓴다. */
+export function noteN3Wrong(wrong, qid, ok, { cat = 'grammar', ref = null, at = Date.now() } = {}) {
+  const out = { ...(wrong || {}) };
+  if (ok) {
+    const w = out[qid];
+    if (!w) return wrong || {};
+    const okc = (w.ok || 0) + 1;
+    if (okc >= 2) delete out[qid];
+    else out[qid] = { ...w, ok: okc };
+  } else {
+    const w = out[qid] || { c: 0 };
+    out[qid] = { c: (w.c || 0) + 1, at, cat, ref, ok: 0 };
+  }
+  return out;
+}
+
 export function emptyN3() {
   return { v: N3_VERSION, lessons: {}, skip: {}, days: {}, q: {}, wrong: {}, tests: {}, exams: [], summary: null };
 }
