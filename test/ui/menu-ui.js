@@ -61,7 +61,8 @@ async function boot(browser, settings = {}) {
   ok('마지막 추가 자료', labels[2].includes('추가 자료'));
   const catalog = await page.locator('[data-group="catalog"] .mt-title').allTextContents();
   const more = await page.locator('[data-group="more"] .mt-title').allTextContents();
-  ok('전체 학습 일곱 과정의 위치가 고정된다', catalog.join() === 'N3 학습하기,기출 단어,단어,문법,한자,문장,듣기', catalog.join());
+  ok('전체 학습 일곱 과정의 위치가 고정된다', catalog.join() === 'N3 코스,JLPT 기출 단어,단어 암기,문법,한자,회화 문장,듣기', catalog.join());
+  ok('퀴즈와 오답 복습의 위치를 안내한다', (await page.locator('.sh-quiz-note').innerText()).includes('복습&내기록'));
   ok('추가 자료 네 메뉴를 보존한다', more.join() === '여행 일본어,영상,완전기초,독일어', more.join());
   ok('추가 자료는 처음에 접혀 있다', !(await page.locator('.sh-more').evaluate((el) => el.open)));
   await page.locator('.sh-more summary').click();
@@ -117,8 +118,8 @@ async function boot(browser, settings = {}) {
   console.log('\n[ JLPT는 단어암기 안으로 ]');
   /* 따로 둔 메뉴였는데 그건 다른 공부가 아니라 같은 단어를 다른 방식으로
      끊어 주는 것이었다 — 「거의 같은 것 아니냐」는 말이 맞았다 */
-  ok('JLPT 단어 칸이 없다',
-    await page.locator('.menutile', { hasText: 'JLPT' }).count() === 0);
+  ok('단어 암기와 중복되는 옛 JLPT 단어 칸이 없다',
+    await page.locator('.menutile[data-menu="jlpt"]').count() === 0);
   await openMenu(page, '단어');
   ok('끊는 방법이 둘', await page.locator('.wd-how button').count() === 2,
     (await page.locator('.wd-how button').allTextContents()).join(' / '));
@@ -258,7 +259,7 @@ async function boot(browser, settings = {}) {
       await page.waitForTimeout(250);
     }
     ok('★ 고른 것이 바로가기에 올라온다 ★',
-      (await page.locator('.mfavs .mt-title').allTextContents()).join(' · ') === '듣기 · 기출 단어 · 문장',
+      (await page.locator('.mfavs .mt-title').allTextContents()).join(' · ') === '듣기 · JLPT 기출 단어 · 회화 문장',
       (await page.locator('.mfavs .mt-title').allTextContents()).join(' · '));
     ok('★ 즐겨찾기를 골라도 전체 목록에는 남는다 ★',
       await page.locator('.menutile[data-menu="listen"]').count() === 2 && await page.locator('.menutile[data-menu="kiju"]').count() === 2 && await page.locator('.menutile[data-menu="sentences"]').count() === 2);
@@ -269,9 +270,9 @@ async function boot(browser, settings = {}) {
         JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}').favs,
       )) === '["listen","kiju","sentences"]');
 
-    await page.getByRole('button', { name: '문장 순서를 앞으로', exact: true }).click();
-    ok('화살표로 저장 순서가 바뀐다', (await page.locator('.mfavs .mt-title').allTextContents()).join() === '듣기,문장,기출 단어');
-    await page.getByRole('button', { name: '문장 순서를 뒤로', exact: true }).click();
+    await page.getByRole('button', { name: '회화 문장 순서를 앞으로', exact: true }).click();
+    ok('화살표로 저장 순서가 바뀐다', (await page.locator('.mfavs .mt-title').allTextContents()).join() === '듣기,회화 문장,JLPT 기출 단어');
+    await page.getByRole('button', { name: '회화 문장 순서를 뒤로', exact: true }).click();
     for (const id of ['n3', 'words', 'grammar']) await page.locator(`[data-group="catalog"] .menutile[data-menu="${id}"]`).click();
     ok('기존 최대 여섯 개를 유지한다', await page.locator('.mfavs .menutile').count() === 6);
     await page.locator('[data-group="catalog"] .menutile[data-menu="kanji"]').click();
@@ -280,10 +281,18 @@ async function boot(browser, settings = {}) {
     ok('PC 바로가기는 세 열', await page.locator('.mfavs').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length === 3));
     await page.setViewportSize({ width: 390, height: 844 });
     ok('휴대폰 바로가기는 두 열', await page.locator('.mfavs').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length === 2));
+    ok('각 바로가기에 저장 순서가 보인다', (await page.locator('.sh-order-position').allTextContents()).join() === '1 / 6,2 / 6,3 / 6,4 / 6,5 / 6,6 / 6');
+    ok('편집 도구에 현재 선택 수가 보인다', (await page.locator('.sh-editbar [role="status"]').innerText()) === '6 / 6개 선택');
     for (const id of ['n3', 'words', 'grammar']) await page.locator(`.mfavs .menutile[data-menu="${id}"]`).click();
-
+    await page.locator('[data-group="more"]').scrollIntoViewIfNeeded();
+    const sticky = await page.locator('.sh-editbar').evaluate((el) => {
+      const bar = el.getBoundingClientRect(), screen = el.closest('.screen').getBoundingClientRect();
+      return { top: bar.top, bottom: bar.bottom, screenTop: screen.top + parseFloat(getComputedStyle(el.closest('.screen')).paddingTop), screenBottom: screen.bottom };
+    });
+    ok('목록 아래에서도 편집 도구와 완료가 화면 상단에 남는다', Math.abs(sticky.top - sticky.screenTop) < 2 && sticky.bottom < sticky.screenBottom, JSON.stringify(sticky));
     await page.locator('.sh-edit').click();
     await page.waitForTimeout(350);
+    ok('아래에서 완료해도 편집 상태가 종료된다', await page.locator('.sh-editbar').count() === 0 && (await page.locator('.sh-edit').innerText()) === '편집');
     ok('끝내면 별이 사라진다', await page.locator('.mt-star').count() === 0);
     ok('★ 바로가기 세 개 외 전체 열한 메뉴는 보존한다 ★',
       await page.locator('.menutile').count() === 14, `${await page.locator('.menutile').count()}칸`);

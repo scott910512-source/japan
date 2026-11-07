@@ -157,7 +157,7 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   await page.locator('.tabbar .tab[data-tab="study"]').click();
   await page.waitForTimeout(500);
   const first = page.locator('[data-group="catalog"] .menutile[data-menu="n3"]');
-  ok('★ 학습 탭 배우기 첫 칸이 「N3 학습하기」 ★', (await first.innerText()).includes('N3 학습하기'));
+  ok('★ 학습 탭 배우기 첫 칸이 「N3 코스」 ★', (await first.innerText()).includes('N3 코스'));
   await openMenu(page, '한 권으로 끝내는 N3');
   await page.locator('.n3-hub').waitFor({ timeout: 8000 });
   ok('메인 제목 JLPT N3 MASTER', (await page.locator('.n3-head').innerText()).includes('JLPT N3 MASTER'));
