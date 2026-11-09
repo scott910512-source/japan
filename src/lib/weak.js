@@ -229,6 +229,10 @@ export function errorSignals(st, rec) {
 
 export function isWeakNow(st, rec, threshold = WEAK_THRESHOLD) {
   if (!st) return false;
+  /* ★ 아직 한 번도 안 배운 낱말은 약점이 아니다 ★
+     시험에서 처음 만나 틀린 낱말은 「새로 배울 낱말」이다. 약점으로 세면 약점 퀴즈가 새로 배우기 몫의 낱말을 먼저 가져가서,
+     새로 배우기에서 새로울 게 없어진다. 배운 적이 있어야(회독 기록이 있어야) 약점이다. */
+  if (!st.lastSeen) return false;
   if (isDoneEnough(st)) return false;
   if (isWeak(st, threshold)) return true;
   return errorSignals(st, rec) >= threshold;

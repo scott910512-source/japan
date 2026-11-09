@@ -102,6 +102,12 @@ async function stubAI(page, body = ANSWER) {
   ok('제목이 「곤에게 물어보기」 + AI 표시', (await page.locator('.asksheet h3').innerText()).includes('곤에게 물어보기') && (await page.locator('.asksheet .ask-aitag').innerText()).trim() === 'AI');
   ok('카드 없이도 묻는다(카드 칩이 없다)', await page.locator('.ask-chip').count() === 0);
 
+  /* ★ 글을 치는 중에 뒤쪽 화면이 초점을 가져가려 해도 글상자에 남는다 ★ */
+  await page.locator('.asksheet textarea').focus();
+  await page.evaluate(() => { document.querySelector('.tabbar button, .tabbar .tab')?.focus(); });
+  await page.waitForTimeout(150);
+  ok('★ 뒤쪽 화면이 저절로 초점을 가져가도 질문 글상자에 남는다 ★', await page.evaluate(() => document.activeElement?.matches?.('.asksheet textarea')));
+
   await page.context().setOffline(false);
   const calls = await stubAI(page);
   await page.locator('.asksheet textarea').fill('食べている는 언제 써?');

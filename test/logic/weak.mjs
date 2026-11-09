@@ -394,5 +394,13 @@ console.log('\n[ 기기 합치기 ]');
   ok('빈손끼리 합쳐도 괜찮다', Object.keys(mergeWeak()).length === 0);
 }
 
+/* ★ 한 번도 안 배운 낱말은 약점이 아니다 — 새로 배우기 몫을 약점 퀴즈가 먼저 가져가지 않게 ★ */
+{
+  const ledger = { newbie: { quizWrong: 4, quizRight: 0, listen: 0, stuck: 0, forgot: 0, fastDays: null, at: 1 } };
+  ok('시험에서만 틀린 안 배운 낱말은 약점이 아니다', weakRank(['newbie'], {}, ledger).length === 0);
+  const studied = { newbie: { ...emptyState(), lastSeen: '2026-11-01', box: 1, rounds: 1 } };
+  ok('한 번이라도 배운 낱말이 시험에서 틀리면 약점이다', weakRank(['newbie'], studied, ledger).length === 1);
+}
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

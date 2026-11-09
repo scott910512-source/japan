@@ -56,6 +56,32 @@ export default function AskSheet({
     return () => clearTimeout(t);
   }, [open]);
 
+  /* ★ 질문 창에서 글을 치는 중에 초점을 뺏기지 않는다 ★
+     뒤쪽 화면(퀴즈 · 회독 · 입력칸이 있는 화면)이 저절로 초점을 가져가면 치던 글이 끊기고 글자가 엉뚱한 칸으로 들어간다.
+     화면마다 초점을 안 뺏게 고쳐 왔지만 새 화면이 생길 때마다 같은 일이 났다 — 그래서 여기서 한 번 더 막는다.
+     사람이 직접 옮긴 것(누르기 · Tab)이 아닌데 창 밖으로 초점이 나가면 글상자로 되돌린다. */
+  useEffect(() => {
+    if (!open) return undefined;
+    let lastUser = 0;
+    const mark = () => { lastUser = Date.now(); };
+    const markKey = (e) => { if (e.key === 'Tab') mark(); };
+    const onFocusIn = (e) => {
+      const input = inputRef.current;
+      const dialog = input?.closest?.('[role="dialog"]');
+      if (!input || !dialog || dialog.contains(e.target)) return;
+      if (Date.now() - lastUser < 600) return;      // 사람이 옮긴 것
+      input.focus();
+    };
+    document.addEventListener('pointerdown', mark, true);
+    document.addEventListener('keydown', markKey, true);
+    document.addEventListener('focusin', onFocusIn, true);
+    return () => {
+      document.removeEventListener('pointerdown', mark, true);
+      document.removeEventListener('keydown', markKey, true);
+      document.removeEventListener('focusin', onFocusIn, true);
+    };
+  }, [open]);
+
   const run = async () => {
     const text = q.trim();
     if (!text || busy) return;
