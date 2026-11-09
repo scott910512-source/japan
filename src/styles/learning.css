@@ -513,3 +513,9 @@
 /* 온보딩 건너뛰기 — 손가락이 닿게 */
 .ob-skip { min-height: 36px; padding: 6px 10px; }
 .td-firstnote { margin: -4px 4px 10px; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+
+/* 외우는 법 메모(퀴즈 안) — 접힌 채로는 작은 한 줄 */
+.wordmemo { margin: 6px 0 0; display: grid; gap: 6px; justify-items: center; }
+.wordmemo .sc-peek { min-height: 40px; }
+.wordmemo-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, #e69a3a); margin-left: 6px; vertical-align: middle; }
+.wordmemo .memo, .wordmemo .memo-add, .wordmemo .memo.editing { width: 100%; text-align: left; }

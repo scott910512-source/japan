@@ -15,7 +15,8 @@ try {
     const settings = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify({ ...settings, onboarded: true, canReadKana: true, autoTTS: false }));
   });
-  await page.waitForTimeout(900); await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1200);
+  /* 서비스워커가 코스 자료(N3 조각)까지 미리 받아 둘 시간을 준다 — 짧으면 오프라인에서 N3 화면이 안 뜬다 */
+  await page.waitForTimeout(6000); await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2500);
   await context.setOffline(true); await page.locator('.gate-offline').waitFor({ timeout: 15000 }); await page.locator('.gate-offline').click();
   await page.getByRole('button', { name: '↗ 레벨 진단', exact: true }).click();
   await page.locator('.n3-quiz').waitFor();

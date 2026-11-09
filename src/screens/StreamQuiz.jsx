@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
+import WordMemo from '../components/WordMemo.jsx';
 import { avoidToday } from '../lib/dayflow.js';
 import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
@@ -14,6 +15,7 @@ import {
   KIND, KIND_LABEL, MIN_POOL, buildPool, judge, newSession, pickNext, poolCounts, questionFor,
   record, shouldRecord, summarize, verdictFor,
 } from '../lib/stream.js';
+import { otherWordNote } from '../lib/quiz.js';
 
 /* 쭉 퀴즈 — 외운 것을 끊지 않고 이어서 묻는다.
  *
@@ -175,7 +177,9 @@ export default function StreamQuiz({
     }
     const res = judge(cur.q, input);
     if (res.verdict === 'close') { setAnswered({ value: input, verdict: 'close', ok: null }); return; }
-    finalize(res.verdict === 'correct', input, { why: res.why, expected: res.expected });
+    /* 한→일 직접 쓰기에서 다른 낱말을 쳤으면 그 낱말의 뜻을 같이 알려 준다 */
+    const why = res.why || (res.verdict === 'wrong' && !cur.q.promptJp && cur.q.word ? otherWordNote(words, input, cur.q.word) : null);
+    finalize(res.verdict === 'correct', input, { why: why || undefined, expected: res.expected });
   };
 
   /* ★ 잘 모르겠어요 ★ 찍어서 맞히면 모르는 것이 아는 것으로 세어져 복습 간격이 틀어진다.
@@ -189,6 +193,29 @@ export default function StreamQuiz({
   const settleClose = (ok) => finalize(ok, answered.value, { closed: true });
 
   const speak = (text) => speakJapanese(text, settings?.speechRate);
+
+  /* ★ 자동 읽기(설정의 「자동 읽기」) — 단어 시험과 같은 규칙 ★
+     일→한 문제는 문제 글자를 읽어 주는 거라 바로 읽어도 답이 새지 않는다.
+     한→일(문제가 한국어)은 정답이 소리로 새니 답을 낸 뒤에만 읽는다. 한 문항에서 한 번만 읽는다. */
+  const spokenFor = useRef(null);
+  useEffect(() => {
+    if (!settings?.autoTTS || phase !== 'run' || checkpoint || !cur?.q?.speak) return;
+    if (!cur.q.promptJp && !answered) return;
+    if (spokenFor.current === cur) return;
+    spokenFor.current = cur;
+    speak(cur.q.speak);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur, Boolean(answered), phase, checkpoint]);
+  /* 답을 낸 뒤 예문을 한 번 — 낱말을 먼저 읽고 조금 뒤에 문장을 읽는다(기기 음성은 앞것을 끊는다) */
+  const exampleFor = useRef(null);
+  useEffect(() => {
+    if (!settings?.autoTTS || !answered || !cur?.q?.exJp) return;
+    if (exampleFor.current === cur) return;
+    exampleFor.current = cur;
+    const t = setTimeout(() => speak(cur.q.exKana || cur.q.exJp), 1400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur, Boolean(answered)]);
 
   const hasKeyboard = useHasKeyboard();
 
@@ -296,6 +323,9 @@ export default function StreamQuiz({
         )}
       </div>
 
+      {/* 외우는 법 메모 — 낱말 문제에서만, 기본은 접혀 있다 */}
+      {q.word?.id && <WordMemo key={`${q.id}:${q.word.id}`} id={q.word.id} />}
+
       {!isTyping ? (
         <div className="qoptions">
           {q.options.map((o, i) => {
@@ -362,7 +392,15 @@ export default function StreamQuiz({
             <div className="qverdict wrong st-explain">
               <IconX /> 정답은 <b>{q.answerText}</b>{q.answerSub && q.answerSub !== q.answerText ? ` (${q.answerSub})` : ''}
               {answered.why && <div className="qv-ex"><span>{answered.why}</span></div>}
-              {q.explain && <div className="qv-ex"><span>{q.explain}</span></div>}
+              {q.exJp
+                ? (
+                  <div className="qv-ex">
+                    <span lang="ja">{q.exJp}</span>
+                    {q.exKana && <span className="ex-kana" lang="ja">{q.exKana}</span>}
+                    {q.exKo && <span className="ex-ko">{q.exKo}</span>}
+                  </div>
+                )
+                : q.explain && <div className="qv-ex"><span>{q.explain}</span></div>}
             </div>
           )}
           <div className="qnext">

@@ -10,7 +10,7 @@
  *   지워도 되는 것 — 공백, 괄호 주석, 문장부호
  *   절대 못 지우는 것 — 장음 · 촉음 · 작은 가나 · 탁음 · 반탁음 */
 import {
-  checkTyping, judgeTyping, acceptedJp, sensesDiffer, normalizeAnswer,
+  checkTyping, judgeTyping, otherWordNote, acceptedJp, sensesDiffer, normalizeAnswer,
 } from '../../src/lib/quiz.js';
 import {
   normalizeJp, phoneticJp, soundDiff, expandLongVowels, widenKana,
@@ -86,6 +86,24 @@ ok('반각 가나는 전각으로', widenKana('ﾋﾞｰﾙ') === 'ビール', w
 ok('장음은 앞 모음으로 편다', expandLongVowels('びーる') === 'びいる', expandLongVowels('びーる'));
 ok('모르는 자리의 ー는 그대로 둔다', expandLongVowels('ーあ') === 'ーあ');
 ok('같은 말이면 차이가 없다', soundDiff('きって', 'キッテ') === null);
+
+/* ★ 정중한 접두사 お · ご ★ 물을 お水라고 써도 정답이다. おとな의 お를 떼는 것은 받지 않는다 */
+const water = { kanji: '水', kana: 'みず', mean: '물' };
+const adult = { kanji: '大人', kana: 'おとな', mean: '어른' };
+ok('お水는 「물」의 정답이다', checkTyping(water, 'ko-jp', 'お水') === 'correct');
+ok('おみず도 정답이다', checkTyping(water, 'ko-jp', 'おみず') === 'correct');
+ok('접두사 없이 水 · みず도 그대로 정답', checkTyping(water, 'ko-jp', '水') === 'correct' && checkTyping(water, 'ko-jp', 'みず') === 'correct');
+ok('おとな의 お를 뗀 とな는 오답', checkTyping(adult, 'ko-jp', 'とな') !== 'correct');
+ok('おとな · 大人는 그대로 정답', checkTyping(adult, 'ko-jp', 'おとな') === 'correct' && checkTyping(adult, 'ko-jp', '大人') === 'correct');
+
+/* ★ 다른 낱말을 쳤으면 그 낱말의 뜻을 알려 준다 ★ */
+const saku = { id: 'a', kanji: '咲く', kana: 'さく', mean: '피다' };
+const fuku = { id: 'b', kanji: '吹く', kana: 'ふく', mean: '불다;(바람이) 불다' };
+const note = otherWordNote([saku, fuku], '吹く', saku);
+ok('피다에 吹く를 쓰면 「불다」라고 알려 준다', note?.includes('「吹く」(ふく)는 「불다」') && note.includes('「咲く」(さく)'), note);
+ok('읽기(가나)로 쳐도 찾는다', otherWordNote([saku, fuku], 'ふく', saku)?.includes('불다'));
+ok('사전에 없는 말이면 알려 줄 게 없다', otherWordNote([saku, fuku], 'ほげほげ', saku) === null);
+ok('정답 낱말 자신은 대상이 아니다', otherWordNote([saku, fuku], '咲く', saku) === null);
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

@@ -103,6 +103,12 @@ export function judgeTyping(word, dir, input) {
     if (!mine) return { verdict: 'wrong' };
 
     if (accepted.some((a) => normalizeJp(a) === mine)) return { verdict: 'correct' };
+    /* ★ 정중한 접두사 お · ご ★ 「물」을 お水(おみず)라고 쓰는 건 틀린 게 아니다. 낱말 앞에 お · ご를 붙인 것은 같은 낱말로 본다.
+       (반대로 おとな의 お를 떼는 것은 받지 않는다 — 접두사가 아니라 낱말의 일부다.) */
+    if (/^[おご御]/.test(mine)) {
+      const rest = mine.slice(1);
+      if (rest && accepted.some((a) => normalizeJp(a) === rest)) return { verdict: 'correct' };
+    }
     /* 「びいる」처럼 장음을 모음으로 적은 것도 같은 소리다.
        ー를 지우는 게 아니라 펴서 견주기 때문에 びる과는 여전히 다르다. */
     const heard = phoneticJp(raw);
@@ -283,4 +289,17 @@ export function gradeLabel(score) {
   if (score >= 70) return { text: '잘 하고 있어요', tone: 'good' };
   if (score >= 50) return { text: '조금만 더', tone: 'okay' };
   return { text: '다시 외울 때예요', tone: 'weak' };
+}
+
+/* ★ 입력한 말이 다른 낱말일 때 — 그 낱말이 무슨 뜻인지 알려 준다 ★
+ * 「피다」에 吹く(불다)를 쓰면 틀렸다는 말만 들어서는 왜인지 모른다. 입력한 말이 사전에 있는 다른 낱말이면
+ * 「입력한 吹く(ふく)는 불다예요. 피다는 咲く(さく)예요」처럼 두 낱말을 나란히 놓아 준다. 없으면 null. */
+export function otherWordNote(words = [], input, word) {
+  const mine = normalizeJp(String(input ?? '').trim());
+  if (!mine || !word) return null;
+  const hit = words.find((w) => w.id !== word.id && (normalizeJp(w.kanji || '') === mine || normalizeJp(w.kana || '') === mine));
+  if (!hit) return null;
+  const mean = (w) => String(w.mean || '').split(';')[0].trim();
+  const read = (w) => (w.kana && w.kana !== w.kanji ? `(${w.kana})` : '');
+  return `입력한 「${hit.kanji}」${read(hit)}는 「${mean(hit)}」예요. 이 문제의 「${mean(word)}」는 「${word.kanji}」${read(word)}예요.`;
 }

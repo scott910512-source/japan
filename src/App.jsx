@@ -25,6 +25,7 @@ import { kijuIndex } from './lib/kiju.js';
 import { hasSignedInOnce, isGuest, setGuest } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
 import { applyAttempt } from './lib/retestlink.js';
+import { MemoContext } from './lib/memoContext.js';
 import { REGION_RULES, REGION_QUIZ_MIN, regionQuizIds, noteRegionExam, PASS_RATIO } from './lib/regions.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
@@ -488,6 +489,9 @@ export default function App() {
     setOnboardingOpen(false);
   };
 
+  /* 단어 암기 메모 — 퀴즈 어디서든 쓰게 열어 둔다(components/WordMemo.jsx) */
+  const memoCtx = useMemo(() => ({ memos, saveMemo }), [memos, saveMemo]);
+
   if (recovering && authSession) {
     return (
       <div className="app-shell">
@@ -549,6 +553,7 @@ export default function App() {
 
   if (deck) {
     return (
+      <MemoContext.Provider value={memoCtx}>
       <div className="app-shell">
         <div className="screens">
           <section className="screen active">
@@ -609,10 +614,12 @@ export default function App() {
         />
         <Toast message={toast} />
       </div>
+      </MemoContext.Provider>
     );
   }
 
   return (
+    <MemoContext.Provider value={memoCtx}>
     <div className="app-shell hunter-app">
       <Onboarding open={onboardingOpen} onFinish={finishOnboarding} />
       {(activeTab !== 'home' || sub) && <HunterAppHeader guideId={settings.hunterGuide} section={SUB_TITLES[sub] || { study: '학습 본부', me: '나의 헌터 기록', settings: '설정', videos: '영상 수련' }[activeTab]} onAsk={() => setGonOpen(true)} onHome={() => selectAppTab('home')} />}
@@ -918,6 +925,7 @@ export default function App() {
       />
       <Toast message={toast} />
     </div>
+    </MemoContext.Provider>
   );
 }
 

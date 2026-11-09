@@ -7,7 +7,7 @@ export function focusUnlessTyping(el) {
   if (!el) return;
   try {
     const a = document.activeElement;
-    if (a && a !== el && a.matches?.('input, textarea, [contenteditable]:not([contenteditable="false"])') && a.closest?.('.sheet, [role="dialog"]')) return;
+    if (a && a !== el && a.matches?.('input, textarea, [contenteditable]:not([contenteditable="false"])') && a.closest?.('.sheet, [role="dialog"], .wordmemo')) return;
   } catch { /* 초점을 읽지 못하면 그냥 준다 */ }
   el.focus();
 }
@@ -15,5 +15,6 @@ export function focusUnlessTyping(el) {
 /* 질문 창 같은 시트가 열려 있나. 열려 있으면 퀴즈는 저절로 다음 문제로 넘기지 않는다 —
    창에서 이 문제를 물어보는 중에 문제가 사라지면 묻던 것이 무엇인지 모르게 된다. */
 export function sheetOpen() {
-  try { return Boolean(document.querySelector('.sheet.open')); } catch { return false; }
+  /* 외우는 법 메모를 쓰는 중에도 저절로 넘어가지 않는다 */
+  try { return Boolean(document.querySelector('.sheet.open, .wordmemo .memo.editing')); } catch { return false; }
 }
