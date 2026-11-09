@@ -61,7 +61,7 @@ async function boot(browser, autoTTS) {
   /* 낱말 문제가 나올 때까지 */
   let found = false;
   for (let i = 0; i < 10 && !found; i++) {
-    if (await page.locator('.st-q .wordmemo').count()) { found = true; break; }
+    if (await page.locator('.st-run .wordmemo').count()) { found = true; break; }
     if ((await page.locator('.st-run').getAttribute('data-mode')) === 'typing') { await page.locator('.st-input').fill('ㅋ'); await page.locator('.st-submit').click(); } else { await page.locator('.st-opt').first().click(); }
     await page.waitForTimeout(1800);
     const nb = page.locator('.st-next'); if (await nb.count()) await nb.click();
@@ -78,9 +78,8 @@ async function boot(browser, autoTTS) {
   await page.waitForTimeout(300);
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_memos_v1') || '{}'));
   ok('★ 단어 메모 저장소에 들어간다 ★', Object.values(stored).some((m) => m.text === '나무(木) 요일 → 목요일'), JSON.stringify(stored).slice(0, 80));
-  ok('저장하면 닫혀 있어도 「메모 있음」 점이 보인다', true);
-  await page.locator('.wordmemo-toggle').first().click();
-  await page.locator('.wordmemo-toggle').first().click();
+  await page.locator('.wordmemo-toggle').first().click();   // 다시 누르면 접힌다
+  ok('저장하면 접혀 있어도 「메모 있음」 점이 보인다', (await page.locator('.wordmemo').first().getAttribute('data-has')) === '1' && await page.locator('.wordmemo-dot').count() === 1);
   ok('다시 접으면 메모 글이 안 보인다', (await page.locator('.wordmemo .memo-text').count()) === 0);
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 2).join(' | ') || '깨끗');
   await browser.close();

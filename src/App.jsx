@@ -489,6 +489,9 @@ export default function App() {
     setOnboardingOpen(false);
   };
 
+  /* 단어 암기 메모 — 퀴즈 어디서든 쓰게 열어 둔다(components/WordMemo.jsx) */
+  const memoCtx = useMemo(() => ({ memos, saveMemo }), [memos, saveMemo]);
+
   if (recovering && authSession) {
     return (
       <div className="app-shell">
@@ -546,9 +549,6 @@ export default function App() {
 
   /* 자료가 아직 안 왔다 — 로그인 문은 위에서 이미 지났으니 여기서 잠깐 기다린다.
      같은 기기에서 두 번째부터는 사전 캐시에서 바로 온다. */
-  /* 단어 암기 메모 — 퀴즈 어디서든 쓰게 열어 둔다(components/WordMemo.jsx) */
-  const memoCtx = useMemo(() => ({ memos, saveMemo }), [memos, saveMemo]);
-
   if (!content) return <div className="app-shell"><ScreenLoading label="학습 자료를 여는 중" /></div>;
 
   if (deck) {
