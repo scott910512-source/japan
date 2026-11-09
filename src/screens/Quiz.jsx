@@ -110,6 +110,19 @@ export default function Quiz({
     setRun({ questions, answers: {}, index: 0 });
   };
 
+  /* ★ 틀린 것은 퀴즈로 다시 푼다 ★ 카드로 외우기만 하면 「알겠다」고 넘어가기 쉬우니, 같은 판 방식으로 틀린 낱말만 다시 묻는다.
+     retry 표시를 달아, 이 판의 결과는 처음 판의 기록(랜덤 테스트 오늘 몫 · 지역 승급시험)에 또 적히지 않게 한다. */
+  const retryQuiz = (ids) => {
+    const idSet = new Set(ids);
+    const subset = words.filter((w) => idSet.has(w.id));
+    if (!subset.length) { onToast('다시 풀 낱말이 없어요'); return; }
+    const over = flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : weak ? { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO } : null;
+    const cfg = over ? { ...config, ...over } : config;
+    const questions = buildQuiz(subset, { count: subset.length, type: cfg.type, dir: cfg.dir, scope: QUIZ_SCOPE.ALL, review, ledger, mistakes });
+    if (!questions.length) { onToast('출제할 단어가 없어요'); return; }
+    setRun({ questions, answers: {}, index: 0, retry: true });
+  };
+
   /* ★ 약점 퀴즈는 설정을 묻지 않고 바로 시작한다 ★
      퀘스트 한 줄은 한 번 눌러 바로 풀려야 한다. 객관식, 일본어 → 한국어로 정해 두고(약한 낱말을 알아보는 판),
      설정은 건드리지 않는다(다음 일반 시험은 내가 정한 대로). 그만두면 이 화면의 설정이 아니라 온 곳으로 돌아간다. */
@@ -133,6 +146,7 @@ export default function Quiz({
         onRun={setRun}
         onQuit={() => ((weak || flow) && onExit ? onExit() : setRun(null))}
         onRetryWrong={onRetryWrong}
+        onRetryQuiz={retryQuiz}
         onToast={onToast}
         onActivity={onActivity}
         onWeakness={onWeakness}
@@ -231,7 +245,7 @@ export default function Quiz({
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
+function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWrong, onRetryQuiz, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -411,6 +425,8 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
         settings={settings}
         onQuit={onQuit}
         onRetryWrong={onRetryWrong}
+        onRetryQuiz={onRetryQuiz}
+        retry={Boolean(run.retry)}
         onToast={onToast}
         onActivity={onActivity}
         weak={weak}
@@ -605,7 +621,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
 
 /* ── 결과 ── */
 
-function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onToast, onActivity, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
+function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onRetryQuiz, retry = false, onToast, onActivity, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
   const result = useMemo(() => gradeQuiz(questions, answers), [questions, answers]);
 
   /* 시험도 회독 진도를 올리지 않는다. 다만 몇 문항 풀었는지는 활동에 남긴다 —
@@ -616,7 +632,7 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
     noted.current = true;
     onActivity?.({ quizzed: questions.length });
     /* 오늘 랜덤 테스트 · 지역 승급시험을 마쳤다고 적는다. 점수를 같이 넘겨 승급시험이 기록하게 한다 */
-    onComplete?.({ correct: result.correct, total: result.total });
+    if (!retry) onComplete?.({ correct: result.correct, total: result.total });   // 다시 푼 판은 처음 판의 기록에 또 적지 않는다
   }, [questions.length, onActivity, onComplete, result.correct, result.total]);
   const grade = gradeLabel(result.score);
 
@@ -645,9 +661,12 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
               </div>
             ))}
           </div>
-          <button className="bigstart" onClick={() => { onRetryWrong(result.wrongIds); onToast('틀린 단어로 회독을 시작해요'); }}>
-            <span className="bs-t">틀린 단어 바로 외우기</span>
-            <span className="bs-s">{wrongWords.length}장 회독</span>
+          <button className="bigstart quiz-retry" onClick={() => onRetryQuiz?.(result.wrongIds)}>
+            <span className="bs-t">틀린 단어 다시 퀴즈 풀기</span>
+            <span className="bs-s">{wrongWords.length}문제</span>
+          </button>
+          <button className="ghost-btn quiz-retry-cards" style={{ marginTop: 8 }} onClick={() => { onRetryWrong(result.wrongIds); onToast('틀린 단어로 회독을 시작해요'); }}>
+            카드로 외우기 · {wrongWords.length}장
           </button>
         </>
       )}
@@ -655,7 +674,7 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
       {/* ★ 약점 퀴즈로 들어왔으면 말이 다르다 ★
           「다음 레벨로 넘어가 볼까요?」는 일반 시험의 말이다. 약점 퀴즈를 마친 사람에게는 오늘 몫이 얼마나
           찼는지, 맞힌 낱말이 약점에서 빠지는지가 궁금하다. */}
-      {flow ? (
+      {flow && !retry ? (
         <>
           {flow.kind === 'region' ? (
             <div className="card wk-result region-result" data-flow="region" data-total={result.total} data-correct={result.correct}>
@@ -670,7 +689,7 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
           )}
           <button className="submit-btn flow-done" style={{ marginTop: 12 }} onClick={onExit || onQuit}>{flow.kind === 'region' ? '지도로 돌아가기' : '오늘 학습 마치기'}</button>
         </>
-      ) : weak ? (
+      ) : weak && !retry ? (
         <>
           <div className="card wk-result" data-done={weak.done} data-total={weak.total}>
             <b>{weak.complete ? '오늘 약점 퀴즈를 마쳤어요' : `오늘 약점 퀴즈 ${weak.done} / ${weak.total}`}</b>
