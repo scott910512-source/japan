@@ -520,6 +520,7 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
                               <IconSpeaker />
                             </i>
                           </span>
+                          {word.exampleKana && word.exampleKana !== word.example && <span className="qw-kana" lang="ja">{word.exampleKana}</span>}
                           <span className="qw-ko">{word.exampleKo}</span>
                         </>
                       )}
@@ -567,7 +568,8 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
           {answered.verdict === 'wrong' && <><IconX /> 정답은 <b>{q.answer}</b>{q.answerSub && q.answerSub !== q.answer && ` (${q.answerSub})`}</>}
           {word?.example && (
             <div className="qv-ex">
-              <span>{word.example}</span>
+              <span lang="ja">{word.example}</span>
+              {word.exampleKana && word.exampleKana !== word.example && <span className="ex-kana" lang="ja">{word.exampleKana}</span>}
               <span className="ex-ko">{word.exampleKo}</span>
             </div>
           )}

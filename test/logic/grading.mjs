@@ -87,5 +87,14 @@ ok('장음은 앞 모음으로 편다', expandLongVowels('びーる') === 'び�
 ok('모르는 자리의 ー는 그대로 둔다', expandLongVowels('ーあ') === 'ーあ');
 ok('같은 말이면 차이가 없다', soundDiff('きって', 'キッテ') === null);
 
+/* ★ 정중한 접두사 お · ご ★ 물을 お水라고 써도 정답이다. おとな의 お를 떼는 것은 받지 않는다 */
+const water = { kanji: '水', kana: 'みず', mean: '물' };
+const adult = { kanji: '大人', kana: 'おとな', mean: '어른' };
+ok('お水는 「물」의 정답이다', checkTyping(water, 'ko-jp', 'お水') === 'correct');
+ok('おみず도 정답이다', checkTyping(water, 'ko-jp', 'おみず') === 'correct');
+ok('접두사 없이 水 · みず도 그대로 정답', checkTyping(water, 'ko-jp', '水') === 'correct' && checkTyping(water, 'ko-jp', 'みず') === 'correct');
+ok('おとな의 お를 뗀 とな는 오답', checkTyping(adult, 'ko-jp', 'とな') !== 'correct');
+ok('おとな · 大人는 그대로 정답', checkTyping(adult, 'ko-jp', 'おとな') === 'correct' && checkTyping(adult, 'ko-jp', '大人') === 'correct');
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

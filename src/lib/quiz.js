@@ -103,6 +103,12 @@ export function judgeTyping(word, dir, input) {
     if (!mine) return { verdict: 'wrong' };
 
     if (accepted.some((a) => normalizeJp(a) === mine)) return { verdict: 'correct' };
+    /* ★ 정중한 접두사 お · ご ★ 「물」을 お水(おみず)라고 쓰는 건 틀린 게 아니다. 낱말 앞에 お · ご를 붙인 것은 같은 낱말로 본다.
+       (반대로 おとな의 お를 떼는 것은 받지 않는다 — 접두사가 아니라 낱말의 일부다.) */
+    if (/^[おご御]/.test(mine)) {
+      const rest = mine.slice(1);
+      if (rest && accepted.some((a) => normalizeJp(a) === rest)) return { verdict: 'correct' };
+    }
     /* 「びいる」처럼 장음을 모음으로 적은 것도 같은 소리다.
        ー를 지우는 게 아니라 펴서 견주기 때문에 びる과는 여전히 다르다. */
     const heard = phoneticJp(raw);

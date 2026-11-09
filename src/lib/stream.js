@@ -166,6 +166,10 @@ function wordQuestion(item, ctx, rng) {
     dir,
     speak: word.kana || word.kanji,
     explain: word.example ? `${word.example} — ${word.exampleKo || ''}` : '',
+    /* 예문을 줄로 나눠 그린다: 일본어 · 읽기(가나) · 뜻. 읽기가 없으면 한자를 못 읽는 사람이 예문을 못 읽는다 */
+    exJp: word.example || '',
+    exKana: word.exampleKana && word.exampleKana !== word.example ? word.exampleKana : '',
+    exKo: word.exampleKo || '',
   };
 }
 

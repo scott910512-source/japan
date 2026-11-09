@@ -149,6 +149,13 @@ console.log('\n[ 문제 만들기·채점 ]');
     else sawTyping = true;
   }
   ok('단어: 보기가 넷이고 정답이 안에 있다', ok4 && answerIn && sawChoice);
+  /* ★ 정답 카드의 예문에 읽기(가나)가 같이 나온다 ★ 한자를 못 읽는 사람이 예문을 못 읽던 구멍 */
+  const exWord = { ...WORDS[0], example: '資料を配りました。', exampleKana: 'しりょうをくばりました。', exampleKo: '자료를 나눠 줬어요.' };
+  const exCtx = { ...ctx(5), wordById: new Map([...wordById, [exWord.id, exWord]]) };
+  const exq = questionFor({ id: exWord.id, kind: KIND.WORD, d: 0 }, exCtx);
+  ok('★ 정답 카드 예문: 일본어 · 읽기 · 뜻이 따로 있다 ★', exq.exJp === exWord.example && exq.exKana === exWord.exampleKana && exq.exKo === exWord.exampleKo);
+  const noKana = questionFor({ id: exWord.id, kind: KIND.WORD, d: 0 }, { ...exCtx, wordById: new Map([...wordById, [exWord.id, { ...exWord, exampleKana: '' }]]) });
+  ok('읽기가 없으면 빈 칸(줄을 안 그린다)', noKana.exKana === '');
   ok('★ 익숙한 단어는 직접 쓰기도 나온다 ★', sawTyping);
   const weakQs = Array.from({ length: 60 }, (_, i) => questionFor({ id: 'n5-3', kind: KIND.WORD, d: 8 }, ctx(i + 1)));
   ok('★ 약한 단어는 늘 보기가 있는 문제다 ★', weakQs.every((q) => q.mode === 'choice'));
