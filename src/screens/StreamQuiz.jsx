@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
+import WordMemo from '../components/WordMemo.jsx';
 import { avoidToday } from '../lib/dayflow.js';
 import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
@@ -14,6 +15,7 @@ import {
   KIND, KIND_LABEL, MIN_POOL, buildPool, judge, newSession, pickNext, poolCounts, questionFor,
   record, shouldRecord, summarize, verdictFor,
 } from '../lib/stream.js';
+import { otherWordNote } from '../lib/quiz.js';
 
 /* 쭉 퀴즈 — 외운 것을 끊지 않고 이어서 묻는다.
  *
@@ -175,7 +177,9 @@ export default function StreamQuiz({
     }
     const res = judge(cur.q, input);
     if (res.verdict === 'close') { setAnswered({ value: input, verdict: 'close', ok: null }); return; }
-    finalize(res.verdict === 'correct', input, { why: res.why, expected: res.expected });
+    /* 한→일 직접 쓰기에서 다른 낱말을 쳤으면 그 낱말의 뜻을 같이 알려 준다 */
+    const why = res.why || (res.verdict === 'wrong' && !cur.q.promptJp && cur.q.word ? otherWordNote(words, input, cur.q.word) : null);
+    finalize(res.verdict === 'correct', input, { why: why || undefined, expected: res.expected });
   };
 
   /* ★ 잘 모르겠어요 ★ 찍어서 맞히면 모르는 것이 아는 것으로 세어져 복습 간격이 틀어진다.
@@ -318,6 +322,9 @@ export default function StreamQuiz({
           <button className="qc-speak" onClick={() => speak(q.speak)} aria-label="발음 듣기"><IconSpeaker />{hasKeyboard && <kbd className="corner-key">Space</kbd>}</button>
         )}
       </div>
+
+      {/* 외우는 법 메모 — 낱말 문제에서만, 기본은 접혀 있다 */}
+      {q.word?.id && <WordMemo key={`${q.id}:${q.word.id}`} id={q.word.id} />}
 
       {!isTyping ? (
         <div className="qoptions">

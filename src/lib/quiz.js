@@ -290,3 +290,16 @@ export function gradeLabel(score) {
   if (score >= 50) return { text: '조금만 더', tone: 'okay' };
   return { text: '다시 외울 때예요', tone: 'weak' };
 }
+
+/* ★ 입력한 말이 다른 낱말일 때 — 그 낱말이 무슨 뜻인지 알려 준다 ★
+ * 「피다」에 吹く(불다)를 쓰면 틀렸다는 말만 들어서는 왜인지 모른다. 입력한 말이 사전에 있는 다른 낱말이면
+ * 「입력한 吹く(ふく)는 불다예요. 피다는 咲く(さく)예요」처럼 두 낱말을 나란히 놓아 준다. 없으면 null. */
+export function otherWordNote(words = [], input, word) {
+  const mine = normalizeJp(String(input ?? '').trim());
+  if (!mine || !word) return null;
+  const hit = words.find((w) => w.id !== word.id && (normalizeJp(w.kanji || '') === mine || normalizeJp(w.kana || '') === mine));
+  if (!hit) return null;
+  const mean = (w) => String(w.mean || '').split(';')[0].trim();
+  const read = (w) => (w.kana && w.kana !== w.kanji ? `(${w.kana})` : '');
+  return `입력한 「${hit.kanji}」${read(hit)}는 「${mean(hit)}」예요. 이 문제의 「${mean(word)}」는 「${word.kanji}」${read(word)}예요.`;
+}

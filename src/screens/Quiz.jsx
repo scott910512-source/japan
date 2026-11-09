@@ -5,11 +5,12 @@ import {
 import { speakJapanese } from '../lib/tts.js';
 import { markBusy } from '../lib/busy.js';
 import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
+import WordMemo from '../components/WordMemo.jsx';
 import { useQuizHotkeys, useHasKeyboard, shortcutEvent } from '../lib/useHotkeys.js';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
 import {
-  QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf,
+  QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf, otherWordNote,
 } from '../lib/quiz.js';
 import { WEAK_KIND } from '../lib/weak.js';
 import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
@@ -127,6 +128,7 @@ export default function Quiz({
         onAttempt={onAttempt}
         run={run}
         pool={pool}
+        allWords={words}
         settings={settings}
         onRun={setRun}
         onQuit={() => ((weak || flow) && onExit ? onExit() : setRun(null))}
@@ -229,7 +231,7 @@ export default function Quiz({
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
+function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWrong, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -465,6 +467,9 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
         )}
       </div>
 
+      {/* 외우는 법 메모 — 기본은 접혀 있다(정답이 적혀 있을 수 있어서) */}
+      {q.wordId && <WordMemo key={q.wordId} id={q.wordId} />}
+
       {/* 일본어를 고르는 문제에서 읽는 법을 열어 보는 길. 답을 내면 어차피
           보이니 그 전에만 둔다. */}
       {q.type === QUIZ_TYPE.CHOICE && q.dir === QUIZ_DIR.KO_JP && !answered && !shownOpt && (
@@ -566,6 +571,10 @@ function QuizRun({ run, pool, settings, onRun, onQuit, onRetryWrong, onToast, on
         <div className={`qverdict ${answered.verdict}`}>
           {answered.verdict === 'close' && <>거의 맞았어요 — 정답은 <b>{q.answer}</b></>}
           {answered.verdict === 'wrong' && <><IconX /> 정답은 <b>{q.answer}</b>{q.answerSub && q.answerSub !== q.answer && ` (${q.answerSub})`}</>}
+          {/* 다른 낱말을 쳤으면 그 낱말의 뜻을 같이 — 「왜 틀렸는지」를 알 수 있게 */}
+          {answered.verdict === 'wrong' && q.dir === QUIZ_DIR.KO_JP && otherWordNote(allWords, answered.value, word) && (
+            <div className="qv-ex"><span>{otherWordNote(allWords, answered.value, word)}</span></div>
+          )}
           {word?.example && (
             <div className="qv-ex">
               <span lang="ja">{word.example}</span>
