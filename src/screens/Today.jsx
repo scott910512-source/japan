@@ -53,6 +53,9 @@ export default function Today({
   const backLeft = back.left;
   const freshLane = { assigned: lanes.fresh?.assigned || 0, done: lanes.fresh?.done || 0 };
   const freshLeft = Math.max(0, freshLane.assigned - freshLane.done);
+  /* 큰 버튼이 여는 판의 양 — 복습이 남았으면 복습(+약점), 없으면 새로 배우기. 시간은 전체 예상 시간을 개수 비율로 나눈다 */
+  const ctaCount = backLeft > 0 ? backLeft : (freshLeft || planNow?.left || 0);
+  const ctaMinutes = Math.max(1, Math.round((planNow?.minutes || 0) * (ctaCount / Math.max(1, planNow?.left || ctaCount))));
 
   /* 「새로 배우기」에 무엇이 몇 개인지. 있는 것만 적는다. */
   const freshMix = (() => {
@@ -125,7 +128,7 @@ export default function Today({
       {/* 머리는 한 줄로. 여기에 장식을 얹으면 정작 눌러야 할 것이 아래로 밀린다 */}
       <div className="tdhead">
         <div className="th-body">
-          <small>DAILY TRAINING · 하루 10~15분</small>
+          <small>DAILY TRAINING · 하루 약 30분</small>
           <b>{hello}</b>
         </div>
         {streak.count > 0 && (
@@ -147,8 +150,8 @@ export default function Today({
       )}
 
       {/* ★ 누를 것은 하나 ★ 하던 게 있으면 이어하기, 없으면 오늘 학습 시작.
-          갈래를 안 주니 배정된 것을 순서대로 다 돈다 — 복습이 없는 날은 저절로
-          새로 배우기부터 시작한다. */}
+          복습이 남았으면 복습(약점 포함)만 돈다. 새 단어는 새로 배우기 퀘스트에서 —
+          복습이 없는 날만 새로 배우기부터 시작한다. */}
       {!allDone && (
         <button className="bigcta" onClick={resuming ? onResume : onStartAll}>
           <span className="bc-icon"><IconPlay /></span>
@@ -158,7 +161,8 @@ export default function Today({
               {resuming
                 ? `${resumeLabel || '학습'} · ${session.round}회독 · ${session.queue.length}개 남음`
                 : (planNow?.assigned > 0
-                  ? `약 ${planNow?.minutes || 0}분 · ${planNow?.left || 0}개`
+                  /* 큰 버튼은 복습부터 한다(새 단어는 새로 배우기 퀘스트에서). 복습이 없는 날만 새로 배우기부터 */
+                  ? `${backLeft > 0 ? '복습' : '새로 배우기'} ${ctaCount}개 · 약 ${ctaMinutes}분`
                   : '오늘 배정된 게 없어요 — 학습 탭에서 골라 보세요')}
             </span>
           </span>

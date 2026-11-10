@@ -4,6 +4,7 @@ import { supabase, supabaseConfigured } from '../lib/supabase.js';
 import { syncNow, pushMerged } from '../lib/sync.js';
 import { mergeSyncedSettings, pickSyncedSettings } from '../lib/merge.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from '../lib/crypto.js';
+import { looksPacked, reconcileKeys, unpackKeys } from '../lib/keyvault.js';
 import { AUTH_READY_TIMEOUT, sessionFrom } from '../lib/authboot.js';
 
 // 기존 서버 왕복과 병합 규칙을 보존한 계정 어댑터. 학습 화면은 서버에 직접 접근하지 않는다.
@@ -147,37 +148,39 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     saveVaultKey(raw);
   }, []);
 
-  /* API 키를 계정에 자동으로 잠가 두고, 새 기기에서는 자동으로 풀어 온다.
-   * 사용자가 따로 누를 게 없어야 한다 — 눌러야 하면 안 누른다. */
+  /* API 키(음성 · AI)를 계정에 자동으로 잠가 두고, 새 기기에서는 자동으로 풀어 온다.
+   * 사용자가 따로 누를 게 없어야 한다 — 눌러야 하면 안 누른다. 규칙은 lib/keyvault.js. */
   useEffect(() => {
     if (!authSession?.user || !vaultKey) return;
-
-    // 이 기기에 키가 없고 서버에 봉투가 있으면 → 풀어서 가져온다
-    if (!settings.gttsKey && remoteKeyEnvelope) {
-      decryptWithVaultKey(remoteKeyEnvelope, vaultKey).then((key) => {
-        if (key) {
-          patchSettings({ gttsKey: key });
-          showToast('음성 키를 계정에서 가져왔어요');
-        } else {
-          // 비밀번호를 바꿨으면 예전 봉투는 못 연다
-          showToast('계정에 보관된 음성 키를 열지 못했어요. 키를 다시 넣어 주세요');
-        }
-      });
+    /* 업데이트 전 버전이 새 봉투를 열어 묶음 글자를 음성 키 칸에 통째로 넣었으면 풀어서 제자리에 둔다 */
+    if (looksPacked(settings.gttsKey)) {
+      const fixed = unpackKeys(settings.gttsKey);
+      patchSettings({ gttsKey: fixed.gttsKey, ...(settings.geminiKey ? {} : { geminiKey: fixed.geminiKey }) });
       return;
     }
-
-    // 이 기기에 키가 있으면 → 서버 봉투를 이 키로 맞춰 둔다
-    if (settings.gttsKey) {
-      decryptWithVaultKey(remoteKeyEnvelope, vaultKey).then(async (stored) => {
-        if (stored === settings.gttsKey) return; // 이미 같은 키가 올라가 있다
-        const envelope = await encryptWithVaultKey(settings.gttsKey, vaultKey);
-        try {
-          await saveRemoteKey(envelope);
-        } catch { /* 다음 동기화에서 다시 시도한다 */ }
-      });
-    }
+    let live = true;
+    (async () => {
+      const plain = remoteKeyEnvelope ? await decryptWithVaultKey(remoteKeyEnvelope, vaultKey) : null;
+      if (!live) return;
+      const stored = unpackKeys(plain);
+      const hasLocal = Boolean(settings.gttsKey || settings.geminiKey);
+      if (remoteKeyEnvelope && !stored && !hasLocal) {
+        // 비밀번호를 바꿨으면 예전 봉투는 못 연다
+        showToast('계정에 보관된 API 키를 열지 못했어요. 키를 다시 넣어 주세요');
+        return;
+      }
+      const { pull, push } = reconcileKeys({ gttsKey: settings.gttsKey, geminiKey: settings.geminiKey }, stored);
+      if (Object.keys(pull).length) {
+        patchSettings(pull);
+        showToast(pull.geminiKey && pull.gttsKey ? 'API 키를 계정에서 가져왔어요' : pull.geminiKey ? 'AI 키를 계정에서 가져왔어요' : '음성 키를 계정에서 가져왔어요');
+      }
+      if (push) {
+        try { await saveRemoteKey(await encryptWithVaultKey(push, vaultKey)); } catch { /* 다음 동기화에서 다시 시도한다 */ }
+      }
+    })();
+    return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authSession, vaultKey, settings.gttsKey, remoteKeyEnvelope]);
+  }, [authSession, vaultKey, settings.gttsKey, settings.geminiKey, remoteKeyEnvelope]);
 
   /* 공부한 걸 자동으로 올린다.
    * 로그인할 때와 버튼을 누를 때만 올리면, 메모를 적고 다른 기기를 열었을 때 없다.

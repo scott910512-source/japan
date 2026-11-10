@@ -56,7 +56,7 @@ export default function BottomSheet({ open, onClose, label = '시트', children 
         /* 제일 위에 있는 것부터 닫힌다 — 시트가 열려 있는데 뒤쪽 화면이
            같이 닫히면 하던 학습이 통째로 날아간다. */
         e.stopPropagation();
-        onClose?.();
+        closeRef.current?.();
         return;
       }
       if (e.key !== 'Tab') return;
@@ -81,7 +81,10 @@ export default function BottomSheet({ open, onClose, label = '시트', children 
       // 닫히면 눌렀던 자리로 되돌린다. 사라진 요소면 아무 일도 안 일어난다.
       came.current?.focus?.();
     };
-  }, [open, onClose]);
+    /* ★ onClose를 의존성에 넣지 않는다 ★ 부모가 그릴 때마다 새 함수를 주면 이 효과가 다시 돌면서
+       「닫힐 때 하는 일」(초점을 원래 자리로)이 열려 있는 중에 실행됐다 — 질문을 치는 중에 초점이 단추로 튀던 원인. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   return (
     <>

@@ -114,6 +114,10 @@ async function stubAI(page, body = ANSWER) {
   await page.locator('.asksheet .submit-btn').click();
   await page.waitForTimeout(900);
   ok('답이 뜬다', (await page.locator('.ask-text').innerText()).includes('진행형'));
+  /* ★ 답이 온 뒤 다시 누르지 않고 바로 다음 질문을 친다 ★ (잠갔다 풀면서 초점이 빠지던 것 · 초점이 단추로 튀던 것) */
+  await page.keyboard.type('next');
+  ok('★ 답이 온 뒤에도 초점이 글상자에 있고, 글상자는 비워져 다음 질문이 바로 들어간다 ★', (await page.locator('.asksheet textarea').inputValue()) === 'next', await page.locator('.asksheet textarea').inputValue());
+  await page.locator('.asksheet textarea').fill('');
   ok('★ 답은 곤이 알려 준다 ★', (await page.locator('.ask-ans .hunter-tutor').getAttribute('data-guide')) === 'gon');
   ok('AI가 답한 거라고 적혀 있다', (await page.locator('.ask-warn').innerText()).includes('AI'));
   ok('한 번 불렀다', calls.n === 1, `${calls.n}번`);

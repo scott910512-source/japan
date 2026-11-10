@@ -268,6 +268,16 @@ export default function App() {
   const [levelOverride, setLevelOverride] = useState(null);
   useEffect(() => { if (!sub && !deck) setLevelOverride(null); }, [sub, deck]);
   const effSettings = useMemo(() => (levelOverride ? { ...settings, levels: levelOverride } : settings), [settings, levelOverride]);
+  /* 지도에서 연 화면에서 레벨 칩을 눌러도 저장된 설정은 안 바꾼다 — 그 화면의 레벨만 바뀐다 */
+  const patchSettingsEff = useCallback((patch) => {
+    if (levelOverride && patch && 'levels' in patch) {
+      const { levels, ...rest } = patch;
+      setLevelOverride(Array.isArray(levels) ? levels : []);
+      if (Object.keys(rest).length) patchSettings(rest);
+      return;
+    }
+    patchSettings(patch);
+  }, [levelOverride, patchSettings]);
 
   /* 회독 판을 짜는 함수들은 app/useStudyQueue.js에 — 오늘의 학습·이어하기·
      단어·복습·취약·JLPT 세트·시험 오답. 동작은 App에 있던 그대로다. */
@@ -647,7 +657,9 @@ export default function App() {
             grammarLeft={grammarLeft}
             grammarNext={grammarNext}
             /* ★ 주요 버튼 하나 ★ 갈래를 안 주면 배정된 것을 순서대로 다 돈다. */
-            onStartAll={() => guardDeck(() => startToday(null), LANE_DECK(null))}
+            /* ★ 큰 버튼은 복습부터 ★ 새 단어는 「새로 배우기」 퀘스트에서만 배운다 — 예전엔 복습·약점·신규를 한 판에 섞어서,
+               큰 버튼으로 하면 아래 퀘스트의 새로 배우기가 저절로 끝나 있었다. 복습이 없는 날만 새로 배우기부터 시작한다. */
+            onStartAll={() => { const lanes = reviewLeft > 0 ? ['review', 'weak'] : ['fresh']; guardDeck(() => startToday(lanes), LANE_DECK(lanes)); }}
             onStartWords={() => guardDeck(() => startToday(['fresh']), LANE_DECK(['fresh']))}
             onStartReview={() => guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']))}
             onOpenGrammar={() => openMenu('grammar')}
@@ -817,7 +829,7 @@ export default function App() {
                 words={words}
                 review={review}
                 settings={effSettings}
-                patchSettings={patchSettings}
+                patchSettings={patchSettingsEff}
                 startWordDeck={startWordDeck}
                 startKijuDeck={startKijuDeck}
                 startJlptSet={startJlptSet}
