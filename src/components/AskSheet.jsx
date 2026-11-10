@@ -115,6 +115,11 @@ export default function AskSheet({
       setErr(e.message || '물어보지 못했어요');
     } finally {
       setBusy(false);
+      /* 마우스로 「물어보기」를 누르면 초점이 버튼에 가 있다 — 키보드가 있는 기기에서는 글상자로 되돌려 바로 다음 질문을 치게 한다.
+         터치 기기에서는 안 한다(화면 자판이 다시 올라와 방금 온 답을 가린다). */
+      try {
+        if (window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) setTimeout(() => inputRef.current?.focus(), 0);
+      } catch { /* 초점을 못 줘도 물어보기는 된다 */ }
     }
   };
 
