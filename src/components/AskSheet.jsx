@@ -90,7 +90,7 @@ export default function AskSheet({
     /* 같은 걸 또 물으면 요금만 또 나간다. 그리고 비행기 모드에서도 아까 받은
        건 다시 볼 수 있어야 한다. */
     const had = findAsk(history, card?.id, text);
-    if (had) { setShown(had); return; }
+    if (had) { setShown(had); setQ(''); return; }
 
     if (!navigator.onLine) {
       setErr('물어보려면 인터넷이 있어야 해요. 전에 물어본 건 아래에 남아 있어요.');
@@ -110,10 +110,16 @@ export default function AskSheet({
       };
       setShown(entry);
       onHistory(rememberAsk(history, entry));
+      setQ('');   // 물은 글은 답 위에 남아 있다 — 글상자는 비워서 다음 질문을 바로 치게 한다
     } catch (e) {
       setErr(e.message || '물어보지 못했어요');
     } finally {
       setBusy(false);
+      /* 마우스로 「물어보기」를 누르면 초점이 버튼에 가 있다 — 키보드가 있는 기기에서는 글상자로 되돌려 바로 다음 질문을 치게 한다.
+         터치 기기에서는 안 한다(화면 자판이 다시 올라와 방금 온 답을 가린다). */
+      try {
+        if (window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) setTimeout(() => inputRef.current?.focus(), 0);
+      } catch { /* 초점을 못 줘도 물어보기는 된다 */ }
     }
   };
 
@@ -149,7 +155,10 @@ export default function AskSheet({
               ? `예: ${card.kanji || card.kana}랑 비슷한 말은? / 언제 쓰는 말이야?`
               : '예: 〜ている는 언제 써? / ありがとう랑 どうも 차이는?'}
             rows={2}
-            disabled={busy}
+            /* ★ 기다리는 동안 잠그지(disabled) 않는다 ★ 잠그면 브라우저가 초점을 빼 버려서, 답이 온 뒤 다시 눌러야 다음 질문을 칠 수 있었다.
+               읽기 전용으로만 둔다 — 초점은 그대로라 답이 오면 바로 이어서 친다. */
+            readOnly={busy}
+            aria-busy={busy}
           />
           <button className="submit-btn" disabled={busy || !q.trim() || !ai.apiKey} onClick={run}>
             {busy ? '물어보는 중…' : '물어보기'}

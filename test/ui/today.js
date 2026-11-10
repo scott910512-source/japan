@@ -139,7 +139,7 @@ async function boot(browser, patch = {}, init = null) {
   const cta = await page.textContent('.bigcta');
   ok('무엇을 누르는지 적혀 있다', /오늘 학습 시작|이어하기|새로 배우기/.test(cta),
     cta.replace(/\n/g, ' '));
-  ok('몇 분 · 몇 개인지도 적혀 있다', /약 \d+분 · \d+개/.test(cta), cta.replace(/\n/g, ' '));
+  ok('무엇을 몇 개 · 몇 분인지도 적혀 있다(큰 버튼은 복습부터)', /(복습|새로 배우기) \d+개 · 약 \d+분/.test(cta), cta.replace(/\n/g, ' '));
 
   /* 배정 내역 — 무엇이 몇 개 담겼는지. 갈래만 따로 하고 싶으면 눌러서 한다 */
   const tasks = await page.locator('.tdlist .tdtask').allTextContents();
