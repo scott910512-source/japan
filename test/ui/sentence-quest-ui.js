@@ -110,8 +110,8 @@ async function finishDeck(page) {
     } else await page.waitForTimeout(400);
   }
   ok('★ 마무리 카드가 뜬다 ★', await page.locator('.cmp-questdone').count() === 1, `${solved}문장 조립`);
-  ok('★ 마무리 카드에 「다음」(오늘의 N3나 랜덤 테스트)과 「오늘로」가 있다 ★', await page.locator('.cmp-questnext').count() === 1 && (await page.locator('.cmp-questdone button', { hasText: '오늘로' }).count()) === 1, await page.locator('.cmp-questnext').count() ? await page.locator('.cmp-questnext').innerText() : '다음 없음');
-  await page.locator('.cmp-questdone button', { hasText: '오늘로' }).click().catch(() => {});
+  ok('★ 마무리 카드에 「다음」(오늘의 N3나 랜덤 테스트)과 「홈으로」가 있다 ★', await page.locator('.cmp-questnext').count() === 1 && (await page.locator('.cmp-questdone button', { hasText: '홈으로' }).count()) === 1, await page.locator('.cmp-questnext').count() ? await page.locator('.cmp-questnext').innerText() : '다음 없음');
+  await page.locator('.cmp-questdone button', { hasText: '홈으로' }).click().catch(() => {});
   await page.waitForTimeout(700);
   await goTab(page, '오늘');
   const r1 = await rowText(page, '문장 퀘스트');

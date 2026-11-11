@@ -465,6 +465,17 @@ export default function App() {
     const n = nextStep(step, flowOpen);
     return n ? { ...n, go: () => goStep(n.to) } : null;
   };
+  /* ★ 틀린 단어를 카드로 외우는 판도 하루 흐름을 잇는다 ★
+     약점 퀴즈(또는 오늘 랜덤 테스트)의 결과에서 「카드로 외우기」로 넘어가면 그 판이 끝난 뒤 「오늘로」만 남아서
+     쭉 퀴즈로 이어지던 길이 끊겼다. 어느 단계에서 넘어왔는지 적어 두고, 판이 끝나면 그다음 단계를 내민다. */
+  const [wrongFrom, setWrongFrom] = useState(null);
+  const startQuizWrong = useCallback((ids) => {
+    setWrongFrom(weakQuizOn.current ? 'weakquiz' : randomOn.current ? 'random' : null);
+    startQuizWrongDeck(ids);
+  }, [startQuizWrongDeck]);
+  const deckStep = (id) => (String(id || '').startsWith('quizwrong-') ? wrongFrom : stepOfDeck(id));
+  /* 하루 흐름의 끝 화면마다 「다음: ○○」 옆에 두는 「홈으로」 — 어디서 들어왔든 오늘 화면으로 간다 */
+  const goHome = useCallback(() => { setDeck(null); selectTab('home'); }, [setDeck, selectTab]);
   const openReview = useCallback(() => { setActiveTab('me'); openSub('review'); }, [setActiveTab, openSub]);
   const openMenu = useCallback((id, opts = {}) => {
     /* 지도에서 N5 지역을 눌렀는데 설정의 레벨(N3 등)로 열리면 안 된다 — 그 화면에서만 레벨을 덮어쓴다(설정은 안 바꾼다) */
@@ -588,12 +599,12 @@ export default function App() {
               onBookmark={toggleBookmark}
               onToast={showToast}
               /* 하루 흐름의 판(복습 · 새 단어)이면 그 흐름의 다음 단계를, 아니면 덱이 정한 다음을 */
-              flowNext={deck.id === 'quest:sentence' ? { to: 'practice', label: '문장 만들기 연습', go: () => startSentencePractice() } : stepOfDeck(deck.id) ? flowAfter(stepOfDeck(deck.id)) : undefined}
+              flowNext={deck.id === 'quest:sentence' ? { to: 'practice', label: '문장 만들기 연습', go: () => startSentencePractice() } : deckStep(deck.id) ? flowAfter(deckStep(deck.id)) : undefined}
               onMore={stepOfDeck(deck.id) === 'fresh' ? () => learnMoreAndStart(MORE_STEP) : null}
               onNext={deck.id === 'quest:sentence'
                 ? () => startSentencePractice()
-                : stepOfDeck(deck.id)
-                ? (flowAfter(stepOfDeck(deck.id))?.go || null)
+                : deckStep(deck.id)
+                ? (flowAfter(deckStep(deck.id))?.go || null)
                 : (deck.next ? () => {
                   if (deck.next.to === 'fresh') { startToday(['fresh']); return; }
                   setDeck(null);
@@ -843,7 +854,7 @@ export default function App() {
                 trends={trends}
                 setTrends={setTrends}
                 setCustomWords={setCustomWords}
-                startQuizWrongDeck={startQuizWrongDeck}
+                startQuizWrongDeck={startQuizWrong}
                 noteActivity={noteActivity}
                 /* 약점 장부 — 시험과 듣기가 한 줄씩 적는다 */
                 noteWeakness={noteWeaknessQuiz}
@@ -867,6 +878,7 @@ export default function App() {
                 onOpenDrill={(id) => openSub(id, 'drill')}
                 onVerdicts={applyVerdicts}
                 onExit={closeSub}
+                onHome={goHome}
                 weakQuiz={weakQuiz}
                 weakQuizOn={weakQuizMode}
                 /* 약점 퀴즈를 마치면 오늘 퀘스트의 다음 줄 — 쭉 퀴즈가 남았으면 바로 이어 간다 */

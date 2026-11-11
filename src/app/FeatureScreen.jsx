@@ -43,6 +43,8 @@ export default function FeatureScreen({
   onOpenDrill,
   onVerdicts,
   onExit,
+  /* 하루 흐름의 끝 화면에 두는 「홈으로」 — 어디서 들어왔든 오늘 화면으로 */
+  onHome = null,
   weakQuiz = null,
   weakQuizOn = false,
   onNextQuest = null,
@@ -102,6 +104,7 @@ export default function FeatureScreen({
                 onToast={showToast}
                 initialView={n3View}
                 flowNext={n3Next}
+                onHome={onHome}
               />
             )}
             {/* 듣기 고르기 — 자동 듣기 · 따라 말하기 · 영상. 학습 탭 「듣기」에서 연다 */}
@@ -165,6 +168,7 @@ export default function FeatureScreen({
                 /* 약점 퀴즈로 들어왔으면 결과 화면이 오늘 몫을 말한다 */
                 weak={weakQuizOn ? weakQuiz : null}
                 onExit={onExit}
+                onHome={onHome}
                 onNextQuest={weakQuizOn ? onNextQuest : null}
                 nextLabel={nextQuestLabel}
                 flow={regionExam ? { kind: 'region', label: regionExam.label, pass: regionExam.pass } : randomOn ? { kind: 'random' } : null}
@@ -227,6 +231,7 @@ export default function FeatureScreen({
                 next={streamNext}
                 seenToday={seenToday}
                 questDone={streamQuestDone}
+                onHome={onHome}
               />
             )}
             {sub === 'speak' && (
@@ -247,6 +252,7 @@ export default function FeatureScreen({
                 focusIds={composeFocus?.ids || null}
                 questTarget={composeFocus?.target || 0}
                 questNext={composeNext}
+                onHome={onHome}
                 onAttempt={onAttempt}
                 sentences={sentenceCards}
                 review={review}

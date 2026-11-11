@@ -3,6 +3,7 @@
  * 키가 없거나 호출이 실패하면 브라우저 내장 speechSynthesis로 자동 폴백한다. */
 
 import { addChars } from './usage.js';
+import { spokenKana } from './jptext.js';
 
 const GTTS_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 const DEFAULT_VOICE = 'ja-JP-Neural2-B';
@@ -637,6 +638,9 @@ async function speakCloud(text, rate, token, lang = 'ja', beforePlay = null) {
 export function readingText(kana, fallback) {
   const source = kana || fallback || '';
   const first = source.split(/\s*\/\s*/)[0].trim();
+  /* 읽기(가나)만 넘기면 엔진이 조사 は · へ를 낱말의 일부로 끊어 「하 · 헤」로 읽는 일이 있다(このりょうりはからい → りょうり + はからい).
+     한자 원문을 같이 받았으면 조사 자리만 소리 나는 대로 바꾼다(jptext.spokenKana). 화면에 보이는 읽기는 안 바뀐다. */
+  if (kana && fallback && fallback !== kana) return spokenKana(first || source, fallback);
   return first || source;
 }
 

@@ -32,8 +32,13 @@ export const SYSTEM = `당신은 한국인 일본어 학습자를 돕는 선생�
   틀린 일본어를 자신 있게 가르치는 것이 제일 나쁩니다.
 - 학습자는 지금 공부 중입니다. 인사말·격려·"좋은 질문이에요" 같은 말은 빼고
   바로 답만 합니다.
-- 일본어나 일본 생활과 관계없는 질문이면, answer에 한 줄로 그렇게 말하고
-  items는 비웁니다.
+- 학습자는 앱의 길잡이 캐릭터에게 말을 걸듯 물을 수도 있습니다([길잡이]에 이름이 옵니다).
+  가벼운 잡담이나 길잡이에 대한 질문(좋아하는 것, 명대사, 오늘 기분 등)은 거절하지 마세요.
+  그 길잡이의 말투로 한두 문장만 가볍게 답하고, 답에 어울리는 짧은 일본어 한마디를 items에 담아
+  공부로 이어 줍니다. 원작의 대사를 그대로 옮기려 하지 마세요(틀리게 옮기기 쉽습니다).
+  「내가 자주 하는 말」처럼 공부를 응원하는 한마디를 일본어로 새로 지어 답합니다.
+- 일본어 공부와 아무 상관 없는 일을 시키면(숙제 대필, 코드 작성, 긴 글쓰기 등) answer에 한 줄로
+  여기는 일본어 공부를 돕는 자리라고 말하고 items는 비웁니다.
 
 items에는 답에 나온 일본어 표현만 담습니다. 0개여도 됩니다.
 - 물어본 표현, 비교 대상, 예문 — 학습자가 눈으로 보고 소리로 들어야 하는 것만.
@@ -53,10 +58,12 @@ items에는 답에 나온 일본어 표현만 담습니다. 0개여도 됩니다
  *
  * 이게 없으면 「이거 언제 써?」 같은 말이 안 통한다. 카드를 보면서 묻는 건데
  * 카드를 안 보내면 학습자만 아는 걸 물어보는 셈이 된다. */
-export function userText(question, cardIn = {}) {
+export function userText(question, cardIn = {}, guideName = '') {
   /* 카드 없이 묻는 길(곤에게 물어보기)이 있어 null도 온다 — 기본값은 undefined만 받는다 */
   const card = cardIn || {};
   const lines = [];
+  /* 누구에게 말을 거는지 — 「너의 명대사는 뭐야」의 「너」가 누구인지 모델이 알아야 한다 */
+  if (guideName) { lines.push(`[길잡이] ${guideName}`); lines.push(''); }
   if (card.kanji || card.kana) {
     lines.push(`[지금 보는 카드] ${card.kanji || card.kana}` +
       `${card.kana && card.kana !== card.kanji ? ` (${card.kana})` : ''}` +
@@ -109,9 +116,14 @@ export function askKey(cardId, question) {
   return `${cardId || '-'}|${String(question).trim().toLowerCase().replace(/\s+/g, ' ')}`;
 }
 
+/* 예전 규칙이 「관계없는 질문입니다」로 돌려보낸 답은 다시 꺼내 쓰지 않는다 —
+   규칙을 풀었는데 저장해 둔 거절이 계속 나오면 고친 것이 안 보인다. */
+const OLD_REFUSAL = /관계\s*없는 질문/;
 export function findAsk(history = [], cardId, question) {
   const key = askKey(cardId, question);
-  return history.find((h) => h.key === key) || null;
+  const hit = history.find((h) => h.key === key) || null;
+  if (hit && !(hit.items?.length) && OLD_REFUSAL.test(hit.answer || '')) return null;
+  return hit;
 }
 
 export function rememberAsk(history = [], entry) {
@@ -120,7 +132,7 @@ export function rememberAsk(history = [], entry) {
 }
 
 /* 물어본다. 어느 제공처든 같은 모양으로 돌려준다. */
-export async function ask(question, card, settings = {}) {
+export async function ask(question, card, settings = {}, { guideName = '' } = {}) {
   const q = String(question || '').trim();
   if (!q) throw new Error('궁금한 걸 적어 주세요');
   if (q.length > MAX_QUESTION_CHARS) {
@@ -130,7 +142,7 @@ export async function ask(question, card, settings = {}) {
   const { provider, apiKey, model } = resolveProvider(settings);
   if (!apiKey) throw new Error('설정에서 AI 키를 넣어 주세요');
 
-  const args = { apiKey, model, system: SYSTEM, user: userText(q, card) };
+  const args = { apiKey, model, system: SYSTEM, user: userText(q, card, guideName) };
   const text = provider === PROVIDERS.CLAUDE
     ? await callClaude({ ...args, maxTokens: 1200 })
     /* 답은 짧지만 Gemini 2.5는 생각하는 토큰도 이 한도에서 깎아 먹는다.

@@ -3,7 +3,7 @@ import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
 import WordMemo from '../components/WordMemo.jsx';
 import { avoidToday } from '../lib/dayflow.js';
 import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.jsx';
-import { speakJapanese } from '../lib/tts.js';
+import { speakJapanese, readingText } from '../lib/tts.js';
 import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows, rowOf, speakText, textInfo } from '../lib/optionInfo.js';
 import { useHasKeyboard } from '../lib/useHotkeys.js';
@@ -36,7 +36,7 @@ const loadBatch = () => {
 export default function StreamQuiz({
   words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit, onAttempt, onAnswered,
   /* 하루 흐름 — 쭉 퀴즈 오늘 몫(스무 문제)을 마치면 다음 단계를 바로 내민다. next = { label, go } */
-  next = null, questDone = false, seenToday = null,
+  next = null, questDone = false, seenToday = null, onHome = null,
 }) {
   const goal = goalOf(settings);
   const [n3, setN3] = useState(null);
@@ -114,6 +114,7 @@ export default function StreamQuiz({
     const first = nextQuestion(fresh);
     if (!first) { onToast?.('낼 수 있는 문제가 없어요'); return; }
     lastCheck.current = 0; setCheckpoint(false);
+    questShown.current = questDone;   // 이미 오늘 몫을 마치고 다시 들어온 판은 끊지 않는다
     setCur(first); setAnswered(null); setTyped(''); setPhase('run');
   };
 
@@ -125,14 +126,21 @@ export default function StreamQuiz({
     setCur(nxt); setAnswered(null); setTyped('');
   }, [nextQuestion]);
 
+  /* ★ 오늘 몫(스무 문제)을 이 판에서 채웠으면 그 자리에서 멈춰 「다음: ○○」를 내민다 ★
+     전에는 한 묶음이 끝나야만 물었다. 앞서 몇 문제 풀어 둔 날이나, 한 번에 30문제 · 끝없이로 둔 사람은
+     퀘스트를 마치고도 다음 단계가 안 나와서 하루 흐름이 여기서 끊겼다. */
+  const questShown = useRef(questDone);
   const advance = useCallback(() => {
     clearTimeout(timer.current);
     const n = sessionRef.current.log.length;
+    if (questDone && next && !questShown.current && n > 0) {
+      questShown.current = true; lastCheck.current = n; setCheckpoint(true); return;
+    }
     if (batch > 0 && n > 0 && n % batch === 0 && lastCheck.current !== n) {
       lastCheck.current = n; setCheckpoint(true); return;
     }
     goNext();
-  }, [goNext, batch]);
+  }, [goNext, batch, questDone, next]);
 
   const { keyboard, takeControl } = useQuizHotkeys({
     options: phase === 'run' && !checkpoint ? cur?.q.options : [], onChoose: (o) => { if (!answered) answer(o.key); else { const text = speakText(o.info || textInfo(o.label)); if (text) speak(text); } }, legacyNext: true,
@@ -212,7 +220,7 @@ export default function StreamQuiz({
     if (!settings?.autoTTS || !answered || !cur?.q?.exJp) return;
     if (exampleFor.current === cur) return;
     exampleFor.current = cur;
-    const t = setTimeout(() => speak(cur.q.exKana || cur.q.exJp), 1400);
+    const t = setTimeout(() => speak(readingText(cur.q.exKana, cur.q.exJp)), 1400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cur, Boolean(answered)]);
@@ -268,7 +276,7 @@ export default function StreamQuiz({
 
   if (phase === 'sum') {
     return <StreamSummary session={session} goal={goal} wordById={wordById} sentenceById={sentenceById}
-      onAgain={start} onExit={onExit} next={questDone ? next : null} />;
+      onAgain={start} onExit={onExit} onHome={questDone && next ? onHome : null} next={questDone ? next : null} />;
   }
 
   const { q } = cur;
@@ -285,7 +293,7 @@ export default function StreamQuiz({
       <div className="stream st-checkpoint" data-total={total}>
         <div className="card st-card">
           <div className="st-goal">{total}문제를 풀었어요</div>
-          <div className="set-title">여기서 어떻게 할까요?</div>
+          <div className="set-title">{questDone && next ? '오늘 쭉 퀴즈를 마쳤어요' : '여기서 어떻게 할까요?'}</div>
           <p className="set-note st-lead">
             맞힌 것 <b>{right}</b> / {total}{session.streak >= 3 ? ` · 연속 ${session.streak}` : ''}.
             더 풀면 같은 판에서 이어져요. 오늘은 여기까지 하면 지금까지의 평가가 나와요.
@@ -293,6 +301,7 @@ export default function StreamQuiz({
           {questDone && next && <button className="submit-btn st-next" onClick={next.go}>다음: {next.label}</button>}
           <button className={`${questDone && next ? 'ghost-btn' : 'submit-btn'} st-continue`} onClick={goNext}>계속하기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
           <button className="ghost-btn st-enough" onClick={() => { setCheckpoint(false); setPhase('sum'); }}>오늘은 여기까지</button>
+          {questDone && next && onHome && <button className="ghost-btn st-home" onClick={onHome}>홈으로</button>}
         </div>
       </div>
     );
@@ -423,7 +432,7 @@ function labelOf(id, wordById, sentenceById) {
   return { main: id, sub: '문법' };
 }
 
-function StreamSummary({ session, goal, wordById, sentenceById, onAgain, onExit, next = null }) {
+function StreamSummary({ session, goal, wordById, sentenceById, onAgain, onExit, onHome = null, next = null }) {
   const r = useMemo(() => summarize(session.log), [session.log]);
   const tone = r.pct >= 90 ? 'great' : r.pct >= 70 ? 'good' : r.pct >= 50 ? 'okay' : 'weak';
   if (r.total === 0) {
@@ -473,7 +482,9 @@ function StreamSummary({ session, goal, wordById, sentenceById, onAgain, onExit,
       <div className="qnext">
         {next && <button className="submit-btn st-next" onClick={next.go}>다음: {next.label}</button>}
         <button className={`${next ? 'ghost-btn' : 'submit-btn'} st-again`} onClick={onAgain}>계속 풀기</button>
-        <button className="ghost-btn st-exit" onClick={onExit}>나가기</button>
+        {onHome
+          ? <button className="ghost-btn st-home" onClick={onHome}>홈으로</button>
+          : <button className="ghost-btn st-exit" onClick={onExit}>나가기</button>}
       </div>
     </div>
   );

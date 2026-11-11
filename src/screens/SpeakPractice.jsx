@@ -4,12 +4,13 @@ import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
 import { markBusy } from '../lib/busy.js';
-import { speakJapanese, speakKorean, stopSpeaking, unlockAudio } from '../lib/tts.js';
+import { speakJapanese, speakKorean, stopSpeaking, unlockAudio, readingText } from '../lib/tts.js';
 import { goalOf } from '../lib/goal.js';
 import { resolveProvider } from '../lib/aiClient.js';
 import {
   SPEAK_DIR, SPEAK_SOURCE, THINK_SECONDS, SPEAK_COUNTS, GEN_COUNT, MAX_TOPIC_CHARS,
   savedSentences, addSentences, removeSentence, speakCounts, buildSpeakQueue, speakSteps, stepMs, generateSentences,
+  speakBatches, pickBatches, batchSentences, batchLabel,
 } from '../lib/speak.js';
 
 /* 말하기 연습 — 문장을 보고 스스로 말해 본 뒤 정답을 듣는다. 마이크는 안 쓴다.
@@ -19,20 +20,35 @@ import {
  * 문장은 배운 문장과, 주제를 적어 AI로 만든 문장(progress.speak에 저장 · 동기화)에서 온다. 규칙은 lib/speak.js. */
 
 const PREF_KEY = 'jp_speak_prefs_v1';
+/* again — 정답을 들은 뒤 한 번 더 말할 차례를 둘지. batches — 연습할 AI 문장 회차(비어 있으면 전부 섞는다) */
+const DEFAULT_PREFS = { dir: SPEAK_DIR.KO_JP, think: 5, count: 10, source: SPEAK_SOURCE.MIX, again: true, batches: [] };
 const loadPrefs = () => {
-  try { return { dir: SPEAK_DIR.KO_JP, think: 5, count: 10, source: SPEAK_SOURCE.MIX, ...(JSON.parse(localStorage.getItem(PREF_KEY) || '{}')) }; } catch { return { dir: SPEAK_DIR.KO_JP, think: 5, count: 10, source: SPEAK_SOURCE.MIX }; }
+  try {
+    const p = { ...DEFAULT_PREFS, ...(JSON.parse(localStorage.getItem(PREF_KEY) || '{}')) };
+    return { ...p, again: p.again !== false, batches: Array.isArray(p.batches) ? p.batches : [] };
+  } catch { return { ...DEFAULT_PREFS }; }
 };
 
 const STEP_LABEL = {
   [SPEAK_DIR.KO_JP]: { prompt: '뜻을 보고 일본어로 떠올려요', think: '소리 내어 말해 보세요', answer: '정답을 들어요', repeat: '따라 말해 보세요' },
-  [SPEAK_DIR.JP_KO]: { prompt: '일본어를 들어요', think: '따라 말해 보세요', answer: '뜻을 확인하고 한 번 더 들어요' },
+  [SPEAK_DIR.JP_KO]: { prompt: '일본어를 들어요', think: '따라 말해 보세요', answer: '뜻을 확인하고 한 번 더 들어요', repeat: '뜻을 떠올리며 한 번 더 말해 보세요' },
 };
 
 export default function SpeakPractice({ sentenceCards = [], review = {}, progress = {}, setProgress, settings = {}, onActivity, onToast, onExit }) {
   const [prefs, setPrefsState] = useState(loadPrefs);
   const setPref = (k, v) => setPrefsState((p) => { const n = { ...p, [k]: v }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* 저장 못 해도 이번 판은 된다 */ } return n; });
   const saved = useMemo(() => savedSentences(progress.speak), [progress.speak]);
-  const counts = useMemo(() => speakCounts({ saved, sentenceCards, review }), [saved, sentenceCards, review]);
+  /* 회차 — 한 번 만들 때 나온 묶음. 고른 회차의 문장만 연습에 쓴다(안 골랐으면 전부) */
+  const batches = useMemo(() => speakBatches(saved), [saved]);
+  const chosen = useMemo(() => pickBatches(batches, prefs.batches), [batches, prefs.batches]);
+  const allBatches = chosen.length === batches.length;
+  const pool = useMemo(() => batchSentences(chosen), [chosen]);
+  const toggleBatch = (id) => {
+    const cur = allBatches ? [] : chosen.map((b) => b.id);
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    setPref('batches', next.length === batches.length ? [] : next);
+  };
+  const counts = useMemo(() => speakCounts({ saved: pool, sentenceCards, review }), [pool, sentenceCards, review]);
   const hasAi = Boolean(resolveProvider(settings).apiKey);
   const level = goalOf(settings);
   const hasKeyboard = useHasKeyboard();
@@ -52,7 +68,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
       /* 몇 개가 새로 들어가는지는 지금 저장된 것으로 센다(갱신 함수 안에서 세면 알림이 먼저 나간다) */
       const { added } = addSentences(progress.speak, list);
       setProgress((p) => { const r = addSentences(p.speak, list); return r.store === p.speak ? p : { ...p, speak: r.store }; });
-      onToast?.(added ? `문장 ${added}개를 저장했어요` : '이미 있는 문장만 와서 더하지 않았어요');
+      onToast?.(added ? `문장 ${added}개를 ${batches.length + 1}회차로 저장했어요` : '이미 있는 문장만 와서 더하지 않았어요');
     } catch (e) {
       setErr(e.message || '문장을 만들지 못했어요');
     } finally { setBusy(false); }
@@ -62,19 +78,19 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
   /* ── 한 판 ── */
   const [run, setRun] = useState(null);       // { items, index, step, done }
   const [paused, setPaused] = useState(false);
-  const [nudge, setNudge] = useState(0);      // 「다시 듣기」 — 같은 걸음을 처음부터 다시
+  const [nudge, setNudge] = useState(0);      // 「다시 듣기」 — 이미 첫 걸음이어도 소리를 다시 내게 하는 신호
   const timer = useRef(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; clearTimeout(timer.current); stopSpeaking(); markBusy('speak', false); }; }, []);
   useEffect(() => { markBusy('speak', Boolean(run && !run.done)); }, [run]);
   useWakeLock(Boolean(run && !run.done && !paused));
 
-  const steps = speakSteps(prefs.dir);
+  const steps = speakSteps(prefs.dir, { again: prefs.again });
   const item = run && !run.done ? run.items[run.index] : null;
   const step = run ? steps[run.step] : null;
 
   const start = () => {
-    const items = buildSpeakQueue({ source: prefs.source, saved, sentenceCards, review, count: prefs.count });
+    const items = buildSpeakQueue({ source: prefs.source, saved: pool, sentenceCards, review, count: prefs.count });
     if (!items.length) { onToast?.('연습할 문장이 아직 없어요 — AI로 문장을 만들거나 문장을 먼저 배워 주세요'); return; }
     unlockAudio();
     setPaused(false);
@@ -94,6 +110,13 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
     if (r.index + 1 >= r.items.length) return finish(r);
     return { ...r, index: r.index + 1, step: 0 };
   });
+  /* 다시 듣기 — 어느 걸음에 있든 이 문장을 처음(뜻 · 소리)부터 다시 간다.
+     「말할 시간」처럼 조용한 걸음에서 그 걸음만 되풀이하면 아무 소리도 안 나서 고장처럼 보였다. */
+  const replay = () => {
+    setPaused(false);
+    setRun((r) => (r && !r.done ? { ...r, step: 0 } : r));
+    setNudge((n) => n + 1);
+  };
   const goPrev = () => setRun((r) => (r && !r.done ? { ...r, index: Math.max(0, r.index - 1), step: 0 } : r));
   const quit = () => {
     clearTimeout(timer.current); stopSpeaking();
@@ -106,7 +129,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
     if (!item || !step) return undefined;
     clearTimeout(timer.current);
     if (paused) { stopSpeaking(); return undefined; }
-    const say = item.kana || item.jp;
+    const say = readingText(item.kana, item.jp);   // 조사 は · へ를 소리 나는 대로(화면의 읽기는 그대로)
     const rate = settings.speechRate;
     if (prefs.dir === SPEAK_DIR.KO_JP) {
       if (step === 'prompt') speakKorean(item.ko, 1);
@@ -126,14 +149,14 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
     }, ms);
     return () => clearTimeout(timer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [run?.index, run?.step, run?.done, paused, nudge, prefs.dir, prefs.think]);
+  }, [run?.index, run?.step, run?.done, paused, nudge, prefs.dir, prefs.think, prefs.again]);
 
   useHotkeys({
     Space: () => { if (run && !run.done) setPaused((v) => !v); },
     Enter: () => { if (!run) start(); else if (run.done) setRun(null); else goNext(); },
     ArrowRight: () => { if (run && !run.done) goNext(); },
     ArrowLeft: () => { if (run && !run.done) goPrev(); },
-    r: () => { if (run && !run.done) { setPaused(false); setNudge((n) => n + 1); } },
+    r: () => { if (run && !run.done) replay(); },
     Escape: () => { if (run) quit(); else onExit?.(); },
   });
 
@@ -154,7 +177,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
   /* ── 흘러가는 중 ── */
   if (run && item) {
     const showJp = prefs.dir === SPEAK_DIR.JP_KO || step === 'answer' || step === 'repeat';
-    const showKo = prefs.dir === SPEAK_DIR.KO_JP || step === 'answer';
+    const showKo = prefs.dir === SPEAK_DIR.KO_JP || step === 'answer' || step === 'repeat';
     const ms = stepMs(step, item, { dir: prefs.dir, think: prefs.think });
     const speakNow = step === 'think' || step === 'repeat';
     return (
@@ -188,7 +211,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
           </button>
           <button className="ghost-btn sp-next" onClick={goNext} aria-label="다음 문장">다음</button>
         </div>
-        <button className="ghost-btn sp-replay" onClick={() => { setPaused(false); setNudge((n) => n + 1); }}><IconSpeaker /> 이 걸음 다시</button>
+        <button className="ghost-btn sp-replay" onClick={replay}><IconSpeaker /> 다시 듣기</button>
       </div>
     );
   }
@@ -198,7 +221,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
   return (
     <div className="speak sp-setup">
       <div className="navtitle"><small>보고 · 생각하고 · 말하기</small>말하기 연습</div>
-      <p className="set-note sp-lead">마이크는 쓰지 않아요. 틀어 두면 문장이 저절로 넘어가요: 뜻 → 말할 시간 → 정답 → 따라 말하기.</p>
+      <p className="set-note sp-lead">마이크는 쓰지 않아요. 틀어 두면 문장이 저절로 넘어가요: {prefs.dir === SPEAK_DIR.JP_KO ? '일본어 → 따라 말하기 → 뜻과 일본어' : '뜻 → 말할 시간 → 정답'}{prefs.again ? ' → 한 번 더 말하기' : ''}.</p>
 
       <div className="section-label">방향</div>
       <div className="ls-pills sp-dirs">
@@ -211,6 +234,12 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
         {THINK_SECONDS.map((s) => <button key={s} className={`ls-pill${prefs.think === s ? ' active' : ''}`} aria-pressed={prefs.think === s} onClick={() => setPref('think', s)}>{s}초</button>)}
       </div>
 
+      <div className="section-label">정답을 들은 뒤</div>
+      <div className="ls-pills sp-agains">
+        <button className={`ls-pill${prefs.again ? ' active' : ''}`} data-again="1" aria-pressed={prefs.again} onClick={() => setPref('again', true)}>한 번 더 말하기</button>
+        <button className={`ls-pill${!prefs.again ? ' active' : ''}`} data-again="0" aria-pressed={!prefs.again} onClick={() => setPref('again', false)}>바로 다음 문장</button>
+      </div>
+
       <div className="section-label">문장</div>
       <div className="ls-pills sp-sources">
         {[[SPEAK_SOURCE.MIX, '섞어서'], [SPEAK_SOURCE.AI, 'AI 문장'], [SPEAK_SOURCE.LEARNED, '배운 문장']].map(([id, label]) => (
@@ -219,6 +248,25 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
           </button>
         ))}
       </div>
+      {prefs.source !== SPEAK_SOURCE.LEARNED && batches.length > 1 && (
+        <>
+          <div className="section-label">AI 문장 회차</div>
+          <div className="ls-pills sp-batches">
+            <button className={`ls-pill${allBatches ? ' active' : ''}`} data-batch="all" aria-pressed={allBatches} onClick={() => setPref('batches', [])}>
+              전체 섞기 <span className="pk-count">{saved.length}개</span>
+            </button>
+            {[...batches].reverse().map((b) => {
+              const on = !allBatches && chosen.some((c) => c.id === b.id);
+              return (
+                <button key={b.id} className={`ls-pill${on ? ' active' : ''}`} data-batch={b.id} data-no={b.no} aria-pressed={on} onClick={() => toggleBatch(b.id)}>
+                  {batchLabel(b)} <span className="pk-count">{b.items.length}개</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="set-note sp-batchnote">회차 하나만 골라 그 문장만 연습하거나, 여러 개를 골라 섞을 수 있어요.</p>
+        </>
+      )}
       <div className="ls-pills sp-counts">
         {SPEAK_COUNTS.map((n) => <button key={n} className={`ls-pill${prefs.count === n ? ' active' : ''}`} aria-pressed={prefs.count === n} onClick={() => setPref('count', n)}>{n}문장</button>)}
       </div>
@@ -243,20 +291,25 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
         {hasAi && <p className="set-note">주제를 비워 두면 일상 회화로 만들어요. 만든 문장은 저장되고 다른 기기에도 넘어가요. AI가 만든 문장이라 어색한 것이 있으면 지워 주세요.</p>}
         {err && <p className="ask-err sp-err">{err}</p>}
         <button className="listrow sp-savedrow" onClick={() => setShowSaved((v) => !v)} aria-expanded={showSaved} disabled={saved.length === 0}>
-          <span className="rv-body"><b>저장한 AI 문장 {saved.length}개</b><span>{saved.length ? '눌러서 보고, 필요 없는 문장은 지워요' : '아직 없어요'}</span></span>
+          <span className="rv-body"><b>저장한 AI 문장 {saved.length}개{batches.length > 1 ? ` · ${batches.length}회차` : ''}</b><span>{saved.length ? '눌러서 보고, 필요 없는 문장은 지워요' : '아직 없어요'}</span></span>
           <IconChevron className="chev" />
         </button>
         {showSaved && saved.length > 0 && (
           <div className="sp-saved">
-            {saved.map((s) => (
-              <div key={s.id} className="sp-row" data-id={s.id}>
-                <span className="sp-rowbody">
-                  <b lang="ja">{s.jp}</b>
-                  {s.kana && <small lang="ja">{s.kana}</small>}
-                  <span>{s.ko}{s.topic ? ` · ${s.topic}` : ''}</span>
-                </span>
-                <button className="sp-say" onClick={() => speakJapanese(s.kana || s.jp, settings.speechRate)} aria-label={`${s.jp} 듣기`}><IconSpeaker /></button>
-                <button className="sp-del" onClick={() => drop(s.id)} aria-label={`${s.jp} 지우기`}><IconTrash /></button>
+            {[...batches].reverse().map((b) => (
+              <div key={b.id} className="sp-batch" data-batch={b.id}>
+                <div className="sp-batchhead"><b>{batchLabel(b, 24)}</b><span>{b.items.length}개</span></div>
+                {b.items.map((s) => (
+                  <div key={s.id} className="sp-row" data-id={s.id}>
+                    <span className="sp-rowbody">
+                      <b lang="ja">{s.jp}</b>
+                      {s.kana && <small lang="ja">{s.kana}</small>}
+                      <span>{s.ko}</span>
+                    </span>
+                    <button className="sp-say" onClick={() => speakJapanese(readingText(s.kana, s.jp), settings.speechRate)} aria-label={`${s.jp} 듣기`}><IconSpeaker /></button>
+                    <button className="sp-del" onClick={() => drop(s.id)} aria-label={`${s.jp} 지우기`}><IconTrash /></button>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

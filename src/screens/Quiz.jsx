@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconCheck, IconX, IconSpeaker, IconArrowLeft, IconEye, IconPencil, IconList, IconRepeat,
 } from '../components/Icons.jsx';
-import { speakJapanese } from '../lib/tts.js';
+import { speakJapanese, readingText } from '../lib/tts.js';
 import { markBusy } from '../lib/busy.js';
 import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
 import WordMemo from '../components/WordMemo.jsx';
@@ -52,7 +52,7 @@ const SCOPE_OPTS = [
  * 겨루는 편이, 안 들은 낱말이 보기로 나오는 것보다 낫다. */
 export default function Quiz({
   words, review, settings, onChange, onToast, onRetryWrong, onActivity, onWeakness,
-  fixedWords = null, ledger = null, mistakes = {}, onAttempt, weak = null, onExit, onNextQuest = null,
+  fixedWords = null, ledger = null, mistakes = {}, onAttempt, weak = null, onExit, onHome = null, onNextQuest = null,
   /* 하루 흐름 — flow: 오늘 랜덤 테스트(설정을 안 묻고 섞어서 바로 시작). nextLabel: 결과 화면 「다음」 버튼의 말.
      onComplete: 결과 화면에 닿으면 한 번 부른다(오늘 몫 적기). */
   flow = null, nextLabel = '쭉 퀴즈로 이어서', onComplete = null,
@@ -153,6 +153,7 @@ export default function Quiz({
         weak={weak}
         onExit={onExit}
         onNextQuest={onNextQuest}
+        onHome={onHome}
         flow={flow}
         nextLabel={nextLabel}
         onComplete={onComplete}
@@ -245,7 +246,7 @@ export default function Quiz({
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWrong, onRetryQuiz, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
+function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWrong, onRetryQuiz, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onHome, onNextQuest, flow, nextLabel, onComplete }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -297,7 +298,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
    * 보낸다 — 한자를 그대로 보내면 음독으로 읽히는 낱말이 있다. */
   const speakExample = useCallback(() => {
     if (!word?.example) return;
-    speakJapanese(word.exampleKana || word.example, settings.speechRate);
+    speakJapanese(readingText(word.exampleKana, word.example), settings.speechRate);
   }, [word, settings.speechRate]);
 
   /* 일→한 문제에서 문제를 읽어 주면 답이 아니라 문제를 들려주는 거라 괜찮다.
@@ -431,6 +432,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
         onActivity={onActivity}
         weak={weak}
         onExit={onExit}
+        onHome={onHome}
         onNextQuest={onNextQuest}
         flow={flow}
         nextLabel={nextLabel}
@@ -621,7 +623,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
 
 /* ── 결과 ── */
 
-function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onRetryQuiz, retry = false, onToast, onActivity, weak, onExit, onNextQuest, flow, nextLabel, onComplete }) {
+function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onRetryQuiz, retry = false, onToast, onActivity, weak, onExit, onHome, onNextQuest, flow, nextLabel, onComplete }) {
   const result = useMemo(() => gradeQuiz(questions, answers), [questions, answers]);
 
   /* 시험도 회독 진도를 올리지 않는다. 다만 몇 문항 풀었는지는 활동에 남긴다 —
@@ -674,9 +676,17 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
       {/* ★ 약점 퀴즈로 들어왔으면 말이 다르다 ★
           「다음 레벨로 넘어가 볼까요?」는 일반 시험의 말이다. 약점 퀴즈를 마친 사람에게는 오늘 몫이 얼마나
           찼는지, 맞힌 낱말이 약점에서 빠지는지가 궁금하다. */}
-      {flow && !retry ? (
+      {/* ★ 틀린 단어를 다시 푼 판(retry)도 하루 흐름을 안 놓친다 ★
+          다시 풀고 나면 「시험 설정으로」만 남아서, 약점 퀴즈 → 쭉 퀴즈로 이어지던 길이 끊겼다.
+          다시 푼 판은 처음 판의 기록에 또 적지 않을 뿐, 다음으로 가는 단추는 그대로 둔다. */}
+      {flow ? (
         <>
-          {flow.kind === 'region' ? (
+          {retry ? (
+            <div className="card wk-result retry-result" data-flow={flow.kind} data-retry="1" data-total={result.total} data-correct={result.correct}>
+              <b>틀린 단어 {result.total}개를 다시 풀었어요</b>
+              <span>{result.correct}개 맞혔어요. {wrongWords.length ? '아직 틀린 단어는 위에서 한 번 더 풀 수 있어요.' : '이제 다 맞혔어요.'}</span>
+            </div>
+          ) : flow.kind === 'region' ? (
             <div className="card wk-result region-result" data-flow="region" data-total={result.total} data-correct={result.correct}>
               <b>{flow.label || '승급시험'} 결과 · {result.correct} / {result.total}</b>
               <span>정답률 {Math.round((result.correct / Math.max(1, result.total)) * 100)}% · 통과 기준 {Math.round((flow.pass || 0.8) * 100)}% 이상. {result.correct / Math.max(1, result.total) >= (flow.pass || 0.8) ? '통과예요! 지도에서 지역이 클리어로 바뀌어요.' : '기준에 못 미쳤어요. 틀린 건 위 목록에서 다시 외우고 또 도전해요.'}</span>
@@ -687,23 +697,30 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
               <span>{result.total}문제 중 {result.correct}개 맞혔어요. 틀린 건 위 목록에서 바로 다시 외울 수 있어요.</span>
             </div>
           )}
-          <button className="submit-btn flow-done" style={{ marginTop: 12 }} onClick={onExit || onQuit}>{flow.kind === 'region' ? '지도로 돌아가기' : '오늘 학습 마치기'}</button>
+          <button className="submit-btn flow-done" style={{ marginTop: 12 }} onClick={flow.kind === 'region' ? (onExit || onQuit) : (onHome || onExit || onQuit)}>{flow.kind === 'region' ? '지도로 돌아가기' : '오늘 학습 마치기 · 홈으로'}</button>
         </>
-      ) : weak && !retry ? (
+      ) : weak ? (
         <>
-          <div className="card wk-result" data-done={weak.done} data-total={weak.total}>
-            <b>{weak.complete ? '오늘 약점 퀴즈를 마쳤어요' : `오늘 약점 퀴즈 ${weak.done} / ${weak.total}`}</b>
-            <span>
-              {wrongWords.length === 0
-                ? '약한 낱말을 다 맞혔어요. 맞힌 만큼 약점 장부에서 점수가 내려가요.'
-                : '틀린 낱말은 약점 장부에 남아서 다음에 또 나와요.'}
-            </span>
-          </div>
+          {retry ? (
+            <div className="card wk-result retry-result" data-retry="1" data-total={result.total} data-correct={result.correct}>
+              <b>틀린 단어 {result.total}개를 다시 풀었어요</b>
+              <span>{result.correct}개 맞혔어요. {wrongWords.length ? '아직 틀린 단어는 위에서 한 번 더 풀 수 있어요.' : '이제 다 맞혔어요.'}</span>
+            </div>
+          ) : (
+            <div className="card wk-result" data-done={weak.done} data-total={weak.total}>
+              <b>{weak.complete ? '오늘 약점 퀴즈를 마쳤어요' : `오늘 약점 퀴즈 ${weak.done} / ${weak.total}`}</b>
+              <span>
+                {wrongWords.length === 0
+                  ? '약한 낱말을 다 맞혔어요. 맞힌 만큼 약점 장부에서 점수가 내려가요.'
+                  : '틀린 낱말은 약점 장부에 남아서 다음에 또 나와요.'}
+              </span>
+            </div>
+          )}
           {/* ★ 오늘 퀘스트의 다음 줄(쭉 퀴즈)이 남았으면 홈으로 돌려보내지 않고 바로 이어 준다 ★ */}
           {onNextQuest ? (
             <>
               <button className="submit-btn wk-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: {nextLabel}</button>
-              <button className="ghost-btn wk-resultdone" style={{ marginTop: 8 }} onClick={onExit || onQuit}>약점 퀴즈 마치고 홈으로</button>
+              <button className="ghost-btn wk-resultdone" style={{ marginTop: 8 }} onClick={onHome || onExit || onQuit}>약점 퀴즈 마치고 홈으로</button>
             </>
           ) : (
             <button className="submit-btn wk-resultdone" style={{ marginTop: 12 }} onClick={onExit || onQuit}>약점 퀴즈 마치기</button>

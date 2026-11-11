@@ -162,3 +162,66 @@ export function soundDiff(a, b) {
   }
   return null;
 }
+
+/* ★ 소리로 낼 읽기 — 조사 は · へ를 엔진이 틀리게 읽지 않게 ★
+ *
+ * 이 앱은 소리를 낼 때 한자 원문이 아니라 읽기(가나)를 음성 엔진에 넘긴다 — 한자를 넘기면 엔진이 읽는 법을 제 마음대로 골라서
+ * 화면의 읽기와 들리는 소리가 달라진 적이 있다. 그런데 가나만 이어지면 엔진이 낱말을 어디서 끊을지 모른다.
+ * 「この料理は辛いですか」의 읽기 「このりょうりはからいですか」를 「りょうり + はからい(計らい)」로 끊어서 조사 は를 「하」로 읽었다.
+ *
+ * 한자 원문을 같이 보면 어디가 조사인지 알 수 있다. 한자 덩어리와 한자 덩어리 사이(또는 한자 뒤 문장 끝 · 가타카나 앞)에
+ * は · へ 한 글자만 놓여 있으면 그건 조사다. 그 글자만 소리 나는 대로(わ · え) 바꿔서 넘긴다 — 화면에 보이는 읽기는 그대로다.
+ * 은 뒤에 히라가나가 이어지는 は(「今日はいい」「毎日はやく」)는 낱말의 일부일 수 있어서 건드리지 않는다(엔진의 판단에 맡긴다).
+ * 원문과 읽기가 서로 안 맞으면(짝을 못 맞추면) 읽기를 그대로 돌려준다. */
+const KANJI_RUN = /[一-鿿々〆ヶ0-9０-９]/;
+const SKIP = /[\s、。！？!?「」『』（）()…〜~,.・]/;
+const KATAKANA = /[ァ-ヿー]/;
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export function spokenKana(kana, jp) {
+  const read = String(kana || '');
+  const text = String(jp || '');
+  if (!read || !text || !/[一-鿿]/.test(text) || !/[はへ]/.test(text)) return read;
+
+  /* 원문을 조각으로 — 한자 덩어리(k) · 가나 한 글자(c) · 건너뛸 문장부호(p) */
+  const parts = [];
+  for (const ch of text) {
+    const type = KANJI_RUN.test(ch) ? 'k' : SKIP.test(ch) ? 'p' : 'c';
+    const last = parts[parts.length - 1];
+    if (type !== 'c' && last && last.type === type) last.text += ch;
+    else parts.push({ type, text: ch });
+  }
+  const pattern = (kanji) => parts.map((p) => {
+    if (p.type === 'k') return kanji;
+    if (p.type === 'p') return '([\\s、。！？!?「」『』（）()…〜~,.・]*)';
+    return `(${escapeRe(toHiragana(p.text))})`;
+  }).join('');
+  /* 조사 자리: 바로 앞이 한자 덩어리이고, 바로 뒤(문장부호는 건너뛰고)가 한자 덩어리 · 가타카나 · 문장 끝 */
+  const spots = (kanji) => {
+    let m;
+    try { m = new RegExp(`^${pattern(kanji)}$`).exec(toHiragana(read)); } catch { return null; }
+    if (!m) return null;
+    const found = new Map();
+    let pos = 0;
+    for (let i = 0; i < parts.length; i += 1) {
+      const p = parts[i];
+      if (p.type === 'c' && (p.text === 'は' || p.text === 'へ') && parts[i - 1]?.type === 'k') {
+        let j = i + 1;
+        while (parts[j]?.type === 'p') j += 1;
+        const next = parts[j];
+        const boundary = !next || next.type === 'k' || (next.type === 'c' && KATAKANA.test(next.text)) || j > i + 1;
+        if (boundary) found.set(pos, p.text === 'は' ? 'わ' : 'え');
+      }
+      pos += [...m[i + 1]].length;
+    }
+    return found;
+  };
+  /* 한자의 읽기를 짧게 잡았을 때와 길게 잡았을 때 조사 자리가 같아야만 바꾼다.
+     母は(ははは)처럼 읽기 안에 は가 겹치면 어느 は가 조사인지 사전 없이는 알 수 없다 — 그때는 건드리지 않는다. */
+  const short = spots('(.+?)');
+  const long = spots('(.+)');
+  if (!short || !long) return read;
+  const out = [...read];
+  for (const [pos, ch] of short) if (long.get(pos) === ch) out[pos] = ch;
+  return out.join('');
+}
