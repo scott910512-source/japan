@@ -10,3 +10,15 @@
 @import "./styles/hunter-app.css";
 @import "./styles/japanese-type.css";
 /* n3.css는 N3Course.jsx가 불러온다 — 코스 청크와 같이 받는다(첫 로딩 CSS에서 뺐다) */
+
+/* ★ 입력칸에 초점이 갈 때 화면이 확대되는 것(iOS) ★
+   iOS는 글자가 16px보다 작은 입력칸에 초점이 가면 화면을 그 칸에 맞춰 키운다 — 곤에게 물어보기 창이 열리면서
+   화면이 커져 오른쪽이 잘렸다. 확대를 막는(maximum-scale) 대신, 손가락으로 쓰는 기기에서는 입력칸 글자를 16px로 둔다.
+   더 큰 글자를 쓰는 칸(시험 답 17px · 스위스 18px)은 그대로다. 새 입력칸을 만들 때 글자를 작게 주면 여기에 더한다
+   (test/ui/input-zoom-ui.js가 화면의 입력칸을 다 재 본다). */
+@media (hover: none) and (pointer: coarse) {
+  :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), textarea, select) { font-size: 16px; }
+  .search-input:where(:not(.swl-input)), .memo-input, .tr-input, .ob-date, .vd-prompt, .vd-script, .vd-delword,
+  .field input, .field select, .vd-add input,
+  .setrow input[type='text'], .setrow input[type='password'], .setrow input:not([type]) { font-size: 16px; }
+}

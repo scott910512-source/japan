@@ -69,7 +69,7 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
     ArrowLeft: () => { if (placed.length) takeBack(placed.length - 1); },
     Enter: () => { if (solved) onNext?.(); },
     Space: () => { if (solved) speakJapanese(readingText(item.kana, item.jp), settings.speechRate); },
-  }, { enabled: !solved || Boolean(onNext) });
+  }, { enabled: !solved || Boolean(onNext), rapid: !solved });   // 조각을 놓는 동안은 같은 숫자(1 · 1 · 1)를 바로 이어 누른다
 
   return (
     <div ref={scope} className="build">
@@ -112,7 +112,8 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
         </div>
       ) : (
         <>
-          <div className="build-pool">
+          {/* 조각이 빠지면 다음 조각이 같은 자리로 당겨진다 — 같은 자리를 빠르게 이어 누르는 것이 정상이라 클릭 틈(tapguard)을 두지 않는다 */}
+          <div className="build-pool" data-rapid>
             {remaining.map((tile, i) => (
               <button key={tile.id} className="build-tile" onClick={() => put(tile)}>
                 <span className="qo-num" aria-hidden="true" data-number={i + 1} />{tile.text}
