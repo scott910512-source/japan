@@ -6,8 +6,8 @@
  *
  * 그 사이에 화면이 굴렀으면(스크롤) 같은 자리라도 다른 것을 누른 것이다 — 그때는 받는다.
  * 글자를 치는 칸은 건드리지 않는다(두 번 눌러 낱말을 고르는 것이 원래 동작이다). 코드가 낸 클릭(el.click())도 그대로 둔다.
- * 틈은 단축키와 같은 값이다(lib/useHotkeys.js SAME_INPUT_GAP_MS). */
-import { SAME_INPUT_GAP_MS } from './useHotkeys.js';
+ * 틈은 단축키와 같은 값이다(lib/useHotkeys.js SAME_INPUT_GAP_MS). 자동 조작(검사)에서는 끈다 — 까닭은 inputGapMs에 적었다. */
+import { SAME_INPUT_GAP_MS, inputGapMs } from './useHotkeys.js';
 
 export const SAME_SPOT_PX = 24;
 const FREE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), label, video, audio, [data-rapid]';
@@ -25,7 +25,7 @@ export function installTapGuard(target = window) {
     if (!e.isTrusted) return;
     if (e.target?.closest?.(FREE)) return;
     const now = { at: e.timeStamp, x: e.clientX, y: e.clientY };
-    if (isRepeatTap(last, now)) { e.preventDefault(); e.stopPropagation(); return; }
+    if (isRepeatTap(last, now, inputGapMs())) { e.preventDefault(); e.stopPropagation(); return; }
     last = now;
   };
   const onScroll = () => { last = null; };   // 굴렀으면 그 자리에는 다른 것이 와 있다

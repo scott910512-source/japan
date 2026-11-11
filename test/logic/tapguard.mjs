@@ -2,7 +2,7 @@
  *   · 「답 보기」(Enter) 바로 뒤의 Enter가 「알아요」로 기록되지 않게
  *   · 다른 키 · 다른 자리는 바로 받는다 */
 import { isRepeatTap, SAME_SPOT_PX } from '../../src/lib/tapguard.js';
-import { tooSoon, SAME_INPUT_GAP_MS } from '../../src/lib/useHotkeys.js';
+import { tooSoon, SAME_INPUT_GAP_MS, inputGapMs, GUARD_KEY } from '../../src/lib/useHotkeys.js';
 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); } };
@@ -25,6 +25,21 @@ console.log('\n[ 같은 자리 클릭 ]');
   ok('★ 다른 자리는 바로 받는다(조각을 빠르게 이어 누르기) ★', isRepeatTap(a, { at: 1050, x: 300, y: 600 }) === false && isRepeatTap(a, { at: 1050, x: 200, y: 660 }) === false);
   ok('0.2초가 지나면 같은 자리도 받는다', isRepeatTap(a, { at: 1200, x: 200, y: 600 }) === false);
   ok('처음 누른 것은 받는다', isRepeatTap(null, a) === false);
+}
+
+console.log('\n[ 자동 조작(검사)에서는 끈다 ]');
+{
+  const store = new Map();
+  globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)) };
+  const nav = (webdriver) => Object.defineProperty(globalThis, 'navigator', { value: { webdriver }, configurable: true });
+  nav(false);
+  ok('★ 사람이 쓰는 브라우저에서는 0.2초다 ★', inputGapMs() === 200);
+  nav(true);
+  ok('자동 조작이면 틈이 없다(검사는 사람보다 빨리 누른다)', inputGapMs() === 0);
+  ok('틈이 0이면 아무것도 안 막는다', tooSoon({ id: 'Enter', at: 1000 }, { id: 'Enter', at: 1001 }, inputGapMs()) === false && isRepeatTap({ at: 1000, x: 1, y: 1 }, { at: 1001, x: 1, y: 1 }, inputGapMs()) === false);
+  localStorage.setItem(GUARD_KEY, 'on');
+  ok('이 기능을 보는 검사는 켜고 본다', inputGapMs() === 200);
+  nav(false);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

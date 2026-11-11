@@ -72,7 +72,7 @@ export function useHotkeys(map, { enabled = true, scope: externalScope, rapid = 
          그대로 「알아요」로 기록된다. 손이 튀어 두 번 눌린 것을 판정으로 적지 않게, 같은 키는 0.2초 안에 다시 안 받는다.
          다른 키는 바로 받는다(1 → 2처럼 빠르게 이어 누르는 것은 그대로).
          같은 키를 일부러 이어 누르는 화면(짝 맞추기의 1 → 1, 문장 조립의 1 · 1 · 1)은 rapid로 이 틈을 끈다. */
-      if (!ref.current.rapid && tooSoon(prevDown, { id: e.code || e.key, at: e.timeStamp })) return;
+      if (!ref.current.rapid && tooSoon(prevDown, { id: e.code || e.key, at: e.timeStamp }, inputGapMs())) return;
       handler(e);
     };
     window.addEventListener('keydown', onKey);
@@ -83,6 +83,18 @@ export function useHotkeys(map, { enabled = true, scope: externalScope, rapid = 
 
 /* 같은 키(같은 자리의 클릭)를 다시 받기까지 두는 틈. lib/tapguard.js의 클릭도 같은 값을 쓴다 */
 export const SAME_INPUT_GAP_MS = 200;
+/* ★ 자동 조작(검사)에서는 이 틈을 두지 않는다 ★
+ * 화면 검사는 사람보다 훨씬 빨리 누른다 — 「문제 풀기」를 누르고 30ms 뒤에 그 자리에 뜬 보기를 누르는 식이다.
+ * 사람에게는 손이 튄 것이지만 검사에게는 일부러 누른 두 번이라, 틈을 두면 검사가 그날그날 다른 자리에서 멈춘다
+ * (실제로 돌릴 때마다 다른 검사가 깨졌다). 그래서 브라우저가 자동 조작이라고 알려 줄 때(navigator.webdriver)는 끈다.
+ * 이 기능 자체는 test/ui/double-input-ui.js가 켜 놓고(localStorage jp_input_guard = 'on') 본다. */
+export const GUARD_KEY = 'jp_input_guard';
+export function inputGapMs() {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.webdriver && localStorage.getItem(GUARD_KEY) !== 'on') return 0;
+  } catch { /* 저장소를 못 읽으면 평소대로 */ }
+  return SAME_INPUT_GAP_MS;
+}
 export const tooSoon = (prev, next, gap = SAME_INPUT_GAP_MS) => Boolean(prev && prev.id === next.id && next.at - prev.at >= 0 && next.at - prev.at < gap);
 /* 바로 앞에 눌린 키. 단축키가 받았든 입력칸이 받았든 센다 — 입력칸에서 Enter로 제출한 바로 뒤의 Enter도 같은 키를 또 누른 것이다.
    사이에 다른 키가 눌렸으면 「연달아」가 아니다. */

@@ -2,6 +2,7 @@
  *
  *   1. 같은 키를 0.2초 안에 또 누르면 한 번으로 본다 — 「답 보기」(Enter) 바로 뒤의 Enter가 「알아요」로 기록되지 않는다
  *   2. 같은 자리를 0.2초 안에 또 누르면 한 번으로 본다 — 「알아요」를 두 번 눌러 다음 카드까지 넘어가지 않는다
+ *      (자동 조작에서는 이 틈이 꺼진다 — 검사는 사람보다 빨리 눌러서다. 여기서만 jp_input_guard = 'on'으로 켜고 본다)
  *   3. 손가락으로 쓰는 기기에서 입력칸 글자는 16px 이상이다 — iOS는 그보다 작으면 초점이 갈 때 화면을 확대한다 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
@@ -21,6 +22,7 @@ async function boot(browser, settings = {}, context = {}) {
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate((s) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
+    localStorage.setItem('jp_input_guard', 'on');   // 자동 조작에서는 꺼지는 틈을 이 검사에서만 켠다(lib/useHotkeys.js inputGapMs)
     const cur = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     cur.onboarded = true; cur.canReadKana = true; cur.autoTTS = false;
     Object.assign(cur, s);
