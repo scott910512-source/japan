@@ -69,10 +69,18 @@ export async function startStudy(page, want = null) {
     const cta = page.locator('.bigcta');
     if (await cta.count()) {
       await cta.click();
-      await page.waitForTimeout(900);
-      /* 이어하기면 바로 카드가 뜨고, 새로 시작이면 무슨 판인지 먼저 알려 준다 */
+      /* 이어하기면 바로 카드가 뜨고, 새로 시작이면 무슨 판인지 먼저 알려 준다.
+         ★ 정해 둔 시간(0.9초) 대신 화면이 뜰 때까지 기다린다 ★ 느린 러너에서 안내 화면이 0.9초 뒤에 떠서
+         「시작하기」를 못 누르고 지나가면, 뒤따르는 검사가 30초를 기다리다 통째로 멈췄다(ask.js가 CI에서 그랬다). */
+      const ready = page.locator('.study.intro .bigstart, .study .studyfoot, .study .studycard');
+      await ready.first().waitFor({ timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(300);
       const intro0 = page.locator('.study.intro .bigstart');
-      if (await intro0.count()) { await intro0.click(); await page.waitForTimeout(900); }
+      if (await intro0.count()) {
+        await intro0.click();
+        await page.locator('.study .studyfoot, .study .studycard').first().waitFor({ timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(300);
+      }
       return true;
     }
   }
