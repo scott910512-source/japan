@@ -212,8 +212,10 @@ async function finishDeck(page) {
       localStorage.setItem('jp_manabu_progress_v1', JSON.stringify({ quests: { day: y, stream: 20, sealReview: 2, sealFresh: 1 } }));
     });
     await p5.reload({ waitUntil: 'domcontentloaded' });
+    /* 오프라인으로 다시 불러오면 로그인 확인이 6초를 기다린 뒤에야 「이 기기 기록으로 계속하기」가 뜬다.
+       정해 둔 8초만 기다리면 느린 러너에서 그 단추가 뜨기 전에 지나가 버린다 — 단추나 앱 중 먼저 뜨는 쪽을 기다린다. */
     const off5 = p5.locator('.gate-offline');
-    await off5.waitFor({ timeout: 8000 }).catch(() => {});
+    await p5.locator('.gate-offline, .tabbar').first().waitFor({ state: 'attached', timeout: 40000 });
     if (await off5.count()) { await off5.click(); await p5.waitForTimeout(800); }
     await p5.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 });
     await p5.waitForTimeout(1500);
