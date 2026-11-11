@@ -124,6 +124,16 @@ console.log('\n── 진짜 자료로');
 {
   const board = buildBoard(ALL_WORDS.slice(0, 400), {}, { mode: MODE.TEXT });
   ok('실제 단어로도 판이 나옴', board && board.pairs.length === PAIRS);
+  /* ★ 뜻이 같은 낱말이 같이 뽑혀도 판이 줄지 않는다 ★ (드물게 네 쌍짜리 판이 나오던 것 — 검사도 가끔 깨졌다) */
+  const dup = [
+    { id: 'd1', kanji: '見る', kana: 'みる', mean: '보다' }, { id: 'd2', kanji: '観る', kana: 'みる2', mean: '보다;관람하다' },
+    { id: 'd3', kanji: '診る', kana: 'みる3', mean: '보다' }, { id: 'd4', kanji: '犬', kana: 'いぬ', mean: '개' },
+    { id: 'd5', kanji: '猫', kana: 'ねこ', mean: '고양이' }, { id: 'd6', kanji: '鳥', kana: 'とり', mean: '새' },
+    { id: 'd7', kanji: '魚', kana: 'さかな', mean: '물고기' }, { id: 'd8', kanji: '馬', kana: 'うま', mean: '말' },
+  ];
+  let shortBoards = 0;
+  for (let i = 0; i < 300; i++) { const b = buildBoard(dup, {}, { mode: MODE.TEXT }); if (b.pairs.length !== PAIRS || new Set(b.pairs.map((x) => x.mean)).size !== PAIRS) shortBoards++; }
+  ok('★ 뜻이 겹치는 낱말이 있어도 늘 다섯 쌍이고 뜻이 안 겹친다 ★', shortBoards === 0, `${shortBoards}판`);
   ok('칸에 들어갈 만한 길이', board.pairs.every((p) => p.jp.length <= 6), board.pairs.map((p) => p.jp).join(' '));
   ok('뜻에 구분자가 안 남음', board.pairs.every((p) => !p.mean.includes(';')), board.pairs.map((p) => p.mean).join(' / '));
 
