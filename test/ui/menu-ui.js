@@ -284,7 +284,8 @@ async function boot(browser, settings = {}) {
     ok('휴대폰 바로가기는 두 열', await page.locator('.mfavs').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length === 2));
     ok('각 바로가기에 저장 순서가 보인다', (await page.locator('.sh-order-position').allTextContents()).join() === '1 / 6,2 / 6,3 / 6,4 / 6,5 / 6,6 / 6');
     ok('편집 도구에 현재 선택 수가 보인다', (await page.locator('.sh-editbar [role="status"]').innerText()) === '6 / 6개 선택');
-    for (const id of ['n3', 'words', 'grammar']) await page.locator(`.mfavs .menutile[data-menu="${id}"]`).click();
+    /* 하나를 빼면 다음 칸이 그 자리로 당겨진다 — 같은 자리를 0.2초 안에 또 누르면 한 번으로 보니(tapguard) 사람처럼 틈을 둔다 */
+    for (const id of ['n3', 'words', 'grammar']) { await page.locator(`.mfavs .menutile[data-menu="${id}"]`).click(); await page.waitForTimeout(260); }
     await page.locator('[data-group="more"]').scrollIntoViewIfNeeded();
     const sticky = await page.locator('.sh-editbar').evaluate((el) => {
       const bar = el.getBoundingClientRect(), screen = el.closest('.screen').getBoundingClientRect();

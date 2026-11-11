@@ -4,6 +4,7 @@
  * 같은 자리에 나온 「알아요」까지 눌려서 모르는 카드가 아는 것으로 기록되는 식이다. 그래서 0.2초 안에 같은 자리
  * (24px 안)를 또 누른 것은 버린다. 다른 자리는 바로 받는다 — 빠르게 이어 누르는 것은 그대로다.
  *
+ * 그 사이에 화면이 굴렀으면(스크롤) 같은 자리라도 다른 것을 누른 것이다 — 그때는 받는다.
  * 글자를 치는 칸은 건드리지 않는다(두 번 눌러 낱말을 고르는 것이 원래 동작이다). 코드가 낸 클릭(el.click())도 그대로 둔다.
  * 틈은 단축키와 같은 값이다(lib/useHotkeys.js SAME_INPUT_GAP_MS). */
 import { SAME_INPUT_GAP_MS } from './useHotkeys.js';
@@ -27,6 +28,8 @@ export function installTapGuard(target = window) {
     if (isRepeatTap(last, now)) { e.preventDefault(); e.stopPropagation(); return; }
     last = now;
   };
+  const onScroll = () => { last = null; };   // 굴렀으면 그 자리에는 다른 것이 와 있다
   target.addEventListener('click', onClick, true);
-  return () => target.removeEventListener('click', onClick, true);
+  target.addEventListener('scroll', onScroll, true);
+  return () => { target.removeEventListener('click', onClick, true); target.removeEventListener('scroll', onScroll, true); };
 }

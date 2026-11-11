@@ -94,7 +94,7 @@ try {
   check('Stream shows a next action after answering', await stream.locator('.st-next, .st-close').count() > 0);
   await page.keyboard.press('Enter');
   // Close answers are explicitly treated as wrong by Enter, then need a second Enter to advance.
-  if (await stream.locator('.st-next').count()) await page.keyboard.press('Enter');
+  if (await stream.locator('.st-next').count()) { await page.waitForTimeout(260); await page.keyboard.press('Enter'); }   // same key twice: leave the 0.2s gap a person would
   check('Stream Enter returns to an unanswered problem', await stream.locator('.st-opt:disabled, .st-input:disabled').count() === 0);
   await page.keyboard.press('Escape');
   await page.locator('.st-sum').waitFor();
@@ -127,6 +127,7 @@ try {
   check('Number keys type normally inside the answer field', (await write.inputValue()).endsWith('1'));
   await page.keyboard.press('Enter');
   check('Enter submits after composition finishes', await write.isDisabled());
+  await page.waitForTimeout(260);   // the same key within 0.2s counts as one press (double-press guard)
   await page.keyboard.press('Enter');
   check('Enter continues from a wrong written answer', !(await write.isDisabled()));
 
@@ -135,6 +136,7 @@ try {
   await page.keyboard.press('Enter');
   await page.locator('.sheet.open .ls-ask').waitFor();
   check('Listening Enter opens the existing start confirmation', await page.locator('.listen.play').count() === 0);
+  await page.waitForTimeout(260);   // a second Enter inside 0.2s is treated as the same press, so the sheet is not confirmed by a bounce
   await page.keyboard.press('Enter');
   await page.locator('.listen.play').waitFor();
   await page.keyboard.press('Space');

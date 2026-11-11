@@ -180,6 +180,7 @@ const SECOND = { sentences: [
   await page.locator('.sp-quit').click();
   await page.locator('.sp-batches [data-no="1"]').click();
   ok('둘 다 고르면 전체 섞기와 같다', await page.locator('.sp-batches [data-batch="all"].active').count() === 1 && (await page.locator('.sp-start').innerText()).includes('4문장'));
+  await page.waitForTimeout(260);   // 같은 자리를 0.2초 안에 또 누르면 한 번으로 본다(tapguard) — 사람처럼 틈을 둔다
   await page.locator('.sp-batches [data-no="1"]').click();
   ok('전체에서 회차 하나를 누르면 그 회차만 고른다 · 고른 회차를 기억한다', await page.locator('.sp-batches [data-no="1"].active').count() === 1 && await page.locator('.sp-batches [data-no="2"].active').count() === 0 && await page.locator('.sp-batches [data-batch="all"].active').count() === 0
     && await page.evaluate(() => JSON.parse(localStorage.getItem('jp_speak_prefs_v1')).batches.length === 1));

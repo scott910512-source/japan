@@ -72,10 +72,7 @@ export function useHotkeys(map, { enabled = true, scope: externalScope, rapid = 
          그대로 「알아요」로 기록된다. 손이 튀어 두 번 눌린 것을 판정으로 적지 않게, 같은 키는 0.2초 안에 다시 안 받는다.
          다른 키는 바로 받는다(1 → 2처럼 빠르게 이어 누르는 것은 그대로).
          같은 키를 일부러 이어 누르는 화면(짝 맞추기의 1 → 1, 문장 조립의 1 · 1 · 1)은 rapid로 이 틈을 끈다. */
-      const id = e.code || e.key;
-      const now = typeof e.timeStamp === 'number' && e.timeStamp > 0 ? e.timeStamp : Date.now();
-      if (!ref.current.rapid && tooSoon(lastKey, { id, at: now })) return;
-      lastKey = { id, at: now };
+      if (!ref.current.rapid && tooSoon(prevDown, { id: e.code || e.key, at: e.timeStamp })) return;
       handler(e);
     };
     window.addEventListener('keydown', onKey);
@@ -87,13 +84,21 @@ export function useHotkeys(map, { enabled = true, scope: externalScope, rapid = 
 /* 같은 키(같은 자리의 클릭)를 다시 받기까지 두는 틈. lib/tapguard.js의 클릭도 같은 값을 쓴다 */
 export const SAME_INPUT_GAP_MS = 200;
 export const tooSoon = (prev, next, gap = SAME_INPUT_GAP_MS) => Boolean(prev && prev.id === next.id && next.at - prev.at >= 0 && next.at - prev.at < gap);
-let lastKey = null;
+/* 바로 앞에 눌린 키. 단축키가 받았든 입력칸이 받았든 센다 — 입력칸에서 Enter로 제출한 바로 뒤의 Enter도 같은 키를 또 누른 것이다.
+   사이에 다른 키가 눌렸으면 「연달아」가 아니다. */
+let prevDown = null;
+let thisDown = null;
 
 // 한 번 누른 키는 가장 안쪽의 현재 화면 하나만 처리한다. 시트 뒤의 학습은 멈춘다.
 const owners = new Set();
 let tabFocus = false;
 if (typeof document !== 'undefined') {
-  document.addEventListener('keydown', (e) => { if (e.key === 'Tab') tabFocus = true; }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') tabFocus = true;
+    if (e.repeat) return;   // 누르고 있어서 되풀이되는 것은 따로 걸러진다
+    prevDown = thisDown;
+    thisDown = { id: e.code || e.key, at: e.timeStamp };
+  }, true);
   document.addEventListener('pointerdown', () => { tabFocus = false; }, true);
 }
 function visible(el) { return el?.isConnected && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden'; }

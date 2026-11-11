@@ -173,10 +173,15 @@ const n3of = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp_m
     await page.locator('.n3-listening').waitFor();
     const itemId = await page.locator('.n3-listening').getAttribute('data-item');
     const it = LISTENING_ITEMS.find((l) => l.id === itemId);
-    await page.locator('.n3-playbtn').click();
+    await page.locator('.n3-playbtn').click({ timeout: 10000 }).catch(async (e) => {
+      /* 재생 단추가 없으면 화면에 뭐가 있었는지 남긴다 — 이름만으로는 어느 단계에서 어긋났는지 알 수 없다 */
+      console.log(`  (청해 ${i + 1}번: 재생 단추가 없어요 — 화면: ${(await page.locator('.n3-exam').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300)})`);
+      throw e;
+    });
     await page.waitForFunction(() => document.querySelector('.n3-toq')?.disabled === false, null, { timeout: 20000 });
     await page.locator('.n3-toq').click();
     await page.locator('.n3-quiz').waitFor();
+    await page.waitForTimeout(260);   // 「문제 풀기」 자리에 보기가 뜬다 — 같은 자리를 0.2초 안에 또 누르면 한 번으로 본다(tapguard)
     await solveExam(page);
     await page.waitForTimeout(300);
   }
