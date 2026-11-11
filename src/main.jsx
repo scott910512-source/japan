@@ -6,6 +6,10 @@ import '@fontsource-variable/noto-sans-jp';
 import './index.css';
 import { isBusy } from './lib/busy.js';
 import { updateGate, waitingLabel, WHY } from './lib/swgate.js';
+import { installTapGuard } from './lib/tapguard.js';
+
+/* 같은 자리를 0.2초 안에 또 누른 것은 한 번으로 본다 — 손이 튀어 두 번 눌린 것이 판정으로 적히지 않게 */
+installTapGuard(window);
 
 /* 새 버전이 올라와도 서비스워커가 옛 화면을 계속 내주면, 고쳐 놓은 게 안 보인다.
  * 홈 화면에 추가한 iOS 앱은 특히 오래 붙잡고 있다.

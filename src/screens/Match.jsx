@@ -127,7 +127,7 @@ export default function Match({ cards, review, settings, onToast }) {
       }])),
       Space: () => { if (picked && board.mode === MODE.SOUND) say(pairOf(picked).kana); },
       ArrowLeft: () => setPicked(null), Escape: leave,
-    });
+    }, { rapid: Boolean(mode) && !done });   // 왼쪽 1 → 오른쪽 1처럼 같은 숫자를 바로 이어 누른다
 
   // ── 무엇을 할지 고르기 ──
   if (!mode) {

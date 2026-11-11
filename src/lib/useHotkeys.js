@@ -30,11 +30,11 @@ export function useHasKeyboard() {
 /* 학습 화면 키보드 단축키.
  * PC에서 카드를 빠르게 넘길 때 쓴다. 맵의 키는 e.key 또는 e.code 둘 다 받는다
  * (스페이스는 e.key가 ' ', e.code가 'Space'라 헷갈리기 쉽다). */
-export function useHotkeys(map, { enabled = true, scope: externalScope } = {}) {
+export function useHotkeys(map, { enabled = true, scope: externalScope, rapid = false } = {}) {
   // 매 렌더마다 이벤트를 다시 붙이지 않으면서도 최신 핸들러를 보게 한다
   const scope = useRef(null);
   const ref = useRef(null);
-  ref.current = { map, enabled, scope: externalScope || scope };
+  ref.current = { map, enabled, scope: externalScope || scope, rapid };
 
   useEffect(() => {
     const entry = { ref };
@@ -68,6 +68,14 @@ export function useHotkeys(map, { enabled = true, scope: externalScope } = {}) {
       markKeyboard();
       e.preventDefault();
       e.stopPropagation();
+      /* ★ 같은 키를 연달아 누른 것은 한 번으로 본다 ★ 「답 보기」(Enter) 바로 뒤에 Enter가 한 번 더 들어가면
+         그대로 「알아요」로 기록된다. 손이 튀어 두 번 눌린 것을 판정으로 적지 않게, 같은 키는 0.2초 안에 다시 안 받는다.
+         다른 키는 바로 받는다(1 → 2처럼 빠르게 이어 누르는 것은 그대로).
+         같은 키를 일부러 이어 누르는 화면(짝 맞추기의 1 → 1, 문장 조립의 1 · 1 · 1)은 rapid로 이 틈을 끈다. */
+      const id = e.code || e.key;
+      const now = typeof e.timeStamp === 'number' && e.timeStamp > 0 ? e.timeStamp : Date.now();
+      if (!ref.current.rapid && tooSoon(lastKey, { id, at: now })) return;
+      lastKey = { id, at: now };
       handler(e);
     };
     window.addEventListener('keydown', onKey);
@@ -75,6 +83,11 @@ export function useHotkeys(map, { enabled = true, scope: externalScope } = {}) {
   }, []);
   return externalScope || scope;
 }
+
+/* 같은 키(같은 자리의 클릭)를 다시 받기까지 두는 틈. lib/tapguard.js의 클릭도 같은 값을 쓴다 */
+export const SAME_INPUT_GAP_MS = 200;
+export const tooSoon = (prev, next, gap = SAME_INPUT_GAP_MS) => Boolean(prev && prev.id === next.id && next.at - prev.at >= 0 && next.at - prev.at < gap);
+let lastKey = null;
 
 // 한 번 누른 키는 가장 안쪽의 현재 화면 하나만 처리한다. 시트 뒤의 학습은 멈춘다.
 const owners = new Set();
