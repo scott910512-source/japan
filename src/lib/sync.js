@@ -89,6 +89,16 @@ export async function pushMerged(userId, merged) {
   return { videoColumnMissing: true };
 }
 
+/* 키 봉투만 올린다. 다른 칸은 안 건드린다.
+ * 전에는 봉투를 올리면서 이 기기의 기록을 통째로(합치지 않고) 같이 올렸다 — 앱을 켜자마자 봉투를 올리는 기기가
+ * 다른 기기가 방금 올린 더 새 기록을 덮을 수 있었다. 줄이 아직 없으면 나머지 칸은 기본값으로 생긴다. */
+export async function pushKeyEnvelope(userId, envelope) {
+  const { error } = await supabase
+    .from('user_data')
+    .upsert({ user_id: userId, gtts_key_enc: envelope }, { onConflict: 'user_id' });
+  if (error) throw new Error(readableDbError(error));
+}
+
 /* 한 번의 동기화 = 내려받아 합치고 다시 올린다.
  * 합친 결과를 돌려주면 화면이 그걸 그대로 상태에 반영한다. */
 export async function syncNow(userId, localData) {
@@ -102,7 +112,9 @@ export async function syncNow(userId, localData) {
     customWords: mergeCustomWords(localData.customWords, remote?.custom_words),
     memos: mergeMemos(localData.memos, remote?.memos),
     videos: mergeVideos(localData.videos, remote?.videos),
-    settings: { ...(remote?.settings || {}), ...pickSyncedSettings(localData.settings) },
+    /* ★ 서버에서 온 설정도 올려도 되는 칸만 받는다 ★ 이 기기 쪽만 걸렀더니, 서버 줄에 키가 들어 있으면(옛 버전이 올린 것 ·
+       손으로 고친 것) 그 키가 이 기기 키를 덮고, 동기화할 때마다 평문으로 다시 올라갔다. */
+    settings: { ...pickSyncedSettings(remote?.settings || {}), ...pickSyncedSettings(localData.settings) },
     // 암호문 봉투는 합칠 수 없다(내용을 볼 수 없으므로). 새로 올릴 게 있으면 그것을,
     // 없으면 서버에 있던 것을 그대로 둔다.
     gttsKeyEnc: localData.gttsKeyEnc ?? remote?.gtts_key_enc ?? null,

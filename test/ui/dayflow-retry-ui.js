@@ -199,6 +199,32 @@ async function finishDeck(page) {
     await p4.close();
   }
 
+  console.log('\n[ 날이 바뀐 첫 화면 — 어제 다 마친 계획의 몫을 오늘 것으로 적지 않는다 ]');
+  {
+    const p5 = await boot(browser);
+    p5.on('pageerror', (e) => errors.push(e.message));
+    /* 어제: 복습 2 · 새 낱말 1을 다 마친 작은 하루. 오늘은 새 낱말이 스무 개쯤 잡힌다 */
+    await p5.evaluate(() => {
+      const d = new Date(Date.now() - 86400000);
+      const y = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      localStorage.setItem('jp_manabu_plan_v1', JSON.stringify({ v: 1, date: y, goals: { fresh: 20, review: 30, weak: 3 }, reps: 3, extra: 0, sizes: {},
+        assigned: [{ id: 'x1', kind: 'word', bucket: 'review' }, { id: 'x2', kind: 'word', bucket: 'review' }, { id: 'x3', kind: 'word', bucket: 'fresh' }], done: { x1: true, x2: true, x3: true } }));
+      localStorage.setItem('jp_manabu_progress_v1', JSON.stringify({ quests: { day: y, stream: 20, sealReview: 2, sealFresh: 1 } }));
+    });
+    await p5.reload({ waitUntil: 'domcontentloaded' });
+    const off5 = p5.locator('.gate-offline');
+    await off5.waitFor({ timeout: 8000 }).catch(() => {});
+    if (await off5.count()) { await off5.click(); await p5.waitForTimeout(800); }
+    await p5.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 });
+    await p5.waitForTimeout(1500);
+    await goTab(p5, '오늘');
+    const q = await p5.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}').quests || {});
+    ok('★ 오늘 것으로 적힌 몫이 없다(어제의 1 · 2가 넘어오지 않는다) ★', !(q.day === todayKey() && (q.sealFresh || q.sealReview)), JSON.stringify(q));
+    const fr5 = await rowText(p5, '새로 배우기');
+    ok('★ 새로 배우기 줄이 「마쳤어요」로 시작하지 않는다 ★', !fr5.includes('마쳤어요') && /0\s*\/\s*\d+/.test(fr5), fr5);
+    await p5.close();
+  }
+
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 2).join(' | ') || '깨끗');
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

@@ -144,4 +144,16 @@ check('회차 표시는 저장 · 합치기를 거쳐도 남는다', () => {
   assert.equal(savedSentences(mergeSpeak(store, { items: {}, gone: {} }))[0].batch, 'b1');
   assert.equal(shapeSentence(A).batch, undefined);                                    // 회차가 없으면 칸도 없다
 });
+check('상한으로 밀려난 문장은 지운 것으로 적혀서 다른 기기와 합쳐도 되살아나지 않는다', () => {
+  const five = Array.from({ length: 5 }, (_, i) => mk(`${i}番目の文です。`, { at: 100 + i, batch: 'b1' }));
+  const { store } = addSentences(undefined, five, 5);
+  const other = addSentences(undefined, five, 5).store;                    // 다른 기기도 같은 다섯을 갖고 있다
+  const sixth = mk('新しい文です。', { at: 900, batch: 'b2' });
+  const { store: capped } = addSentences(store, [sixth], 5);
+  assert.equal(savedSentences(capped).length, 5);
+  assert.ok(!savedSentences(capped).some((x) => x.jp === '0番目の文です。'));  // 가장 오래된 것이 밀려났다
+  const merged = mergeSpeak(capped, other);
+  assert.equal(savedSentences(merged).length, 5);                           // 합쳐도 여섯이 되지 않는다
+  assert.ok(!savedSentences(merged).some((x) => x.jp === '0番目の文です。'));
+});
 console.log(`통과 ${pass} / 실패 0`);

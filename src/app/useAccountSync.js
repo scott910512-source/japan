@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_SETTINGS, loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce } from '../lib/storage.js';
 import { supabase, supabaseConfigured } from '../lib/supabase.js';
-import { syncNow, pushMerged } from '../lib/sync.js';
-import { mergeSyncedSettings, pickSyncedSettings } from '../lib/merge.js';
+import { syncNow, pushKeyEnvelope } from '../lib/sync.js';
+import { mergeSyncedSettings, mergeReview, mergeProgress, mergeStats, mergeStreak, mergeCustomWords, mergeMemos } from '../lib/merge.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from '../lib/crypto.js';
 import { looksPacked, reconcileKeys, unpackKeys } from '../lib/keyvault.js';
 import { AUTH_READY_TIMEOUT, sessionFrom } from '../lib/authboot.js';
@@ -99,6 +99,10 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     };
   }, []);
 
+  const runSyncRef = useRef(null);
+  /* 동기화가 값을 얹는 중인가 · 그 사이에 이 기기에서 바뀐 것이 있었나 — 아래 올리기 효과가 본다 */
+  const fromSync = useRef(false);
+  const movedDuring = useRef(false);
   const runSync = useCallback(async (silent = false) => {
     if (!authSession?.user) return;
     setSyncState((s) => ({ ...s, busy: true }));
@@ -106,17 +110,33 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
       const merged = await syncNow(authSession.user.id, {
         review, progress, settings, stats, streak, customWords, memos, videos: videoBundle,
       });
-      setReview(merged.review);
-      setProgress((p) => ({ ...p, ...merged.progress }));
-      setStats(merged.stats);
-      setStreak(merged.streak);
-      setCustomWords(merged.customWords);
-      setMemos(merged.memos);
+      /* ★ 요청이 오가는 동안 이 기기에서 한 것을 지우지 않는다 ★
+         merged는 요청을 보내기 전의 값(위에서 넘긴 것)으로 합친 결과다. 그걸 그대로 덮으면 그 사이에 판정한 카드의
+         회독 기록과 그날 활동이 이 기기에서 사라지고 서버에도 못 올라갔다(2분마다 올리는 동기화가 학습 중에 돈다).
+         보낼 때의 값과 지금 값이 같으면 그대로 받고, 달라졌으면 지금 값에 한 번 더 합친다. 달라졌던 것은 아직
+         서버에 없으니 다음 올리기가 돌게 표시한다(movedDuring). */
+      const moved = () => { movedDuring.current = true; };
+      fromSync.current = true;
+      setReview((cur) => (cur === review ? merged.review : (moved(), mergeReview(cur, merged.review))));
+      setProgress((p) => (p === progress ? { ...p, ...merged.progress } : (moved(), { ...p, ...mergeProgress(p, merged.progress) })));
+      setStats((cur) => (cur === stats ? merged.stats : (moved(), mergeStats(cur, merged.stats))));
+      setStreak((cur) => (cur === streak ? merged.streak : mergeStreak(cur, merged.streak)));
+      /* 낱말은 같은 id면 뒤에 넘긴 쪽이 진다 — 그 사이에 고친 낱말(지금 값)이 이기게 앞뒤를 바꿔 넘긴다 */
+      setCustomWords((cur) => (cur === customWords ? merged.customWords : (moved(), mergeCustomWords(merged.customWords, cur))));
+      setMemos((cur) => (cur === memos ? merged.memos : (moved(), mergeMemos(cur, merged.memos))));
       applyVideoBundle(merged.videos);
       /* 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다.
          메뉴 목록만은 얹지 않고 합친다. 서버에 저장된 건 새 메뉴가 생기기 전
          것이라, 그냥 얹으면 만든 적도 없는 것처럼 사라진다. */
-      setSettings((s) => mergeSyncedSettings(s, merged.settings, DEFAULT_SETTINGS));
+      /* 요청을 보낸 뒤에 이 기기에서 바꾼 설정 칸은 덮지 않는다 — merged는 보내기 전의 값으로 만든 것이라,
+         그대로 얹으면 방금 바꾼 목표 · 레벨 · 길잡이가 되돌아갔다. */
+      setSettings((s) => {
+        const incoming = {};
+        for (const [k, v] of Object.entries(merged.settings || {})) {
+          if (JSON.stringify(s[k]) === JSON.stringify(settings[k])) incoming[k] = v;
+        }
+        return mergeSyncedSettings(s, incoming, DEFAULT_SETTINGS);
+      });
       setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
       /* 안내(note)와 오류(error)를 나눈다. 영상 칸이 없는 건 나머지가 다 올라간
          상태라, 이걸 오류 자리에 넣으면 "동기화가 안 되고 있어요"로 읽힌다. */
@@ -134,14 +154,13 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     }
   }, [authSession, review, progress, settings, stats, streak, customWords, memos, videoBundle, applyVideoBundle, showToast]);
 
+  runSyncRef.current = runSync;
+
   const saveRemoteKey = useCallback(async (envelope) => {
     if (!authSession?.user) throw new Error('로그인이 필요해요');
-    await pushMerged(authSession.user.id, {
-      review, progress, settings: pickSyncedSettings(settings), stats, streak,
-      customWords, memos, gttsKeyEnc: envelope,
-    });
+    await pushKeyEnvelope(authSession.user.id, envelope);   // 봉투만 — 기록은 동기화(합치기)가 올린다
     setRemoteKeyEnvelope(envelope);
-  }, [authSession, review, progress, settings, stats, streak, customWords, memos]);
+  }, [authSession]);
 
   const rememberVaultKey = useCallback((raw) => {
     setVaultKey(raw);
@@ -197,13 +216,23 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
   const pushedAt = useRef(Date.now());
 
   useEffect(() => {
+    /* ★ 동기화가 돌려준 값을 얹은 것은 「이 기기에서 바뀐 것」이 아니다 ★
+       동기화가 끝나면 회독 · 진도 · 활동이 전부 새 값으로 바뀐다. 그걸 바뀐 것으로 세면 12초 뒤에 또 동기화하고,
+       그 동기화가 또 값을 바꿔서 — 로그인해 있는 동안 12초마다 끝없이 내려받고 올렸다(가만히 둬도).
+       동기화가 오가는 사이에 실제로 한 것이 있을 때만(movedDuring) 다음 올리기를 잡는다. */
+    const applied = fromSync.current;
+    const moved = movedDuring.current;
+    fromSync.current = false; movedDuring.current = false;   // 어느 길로 나가든 표시가 남지 않게 먼저 내린다
+    if (applied && !moved) return undefined;
     if (!authSession?.user || syncedFor.current !== authSession.user.id) return undefined;
     dirty.current = true;
     const send = () => {
       if (!dirty.current) return;
       dirty.current = false;
       pushedAt.current = Date.now();
-      runSync(true);
+      /* 지금의 runSync를 부른다. 이 효과가 잡아 둔 runSync는 마지막으로 기록이 바뀐 때의 것이라, 그 뒤에 바꾼 설정을
+         모르는 채로 옛 설정을 올리고 다시 얹었다(설정을 바꾸고 12초 안에 되돌아갔다). */
+      runSyncRef.current(true);
     };
     clearTimeout(pushTimer.current);
     const waited = Date.now() - pushedAt.current;

@@ -251,9 +251,12 @@ export function buildQuiz(words, {
   ledger = null,
   mistakes = {},
   rng = Math.random,
+  /* 보기(오답 후보)를 뽑을 낱말. 문제로 낼 낱말이 몇 개뿐일 때(틀린 한 낱말만 다시 풀기 · 약한 낱말이 하나 남았을 때)
+     그 안에서만 보기를 뽑으면 보기가 정답 하나뿐인 문제가 나온다 — 누르기만 하면 맞는다. */
+  distractors = null,
 } = {}) {
   // 4지선다는 오답 후보가 필요하다. 범위를 좁혀도 보기는 전체에서 끌어온다.
-  const pool = words;
+  const pool = distractors?.length ? distractors : words;
   const picked = prioritizeMistakes(shuffled(scopeWords(words, review, scope, ledger, mistakes), rng), mistakes, (word) => word.id, count);
 
   return picked.map((word, i) => {

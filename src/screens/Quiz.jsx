@@ -89,6 +89,8 @@ export default function Quiz({
     onChange({ quizCount: next.count, quizType: next.type, quizDir: next.dir, quizScope: next.scope });
   };
 
+  /* 보기는 고른 낱말 밖에서도 끌어온다 — 한 낱말만 내도 보기가 넷이 되게(lib/quiz.js buildQuiz distractors) */
+  const optionPool = pool.length >= 8 ? pool : words;
   const start = (subset, over = null) => {
     const source = subset?.length ? subset : pool;
     const cfg = over ? { ...config, ...over } : config;
@@ -102,6 +104,7 @@ export default function Quiz({
          자리인데, 여태 회독 기록만 봐서 그걸 못 보고 있었다. */
       ledger,
       mistakes,
+      distractors: optionPool,
     });
     if (!questions.length) {
       onToast('출제할 단어가 없어요');
@@ -118,7 +121,7 @@ export default function Quiz({
     if (!subset.length) { onToast('다시 풀 낱말이 없어요'); return; }
     const over = flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : weak ? { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO } : null;
     const cfg = over ? { ...config, ...over } : config;
-    const questions = buildQuiz(subset, { count: subset.length, type: cfg.type, dir: cfg.dir, scope: QUIZ_SCOPE.ALL, review, ledger, mistakes });
+    const questions = buildQuiz(subset, { count: subset.length, type: cfg.type, dir: cfg.dir, scope: QUIZ_SCOPE.ALL, review, ledger, mistakes, distractors: optionPool });
     if (!questions.length) { onToast('출제할 단어가 없어요'); return; }
     setRun({ questions, answers: {}, index: 0, retry: true });
   };
@@ -389,7 +392,8 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
   const { keyboard, takeControl } = useQuizHotkeys({
     options: !done ? q?.options : [], legacyNext: true,
     onChoose: (o) => { if (!answered) answerChoice(o); else { const text = o.jpKana || o.jp; if (text) speakJapanese(text, settings.speechRate); } },
-    onNext: () => { if (done) onQuit(); else if (answered) next(); else if (q?.type === QUIZ_TYPE.TYPING) submitTyping(); },
+    /* 결과 화면의 Enter — 하루 흐름의 다음 단계가 있으면 그리로 간다. 전에는 시험을 닫아 버려서 키보드로 풀면 흐름이 끊겼다 */
+    onNext: () => { if (done) { if (onNextQuest) onNextQuest(); else onQuit(); } else if (answered) next(); else if (q?.type === QUIZ_TYPE.TYPING) submitTyping(); },
     onSpeak: () => { if (!done && (answered || q?.dir === QUIZ_DIR.JP_KO)) speak(); }, onQuit,
   });
 
@@ -699,7 +703,7 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
           )}
           {/* 랜덤 테스트 뒤에 이을 단계(오늘의 N3)가 남았으면 그걸 먼저 내민다 */}
           {flow.kind !== 'region' && onNextQuest && <button className="submit-btn flow-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: {nextLabel}</button>}
-          <button className={`${flow.kind !== 'region' && onNextQuest ? 'ghost-btn' : 'submit-btn'} flow-done`} style={{ marginTop: flow.kind !== 'region' && onNextQuest ? 8 : 12 }} onClick={flow.kind === 'region' ? (onExit || onQuit) : (onHome || onExit || onQuit)}>{flow.kind === 'region' ? '지도로 돌아가기' : '오늘 학습 마치기 · 홈으로'}</button>
+          <button className={`${flow.kind !== 'region' && onNextQuest ? 'ghost-btn' : 'submit-btn'} flow-done`} style={{ marginTop: flow.kind !== 'region' && onNextQuest ? 8 : 12 }} onClick={onHome || onExit || onQuit}>{flow.kind === 'region' ? '지도로 돌아가기' : '오늘 학습 마치기 · 홈으로'}</button>
         </>
       ) : weak ? (
         <>

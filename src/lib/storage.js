@@ -172,7 +172,8 @@ export function saveTravel(progress) {
 }
 
 export function loadCustomWords() {
-  return read(KEYS.customWords, []);
+  /* 줄마다 낱말 꾸러미여야 한다. null 같은 것이 섞여 있으면 낱말 목록을 만드는 자리에서 앱이 통째로 죽었다 */
+  return read(KEYS.customWords, []).filter((w) => w && typeof w === 'object' && !Array.isArray(w));
 }
 export function saveCustomWords(words) {
   write(KEYS.customWords, words);
@@ -602,7 +603,8 @@ const BACKUP_ITEMS = [
  * API 키는 자격 증명이라 서버에 올리지 않는다」). 백업만 안 하고 있었다.
  * 기기 사이로 키를 옮기는 길은 그대로 있다 — 계정 동기화가 암호화한 봉투로
  * 보낸다. 파일로 내보내는 길만 막는다. */
-const SECRET_SETTINGS = ['gttsKey', 'geminiKey'];
+/* claudeKey가 빠져 있어서 Claude 키만 백업 파일에 그대로 실렸다 — 화면은 「음성 · AI API 키는 안 담는다」고 말하고 있었다. */
+const SECRET_SETTINGS = ['gttsKey', 'geminiKey', 'claudeKey'];
 
 /* 백업에 안 담는 것과 그 이유. 화면이 이걸 그대로 보여 준다 —
    무엇이 빠지는지 내보내기 전에 알아야 뒤늦게 없다는 걸 알지 않는다. */
@@ -666,11 +668,40 @@ export function backupSummary(backup) {
   };
 }
 
+/* ★ 백업 파일의 모양을 믿지 않는다 ★
+ * 손으로 고친 파일이나 남이 건넨 파일에 모양이 틀린 칸이 있으면, 복원한 뒤 앱이 열 때마다 하얀 화면에서 죽었다
+ * (customWords: [null] · plan이 글자 · translations: [null] · settings.levels가 배열이 아님). 설정 화면까지 못 가니
+ * 초기화도 못 한다. 모양이 틀린 칸은 버리고(이 기기 값이 남는다), 배열 · 꾸러미 안의 틀린 줄만 걸러 낸다. */
+const isObj = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+const ROWS_OF_OBJECTS = new Set(['customWords', 'translations', 'asks']);     // 줄마다 꾸러미여야 하는 배열
+const MAP_OF_OBJECTS = new Set(['review', 'stats', 'memos']);                // 값마다 꾸러미여야 하는 꾸러미
+function saneBackupValue(key, value, fallback) {
+  if (ROWS_OF_OBJECTS.has(key)) return Array.isArray(value) ? value.filter(isObj) : undefined;
+  if (key === 'plan') return isObj(value) && Array.isArray(value.assigned) && isObj(value.done) ? { ...value, assigned: value.assigned.filter(isObj) } : undefined;
+  if (isObj(fallback)) {
+    if (!isObj(value)) return undefined;
+    if (MAP_OF_OBJECTS.has(key)) return Object.fromEntries(Object.entries(value).filter(([, v]) => isObj(v)));
+    if (key === 'settings') {
+      const next = { ...value };
+      for (const k of ['levels', 'favs']) if (k in next && !Array.isArray(next[k])) delete next[k];
+      for (const k of ['menus', 'goals']) if (k in next && !isObj(next[k])) delete next[k];
+      return next;
+    }
+    return value;
+  }
+  /* 「아직 없음」이 null인 칸(영상 · 코스 진도 등) — 꾸러미나 배열이 아니면 버린다 */
+  return typeof value === 'object' ? value : undefined;
+}
+
 /* 복원할 값을 만든다. 저장하기 전에 다 만들어 둬야 반쯤 쓰다 마는 일이 없다. */
 function restorePayload(d) {
   const out = [];
   for (const { key, fallback } of BACKUP_ITEMS) {
     let value = d[key];
+    if (value !== undefined && value !== null) {
+      value = saneBackupValue(key, value, fallback);
+      if (value === undefined) continue;   // 모양이 틀린 칸은 건너뛴다 — 이 기기 값을 그대로 둔다
+    }
     if (value === undefined || value === null) {
       /* 옛 백업에는 없던 칸이다. 없는 칸을 기본값으로 덮어써 지우지 않는다 —
          v1 백업으로 복원했다고 이 기기의 영상·자막이 사라지면 안 된다. */
@@ -683,10 +714,13 @@ function restorePayload(d) {
       /* ★ 백업에 키가 없다고 이 기기의 키를 지우면 안 된다 ★
          비밀값을 백업에서 뺀 결과로 복원이 키를 날려 버리면, 새는 곳을
          막으려다 쓰던 기능을 끄는 셈이다. 이 기기 값을 남긴다. */
+      /* ★ 파일에 든 키는 받지 않는다 ★ 우리가 만든 백업에는 키가 없다. 키가 든 파일은 손으로 만든 것이고,
+         그걸 받으면 남의 키가 이 기기 키를 덮은 뒤 계정 봉투로까지 올라간다. 언제나 이 기기 값을 쓴다. */
       const mine = read(KEYS.settings, {});
       const merged = { ...(value || {}) };
       for (const k of SECRET_SETTINGS) {
-        if (!merged[k] && mine?.[k]) merged[k] = mine[k];
+        delete merged[k];
+        if (mine?.[k]) merged[k] = mine[k];
       }
       value = merged;
     }

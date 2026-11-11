@@ -313,12 +313,15 @@ export default function App() {
   const freshDone = laneNow.fresh?.done || 0;
   useEffect(() => {
     const full = {};
-    if (backAssigned > 0 && backDone >= backAssigned) full.review = backAssigned;
-    if (freshAssigned > 0 && freshDone >= freshAssigned) full.fresh = freshAssigned;
+    /* ★ 오늘 계획일 때만 ★ 날이 바뀐 뒤 첫 화면에서는 계획이 아직 어제 것이다. 어제 다 마친 계획의 몫을 오늘 것으로
+       적으면(어제 1개 → 오늘 20개), 오늘 하나만 배워도 「1 / 1 마쳤어요」가 되고 흐름이 그 단계를 건너뛴다. */
+    const planToday = plan?.date === today;
+    if (planToday && backAssigned > 0 && backDone >= backAssigned) full.review = backAssigned;
+    if (planToday && freshAssigned > 0 && freshDone >= freshAssigned) full.fresh = freshAssigned;
     if (weakQuiz.complete && weakQuiz.total > 0) full.weakquiz = weakQuiz.total;
     if (!Object.keys(full).length) return;
     setProgress((p) => { const next = sealQuests(p.quests, full, today); return next === p.quests ? p : { ...p, quests: next }; });
-  }, [backAssigned, backDone, freshAssigned, freshDone, weakQuiz.complete, weakQuiz.total, today, setProgress]);
+  }, [plan?.date, backAssigned, backDone, freshAssigned, freshDone, weakQuiz.complete, weakQuiz.total, today, setProgress]);
   const weakQuizOn = useRef(false);
   /* 화면에 말하려고 같은 값을 상태로도 둔다(결과 화면이 약점 퀴즈임을 알아야 한다) */
   const [weakQuizMode, setWeakQuizMode] = useState(false);

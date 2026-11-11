@@ -64,6 +64,7 @@ function seed() {
     levels: ['N5'],
     gttsKey: 'SECRET-TTS-KEY',
     geminiKey: 'SECRET-AI-KEY',
+    claudeKey: 'SECRET-CLAUDE-KEY',
   });
   put(K.review, { 'n5-0001': { level: 2, due: '2026-09-20' } });
   put(K.videos, [{ id: 'v1', title: '영상 하나' }]);
@@ -103,6 +104,7 @@ console.log('\n[ ★ 비밀값은 백업 파일에 안 들어간다 ★ ]');
   ok('★ AI API 키가 파일에 없다 ★', !text.includes('SECRET-AI-KEY'));
   ok('gttsKey 칸 자체가 없다', b.data.settings.gttsKey === undefined);
   ok('geminiKey 칸 자체가 없다', b.data.settings.geminiKey === undefined);
+  ok('★ claudeKey 칸도 없다(전에는 Claude 키만 파일에 그대로 실렸다) ★', b.data.settings.claudeKey === undefined && !JSON.stringify(b).includes('SECRET-CLAUDE-KEY'));
   /* 설정을 통째로 빼면 학습 범위·목표까지 잃는다. 뺄 것만 뺀다 */
   ok('나머지 설정은 그대로 담긴다', b.data.settings.levels?.[0] === 'N5');
   ok('목표도 그대로', b.data.settings.goals?.fresh === 20);
@@ -128,6 +130,7 @@ console.log('\n[ ★ 복원이 이 기기의 API 키를 지우지 않는다 ★ 
   S.importBackup(b);
   ok('★ 음성 키가 남아 있다 ★', get(K.settings).gttsKey === 'SECRET-TTS-KEY');
   ok('★ AI 키가 남아 있다 ★', get(K.settings).geminiKey === 'SECRET-AI-KEY');
+  ok('★ Claude 키도 남아 있다 ★', get(K.settings).claudeKey === 'SECRET-CLAUDE-KEY');
   ok('백업의 다른 설정은 들어온다', get(K.settings).levels?.[0] === 'N5');
 }
 
@@ -200,6 +203,43 @@ console.log('\n[ 백업 파일이 아니면 받지 않는다 ]');
   try { S.importBackup({ format: S.BACKUP_FORMAT, data: {} }); } catch (e) { threw = e; }
   ok('되돌릴 게 없으면 거절', threw !== null, threw?.message);
   ok('거절해도 지금 기록은 그대로', get(K.review)?.['n5-0001']?.level === 2);
+}
+
+console.log('\n[ ★ 파일에 든 키는 받지 않는다 ★ ]');
+{
+  /* 우리가 만든 백업에는 키가 없다. 키가 든 파일은 손으로 만든 것 — 받으면 남의 키가 이 기기 키를 덮는다 */
+  seed();
+  const b = S.exportBackup();
+  b.data.settings = { ...b.data.settings, gttsKey: 'EVIL-TTS', geminiKey: 'EVIL-AI', claudeKey: 'EVIL-CLAUDE' };
+  S.importBackup(b);
+  const st = get(K.settings);
+  ok('★ 이 기기의 키가 그대로다 ★', st.gttsKey === 'SECRET-TTS-KEY' && st.geminiKey === 'SECRET-AI-KEY' && st.claudeKey === 'SECRET-CLAUDE-KEY', JSON.stringify([st.gttsKey, st.geminiKey, st.claudeKey]));
+  reset();
+  put(K.settings, { levels: ['N5'] });
+  S.importBackup(b);
+  const none = get(K.settings);
+  ok('★ 이 기기에 키가 없으면 파일의 키로 채우지도 않는다 ★', none.gttsKey === undefined && none.geminiKey === undefined && none.claudeKey === undefined, JSON.stringify(none));
+}
+
+console.log('\n[ ★ 모양이 틀린 백업이 앱을 못 쓰게 만들지 않는다 ★ ]');
+{
+  seed();
+  const good = S.exportBackup();
+  const bad = JSON.parse(JSON.stringify(good));
+  bad.data.customWords = [null, { id: 'my-9', kanji: '猫' }, 'x', ['y']];
+  bad.data.translations = [null, { q: 'a' }];
+  bad.data.asks = 'nope';
+  bad.data.plan = 'not a plan';
+  bad.data.stats = { '2026-09-12': null, '2026-09-13': { judged: 2 } };
+  bad.data.review = { 'n5-0001': 'oops', 'n5-0002': { level: 1 } };
+  bad.data.settings = { ...bad.data.settings, levels: { 0: 'N5' }, menus: 'x' };
+  S.importBackup(bad);
+  ok('★ 배열 안의 틀린 줄(null · 글자 · 배열)은 걸러 낸다 ★', JSON.stringify(get(K.custom)) === JSON.stringify([{ id: 'my-9', kanji: '猫' }]), JSON.stringify(get(K.custom)));
+  ok('번역도 같다', get(K.translations)?.length === 1 && get(K.translations)[0].q === 'a', JSON.stringify(get(K.translations)));
+  ok('★ 모양이 통째로 틀린 칸(계획이 글자 · 물어본 것이 글자)은 버리고 이 기기 값을 둔다 ★', get(K.plan)?.date === '2026-09-12' && Array.isArray(get(K.asks)), JSON.stringify([get(K.plan)?.date, get(K.asks)]));
+  ok('일별 기록 · 회독 기록의 틀린 줄만 빠진다', JSON.stringify(Object.keys(get(K.stats))) === '["2026-09-13"]' && JSON.stringify(Object.keys(get(K.review))) === '["n5-0002"]', JSON.stringify([get(K.stats), get(K.review)]));
+  ok('★ 설정의 틀린 칸(레벨이 배열이 아님)은 빼서 기본값이 쓰이게 한다 ★', get(K.settings).levels === undefined && get(K.settings).menus === undefined && get(K.settings).goals?.fresh === 20, JSON.stringify(get(K.settings)));
+  ok('그래도 불러온 설정은 앱이 읽을 수 있는 모양이다', Array.isArray(S.loadSettings().levels) && typeof S.loadSettings().menus === 'object');
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
