@@ -26,6 +26,7 @@ async function boot(browser, autoTTS) {
   await page.evaluate(({ review, autoTTS }) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     localStorage.setItem('jp_optrev_open', '0');
+    localStorage.setItem('jp_stream_batch', '0');   // 끝없이 — 스무 문제에서 끊기지 않게
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(review));
     const cur = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
     Object.assign(cur, { onboarded: true, canReadKana: true, autoTTS, goalLevel: 'N5' });
@@ -41,7 +42,13 @@ async function boot(browser, autoTTS) {
   await page.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 });
   await page.evaluate(() => {
     window._spoken = [];
-    window.speechSynthesis.speak = (u) => window._spoken.push(u.text);
+    /* 읽은 순간의 문제 id와 「답을 낸 뒤인가」를 같이 적는다 — 나중에 지우거나 시간으로 어림하지 않고 문제별로 가린다 */
+    window.speechSynthesis.speak = (u) => window._spoken.push({
+      text: u.text,
+      /* 같은 낱말이 방향만 바꿔 다시 나올 수 있어서 문제 글자까지 같이 본다 */
+      qid: `${document.querySelector('.st-run')?.dataset.id || ''}|${document.querySelector('.st-q .qc-prompt')?.textContent || ''}`,
+      answered: Boolean(document.querySelector('.st-opt.correct, .qverdict')),
+    });
     window.speechSynthesis.cancel = () => {};
   });
   await openQuizHub(page);
@@ -59,31 +66,34 @@ async function boot(browser, autoTTS) {
   console.log('\n[ 자동 읽기 켬 ]');
   const page = await boot(browser, true);
   page.on('pageerror', (e) => errors.push(e.message));
-  let sawJp = false; let sawKo = false; let sawKana = false; let tried = 0;
-  for (let i = 0; i < 14 && tried < 14; i++) {
+  /* ★ 운에 맡기지 않는다 ★ 문제 방향과 방식은 무작위다. 예전엔 열네 문제 안에 세 가지가 다 나오기를 바랐고(백 번에 서너 번은 안 나왔다),
+     읽은 기록을 지우는 때가 다음 문제의 읽기와 겹치기도 했다. 이제 문제마다 「답을 내기 전에 읽었나」를 기록에서 가리고,
+     세 가지를 다 볼 때까지(넉넉히 60문제까지) 푼다. */
+  const jpQs = new Set(); const koQs = new Set(); let sawKana = false;
+  const spokenBefore = (qid) => page.evaluate((id) => window._spoken.some((x) => x.qid === id && !x.answered), qid);
+  let sawJp = false; let sawKo = false; let koLeak = false;
+  for (let i = 0; i < 60 && !(sawJp && sawKo && sawKana); i++) {
     const run = page.locator('.st-run');
     if (!(await run.count())) break;
-    tried++;
+    await page.waitForTimeout(500);
+    const rawId = await run.getAttribute('data-id');
+    const qid = `${rawId}|${await page.locator('.st-q .qc-prompt').textContent()}`;
+    const kind = await page.locator('.st-q').innerText();
+    const jpPrompt = /뜻을 고르세요/.test(kind);
+    const koPrompt = /일본어로 뭘까요/.test(kind);
+    if (jpPrompt && !jpQs.has(qid)) { jpQs.add(qid); if (await spokenBefore(qid)) sawJp = true; }
+    if (koPrompt && !koQs.has(qid)) { koQs.add(qid); if (await spokenBefore(qid)) koLeak = true; else sawKo = true; }
+    if ((await run.getAttribute('data-mode')) === 'typing') { await page.locator('.st-input').fill('ㅋㅋㅋ'); await page.locator('.st-submit').click(); }
+    else await page.locator('.st-opt').last().click();
     await page.waitForTimeout(600);
-    if ((await run.getAttribute('data-mode')) === 'typing') { await page.locator('.st-input').fill('ㅋㅋㅋ'); await page.locator('.st-submit').click(); await page.waitForTimeout(1800); }
-    else {
-      /* 문제 칸에 한국어 안내(「뜻을 고르세요」)면 일→한, 「일본어로」면 한→일 — 읽은 횟수를 답 내기 전에 본다 */
-      const kind = await page.locator('.st-q').innerText();
-      const spokenBefore = await page.evaluate(() => window._spoken.length);
-      const jpPrompt = /뜻을 고르세요/.test(kind);
-      if (jpPrompt && spokenBefore > 0) sawJp = true;
-      if (!jpPrompt && /일본어|골라|고르세요/.test(kind) && spokenBefore === 0) sawKo = true;
-      await page.locator('.st-opt').last().click();
-      await page.waitForTimeout(1800);
-    }
     if (await page.locator('.ex-kana').count()) sawKana = true;
-    await page.evaluate(() => { window._spoken = []; });
     const nextBtn = page.locator('.st-next');
     if (await nextBtn.count()) await nextBtn.click();
-    await page.waitForTimeout(500);
+    else await page.waitForFunction((id) => `${document.querySelector('.st-run')?.dataset.id}|${document.querySelector('.st-q .qc-prompt')?.textContent}` !== id, qid, { timeout: 6000 }).catch(() => {});
+    await page.waitForTimeout(200);
   }
-  ok('★ 일→한 문제는 문제를 바로 읽는다 ★', sawJp);
-  ok('★ 한→일 문제는 답을 내기 전에 읽지 않는다 ★', sawKo);
+  ok('★ 일→한 문제는 문제를 바로 읽는다 ★', sawJp, `일→한 ${jpQs.size}문제`);
+  ok('★ 한→일 문제는 답을 내기 전에 읽지 않는다 ★', sawKo && !koLeak, `한→일 ${koQs.size}문제`);
   ok('★ 틀린 단어의 정답 카드에 예문 읽기(가나)가 있다 ★', sawKana);
   await page.close();
 
