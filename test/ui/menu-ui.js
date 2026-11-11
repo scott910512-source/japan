@@ -61,7 +61,7 @@ async function boot(browser, settings = {}) {
   ok('마지막 추가 자료', labels[2].includes('추가 자료'));
   const catalog = await page.locator('[data-group="catalog"] .mt-title').allTextContents();
   const more = await page.locator('[data-group="more"] .mt-title').allTextContents();
-  ok('전체 학습 일곱 과정의 위치가 고정된다', catalog.join() === 'N3 코스,JLPT 기출 단어,단어 암기,문법,한자,회화 문장,듣기', catalog.join());
+  ok('전체 학습 여덟 과정의 위치가 고정된다(말하기는 듣기 다음)', catalog.join() === 'N3 코스,JLPT 기출 단어,단어 암기,문법,한자,회화 문장,듣기,말하기', catalog.join());
   ok('퀴즈와 오답 복습의 위치를 안내한다', (await page.locator('.sh-quiz-note').innerText()).includes('복습&내기록'));
   ok('추가 자료 네 메뉴를 보존한다', more.join() === '여행 일본어,영상,완전기초,독일어', more.join());
   ok('추가 자료는 처음에 접혀 있다', !(await page.locator('.sh-more').evaluate((el) => el.open)));
@@ -294,8 +294,8 @@ async function boot(browser, settings = {}) {
     await page.waitForTimeout(350);
     ok('아래에서 완료해도 편집 상태가 종료된다', await page.locator('.sh-editbar').count() === 0 && (await page.locator('.sh-edit').innerText()) === '편집');
     ok('끝내면 별이 사라진다', await page.locator('.mt-star').count() === 0);
-    ok('★ 바로가기 세 개 외 전체 열한 메뉴는 보존한다 ★',
-      await page.locator('.menutile').count() === 14, `${await page.locator('.menutile').count()}칸`);
+    ok('★ 바로가기 세 개 외 전체 열두 메뉴는 보존한다 ★',
+      await page.locator('.menutile').count() === 15, `${await page.locator('.menutile').count()}칸`);
     ok('★ 맨 앞 묶음이 바로가기 ★',
       await page.locator('.menugroup').first().getAttribute('data-group') === 'fav');
 
