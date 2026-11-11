@@ -50,8 +50,9 @@ const of = (g) => MENUS.filter((m) => m.group === g).map((m) => m.id);
    줄이 아니라 여기 있다. 큰 칸은 없앴다(모든 칸이 같은 크기). */
 ok('추천 경로는 코스와 기출', of('course').join() === 'n3,kiju', of('course').join());
 ok('★ 모든 칸이 같은 크기 — 큰 칸이 없다 ★', MENUS.filter((m) => m.big).length === 0);
-ok('★ 골라 학습은 단어 · 문법 · 한자 · 문장 · 듣기 (실전 연습 칸은 퀴즈로 모였다) ★',
-  of('pick').join() === 'words,grammar,kanji,sentences,listen', of('pick').join());
+ok('★ 골라 학습은 단어 · 문법 · 한자 · 문장 · 듣기 · 말하기 (실전 연습 칸은 퀴즈로 모였다) ★',
+  of('pick').join() === 'words,grammar,kanji,sentences,listen,speak', of('pick').join());
+ok('말하기 칸이 있다 (보고 말하기 · AI 문장)', MENUS.find((m) => m.id === 'speak')?.label === '말하기');
 ok('한자 칸이 있다 (N3 코스의 한자 과정)', MENUS.find((m) => m.id === 'kanji')?.label === '한자');
 ok('듣기가 학습 탭 안에 있다 (탭이 아니다)', MENUS.find((m) => m.id === 'listen')?.label === '듣기');
 ok('★ 자료 더 보기는 여행 일본어 · 영상 · 완전기초 · 독일어 ★',
@@ -68,7 +69,7 @@ ok('끈 퀴즈는 줄에서도 빠진다', practiceOf('drill', { quiz: true, mat
 ok('★ N3 칸 이름은 「N3 학습하기」 ★', MENUS.find((m) => m.id === 'n3')?.label === 'N3 학습하기');
 ok('모든 칸의 id가 그대로다(저장된 설정·즐겨찾기가 안 깨진다)',
   ['n3', 'kiju', 'words', 'grammar', 'kanji', 'sentences', 'listen', 'videos', 'quiz', 'conjugate', 'adverb', 'match', 'rpg', 'basics', 'travel', 'swiss']
-    .every((id) => MENU_IDS.includes(id)) && MENU_IDS.length === 16);
+    .every((id) => MENU_IDS.includes(id)) && MENU_IDS.includes('speak') && MENU_IDS.length === 17);
 /* ★ 행동은 학습 탭에 없다 ★ 회독 학습·약점 복습은 복습 탭으로 갔다 */
 ok('회독 학습·약점 복습은 학습 탭에 없다 (복습 탭에)', !MENU_IDS.includes('repeat') && !MENU_IDS.includes('weak'));
 ok('JLPT 단어는 더 이상 따로 없다', !MENU_IDS.includes('jlpt'));

@@ -202,6 +202,8 @@ const DEFAULT_PROGRESS = {
   /* 오늘의 퀘스트 하루 몫 — { day, stream }. 날이 바뀌면 새로 시작한다(lib/quests.js) */
   quests: {},
   /* 지역 확인 퀴즈 결과 — { 지역id: { exam: { best, last, tries, right, total, at } } } (lib/regions.js) */
+  /* 말하기 연습에 쓰는 AI 문장 — { items: { id: 문장 }, gone: { id: 지운 시각 } } (lib/speak.js) */
+  speak: { items: {}, gone: {} },
   regions: {},
 };
 export function loadProgress() {
@@ -219,6 +221,7 @@ export function loadProgress() {
     weakQuiz: saved?.weakQuiz && typeof saved.weakQuiz === 'object' ? saved.weakQuiz : {},
     quests: saved?.quests && typeof saved.quests === 'object' ? saved.quests : {},
     regions: saved?.regions && typeof saved.regions === 'object' && !Array.isArray(saved.regions) ? saved.regions : {},
+    speak: saved?.speak && typeof saved.speak === 'object' && !Array.isArray(saved.speak) ? saved.speak : { items: {}, gone: {} },
   };
 }
 export function saveProgress(progress) {
@@ -354,6 +357,7 @@ export const DEFAULT_SETTINGS = {
     kanji: true,      // 한자 — N3 코스의 한자 과정
     sentences: true,  // 문장 — 상황별 회화
     listen: true,     // 듣기 — 자동 듣기 · 따라 말하기
+    speak: true,      // 말하기 — 문장 보고 말하기 · AI 문장
     videos: true,     // 영상 — 유튜브 · 자막 (자료 더 보기)
     // 단어·문법 화면 안의 연습 (학습 탭에는 안 그린다)
     quiz: true,       // 단어 시험

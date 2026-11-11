@@ -16,6 +16,7 @@ import { mergeMistakes } from './mistakes.js';
 import { mergeWeakQuiz } from './weakquiz.js';
 import { mergeQuests } from './quests.js';
 import { mergeRegions } from './regions.js';
+import { mergeSpeak } from './speak.js';
 /* 약점 장부 — 규칙은 lib/weak.js. 횟수는 큰 쪽, 잊어버린 간격은 작은 쪽. */
 import { mergeWeak } from './weak.js';
 
@@ -185,6 +186,7 @@ export function mergeProgress(local = {}, remote = {}) {
     quests: mergeQuests(local.quests, remote.quests),
     /* 지역 확인 퀴즈 — 최고 점수와 응시 횟수는 큰 쪽 */
     regions: mergeRegions(local.regions, remote.regions),
+    speak: mergeSpeak(local.speak, remote.speak),
     /* 둘 다 없으면 null로 둔다 — 한 번도 안 연 사람에게 빈 코스 기록을 만들지 않는다 */
     n3: (local.n3 || remote.n3) ? mergeN3(local.n3, remote.n3) : null,
   };
