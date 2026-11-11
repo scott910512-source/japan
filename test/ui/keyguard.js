@@ -30,6 +30,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   await p.locator('.gate, .tabbar').first().waitFor({ state: 'visible', timeout: 20000 });
   /* 설정 화면 조각은 탭을 처음 열 때 받는다 — 서비스워커가 다 받아 둘 때까지 기다린 뒤에 끊는다 */
   await p.waitForTimeout(2500);
+  await p.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {});   // 서비스워커가 자료를 다 받아 둔 뒤에 끊는다(정해 둔 시간만 기다리면 느린 러너에서 화면 조각이 빠진다)
   await p.context().setOffline(true);
   await p.waitForTimeout(900);
   const off = p.locator('.gate-offline'); await off.waitFor({ timeout: 8000 }).catch(() => {});

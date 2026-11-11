@@ -21,7 +21,7 @@ try {
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await context.setOffline(true);
+  await page.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {}); await context.setOffline(true);
   await page.locator('.gate-offline').waitFor({ timeout: 15000 });
   await page.locator('.gate-offline').click();
   await page.locator('.hunter-home').waitFor();

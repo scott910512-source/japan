@@ -1,6 +1,6 @@
 import {
   IconBook, IconGrid, IconChat, IconSparkle, IconRepeat, IconList,
-  IconPerson, IconPencil, IconFlame, IconChevron, IconMap, IconChart, IconHeadphone, IconVideo,
+  IconPerson, IconPencil, IconFlame, IconChevron, IconMap, IconChart, IconHeadphone, IconVideo, IconMic,
 } from './Icons.jsx';
 
 const ICONS = {
@@ -16,6 +16,7 @@ const ICONS = {
   flame: IconFlame,
   map: IconMap,
   headphone: IconHeadphone,
+  mic: IconMic,
   video: IconVideo,
 };
 

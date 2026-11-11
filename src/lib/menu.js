@@ -59,6 +59,8 @@ export const MENUS = [
   { id: 'kanji', group: 'pick', label: '한자', sub: 'N3 한자 500자', icon: 'kanji' },
   { id: 'sentences', group: 'pick', label: '문장', sub: '상황별 회화', icon: 'chat' },
   { id: 'listen', group: 'pick', label: '듣기', sub: '자동 듣기 · 따라 말하기', icon: 'headphone' },
+  /* 말하기 — 문장을 보고 스스로 말해 본 뒤 정답을 듣는다(마이크 없이 저절로 흘러간다). AI로 만든 문장을 저장해 쓴다 */
+  { id: 'speak', group: 'pick', label: '말하기', sub: '보고 말하기 · AI 문장', icon: 'mic' },
 
   // ── 퀴즈 (학습 탭에는 안 그린다 — 복습&내기록 › 퀴즈 한 곳에 모였다) ──
   { id: 'rpg', group: 'practice', parent: 'drill', label: '상황 대화', sub: '상황을 통째로', icon: 'person' },

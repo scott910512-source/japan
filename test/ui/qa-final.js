@@ -32,6 +32,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   await p.waitForTimeout(1000);
   /* 다 뜬 다음에 끊는다. 끊고 나서 불러오면 서비스워커가 아직 자리를 안
      잡았을 때 아무것도 안 뜬다 — 인터넷이 되는 곳(CI)에서 이걸로 죽었다. */
+  await p.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {});   // 서비스워커가 자료를 다 받아 둔 뒤에 끊는다(정해 둔 시간만 기다리면 느린 러너에서 화면 조각이 빠진다)
   await p.context().setOffline(true);
   const off = p.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});

@@ -63,23 +63,27 @@ export function buildBoard(cards, review, { mode = MODE.TEXT, pairs = PAIRS, exc
   const rest = shuffled(pool.filter((c) => !stateOf(review, c.id).lastSeen));
 
   const want = Math.min(pairs, pool.length);
-  const picked = [];
-  const take = (list, n) => { while (picked.length < want && n-- > 0 && list.length) picked.push(list.shift()); };
+  /* 뜻이 같은 게 두 개 들어오면 어느 쪽에 붙여도 맞는 짝이 생긴다.
+     화면은 하나만 정답으로 치니, 맞는데 틀렸다고 나온다. 그래서 뜻(소리판은 읽는 법)이 겹치는 카드는 건너뛴다.
+
+     ★ 건너뛴 자리는 다음 카드로 채운다 ★ 예전엔 다섯을 먼저 뽑고 나서 겹치는 것을 뺐다. 그러면 뜻이 같은 낱말이
+     같이 뽑힌 판은 네 쌍으로 줄었다(드물게 — 400개 중에서 2만 판에 7판). 뽑으면서 거르면 줄지 않는다. */
+  const byMean = new Set();
+  const clean = [];
+  const take = (list, n) => {
+    while (clean.length < want && n > 0 && list.length) {
+      const c = list.shift();
+      const key = mode === MODE.SOUND ? (c.kana || c.kanji) : shortMean(c);
+      if (byMean.has(key)) continue;       // 겹치면 몫을 쓰지 않고 다음 카드를 본다
+      byMean.add(key);
+      clean.push(c);
+      n -= 1;
+    }
+  };
   take(weak, Math.ceil(want / 2));
   take(seen, want);
   take(rest, want);
   take(weak, want);          // 약점밖에 없으면 그거라도 채운다
-
-  /* 뜻이 같은 게 두 개 들어오면 어느 쪽에 붙여도 맞는 짝이 생긴다.
-     화면은 하나만 정답으로 치니, 맞는데 틀렸다고 나온다. */
-  const byMean = new Set();
-  const clean = [];
-  for (const c of picked) {
-    const key = mode === MODE.SOUND ? (c.kana || c.kanji) : shortMean(c);
-    if (byMean.has(key)) continue;
-    byMean.add(key);
-    clean.push(c);
-  }
   if (clean.length < 2) return null;
 
   return {

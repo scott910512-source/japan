@@ -1,4 +1,4 @@
-import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, TravelCourse, N3Course, DrillHub, StreamQuiz, ComposeQuiz } from './screens.js';
+import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, TravelCourse, N3Course, DrillHub, StreamQuiz, ComposeQuiz, SpeakPractice } from './screens.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
 export default function FeatureScreen({
@@ -227,6 +227,18 @@ export default function FeatureScreen({
                 next={streamNext}
                 seenToday={seenToday}
                 questDone={streamQuestDone}
+              />
+            )}
+            {sub === 'speak' && (
+              <SpeakPractice
+                sentenceCards={sentenceCards}
+                review={review}
+                progress={progress}
+                setProgress={setProgress}
+                settings={settings}
+                onActivity={noteActivity}
+                onToast={showToast}
+                onExit={onExit}
               />
             )}
             {sub === 'compose' && (

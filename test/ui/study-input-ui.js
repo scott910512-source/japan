@@ -42,7 +42,7 @@ try {
     localStorage.setItem('jp_manabu_plan_v1', JSON.stringify({ v: 1, date, goals: { fresh: 12, review: 0, weak: 0 }, assigned: fixtures.map((w) => ({ id: w.id, kind: 'word', bucket: 'fresh' })), reps: 12, done: {}, extra: 1, sizes: { fresh: 12, review: 0, weak: 0 } }));
   });
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
-  await context.setOffline(true); await page.locator('.gate-offline').waitFor({ timeout: 15000 }); await page.locator('.gate-offline').click();
+  await page.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {}); await context.setOffline(true); await page.locator('.gate-offline').waitFor({ timeout: 15000 }); await page.locator('.gate-offline').click();
   await page.locator('.bigcta').click(); await page.locator('.study.intro').waitFor();
   await page.waitForTimeout(450);
   check('시작 안내에서 첫 단어를 미리 읽지 않는다', await page.evaluate(() => window.__said.length === 0));
