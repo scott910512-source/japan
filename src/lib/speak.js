@@ -6,7 +6,8 @@
  *
  * ★ 문장은 두 군데서 온다 ★
  *   배운 문장   상황별 회화 중 이미 본 것(회독 기록이 있는 문장 카드)
- *   AI 문장     주제를 적으면 AI가 만들어 준 것. progress.speak에 저장하고 계정으로 동기화한다
+ *   AI 문장     주제를 적으면 AI가 만들어 준 것. progress.speak에 저장하고 계정으로 동기화한다.
+ *               한 번 만들 때마다 한 회차로 묶인다 — 회차를 골라 연습하거나 섞어서 연습한다
  *
  * 이 파일은 순수 함수와 AI 부르는 자리만 둔다. 화면은 screens/SpeakPractice.jsx. */
 import { callClaude, callGemini, PROVIDERS, resolveProvider } from './aiClient.js';
@@ -34,7 +35,7 @@ function hash(text) {
 }
 
 /* AI가 준 한 줄을 쓸 수 있는 모양으로. 못 쓰면 null — 틀린 모양을 그대로 저장하지 않는다 */
-export function shapeSentence(raw, { topic = '', level = '', at = Date.now() } = {}) {
+export function shapeSentence(raw, { topic = '', level = '', at = Date.now(), batch = '' } = {}) {
   const jp = String(raw?.jp || '').trim();
   const ko = String(raw?.ko || '').trim();
   let kana = String(raw?.kana || '').trim();
@@ -42,7 +43,9 @@ export function shapeSentence(raw, { topic = '', level = '', at = Date.now() } =
   if (jp.length > 80 || ko.length > 120) return null;
   /* 읽기는 가나여야 한다. 한자가 섞여 왔으면 버리고 원문으로 읽게 둔다(틀린 읽기를 보여 주는 것보다 낫다) */
   if (kana && !KANA_ONLY.test(kana)) kana = '';
-  return { id: `sp:${hash(keyOf(jp))}`, jp, kana, ko, topic: String(topic || '').slice(0, MAX_TOPIC_CHARS), level: String(level || ''), at };
+  const out = { id: `sp:${hash(keyOf(jp))}`, jp, kana, ko, topic: String(topic || '').slice(0, MAX_TOPIC_CHARS), level: String(level || ''), at };
+  if (batch) out.batch = String(batch);      // 몇 번째로 만든 묶음인지(회차) — 한 번 만들 때 나온 문장은 같은 값
+  return out;
 }
 
 /* 모델이 펜스를 붙이거나 앞뒤에 말을 얹는 경우가 있다 */
@@ -121,6 +124,40 @@ export function mergeSpeak(a, b) {
   return { items, gone };
 }
 
+/* ── 회차: 한 번 만들 때 나온 문장 묶음 ──
+ *   새로 만든 문장은 batch 값이 같다. 회차 기능이 생기기 전에 만든 문장은 batch가 없어서,
+ *   주제가 같고 만든 시각이 붙어 있는 것끼리 한 회차로 본다(한 번에 만든 문장은 시각이 몇 ms밖에 안 벌어진다).
+ *   번호는 만든 순서다(1회차가 가장 오래된 것). */
+const OLD_BATCH_GAP_MS = 2000;
+export function speakBatches(saved = []) {
+  const asc = [...saved].filter((x) => x?.id).sort((a, b) => (a.at || 0) - (b.at || 0));
+  const byId = new Map();
+  let open = null;
+  for (const it of asc) {
+    let id = it.batch;
+    if (!id) {
+      const topic = it.topic || '';
+      if (open && open.topic === topic && (it.at || 0) - open.last <= OLD_BATCH_GAP_MS) { id = open.id; open.last = it.at || 0; }
+      else { id = `old:${it.at || 0}:${hash(topic)}`; open = { id, topic, last: it.at || 0 }; }
+    }
+    if (!byId.has(id)) byId.set(id, { id, topic: it.topic || '', level: it.level || '', at: it.at || 0, items: [] });
+    byId.get(id).items.push(it);
+  }
+  return [...byId.values()].sort((a, b) => a.at - b.at).map((g, i) => ({ ...g, no: i + 1 }));
+}
+
+/* 고른 회차만 남긴다. 아무것도 안 골랐거나 고른 회차가 이제 없으면 전부다(지운 회차 때문에 연습이 막히지 않게) */
+export function pickBatches(batches = [], ids = []) {
+  const want = new Set(Array.isArray(ids) ? ids : []);
+  const hit = batches.filter((b) => want.has(b.id));
+  return hit.length ? hit : batches;
+}
+export const batchSentences = (batches = []) => batches.flatMap((b) => b.items);
+export const batchLabel = (b, max = 14) => {
+  const topic = b?.topic || '일상 회화';
+  return `${b?.no}회차 · ${topic.length > max ? `${topic.slice(0, max)}…` : topic}`;
+};
+
 /* ── 한 판에 낼 문장 ── */
 const fromCard = (c) => ({ id: c.id, jp: c.kanji, kana: c.kana && c.kana !== c.kanji ? c.kana : '', ko: String(c.mean || '').split(';')[0].trim(), topic: c.place || '', learned: true });
 
@@ -160,9 +197,11 @@ export function buildSpeakQueue({ source = SPEAK_SOURCE.MIX, saved = [], sentenc
 
 /* ── 한 문장이 흘러가는 걸음 ──
  *   뜻 → 일본어   prompt(뜻을 보고 듣는다) → think(말해 본다) → answer(정답을 듣는다) → repeat(따라 말한다)
- *   일본어 → 뜻   prompt(일본어를 듣는다) → think(따라 말한다) → answer(뜻을 확인하고 한 번 더 듣는다) */
-export function speakSteps(dir) {
-  return dir === SPEAK_DIR.JP_KO ? ['prompt', 'think', 'answer'] : ['prompt', 'think', 'answer', 'repeat'];
+ *   일본어 → 뜻   prompt(일본어를 듣는다) → think(따라 말한다) → answer(뜻을 확인하고 한 번 더 듣는다) → repeat(뜻을 알고 한 번 더 말한다)
+ *   마지막 repeat(정답을 들은 뒤 한 번 더 말하기)는 설정에서 끌 수 있다 — again: false */
+export function speakSteps(dir, { again = true } = {}) {
+  const base = ['prompt', 'think', 'answer'];
+  return again ? [...base, 'repeat'] : base;
 }
 
 /* 읽는 데 걸리는 시간 어림(ms). 끝났다는 신호가 안 오는 기기가 있어 글자 수로 상한을 둔다(듣기와 같은 규칙) */
@@ -176,7 +215,7 @@ export function stepMs(step, item, { dir = SPEAK_DIR.KO_JP, think = 5 } = {}) {
   const koMs = speechMs(item?.ko, 120, 600, 4000);
   if (dir === SPEAK_DIR.JP_KO) {
     if (step === 'prompt') return jpMs + 300;
-    if (step === 'think') return Math.max(think * 1000, jpMs + 500);
+    if (step === 'think' || step === 'repeat') return Math.max(think * 1000, jpMs + 500);   // 내가 말할 차례
     return jpMs + 1200;
   }
   if (step === 'prompt') return koMs + 200;
@@ -219,7 +258,8 @@ export async function generateSentences({ topic = '', level = 'N4', count = GEN_
   const raw = provider === PROVIDERS.CLAUDE
     ? await callClaude({ ...args, maxTokens: 3000 })
     : await callGemini({ ...args, maxTokens: 16384 });
-  const list = parseSentences(raw, { topic, level });
+  const at = Date.now();
+  const list = parseSentences(raw, { topic, level, at, batch: `b${at.toString(36)}` });   // 이번에 만든 문장은 한 회차
   if (!list.length) throw new Error('쓸 수 있는 문장이 오지 않았어요. 다시 해 봐 주세요');
   return list;
 }

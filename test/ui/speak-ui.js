@@ -19,6 +19,11 @@ const SENTENCES = { sentences: [
   { jp: 'この料理は辛いですか。', kana: 'このりょうりはからいですか。', ko: '이 요리는 매워요?' },
   { jp: 'お水をください。', kana: 'おみずをください。', ko: '물 주세요.' },
 ] };
+/* 두 번째로 만들 때 오는 문장 — 다른 회차로 묶여야 한다 */
+const SECOND = { sentences: [
+  { jp: '会議は三時からです。', kana: 'かいぎはさんじからです。', ko: '회의는 3시부터예요.' },
+  { jp: '資料を送ります。', kana: 'しりょうをおくります。', ko: '자료를 보낼게요.' },
+] };
 
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
@@ -46,7 +51,7 @@ const SENTENCES = { sentences: [
   let calls = 0; let lastBody = '';
   await page.route('**/generativelanguage.googleapis.com/**', async (route) => {
     calls += 1; lastBody = route.request().postData() || '';
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(SENTENCES) }] } }] }) });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(calls === 1 ? SENTENCES : SECOND) }] } }] }) });
   });
   await page.evaluate(() => {
     window._spoken = [];
@@ -133,11 +138,54 @@ const SENTENCES = { sentences: [
   console.log('\n[ 일본어 듣고 따라 말하기 ]');
   await page.locator('.sp-out').click();
   await page.locator('.sp-dirs [data-dir="jp-ko"]').click();
+  ok('「정답을 들은 뒤 한 번 더 말하기」가 기본으로 켜져 있다', await page.locator('.sp-agains [data-again="1"].active').count() === 1);
   await page.locator('.sp-start').click();
   await page.waitForTimeout(400);
   ok('★ 일본어가 먼저 보이고 뜻은 가려져 있다 ★', await page.locator('.sp-jp').count() === 1 && await page.locator('.sp-ko.sp-hidden').count() === 1);
+  /* 일본어 → 따라 말하기 → 뜻과 일본어 → (뜻을 본 채로) 한 번 더 말하기 */
+  await page.waitForFunction(() => document.querySelector('.sp-run')?.dataset.step === 'answer', null, { timeout: 15000 });
+  ok('뜻이 나오고 일본어를 한 번 더 들려준다', await page.locator('.sp-ko:not(.sp-hidden)').count() === 1);
+  await page.waitForFunction(() => document.querySelector('.sp-run')?.dataset.step === 'repeat', null, { timeout: 15000 });
+  ok('★ 일본어가 끝난 뒤에도 뜻을 본 채로 한 번 더 말할 차례가 온다 ★', (await run.getAttribute('data-index')) === '0' && (await page.locator('.sp-step').innerText()).includes('한 번 더 말해')
+    && await page.locator('.sp-ko:not(.sp-hidden)').count() === 1 && await page.locator('.sp-jp').count() === 1 && await page.locator('.sp-stage.speak-now').count() === 1);
   await page.locator('.sp-quit').click();
   ok('그만하면 설정으로 돌아온다', await page.locator('.sp-setup').count() === 1);
+  /* 끄면 정답을 듣고 바로 다음 문장 */
+  await page.locator('.sp-agains [data-again="0"]').click();
+  ok('설정에서 끄면 저장된다', await page.evaluate(() => JSON.parse(localStorage.getItem('jp_speak_prefs_v1')).again === false));
+  await page.locator('.sp-start').click();
+  await page.waitForFunction(() => document.querySelector('.sp-run')?.dataset.step === 'answer', null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector('.sp-run')?.dataset.step !== 'answer', null, { timeout: 15000 });
+  ok('★ 끄면 한 번 더 말하기 없이 다음 문장으로 간다 ★', (await run.getAttribute('data-index')) === '1' && (await run.getAttribute('data-step')) === 'prompt');
+  await page.locator('.sp-quit').click();
+  await page.locator('.sp-agains [data-again="1"]').click();
+
+  console.log('\n[ AI 문장 회차 ]');
+  ok('회차가 하나뿐이면 회차 고르기는 안 보인다', await page.locator('.sp-batches').count() === 0);
+  await page.locator('.sp-topic').fill('회사 회의');
+  await page.locator('.sp-make').click();
+  await page.waitForTimeout(1200);
+  const store = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}').speak?.items || {}));
+  const ids = [...new Set(store.map((x) => x.batch))];
+  ok('★ 다시 만들면 새 회차로 저장된다 ★', store.length === 4 && ids.length === 2 && ids.every(Boolean), `${store.length}문장 · ${ids.length}회차`);
+  ok('회차 고르기가 나온다(전체 섞기 + 회차 둘)', await page.locator('.sp-batches [data-batch]').count() === 3 && await page.locator('.sp-batches [data-batch="all"].active').count() === 1);
+  ok('회차마다 번호 · 주제 · 문장 수가 보인다', (await page.locator('.sp-batches [data-no="2"]').innerText()).replace(/\s+/g, ' ').includes('2회차 · 회사 회의 2개') && (await page.locator('.sp-batches [data-no="1"]').innerText()).includes('식당에서 주문'));
+  await page.locator('.sp-sources [data-source="ai"]').click();
+  await page.locator('.sp-batches [data-no="2"]').click();
+  ok('★ 회차 하나를 고르면 그 문장 수만큼만 연습한다 ★', (await page.locator('.sp-sources [data-source="ai"]').innerText()).includes('2개') && (await page.locator('.sp-start').innerText()).includes('2문장'));
+  await page.locator('.sp-start').click();
+  await page.waitForTimeout(400);
+  const picked = await page.evaluate(() => document.querySelector('.sp-jp')?.textContent || '');
+  ok('★ 고른 회차의 문장만 나온다 ★', (await page.locator('.sp-pos').innerText()).replace(/\s/g, '') === '1/2' && SECOND.sentences.some((x) => x.jp === picked), picked);
+  await page.locator('.sp-quit').click();
+  await page.locator('.sp-batches [data-no="1"]').click();
+  ok('둘 다 고르면 전체 섞기와 같다', await page.locator('.sp-batches [data-batch="all"].active').count() === 1 && (await page.locator('.sp-start').innerText()).includes('4문장'));
+  await page.locator('.sp-batches [data-no="1"]').click();
+  ok('전체에서 회차 하나를 누르면 그 회차만 고른다 · 고른 회차를 기억한다', await page.locator('.sp-batches [data-no="1"].active').count() === 1 && await page.locator('.sp-batches [data-no="2"].active').count() === 0 && await page.locator('.sp-batches [data-batch="all"].active').count() === 0
+    && await page.evaluate(() => JSON.parse(localStorage.getItem('jp_speak_prefs_v1')).batches.length === 1));
+  if ((await page.locator('.sp-savedrow').getAttribute('aria-expanded')) !== 'true') await page.locator('.sp-savedrow').click();
+  ok('저장한 문장도 회차별로 묶여 보인다', await page.locator('.sp-batch').count() === 2 && (await page.locator('.sp-batchhead').first().innerText()).includes('2회차'));
+  ok('가로로 넘치지 않는다(회차)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 2).join(' | ') || '깨끗');
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

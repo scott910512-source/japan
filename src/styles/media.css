@@ -441,6 +441,13 @@
 .sp-start .bs-t svg { width: 18px; height: 18px; vertical-align: -3px; margin-right: 4px; }
 .sp-gen { display: grid; gap: 8px; }
 .sp-saved { display: grid; gap: 6px; max-height: 46vh; overflow: auto; }
+/* 회차 — 한 번 만들 때 나온 문장 묶음 */
+.sp-batch { display: grid; gap: 6px; }
+.sp-batch + .sp-batch { margin-top: 8px; }
+.sp-batchhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 4px 4px 0; font-size: 12px; color: var(--ink-soft); }
+.sp-batchhead b { font-size: 13px; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-batches { max-height: 180px; overflow: auto; }
+.sp-batchnote { margin-top: 6px; }
 .sp-row { display: grid; grid-template-columns: 1fr 44px 44px; align-items: center; gap: 4px; padding: 8px 4px 8px 10px; border: 1px solid var(--line); border-radius: 12px; }
 .sp-rowbody { display: grid; gap: 2px; min-width: 0; }
 .sp-rowbody b { font-size: 15px; line-height: 1.5; }

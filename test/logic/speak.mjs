@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   shapeSentence, parseSentences, addSentences, removeSentence, savedSentences, mergeSpeak, buildSpeakQueue, learnedSentences,
-  speakCounts, speakSteps, stepMs, userText, SPEAK_DIR, SPEAK_SOURCE,
+  speakCounts, speakSteps, stepMs, userText, SPEAK_DIR, SPEAK_SOURCE, speakBatches, pickBatches, batchSentences, batchLabel,
 } from '../../src/lib/speak.js';
 import { mergeProgress } from '../../src/lib/merge.js';
 let pass = 0;
@@ -78,7 +78,7 @@ check('한 판: 출처대로 고르고, 섞어서는 두 쪽을 번갈아 넣는
 });
 check('걸음: 뜻→일본어는 넷(뜻 · 말하기 · 정답 · 따라 말하기), 일본어→뜻은 셋', () => {
   assert.deepEqual(speakSteps(SPEAK_DIR.KO_JP), ['prompt', 'think', 'answer', 'repeat']);
-  assert.deepEqual(speakSteps(SPEAK_DIR.JP_KO), ['prompt', 'think', 'answer']);
+  assert.deepEqual(speakSteps(SPEAK_DIR.JP_KO), ['prompt', 'think', 'answer', 'repeat']);   // 정답 뒤에 한 번 더 말하기가 기본
 });
 check('말할 시간은 고른 초 그대로, 긴 문장은 듣는 시간이 더 길다', () => {
   const it = shapeSentence(A);
@@ -91,5 +91,57 @@ check('AI에게 보내는 글: 주제 · 수준 · 개수 · 이미 있는 문�
   const t = userText({ topic: '식당', level: 'N3', count: 10, avoid: [A.jp] });
   assert.ok(t.includes('[주제] 식당') && t.includes('JLPT N3') && t.includes('[개수] 10') && t.includes(A.jp));
   assert.ok(userText({}).includes('일상 회화'));
+});
+
+/* ── 정답 뒤에 한 번 더 말하기 ── */
+check('일본어 → 뜻도 정답 뒤에 한 번 더 말할 차례가 있다(기본)', () => {
+  assert.deepEqual(speakSteps(SPEAK_DIR.JP_KO), ['prompt', 'think', 'answer', 'repeat']);
+  assert.deepEqual(speakSteps(SPEAK_DIR.KO_JP), ['prompt', 'think', 'answer', 'repeat']);
+});
+check('설정에서 끄면 정답을 듣고 바로 다음 문장이다', () => {
+  assert.deepEqual(speakSteps(SPEAK_DIR.JP_KO, { again: false }), ['prompt', 'think', 'answer']);
+  assert.deepEqual(speakSteps(SPEAK_DIR.KO_JP, { again: false }), ['prompt', 'think', 'answer']);
+});
+check('한 번 더 말할 차례는 고른 「말할 시간」만큼은 준다', () => {
+  assert.ok(stepMs('repeat', A, { dir: SPEAK_DIR.JP_KO, think: 8 }) >= 8000);
+  assert.ok(stepMs('repeat', A, { dir: SPEAK_DIR.JP_KO, think: 3 }) >= 3000);
+});
+
+/* ── 회차 ── */
+const mk = (jp, extra) => ({ ...shapeSentence({ jp, kana: '', ko: '뜻' }, extra) });
+check('한 번 만든 문장은 같은 회차, 만든 순서대로 번호가 붙는다', () => {
+  const first = [mk('一つ目です。', { topic: '식당', at: 1000, batch: 'b1' }), mk('二つ目です。', { topic: '식당', at: 1000, batch: 'b1' })];
+  const second = [mk('三つ目です。', { topic: '회사', at: 5000, batch: 'b2' })];
+  const bs = speakBatches([...second, ...first]);
+  assert.equal(bs.length, 2);
+  assert.deepEqual(bs.map((b) => [b.no, b.topic, b.items.length]), [[1, '식당', 2], [2, '회사', 1]]);
+  assert.equal(batchLabel(bs[1]), '2회차 · 회사');
+  assert.equal(batchLabel({ no: 3, topic: '' }), '3회차 · 일상 회화');
+});
+check('회차 표시가 없는 예전 문장은 주제와 만든 시각으로 묶는다', () => {
+  const old = [
+    mk('朝ごはんを食べます。', { topic: '아침', at: 10_000 }), mk('歯を磨きます。', { topic: '아침', at: 10_003 }),
+    mk('会議が始まります。', { topic: '회사', at: 10_004 }),                       // 주제가 다르면 다른 회차
+    mk('顔を洗います。', { topic: '아침', at: 900_000 }),                           // 같은 주제라도 한참 뒤에 만든 것은 다른 회차
+  ];
+  const bs = speakBatches(old);
+  assert.deepEqual(bs.map((b) => [b.topic, b.items.length]), [['아침', 2], ['회사', 1], ['아침', 1]]);
+  assert.ok(bs.every((b) => b.id.startsWith('old:')));
+  assert.equal(new Set(bs.map((b) => b.id)).size, 3);
+});
+check('회차를 고르면 그 문장만, 안 고르면 전부 섞는다', () => {
+  const bs = speakBatches([mk('一つ目です。', { at: 1, batch: 'b1' }), mk('二つ目です。', { at: 2, batch: 'b2' }), mk('三つ目です。', { at: 3, batch: 'b3' })]);
+  assert.equal(batchSentences(pickBatches(bs, [])).length, 3);
+  assert.deepEqual(batchSentences(pickBatches(bs, ['b2'])).map((x) => x.jp), ['二つ目です。']);
+  assert.equal(batchSentences(pickBatches(bs, ['b1', 'b3'])).length, 2);
+  assert.equal(batchSentences(pickBatches(bs, ['지운 회차'])).length, 3);            // 고른 회차가 사라졌으면 전부
+  const q = buildSpeakQueue({ source: SPEAK_SOURCE.AI, saved: batchSentences(pickBatches(bs, ['b3'])), count: 10 });
+  assert.deepEqual(q.map((x) => x.jp), ['三つ目です。']);
+});
+check('회차 표시는 저장 · 합치기를 거쳐도 남는다', () => {
+  const list = [mk('一つ目です。', { at: 1, batch: 'b1' })];
+  const { store } = addSentences(undefined, list);
+  assert.equal(savedSentences(mergeSpeak(store, { items: {}, gone: {} }))[0].batch, 'b1');
+  assert.equal(shapeSentence(A).batch, undefined);                                    // 회차가 없으면 칸도 없다
 });
 console.log(`통과 ${pass} / 실패 0`);
