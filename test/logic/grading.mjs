@@ -13,7 +13,7 @@ import {
   checkTyping, judgeTyping, otherWordNote, acceptedJp, sensesDiffer, normalizeAnswer,
 } from '../../src/lib/quiz.js';
 import {
-  normalizeJp, phoneticJp, soundDiff, expandLongVowels, widenKana,
+  normalizeJp, phoneticJp, soundDiff, expandLongVowels, widenKana, spokenKana,
 } from '../../src/lib/jptext.js';
 
 let pass = 0; let fail = 0;
@@ -104,6 +104,29 @@ ok('피다에 吹く를 쓰면 「불다」라고 알려 준다', note?.includes
 ok('읽기(가나)로 쳐도 찾는다', otherWordNote([saku, fuku], 'ふく', saku)?.includes('불다'));
 ok('사전에 없는 말이면 알려 줄 게 없다', otherWordNote([saku, fuku], 'ほげほげ', saku) === null);
 ok('정답 낱말 자신은 대상이 아니다', otherWordNote([saku, fuku], '咲く', saku) === null);
+
+/* 소리 낼 때만 조사 は · へ를 わ · え로 — 가나만 보내면 엔진이 「りょうり + はからい」처럼 끊어 「하」로 읽는다 */
+const wa = [
+  ['このりょうりはからいですか。', 'この料理は辛いですか。', 'このりょうりわからいですか。'],
+  ['わたしはがくせいです。', '私は学生です。', 'わたしわがくせいです。'],
+  ['とうきょうへいきます。', '東京へ行きます。', 'とうきょうえいきます。'],
+  ['にほんごはむずかしいです。', '日本語は難しいです。', 'にほんごわむずかしいです。'],
+  ['あのひとは、せんせいです。', 'あの人は、先生です。', 'あのひとわ、せんせいです。'],
+  ['わたしはコーヒーをのみます。', '私はコーヒーを飲みます。', 'わたしわコーヒーをのみます。'],
+];
+for (const [kana, jp, want] of wa) ok(`조사를 소리대로: ${jp}`, spokenKana(kana, jp) === want, spokenKana(kana, jp));
+const keep = [
+  ['きょうはいいてんきですね。', '今日はいい天気ですね。'],   // 뒤가 히라가나면 낱말의 일부일 수 있어 안 건드린다
+  ['まいにちはやくおきます。', '毎日はやく起きます。'],       // はやく의 は
+  ['これはなんですか。', 'これは何ですか。'],                 // 앞이 가나 — 엔진이 원래 잘 읽는 자리
+  ['はなしをききます。', '話を聞きます。'],                   // 원문에 は가 없다(話의 읽기)
+  ['はははいしゃです。', '母は医者です。'],                   // 읽기 속에 は가 겹친다 — 헷갈리면 그대로
+];
+ok('낱말 속의 は는 안 바꾼다', keep.slice(0, 4).every(([kana, jp]) => spokenKana(kana, jp) === kana), keep.slice(0, 4).map(([k, j]) => spokenKana(k, j)).join(' '));
+ok('母は — 어느 は가 조사인지 헷갈리면 건드리지 않는다(낱말을 망가뜨리지 않는다)', spokenKana(keep[4][0], keep[4][1]) === keep[4][0], spokenKana(keep[4][0], keep[4][1]));
+ok('조사가 둘이어도 각각 바꾼다', spokenKana('わたしはえきへいきます。', '私は駅へ行きます。') === 'わたしわえきえいきます。', spokenKana('わたしはえきへいきます。', '私は駅へ行きます。'));
+ok('읽기와 원문이 안 맞으면 읽기를 그대로 돌려준다', spokenKana('ぜんぜんちがう', '私は学生です。') === 'ぜんぜんちがう');
+ok('원문이 없거나 한자가 없으면 그대로', spokenKana('こんにちは', '') === 'こんにちは' && spokenKana('こんにちは', 'こんにちは') === 'こんにちは');
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

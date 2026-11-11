@@ -16,7 +16,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
 
 const SENTENCES = { sentences: [
   { jp: 'ここに座ってもいいですか。', kana: 'ここにすわってもいいですか。', ko: '여기 앉아도 될까요?' },
-  { jp: '注文をお願いします。', kana: 'ちゅうもんをおねがいします。', ko: '주문 부탁드려요.' },
+  { jp: 'この料理は辛いですか。', kana: 'このりょうりはからいですか。', ko: '이 요리는 매워요?' },
   { jp: 'お水をください。', kana: 'おみずをください。', ko: '물 주세요.' },
 ] };
 
@@ -70,6 +70,13 @@ const SENTENCES = { sentences: [
   ok('저장한 문장 수가 보인다', (await page.locator('.sp-savedrow').innerText()).includes('3개') && (await page.locator('.sp-sources [data-source="ai"]').innerText()).includes('3개'));
   await page.locator('.sp-savedrow').click();
   ok('저장한 문장을 펼쳐 본다', await page.locator('.sp-row').count() === 3);
+  /* 조사 は — 읽기(가나)만 보내면 엔진이 りょうり + はからい로 끊어 「하」로 읽었다. 소리 낼 때만 わ로 바꿔 보낸다 */
+  await page.evaluate(() => { window._spoken.length = 0; });
+  await page.locator('.sp-row', { hasText: '料理' }).locator('.sp-say').click();
+  await page.waitForTimeout(300);
+  const saidWa = await page.evaluate(() => window._spoken.filter((x) => /ja/i.test(x.lang)).map((x) => x.text));
+  ok('★ 조사 は는 「와」로 읽게 보낸다(このりょうりわからいですか) ★', saidWa.some((t) => t.includes('りょうりわからい')) && !saidWa.some((t) => t.includes('りょうりはからい')), saidWa.join(' | '));
+  ok('화면의 읽기는 그대로 は다', (await page.locator('.sp-row', { hasText: '料理' }).innerText()).includes('りょうりはからい'));
   await page.locator('.sp-row').last().locator('.sp-del').click();
   await page.waitForTimeout(300);
   ok('필요 없는 문장을 지운다', await page.locator('.sp-row').count() === 2);
@@ -94,9 +101,28 @@ const SENTENCES = { sentences: [
   ok('★ 정답이 보이고(일본어 · 읽기) 일본어 음성으로 읽어 준다 ★', await page.locator('.sp-jp').count() === 1 && await page.locator('.sp-kana').count() === 1 && await page.evaluate(() => window._spoken.some((s) => /ja/i.test(s.lang))));
   await page.waitForFunction(() => document.querySelector('.sp-run')?.dataset.step === 'repeat', null, { timeout: 12000 });
   ok('따라 말할 시간이 이어진다', (await page.locator('.sp-step').innerText()).includes('따라 말해'));
-  await page.waitForFunction(() => document.querySelector('.sp-run')?.dataset.index === '1', null, { timeout: 12000 });
+  /* 다시 듣기 — 어느 걸음에서 눌러도 이 문장을 처음부터 다시 */
+  ok('단추 이름은 「다시 듣기」', (await page.locator('.sp-replay').innerText()).includes('다시 듣기'));
+  const koBefore = await page.evaluate(() => window._spoken.filter((x) => /ko/i.test(x.lang)).length);
+  await page.locator('.sp-replay').click();
+  await page.waitForTimeout(400);
+  ok('★ 따라 말할 차례에 다시 듣기 — 같은 문장을 처음(뜻)부터 다시 읽어 준다 ★', (await run.getAttribute('data-step')) === 'prompt' && (await run.getAttribute('data-index')) === '0'
+    && await page.evaluate((n) => window._spoken.filter((x) => /ko/i.test(x.lang)).length === n + 1, koBefore));
+  await page.waitForFunction(() => document.querySelector('.sp-run')?.dataset.index === '1', null, { timeout: 25000 });
   ok('★ 손대지 않아도 다음 문장으로 넘어간다 ★', (await run.getAttribute('data-step')) === 'prompt' && (await page.locator('.sp-pos').innerText()).replace(/\s/g, '') === '2/2');
   ok('가로로 넘치지 않는다(재생)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  /* 「말할 시간」(내 차례)에 눌러도 된다 — 전에는 조용한 걸음만 되풀이해서 아무 일도 없는 것처럼 보였다 */
+  await page.waitForFunction(() => document.querySelector('.sp-run')?.dataset.step === 'think', null, { timeout: 8000 });
+  const koThink = await page.evaluate(() => window._spoken.filter((x) => /ko/i.test(x.lang)).length);
+  await page.locator('.sp-replay').click();
+  await page.waitForTimeout(300);
+  ok('★ 말할 시간에 다시 듣기 — 뜻부터 다시 읽어 준다 ★', (await run.getAttribute('data-step')) === 'prompt' && (await run.getAttribute('data-index')) === '1'
+    && await page.evaluate((n) => window._spoken.filter((x) => /ko/i.test(x.lang)).length === n + 1, koThink));
+  /* 멈춰 둔 채로 눌러도 다시 흘러간다 */
+  await page.locator('.sp-pause').click();
+  await page.locator('.sp-replay').click();
+  await page.waitForTimeout(300);
+  ok('멈춘 채로 다시 듣기를 누르면 다시 흘러간다', (await run.getAttribute('data-paused')) !== '1' && (await run.getAttribute('data-step')) === 'prompt');
   await page.locator('.sp-next').click();
   await page.waitForTimeout(500);
   ok('마지막 문장에서 다음을 누르면 끝난다', await page.locator('.sp-done').count() === 1 && (await page.locator('.sp-donehead').innerText()).includes('2문장'));

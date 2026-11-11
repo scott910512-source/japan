@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { speakJapanese, speakKorean, stopSpeaking } from '../lib/tts.js';
+import { speakJapanese, speakKorean, stopSpeaking, readingText } from '../lib/tts.js';
 
 /* 한 장이 흘러가는 동안 무슨 소리가 나는가.
  *
@@ -35,7 +35,7 @@ export function useListenSpeech({
     // 문장은 읽는 데 더 걸린다. 글자 수로 어림잡아 기다린다.
     const spoken = Math.min(6000, 900 + (card.kana?.length || 4) * 130);
     const koText = String(card.mean || '').split(';')[0].trim();
-    const say = card.kana || card.kanji;
+    const say = readingText(card.kana, card.kanji);   // 조사 は · へ를 소리 나는 대로
 
     /* 다음 걸음으로. 마지막 걸음이면 다음 장으로 넘어간다. */
     const go = (after) => {

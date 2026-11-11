@@ -4,7 +4,7 @@ import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
 import { markBusy } from '../lib/busy.js';
-import { speakJapanese, speakKorean, stopSpeaking, unlockAudio } from '../lib/tts.js';
+import { speakJapanese, speakKorean, stopSpeaking, unlockAudio, readingText } from '../lib/tts.js';
 import { goalOf } from '../lib/goal.js';
 import { resolveProvider } from '../lib/aiClient.js';
 import {
@@ -62,7 +62,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
   /* ── 한 판 ── */
   const [run, setRun] = useState(null);       // { items, index, step, done }
   const [paused, setPaused] = useState(false);
-  const [nudge, setNudge] = useState(0);      // 「다시 듣기」 — 같은 걸음을 처음부터 다시
+  const [nudge, setNudge] = useState(0);      // 「다시 듣기」 — 이미 첫 걸음이어도 소리를 다시 내게 하는 신호
   const timer = useRef(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; clearTimeout(timer.current); stopSpeaking(); markBusy('speak', false); }; }, []);
@@ -94,6 +94,13 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
     if (r.index + 1 >= r.items.length) return finish(r);
     return { ...r, index: r.index + 1, step: 0 };
   });
+  /* 다시 듣기 — 어느 걸음에 있든 이 문장을 처음(뜻 · 소리)부터 다시 간다.
+     「말할 시간」처럼 조용한 걸음에서 그 걸음만 되풀이하면 아무 소리도 안 나서 고장처럼 보였다. */
+  const replay = () => {
+    setPaused(false);
+    setRun((r) => (r && !r.done ? { ...r, step: 0 } : r));
+    setNudge((n) => n + 1);
+  };
   const goPrev = () => setRun((r) => (r && !r.done ? { ...r, index: Math.max(0, r.index - 1), step: 0 } : r));
   const quit = () => {
     clearTimeout(timer.current); stopSpeaking();
@@ -106,7 +113,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
     if (!item || !step) return undefined;
     clearTimeout(timer.current);
     if (paused) { stopSpeaking(); return undefined; }
-    const say = item.kana || item.jp;
+    const say = readingText(item.kana, item.jp);   // 조사 は · へ를 소리 나는 대로(화면의 읽기는 그대로)
     const rate = settings.speechRate;
     if (prefs.dir === SPEAK_DIR.KO_JP) {
       if (step === 'prompt') speakKorean(item.ko, 1);
@@ -133,7 +140,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
     Enter: () => { if (!run) start(); else if (run.done) setRun(null); else goNext(); },
     ArrowRight: () => { if (run && !run.done) goNext(); },
     ArrowLeft: () => { if (run && !run.done) goPrev(); },
-    r: () => { if (run && !run.done) { setPaused(false); setNudge((n) => n + 1); } },
+    r: () => { if (run && !run.done) replay(); },
     Escape: () => { if (run) quit(); else onExit?.(); },
   });
 
@@ -188,7 +195,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
           </button>
           <button className="ghost-btn sp-next" onClick={goNext} aria-label="다음 문장">다음</button>
         </div>
-        <button className="ghost-btn sp-replay" onClick={() => { setPaused(false); setNudge((n) => n + 1); }}><IconSpeaker /> 이 걸음 다시</button>
+        <button className="ghost-btn sp-replay" onClick={replay}><IconSpeaker /> 다시 듣기</button>
       </div>
     );
   }
@@ -255,7 +262,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
                   {s.kana && <small lang="ja">{s.kana}</small>}
                   <span>{s.ko}{s.topic ? ` · ${s.topic}` : ''}</span>
                 </span>
-                <button className="sp-say" onClick={() => speakJapanese(s.kana || s.jp, settings.speechRate)} aria-label={`${s.jp} 듣기`}><IconSpeaker /></button>
+                <button className="sp-say" onClick={() => speakJapanese(readingText(s.kana, s.jp), settings.speechRate)} aria-label={`${s.jp} 듣기`}><IconSpeaker /></button>
                 <button className="sp-del" onClick={() => drop(s.id)} aria-label={`${s.jp} 지우기`}><IconTrash /></button>
               </div>
             ))}

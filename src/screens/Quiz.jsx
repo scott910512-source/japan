@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconCheck, IconX, IconSpeaker, IconArrowLeft, IconEye, IconPencil, IconList, IconRepeat,
 } from '../components/Icons.jsx';
-import { speakJapanese } from '../lib/tts.js';
+import { speakJapanese, readingText } from '../lib/tts.js';
 import { markBusy } from '../lib/busy.js';
 import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
 import WordMemo from '../components/WordMemo.jsx';
@@ -297,7 +297,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
    * 보낸다 — 한자를 그대로 보내면 음독으로 읽히는 낱말이 있다. */
   const speakExample = useCallback(() => {
     if (!word?.example) return;
-    speakJapanese(word.exampleKana || word.example, settings.speechRate);
+    speakJapanese(readingText(word.exampleKana, word.example), settings.speechRate);
   }, [word, settings.speechRate]);
 
   /* 일→한 문제에서 문제를 읽어 주면 답이 아니라 문제를 들려주는 거라 괜찮다.

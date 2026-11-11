@@ -3,7 +3,7 @@ import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
 import WordMemo from '../components/WordMemo.jsx';
 import { avoidToday } from '../lib/dayflow.js';
 import { IconCheck, IconFlame, IconSpeaker, IconX } from '../components/Icons.jsx';
-import { speakJapanese } from '../lib/tts.js';
+import { speakJapanese, readingText } from '../lib/tts.js';
 import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows, rowOf, speakText, textInfo } from '../lib/optionInfo.js';
 import { useHasKeyboard } from '../lib/useHotkeys.js';
@@ -212,7 +212,7 @@ export default function StreamQuiz({
     if (!settings?.autoTTS || !answered || !cur?.q?.exJp) return;
     if (exampleFor.current === cur) return;
     exampleFor.current = cur;
-    const t = setTimeout(() => speak(cur.q.exKana || cur.q.exJp), 1400);
+    const t = setTimeout(() => speak(readingText(cur.q.exKana, cur.q.exJp)), 1400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cur, Boolean(answered)]);
