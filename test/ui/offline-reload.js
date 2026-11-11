@@ -101,6 +101,7 @@ const passGate = async (page) => {
   ok('★ 사전 캐시가 찼다 (앱 전체) ★', got.n >= 40, `${got.n}개 · ${got.names.join(', ')}`);
 
   console.log('\n[ 인터넷을 끊고 처음부터 다시 연다 ]');
+  await page.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {});   // 서비스워커가 자료를 다 받아 둔 뒤에 끊는다(정해 둔 시간만 기다리면 느린 러너에서 화면 조각이 빠진다)
   await page.context().setOffline(true);
   await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
   await page.waitForTimeout(1200);

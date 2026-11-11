@@ -48,6 +48,7 @@ async function boot(browser, progress = null, extraSettings = {}) {
   await page.waitForTimeout(2500);
   /* 라이브 주소에서 돌릴 때는 서비스워커가 모든 화면 조각을 내려받을 시간을 준다(SW_WAIT=밀리초) */
   if (process.env.SW_WAIT) await page.waitForTimeout(Number(process.env.SW_WAIT));
+  await page.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {});   // 서비스워커가 자료를 다 받아 둔 뒤에 끊는다(정해 둔 시간만 기다리면 느린 러너에서 화면 조각이 빠진다)
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});

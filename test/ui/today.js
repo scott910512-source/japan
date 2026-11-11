@@ -89,6 +89,7 @@ async function boot(browser, patch = {}, init = null) {
      아무것도 안 뜬다 — 인터넷 되는 곳(CI)에서 이것 때문에 검사가 통째로 죽었다. */
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
+  await page.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {});   // 서비스워커가 자료를 다 받아 둔 뒤에 끊는다(정해 둔 시간만 기다리면 느린 러너에서 화면 조각이 빠진다)
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
@@ -425,6 +426,7 @@ async function boot(browser, patch = {}, init = null) {
     await p3.context().setOffline(false);
     await p3.reload({ waitUntil: 'domcontentloaded' });
     await p3.waitForTimeout(1200);
+    await p3.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {});   // 서비스워커가 자료를 다 받아 둔 뒤에 끊는다(정해 둔 시간만 기다리면 느린 러너에서 화면 조각이 빠진다)
     await p3.context().setOffline(true);
     const off3 = p3.locator('.gate-offline');
     await off3.waitFor({ timeout: 8000 }).catch(() => {});

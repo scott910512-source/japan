@@ -32,6 +32,7 @@ const ok = (label, condition) => {
       });
     });
     await page.reload({ waitUntil: 'networkidle' });
+    await page.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {});   // 서비스워커가 자료를 다 받아 둔 뒤에 끊는다(정해 둔 시간만 기다리면 느린 러너에서 화면 조각이 빠진다)
     await page.context().setOffline(true);
     await page.locator('.gate-offline').click();
     await page.locator('.bigcta').waitFor();

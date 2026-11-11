@@ -44,6 +44,7 @@ const FAKE = {
   await page.reload({ waitUntil: 'domcontentloaded' });
   /* 서비스워커가 화면 조각까지 받아 두기 전에 끊으면 「화면을 불러오지 못했어요」가 뜬다 — 느린 기기·바쁜 CI에서 충분히 기다린다 */
   await page.waitForTimeout(2800);
+  await page.evaluate(() => Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 20000))])).catch(() => {});   // 서비스워커가 자료를 다 받아 둔 뒤에 끊는다(정해 둔 시간만 기다리면 느린 러너에서 화면 조각이 빠진다)
   await page.context().setOffline(true);
   const off = page.locator('.gate-offline');
   await off.waitFor({ timeout: 8000 }).catch(() => {});
