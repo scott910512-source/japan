@@ -249,6 +249,27 @@ const tab = (page, id) => page.locator(`.cmp-tabs [data-mode="${id}"]`).click().
   ok('쓰기도 안내가 뜬다', await empty.page.locator('.cmp-empty').count() === 1);
   await empty.page.close();
 
+  console.log('\n[ 조립 — 같은 조각이 두 번 나오는 문장 ]');
+  {
+    /* 次の角は右ですか、左ですか — ですか가 둘이다. 어느 ですか를 집어도 맞아야 한다(전에는 「원래 자리」가 다르면 틀렸다고 했다) */
+    const twin = await boot(browser, { review: { 'mv-114': known() } });
+    twin.page.on('pageerror', (e) => errors.push(e.message));
+    await openMenu(twin.page, '문장 만들기');
+    await twin.page.locator('.cmp-build').waitFor({ timeout: 8000 });
+    const id = await twin.page.locator('.cmp-build').getAttribute('data-id');
+    const chunks = chunksOf(id);
+    ok('같은 조각이 두 번 있는 문장이 나온다', id === 'mv-114' && chunks.filter((c) => c === 'ですか').length === 2, id);
+    for (const want of chunks) {
+      /* 일부러 뒤쪽 것을 집는다 — 첫 ですか 자리에 「둘째」 ですか를 놓게 된다 */
+      await twin.page.locator('.build-pool .build-tile').filter({ hasText: new RegExp(`^${want}$`) }).last().click();
+      await twin.page.waitForTimeout(120);
+    }
+    await twin.page.waitForTimeout(400);
+    ok('★ 어느 ですか를 집어도 틀렸다고 하지 않는다 ★', await twin.page.locator('.build-tile.bad').count() === 0 && await twin.page.locator('.build-hint').count() === 0);
+    ok('★ 한 번에 맞힌 것으로 끝난다 ★', (await twin.page.locator('.bd-note').innerText().catch(() => '')).includes('한 번에 맞혔어요'), await twin.page.locator('.bd-note').innerText().catch(() => '완성 안 됨'));
+    await twin.page.close();
+  }
+
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | ') || '깨끗');
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

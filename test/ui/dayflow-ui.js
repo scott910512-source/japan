@@ -4,7 +4,7 @@
  *
  *   · 오늘 탭에 다섯 줄이 이 순서로 있고, 양이 늘었다(복습 30 이상 · 약점 30 · 쭉 20 · 새로 10)
  *   · 약점 퀴즈를 마치면 「다음: 쭉 퀴즈」, 쭉 퀴즈 20문제를 채우면 「다음: 새로 배우기」가 뜬다
- *   · 새로 배우기를 끝내면 「10개 더 배우기」와 「다음: 오늘의 N3」, N3를 다 하면 「다음: 오늘 랜덤 테스트」
+ *   · 새로 배우기를 끝내면 「10개 더 배우기」와 「다음: 오늘 랜덤 테스트」, 랜덤 테스트를 마치면 「다음: 오늘의 N3」(퀘스트 줄을 다 마친 뒤)
  *   · 랜덤 테스트는 쉰 문제(모자라면 있는 만큼)고 끝나면 오늘 몫이 적힌다 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
@@ -156,22 +156,15 @@ async function finishDeck(page) {
   ok('완주 화면이 뜬다', await page.locator('.finish').count() === 1, `${g}걸음`);
   if (await page.locator('.finish').count()) {
     ok('★ 「10개 더 배우기」가 있다 ★', await page.locator('.fin-more').count() === 1);
-    ok('★ 「다음: 오늘의 N3」가 있다 ★', await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('오늘의 N3'));
+    ok('★ 「다음: 오늘 랜덤 테스트」가 있다(퀘스트 줄의 다음 칸 — N3 코스로 새지 않는다) ★', await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('오늘 랜덤 테스트'), await page.locator('.fin-next').innerText().catch(() => '없음'));
     /* ★ 「10개 더 배우기」를 누르면 새 판이 열리고, 그 판을 끝내면 또 같은 두 버튼이 뜬다 ★ */
     await page.locator('.fin-more').click();
     await page.waitForTimeout(1200);
     ok('★ 10개 더: 완주 화면이 내려가고 새 판이 열린다 ★', await page.locator('.finish').count() === 0 && await page.locator('.study').count() >= 1);
     const g2 = await finishDeck(page);
     ok('더 배운 판도 끝나면 완주 화면', await page.locator('.finish').count() === 1, `${g2}걸음`);
-    ok('★ 끝나면 또 「10개 더」와 「다음: 오늘의 N3」 ★', await page.locator('.fin-more').count() === 1 && await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('오늘의 N3'));
+    ok('★ 끝나면 또 「10개 더」와 「다음: 오늘 랜덤 테스트」 ★', await page.locator('.fin-more').count() === 1 && await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('오늘 랜덤 테스트'));
     await page.locator('.fin-next').click();
-    await page.waitForTimeout(1500);
-    ok('★ 오늘의 N3(코스의 오늘 순서)가 열린다 ★', await page.locator('.n3-today').count() === 1, (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 80));
-    /* 오늘 순서가 짜여 있다(어휘 · 한자 · 문법 …) */
-    ok('오늘 순서 줄이 있다', await page.locator('.n3-steprow').count() >= 1);
-    await goTab(page, '오늘');
-    await page.waitForTimeout(500);
-    await page.locator('.tdq-row', { hasText: '오늘 랜덤 테스트' }).click();
     await page.waitForTimeout(1200);
 
     console.log('\n[ 오늘 랜덤 테스트 ]');
@@ -182,8 +175,12 @@ async function finishDeck(page) {
     ok('끝나면 랜덤 테스트 결과', await page.locator('.wk-result[data-flow="random"]').count() === 1);
     const pg = await progressOf(page);
     ok('★ 오늘 몫(random)이 적힌다 ★', pg.quests?.random === 1, JSON.stringify(pg.quests));
-    await page.locator('.flow-done').click();
-    await page.waitForTimeout(700);
+    /* 퀘스트 줄을 다 마친 뒤에야 오늘의 N3(학습 탭의 코스)를 내민다. 홈으로 가는 단추도 같이 있다 */
+    ok('★ 랜덤 테스트 뒤에 「다음: 오늘의 N3」와 「홈으로」가 있다 ★', (await page.locator('.flow-next').innerText().catch(() => '')).includes('오늘의 N3') && (await page.locator('.flow-done').innerText()).includes('홈으로'));
+    await page.locator('.flow-next').click();
+    await page.waitForTimeout(1500);
+    ok('★ 오늘의 N3(코스의 오늘 순서)가 열린다 ★', await page.locator('.n3-today').count() === 1, (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 80));
+    ok('오늘 순서 줄이 있다', await page.locator('.n3-steprow').count() >= 1);
     await goTab(page, '오늘');
     ok('★ 오늘 탭에서 랜덤 테스트가 마쳤어요로 바뀐다 ★', (await rowText(page, '오늘 랜덤 테스트')).includes('마쳤어요'), await rowText(page, '오늘 랜덤 테스트'));
   }
@@ -205,7 +202,7 @@ async function finishDeck(page) {
     await p3.close();
   }
 
-  console.log('\n[ 오늘의 N3를 다 하면 → 다음: 오늘 랜덤 테스트 ]');
+  console.log('\n[ 오늘의 N3를 다 하면 → 흐름의 끝: 홈으로 ]');
   {
     const p2 = await boot(browser, { n3: { v: 1, days: { [todayKey()]: { steps: [{ kind: 'review', ids: [], done: true }], built: 1, answered: 0, right: 0 } } } });
     p2.on('pageerror', (e) => errors.push(e.message));
@@ -215,10 +212,10 @@ async function finishDeck(page) {
     await p2.locator('.n3-hub').waitFor({ timeout: 8000 });
     await p2.locator('.n3-cta').click();
     await p2.waitForTimeout(1200);
-    ok('★ 끝낸 오늘의 N3에 「다음: 오늘 랜덤 테스트」가 있다 ★', await p2.locator('.n3-flownext').count() === 1 && (await p2.locator('.n3-flownext').innerText()).includes('오늘 랜덤 테스트'));
-    await p2.locator('.n3-flownext').click();
-    await p2.waitForTimeout(1200);
-    ok('★ 눌렀더니 랜덤 테스트가 바로 시작된다 ★', await p2.locator('.qoptions, .qtyping').count() >= 1 && /\/\s*50|\/\s*\d+/.test((await p2.locator('.subscreen.open').innerText()).replace(/\s+/g, ' ')));
+    ok('★ 끝낸 오늘의 N3는 흐름의 마지막이다 — 「다음」 없이 「홈으로」 ★', await p2.locator('.n3-daydone').count() === 1 && await p2.locator('.n3-flownext').count() === 0 && await p2.locator('.n3-home').count() === 1);
+    await p2.locator('.n3-home').click();
+    await p2.waitForTimeout(800);
+    ok('★ 홈으로를 누르면 오늘 화면이다 ★', await p2.locator('.tdhead').count() === 1 && await p2.locator('.subscreen.open').count() === 0);
     await p2.close();
   }
 

@@ -27,10 +27,15 @@ export function noteWeakQuiz(prev, wordIds = [], today = todayKey()) {
 /* 오늘의 약점 퀴즈 상태.
    weakList — 지금 약한 낱말 id(약한 순서). 오늘 푼 것은 다음 묶음에서 뺀다.
    total    — 오늘 몫: 푼 것 + 앞으로 풀 것, 서른을 넘지 않는다. 약점이 모자라면 그만큼만. */
-export function weakQuizState(progress, weakList = [], today = todayKey(), size = WEAK_QUIZ_SIZE) {
+export function weakQuizState(progress, weakList = [], today = todayKey(), size = WEAK_QUIZ_SIZE, seal = 0) {
   const doneIds = weakQuizOf(progress, today).ids;
   const left = weakList.filter((id) => !doneIds.includes(id));
   const done = Math.min(size, doneIds.length);
+  /* ★ 한 번 마친 약점 퀴즈는 그날 계속 마친 것이다 ★ 약한 낱말이 열둘뿐이라 12 / 12로 마쳤는데, 뒤 단계에서
+     틀린 낱말이 약점으로 들어오면 몫이 18로 늘어 「12 / 18」로 돌아갔다. 마친 순간의 몫(seal)을 채웠으면 거기서 끝이다. */
+  if (seal > 0 && doneIds.length >= seal) {
+    return { done, total: done, complete: true, ids: left.slice(0, size) };
+  }
   const total = Math.min(size, doneIds.length + left.length);
   return {
     done, total,

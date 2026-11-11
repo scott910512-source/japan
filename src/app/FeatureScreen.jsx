@@ -49,6 +49,7 @@ export default function FeatureScreen({
   weakQuizOn = false,
   onNextQuest = null,
   nextQuestLabel = '쭉 퀴즈로 이어서',
+  randomNext = null,
   /* 하루 흐름 — 오늘 랜덤 테스트로 들어왔나 · 끝났다고 적기 · 쭉 퀴즈 다음 단계 */
   randomOn = false,
   onRandomDone = null,
@@ -169,8 +170,8 @@ export default function FeatureScreen({
                 weak={weakQuizOn ? weakQuiz : null}
                 onExit={onExit}
                 onHome={onHome}
-                onNextQuest={weakQuizOn ? onNextQuest : null}
-                nextLabel={nextQuestLabel}
+                onNextQuest={weakQuizOn ? onNextQuest : randomOn && !regionExam ? (randomNext?.go || null) : null}
+                nextLabel={weakQuizOn ? nextQuestLabel : (randomNext?.label || '')}
                 flow={regionExam ? { kind: 'region', label: regionExam.label, pass: regionExam.pass } : randomOn ? { kind: 'random' } : null}
                 onComplete={regionExam ? onRegionDone : randomOn ? onRandomDone : null}
               />

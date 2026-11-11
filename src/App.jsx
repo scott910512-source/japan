@@ -29,7 +29,7 @@ import { MemoContext } from './lib/memoContext.js';
 import { REGION_RULES, REGION_QUIZ_MIN, regionQuizIds, noteRegionExam, PASS_RATIO } from './lib/regions.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
-import { noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE } from './lib/quests.js';
+import { questsOf, sealQuests, sealedProgress, noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE } from './lib/quests.js';
 import { nextStep, stepOfDeck, randomTestIds, n3Open, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
@@ -303,7 +303,22 @@ export default function App() {
   /* 오늘 복습 미션에서 이미 본 낱말은 약점 퀴즈에서 뺀다 — 같은 낱말을 한 바퀴에 또 묻지 않게 */
   const studiedToday = useMemo(() => new Set(Object.keys(plan?.done || {})), [plan]);
   const weakFresh = useMemo(() => weakAll.filter((id) => !studiedToday.has(id)), [weakAll, studiedToday]);
-  const weakQuiz = useMemo(() => weakQuizState(progress, weakFresh, today), [progress, weakFresh, today]);
+  /* 마친 퀘스트의 몫(seal) — 한 번 마친 줄은 뒤에서 몫이 늘어도 그날은 마친 것이다(lib/quests.js) */
+  const seals = useMemo(() => questsOf(progress, today), [progress, today]);
+  const weakQuiz = useMemo(() => weakQuizState(progress, weakFresh, today, undefined, seals.sealWeak), [progress, weakFresh, today, seals.sealWeak]);
+  const laneNow = planNow?.lanes || {};
+  const backAssigned = (laneNow.review?.assigned || 0) + (laneNow.weak?.assigned || 0);
+  const backDone = (laneNow.review?.done || 0) + (laneNow.weak?.done || 0);
+  const freshAssigned = laneNow.fresh?.assigned || 0;
+  const freshDone = laneNow.fresh?.done || 0;
+  useEffect(() => {
+    const full = {};
+    if (backAssigned > 0 && backDone >= backAssigned) full.review = backAssigned;
+    if (freshAssigned > 0 && freshDone >= freshAssigned) full.fresh = freshAssigned;
+    if (weakQuiz.complete && weakQuiz.total > 0) full.weakquiz = weakQuiz.total;
+    if (!Object.keys(full).length) return;
+    setProgress((p) => { const next = sealQuests(p.quests, full, today); return next === p.quests ? p : { ...p, quests: next }; });
+  }, [backAssigned, backDone, freshAssigned, freshDone, weakQuiz.complete, weakQuiz.total, today, setProgress]);
   const weakQuizOn = useRef(false);
   /* 화면에 말하려고 같은 값을 상태로도 둔다(결과 화면이 약점 퀴즈임을 알아야 한다) */
   const [weakQuizMode, setWeakQuizMode] = useState(false);
@@ -437,17 +452,18 @@ export default function App() {
   }, [setProgress, today]);
 
   /* ★ 하루 흐름 ★ 한 단계가 끝나면 다음 단계를 바로 내민다.
-     복습 미션 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기(끝에서 10개 더) → 오늘 랜덤 테스트.
+     복습 미션 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기(끝에서 10개 더) → 문장 퀘스트 → 오늘 랜덤 테스트 → 오늘의 N3.
      할 게 없거나 이미 마친 단계는 건너뛴다(lib/dayflow.js). */
   const freshLeft = Math.max(0, (planNow?.lanes?.fresh?.assigned || 0) - (planNow?.lanes?.fresh?.done || 0));
   /* 오늘의 N3(N3 코스의 오늘 계획) — N3를 켠 사람에게만. 코스 자료는 안 불러오고 코스가 적어 둔 진도만 본다 */
   const n3FlowOn = Boolean(settings.menus?.n3) && n3Included(goalOf(settings));
   const n3FlowOpen = n3Open(n3FlowOn, progress.n3, today);
   const flowOpen = {
-    review: reviewLeft > 0,
+    /* 마친 줄은 뒤에서 몫이 늘어도 흐름이 다시 그리로 돌려보내지 않는다 */
+    review: reviewLeft > 0 && !sealedProgress(backDone, backAssigned, seals.sealReview).complete,
     weakquiz: Boolean(weakQuiz && weakQuiz.total > 0 && !weakQuiz.complete),
     stream: Boolean(streamQuest && !streamQuest.complete),
-    fresh: freshLeft > 0,
+    fresh: freshLeft > 0 && !sealedProgress(freshDone, freshAssigned, seals.sealFresh).complete,
     sentence: Boolean(sentenceQuest && !sentenceQuest.skipped && !sentenceQuest.complete),
     n3: n3FlowOpen,
     random: Boolean(randomQuest && !randomQuest.complete),
@@ -681,6 +697,7 @@ export default function App() {
             onResume={resumeSession}
             onOpenReview={openReview}
             weakQuiz={weakQuiz}
+            questSeal={{ review: seals.sealReview, fresh: seals.sealFresh }}
             onStartWeakQuiz={startWeakQuiz}
             streamQuest={streamQuest}
             onStartStreamQuest={startStreamQuest}
@@ -884,6 +901,8 @@ export default function App() {
                 /* 약점 퀴즈를 마치면 오늘 퀘스트의 다음 줄 — 쭉 퀴즈가 남았으면 바로 이어 간다 */
                 onNextQuest={flowAfter('weakquiz')?.go || null}
                 nextQuestLabel={flowAfter('weakquiz')?.to === 'stream' ? '쭉 퀴즈로 이어서' : (flowAfter('weakquiz')?.label || '')}
+                /* 오늘 랜덤 테스트를 마친 뒤 — N3를 켠 사람에게는 오늘의 N3를 내민다 */
+                randomNext={flowAfter('random')}
                 randomOn={randomMode}
                 onRandomDone={onRandomDone}
                 regionExam={regionExam}

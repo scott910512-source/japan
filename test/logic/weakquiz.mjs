@@ -54,5 +54,19 @@ console.log('\n[ 기기 합치기 ]');
   ok('한쪽이 없으면 다른 쪽', mergeWeakQuiz(undefined, a) === a && mergeWeakQuiz(a, undefined) === a);
 }
 
+console.log('\n[ 마친 약점 퀴즈는 뒤에서 약점이 늘어도 마친 것이다 ]');
+{
+  /* 약한 낱말이 열둘뿐이라 12 / 12로 마쳤다. 그 뒤 쭉 퀴즈에서 틀린 여섯 낱말이 약점으로 들어왔다 */
+  const done12 = { weakQuiz: { day: T, ids: Array.from({ length: 12 }, (_, i) => `d${i}`) } };
+  const later = ['n1', 'n2', 'n3', 'n4', 'n5', 'n6'];
+  const open = weakQuizState(done12, later, T);
+  ok('(전) 몫이 18로 늘어 12 / 18 — 덜 끝난 것으로 돌아갔다', open.total === 18 && open.done === 12 && open.complete === false);
+  const sealed = weakQuizState(done12, later, T, undefined, 12);
+  ok('★ 마친 몫(12)을 적어 두면 12 / 12 마쳤어요 그대로다 ★', sealed.complete === true && sealed.done === 12 && sealed.total === 12, JSON.stringify(sealed));
+  ok('또 누르면 새로 들어온 약점을 풀 수 있다', sealed.ids.join() === later.join());
+  ok('몫을 아직 못 채웠으면 적어 둔 값이 있어도 덜 끝난 것', weakQuizState({ weakQuiz: { day: T, ids: ['d0'] } }, later, T, undefined, 12).complete === false);
+  ok('적어 둔 값이 없으면 예전과 같다', JSON.stringify(weakQuizState(done12, later, T, undefined, 0)) === JSON.stringify(open));
+}
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

@@ -1,5 +1,5 @@
 /* 오늘의 퀘스트 — 쭉 퀴즈 하루 몫 */
-import { STREAM_QUEST_SIZE, questsOf, noteQuest, streamQuestState, mergeQuests, randomQuestState, SENTENCE_QUEST_SIZE, planSentenceQuest, skipSentenceQuest, pickNewSentences, sentenceQuestState } from '../../src/lib/quests.js';
+import { sealQuests, sealedProgress, SEAL, STREAM_QUEST_SIZE, questsOf, noteQuest, streamQuestState, mergeQuests, randomQuestState, SENTENCE_QUEST_SIZE, planSentenceQuest, skipSentenceQuest, pickNewSentences, sentenceQuestState } from '../../src/lib/quests.js';
 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); } };
@@ -75,6 +75,28 @@ console.log('\n[ 문장 퀘스트 ]');
   ok('건너뛰어도 다른 몫(쭉 퀴즈)은 그대로', skipSentenceQuest({ day: T, stream: 7 }, true, T).stream === 7);
   const m = mergeQuests({ day: T, stream: 3, sentenceIds: ['a', 'b'], sentenceSkip: false }, { day: T, stream: 9, sentenceIds: ['b', 'c'], sentenceSkip: true });
   ok('★ 두 기기 합치기: id는 합집합 · 건너뜀은 한쪽이라도 · 숫자는 큰 쪽 ★', m.sentenceIds.join() === 'a,b,c' && m.sentenceSkip === true && m.stream === 9, JSON.stringify(m));
+}
+
+console.log('\n[ 마친 퀘스트는 그날 계속 마친 것이다 ]');
+{
+  const a = sealQuests(undefined, { review: 32, fresh: 20 }, T);
+  ok('다 채운 줄의 몫을 적는다', questsOf({ quests: a }, T).sealReview === 32 && questsOf({ quests: a }, T).sealFresh === 20 && questsOf({ quests: a }, T).sealWeak === 0, JSON.stringify(a));
+  ok('★ 이미 적힌 몫은 안 바꾼다(처음 마친 순간의 몫이 그날의 몫) ★', sealQuests(a, { review: 40, fresh: 30 }, T) === a);
+  const b = sealQuests(a, { weakquiz: 12 }, T);
+  ok('나중에 마친 줄은 그때 적는다', b !== a && questsOf({ quests: b }, T).sealWeak === 12 && questsOf({ quests: b }, T).sealReview === 32);
+  ok('바뀐 게 없으면 받은 그대로', sealQuests(b, {}, T) === b && sealQuests(b, { review: 0 }, T) === b);
+  ok('다른 칸(쭉 퀴즈 몫 등)을 안 건드린다', questsOf({ quests: sealQuests(noteQuest(undefined, 'stream', 7, T), { fresh: 20 }, T) }, T).stream === 7);
+  ok('★ 날이 바뀌면 처음부터다 ★', questsOf({ quests: b }, '2026-11-04').sealReview === 0 && questsOf({ quests: b }, '2026-11-04').sealWeak === 0);
+  ok('두 기기를 합쳐도 남는다', questsOf({ quests: mergeQuests(b, { day: T, stream: 3 }) }, T).sealFresh === 20);
+  ok('칸 이름', SEAL.review === 'sealReview' && SEAL.weakquiz === 'sealWeak' && SEAL.fresh === 'sealFresh');
+
+  /* 새로 배우기 20개를 마친 뒤 「10개 더」로 30개가 됐고 그중 22개를 했다 */
+  const more = sealedProgress(22, 30, 20);
+  ok('★ 마친 뒤에 몫이 늘어도 줄은 20 / 20 마쳤어요다 ★', more.complete && more.done === 20 && more.total === 20, JSON.stringify(more));
+  ok('더 붙은 것은 덤으로 센다(2 / 10)', more.extraDone === 2 && more.extraTotal === 10);
+  ok('아직 못 마친 줄은 있는 그대로', JSON.stringify(sealedProgress(12, 20, 0)) === JSON.stringify({ done: 12, total: 20, complete: false, extraDone: 0, extraTotal: 0 }));
+  ok('적어 둔 몫이 없어도 다 했으면 마친 것', sealedProgress(20, 20, 0).complete === true && sealedProgress(0, 0, 0).complete === false);
+  ok('되돌리기로 그 몫 아래로 내려가면 다시 덜 끝난 것', sealedProgress(19, 30, 20).complete === false && sealedProgress(19, 30, 20).total === 30);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
