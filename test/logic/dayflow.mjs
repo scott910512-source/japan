@@ -6,24 +6,25 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
 
 console.log('\n[ 순서 ]');
 {
-  ok('★ 순서는 복습 · 약점 퀴즈 · 쭉 퀴즈 · 새로 배우기 · 오늘의 N3 · 랜덤 테스트 ★', FLOW.join() === 'review,weakquiz,stream,fresh,sentence,n3,random');
+  ok('★ 순서는 퀘스트 줄과 같다: 복습 · 약점 퀴즈 · 쭉 퀴즈 · 새로 배우기 · 문장 · 랜덤 테스트, 그 뒤에 오늘의 N3 ★', FLOW.join() === 'review,weakquiz,stream,fresh,sentence,random,n3');
   const all = { review: true, weakquiz: true, stream: true, fresh: true, sentence: true, n3: true, random: true };
   ok('복습 다음은 약점 퀴즈', nextStep('review', all).to === 'weakquiz');
   ok('약점 퀴즈 다음은 쭉 퀴즈', nextStep('weakquiz', all).to === 'stream');
   ok('쭉 퀴즈 다음은 새로 배우기', nextStep('stream', all).to === 'fresh');
   ok('새로 배우기 다음은 문장 퀘스트', nextStep('fresh', all).to === 'sentence' && nextStep('fresh', all).label === '문장 퀘스트');
-  ok('문장 퀘스트 다음은 오늘의 N3', nextStep('sentence', all).to === 'n3');
-  ok('★ 문장 퀘스트를 건너뛰었거나 마쳤으면(false) 새로 배우기 다음이 N3로 넘어간다 ★', nextStep('fresh', { ...all, sentence: false }).to === 'n3');
-  ok('오늘의 N3 다음은 랜덤 테스트', nextStep('n3', all).to === 'random');
-  ok('랜덤 테스트 다음은 없다', nextStep('random', all) === null);
-  ok('이름표가 붙어 있다', nextStep('review', all).label === '약점 퀴즈' && nextStep('n3', all).label === '오늘 랜덤 테스트');
+  ok('★ 문장 퀘스트 다음은 오늘 랜덤 테스트(N3 코스로 새지 않는다) ★', nextStep('sentence', all).to === 'random');
+  ok('★ 문장 퀘스트를 건너뛰었거나 마쳤으면(false) 새로 배우기 다음이 랜덤 테스트로 넘어간다 ★', nextStep('fresh', { ...all, sentence: false }).to === 'random');
+  ok('랜덤 테스트 다음은 오늘의 N3', nextStep('random', all).to === 'n3');
+  ok('N3를 안 켰거나 다 했으면 랜덤 테스트가 마지막', nextStep('random', { ...all, n3: false }) === null);
+  ok('오늘의 N3 다음은 없다', nextStep('n3', all) === null);
+  ok('이름표가 붙어 있다', nextStep('review', all).label === '약점 퀴즈' && nextStep('sentence', all).label === '오늘 랜덤 테스트');
 }
 
 console.log('\n[ 할 게 없는 단계는 건너뛴다 ]');
 {
   ok('★ 약점이 없으면 복습 다음에 쭉 퀴즈 ★', nextStep('review', { stream: true, fresh: true, random: true }).to === 'stream');
   ok('쭉 퀴즈를 이미 마쳤으면 새로 배우기로', nextStep('weakquiz', { stream: false, fresh: true }).to === 'fresh');
-  ok('새로 배울 게 없으면 오늘의 N3로, 그것도 없으면 랜덤 테스트로', nextStep('stream', { fresh: false, n3: true, random: true }).to === 'n3' && nextStep('stream', { fresh: false, n3: false, random: true }).to === 'random');
+  ok('새로 배울 게 없으면 랜덤 테스트로, 그것도 마쳤으면 오늘의 N3로', nextStep('stream', { fresh: false, n3: true, random: true }).to === 'random' && nextStep('stream', { fresh: false, n3: true, random: false }).to === 'n3');
   ok('★ 아무것도 안 남았으면 null ★', nextStep('review', {}) === null);
   ok('모르는 단계는 처음부터가 아니라 null', nextStep('nope', { review: false }) === null || nextStep('nope', {}) === null);
 }

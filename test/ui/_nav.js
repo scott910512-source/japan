@@ -81,6 +81,11 @@ export async function startStudy(page, want = null) {
         await page.locator('.study .studyfoot, .study .studycard').first().waitFor({ timeout: 15000 }).catch(() => {});
         await page.waitForTimeout(300);
       }
+      /* 카드가 끝내 안 떴으면 화면에 뭐가 있는지 남긴다 — CI에서 가끔 여기서 멈추는데(ask.js) 로그만으로는 까닭을 알 수 없었다 */
+      if (!(await page.locator('.study .studyfoot, .study .studycard').count())) {
+        const seen = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 240);
+        console.log(`  (startStudy: 카드가 안 떴어요 — 화면: ${seen})`);
+      }
       return true;
     }
   }

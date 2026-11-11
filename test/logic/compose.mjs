@@ -5,7 +5,7 @@
  *   · 복습 판정: 조립은 한 번에=알아요/고쳐서=애매해요, 쓰기는 맞음=알아요/틀림=몰라요
  *   · 빈칸 자료는 답이 하나다
  *   · AI 첨삭: 답을 안전하게 읽는다(펜스·군더더기·빠진 칸), 키가 없으면 부르지 않는다 */
-import { composePool, judgeWrite, buildVerdict, writeVerdict, clozeItems, clozePool, COMPOSE_MODES, COMPOSE_MODE,
+import { fitsAt, composePool, judgeWrite, buildVerdict, writeVerdict, clozeItems, clozePool, COMPOSE_MODES, COMPOSE_MODE,
   newSession, pickNext, record } from '../../src/lib/compose.js';
 import { parseCorrection, shapeCorrection, userText, hasAiKey, correctSentence, SYSTEM, MAX_SENTENCE_CHARS } from '../../src/lib/composeAi.js';
 import { applyVerdict, VERDICT, addDays, todayKey, BOX } from '../../src/lib/review.js';
@@ -120,6 +120,16 @@ console.log('\n[ AI 첨삭: 부르기 전 ]');
   ok('보내는 글에 뜻·내 문장·참고 정답이 든다', t.includes('저는 학생입니다.') && t.includes('私学生です') && t.includes('참고용 정답'));
   ok('정답이 없으면 그 줄을 안 보낸다', !userText({ mine: 'あ' }).includes('참고용'));
   ok('★ 프롬프트가 「모르면 모른다」와 「자연스러운 회화」를 요구한다 ★', SYSTEM.includes('확실하지 않으면') && SYSTEM.includes('회화'));
+}
+
+/* 같은 조각이 두 번 나오는 문장 — 어느 것을 집어도 맞아야 한다 */
+{
+  const { chunksOf } = await import('../../src/data/allChunks.js');
+  const c = chunksOf('mv-114');   // 次 の 角 は 右 ですか 左 ですか
+  ok('시험 문장에 같은 조각이 두 번 있다', c.filter((x) => x === 'ですか').length === 2, c.join(' '));
+  ok('★ 같은 글자 조각은 어느 자리에 놓아도 맞다 ★', fitsAt(c, 5, 'ですか') && fitsAt(c, 7, 'ですか'));
+  ok('다른 조각은 여전히 틀리다', !fitsAt(c, 5, '左') && !fitsAt(c, 6, 'ですか'));
+  ok('범위를 벗어난 자리는 틀리다', !fitsAt(c, 8, 'ですか') && !fitsAt(null, 0, 'ですか'));
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

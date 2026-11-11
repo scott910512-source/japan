@@ -3,6 +3,7 @@ import { IconSpeaker, IconX } from './Icons.jsx';
 import { readingText, speakJapanese } from '../lib/tts.js';
 import { shuffled } from '../lib/review.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
+import { fitsAt } from '../lib/compose.js';
 import KeyboardHelp from './KeyboardHelp.jsx';
 
 /* 문장 조립 퀴즈 — 흩어진 조각을 순서대로 눌러 문장을 만든다.
@@ -10,7 +11,7 @@ import KeyboardHelp from './KeyboardHelp.jsx';
  * 어순과 조사를 몸에 붙이는 게 목적이라, 틀려도 정답을 바로 까지 않고
  * 어디까지 맞았는지만 알려준 뒤 다시 해볼 기회를 준다. */
 export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt, onNext, onQuit }) {
-  // 조각이 겹칠 수 있어(조사 は가 두 번 등) 값이 아니라 자리로 구분한다
+  // 조각이 겹칠 수 있어(조사 は가 두 번 등) 단추는 자리로 구분한다. 맞는지는 글자로 본다(같은 글자면 어느 것을 집어도 맞다)
   const tiles = useMemo(
     () => shuffled(chunks.map((text, index) => ({ id: `${index}-${text}`, text, index }))),
     [chunks],
@@ -37,7 +38,7 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
     setWrongAt(-1);
 
     // 방금 놓은 조각이 제자리인지 바로 본다 — 끝까지 다 놓고 알려주면 어디서 틀렸는지 모른다
-    if (tile.index !== next.length - 1) {
+    if (!fitsAt(chunks, next.length - 1, tile.text)) {
       setWrongAt(next.length - 1);
       setTries((n) => n + 1);
       onAttempt?.({ ok: false, chosen: next.map((p) => p.text).join(''), expected: chunks[next.length - 1] });

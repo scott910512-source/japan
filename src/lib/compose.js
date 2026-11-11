@@ -71,6 +71,11 @@ export function judgeWrite(sentence, input) {
 /* ── 복습 판정 ──
  * 조립: 한 번에 맞히면 알아요, 고쳐서 맞히면 애매해요(조각이 보였으니 반만 쳐 준다).
  * 쓰기: 맞으면 알아요, 틀리면 몰라요(아무것도 안 보고 썼다). */
+/* 조립: 이 자리에 이 조각이 맞나. ★ 글자로 본다 ★
+ * 「次の角は右ですか、左ですか」처럼 같은 조각(ですか)이 두 번 나오는 문장이 있다. 조각의 「원래 자리」로 보면
+ * 둘 중 어느 ですか를 집었느냐에 따라 맞는 답을 틀렸다고 한다 — 학습자에게는 똑같은 조각이다. */
+export const fitsAt = (chunks, position, text) => String(chunks?.[position] ?? '').trim() === String(text ?? '').trim();
+
 export const buildVerdict = (firstTry) => (firstTry ? VERDICT.KNOWN : VERDICT.VAGUE);
 export const writeVerdict = (ok) => (ok ? VERDICT.KNOWN : VERDICT.UNKNOWN);
 

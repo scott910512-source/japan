@@ -13,14 +13,50 @@ export const SENTENCE_QUEST_SIZE = 5;
 
 export function questsOf(progress, today = todayKey()) {
   const q = progress?.quests;
-  if (!q || q.day !== today) return { day: today, stream: 0, random: 0, sentenceIds: [], sentenceSkip: false };
+  if (!q || q.day !== today) return { day: today, stream: 0, random: 0, sentenceIds: [], sentenceSkip: false, ...sealsOf(null) };
   return {
     day: today,
     stream: Math.max(0, Number(q.stream) || 0),
     random: Math.max(0, Number(q.random) || 0),
     sentenceIds: Array.isArray(q.sentenceIds) ? q.sentenceIds.filter((x) => typeof x === 'string') : [],
     sentenceSkip: Boolean(q.sentenceSkip),
+    ...sealsOf(q),
   };
+}
+
+/* ── 마친 퀘스트는 그날 계속 마친 것이다 ──
+ *
+ * 복습 미션 · 약점 퀴즈 · 새로 배우기는 몫이 나중에 늘 수 있다. 「10개 더 배우기」로 새 낱말이 붙고,
+ * 뒤 단계에서 틀린 낱말이 약점으로 들어오고, 더 배울 게 모자라면 복습에서 채운다. 그러면 이미 마친 줄이
+ * 「12 / 18」처럼 덜 끝난 것으로 돌아갔다 — 마친 것을 뒤에서 한 일이 무른다.
+ * 그래서 처음 다 채운 순간의 몫을 적어 둔다(seal). 그 뒤로는 그 몫을 채운 한 「마쳤어요」이고, 더 붙은 것은 덤으로 센다.
+ * 숫자 칸으로 둔다 — 기기 둘을 합칠 때 큰 쪽을 쓰는 규칙(mergeQuests)에 그대로 실린다. */
+export const SEAL = { review: 'sealReview', weakquiz: 'sealWeak', fresh: 'sealFresh' };
+function sealsOf(q) {
+  const out = {};
+  for (const k of Object.values(SEAL)) out[k] = Math.max(0, Number(q?.[k]) || 0);
+  return out;
+}
+
+/* 지금 다 채운 퀘스트의 몫을 적는다. totals = { review: 32, fresh: 20 } (다 채운 것만 넘긴다).
+   이미 적힌 것은 안 바꾼다 — 처음 마친 순간의 몫이 그날의 몫이다. 바뀐 게 없으면 받은 그대로 돌려준다. */
+export function sealQuests(prev, totals = {}, today = todayKey()) {
+  const cur = questsOf({ quests: prev }, today);
+  let next = null;
+  for (const [name, key] of Object.entries(SEAL)) {
+    const n = Math.floor(Number(totals[name]) || 0);
+    if (n > 0 && !cur[key]) next = { ...(next || cur), [key]: n };
+  }
+  return next || prev;
+}
+
+/* 줄에 보일 진행. seal(처음 마친 몫)을 채운 채면 그 몫으로 마친 것이고, 그 뒤에 붙은 것은 덤이다.
+   되돌리기로 채운 수가 그 몫 아래로 내려가면 다시 덜 끝난 것이다(있는 그대로 보인다). */
+export function sealedProgress(done, total, seal = 0) {
+  if (seal > 0 && done >= seal) {
+    return { done: seal, total: seal, complete: true, extraDone: Math.max(0, done - seal), extraTotal: Math.max(0, total - seal) };
+  }
+  return { done, total, complete: total > 0 && done >= total, extraDone: 0, extraTotal: 0 };
 }
 
 /* 풀었다고 적는다. 바뀐 게 없으면 받은 그대로 돌려준다 */

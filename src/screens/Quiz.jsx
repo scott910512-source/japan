@@ -697,7 +697,9 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
               <span>{result.total}문제 중 {result.correct}개 맞혔어요. 틀린 건 위 목록에서 바로 다시 외울 수 있어요.</span>
             </div>
           )}
-          <button className="submit-btn flow-done" style={{ marginTop: 12 }} onClick={flow.kind === 'region' ? (onExit || onQuit) : (onHome || onExit || onQuit)}>{flow.kind === 'region' ? '지도로 돌아가기' : '오늘 학습 마치기 · 홈으로'}</button>
+          {/* 랜덤 테스트 뒤에 이을 단계(오늘의 N3)가 남았으면 그걸 먼저 내민다 */}
+          {flow.kind !== 'region' && onNextQuest && <button className="submit-btn flow-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: {nextLabel}</button>}
+          <button className={`${flow.kind !== 'region' && onNextQuest ? 'ghost-btn' : 'submit-btn'} flow-done`} style={{ marginTop: flow.kind !== 'region' && onNextQuest ? 8 : 12 }} onClick={flow.kind === 'region' ? (onExit || onQuit) : (onHome || onExit || onQuit)}>{flow.kind === 'region' ? '지도로 돌아가기' : '오늘 학습 마치기 · 홈으로'}</button>
         </>
       ) : weak ? (
         <>

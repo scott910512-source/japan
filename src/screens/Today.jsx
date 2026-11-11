@@ -5,6 +5,7 @@ import {
 import { todayKey } from '../lib/review.js';
 import { tripLabel } from '../lib/purpose.js';
 import { reviewLeftOf } from '../lib/plan.js';
+import { sealedProgress } from '../lib/quests.js';
 import { goalTotal } from '../lib/daily.js';
 import { goalOf, n3Included } from '../lib/goal.js';
 import HunterDashboard from '../components/HunterDashboard.jsx';
@@ -39,7 +40,7 @@ const readyShown = (s) => {
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
-  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, sentenceQuest = null, onStartSentenceQuest, onSkipSentenceQuest, onUndoSkipSentenceQuest, onOpenProgress, wrongCount = 0, onOpenWrong, onStartRegionExam,
+  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, sentenceQuest = null, onStartSentenceQuest, onSkipSentenceQuest, onUndoSkipSentenceQuest, onOpenProgress, wrongCount = 0, onOpenWrong, onStartRegionExam, questSeal = null,
 }) {
   const today = todayKey();
 
@@ -82,11 +83,15 @@ export default function Today({
   const trip = tripLabel(settings, today);
   /* 오늘의 퀘스트는 기존 계획과 N3 일일 진도에서 계산한다.
      별도 점수 저장을 두지 않아 기기 동기화와 기존 학습 기록을 그대로 쓴다. */
+  /* ★ 한 번 마친 줄은 그날 계속 마친 것이다 ★ 「10개 더 배우기」나 뒤 단계에서 붙은 것은 덤으로 따로 적는다.
+     안 그러면 다 마친 줄이 「20 / 30」으로 돌아가 덜 끝난 것처럼 보인다(lib/quests.js sealedProgress). */
+  const backRow = sealedProgress(backLane.done, backLane.assigned, questSeal?.review);
+  const freshRow = sealedProgress(freshLane.done, freshLane.assigned, questSeal?.fresh);
   const missions = [
     backLane.assigned > 0 && {
       key: 'review', title: '복습 미션',
-      note: backLeft === 0 ? '오늘 복습을 모두 마쳤어요' : `남은 ${backLeft}개 · 복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`,
-      done: backLane.done, total: backLane.assigned, icon: <IconRepeat />, onClick: onStartReview,
+      note: backRow.complete ? `오늘 복습을 모두 마쳤어요${backRow.extraTotal > backRow.extraDone ? ` · 더 할 수 있는 복습 ${backRow.extraTotal - backRow.extraDone}개` : ''}` : `남은 ${backLeft}개 · 복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`,
+      done: backRow.done, total: backRow.total, icon: <IconRepeat />, onClick: onStartReview,
     },
     /* ★ 약점 퀴즈 ★ 약한 낱말 다섯 문제. 약점이 하나도 없고 오늘 푼 것도 없으면 줄이 안 뜬다 */
     weakQuiz && weakQuiz.total > 0 && {
@@ -102,8 +107,8 @@ export default function Today({
     },
     freshLane.assigned > 0 && {
       key: 'fresh', title: '새로 배우기',
-      note: freshLeft === 0 ? '오늘 새 학습을 마쳤어요' : freshMix,
-      done: freshLane.done, total: freshLane.assigned, icon: <IconBook />, onClick: onStartWords,
+      note: freshRow.complete ? `오늘 새 학습을 마쳤어요${freshRow.extraTotal ? ` · 더 배운 것 ${freshRow.extraDone} / ${freshRow.extraTotal}` : ''}` : freshMix,
+      done: freshRow.done, total: freshRow.total, icon: <IconBook />, onClick: onStartWords,
     },
     /* ★ 문장 퀘스트 ★ 새 문장을 배우고 바로 조립해 본다. 새로 배우기에는 문장이 안 섞이니 새 문장은 여기로 들어온다.
        건너뛰면(skipped) 오늘 줄에서 빠진다 */

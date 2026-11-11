@@ -4,6 +4,7 @@
  * 그 둘로 들어가면 끝난 뒤 「시험 설정으로」/「오늘로」만 남아서 흐름이 끊겼다 — 쭉 퀴즈로 안 넘어가고 엉뚱한 화면에 떨어졌다.
  *   · 틀린 단어를 다시 푼 결과에도 「다음: 쭉 퀴즈로 이어서」가 있다
  *   · 틀린 단어를 카드로 외운 뒤 완주 화면의 첫 단추가 「다음: 쭉 퀴즈」다
+ *   · 한 번 마친 퀘스트는 뒤에서 몫이 늘어도(10개 더 배우기 · 새로 생긴 약점) 그날은 마친 것으로 남는다
  *   · 쭉 퀴즈는 오늘 몫을 채운 그 자리에서 「다음: 새로 배우기」와 「홈으로」를 내민다(한 묶음이 끝나길 기다리지 않는다) */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
@@ -160,6 +161,42 @@ async function finishDeck(page) {
     ok('★ 홈으로를 누르면 오늘 화면이다 ★', await p2.locator('.tdhead').count() === 1 && await p2.locator('.subscreen.open').count() === 0);
     ok('쭉 퀴즈 줄이 마쳤어요로 바뀌어 있다', (await rowText(p2, '쭉 퀴즈')).includes('마쳤어요'), await rowText(p2, '쭉 퀴즈'));
     await p2.close();
+  }
+
+  console.log('\n[ 마친 퀘스트는 뒤에서 몫이 늘어도 마친 것으로 남는다 ]');
+  {
+    /* 약점 퀴즈 — 약한 낱말이 열둘뿐이던 때 12 / 12로 마쳤다(sealWeak). 지금은 약한 낱말이 마흔 개 있다 */
+    const done12 = due.slice(0, 12).map((w) => w.id);
+    const p3 = await boot(browser, { quests: { day: todayKey(), sentenceSkip: true, sealWeak: 12 }, weakQuiz: { day: todayKey(), ids: done12 } });
+    p3.on('pageerror', (e) => errors.push(e.message));
+    await goTab(p3, '오늘');
+    const wr = await rowText(p3, '약점 퀴즈');
+    ok('★ 약점 퀴즈가 12 / 30으로 돌아가지 않고 12 / 12 마쳤어요다 ★', wr.includes('마쳤어요') && /12\s*\/\s*12/.test(wr), wr);
+    await p3.close();
+
+    /* 새로 배우기 — 오늘 몫 다섯을 마친 뒤 「10개 더 배우기」를 눌러 몫이 열다섯이 됐다 */
+    const p4 = await boot(browser, null, { goals: { fresh: 5, review: 6, weak: 2 }, goalsV: 3 });
+    p4.on('pageerror', (e) => errors.push(e.message));
+    await goTab(p4, '오늘');
+    await p4.locator('.tdq-row', { hasText: '새로 배우기' }).click();
+    await p4.waitForTimeout(1200);
+    const g = await finishDeck(p4);
+    ok('새로 배우기 다섯 장을 마친다', await p4.locator('.finish').count() === 1 && await p4.locator('.fin-more').count() === 1, `${g}걸음`);
+    const sealed = await p4.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}').quests || {});
+    ok('★ 마친 순간의 몫(5)을 적어 둔다 ★', sealed.sealFresh === 5, JSON.stringify(sealed));
+    await p4.locator('.fin-more').click();
+    await p4.waitForTimeout(1200);
+    ok('10개 더 — 새 판이 열린다', await p4.locator('.finish').count() === 0 && await p4.locator('.study').count() >= 1);
+    await goTab(p4, '오늘');
+    await p4.waitForTimeout(600);
+    const fr = await rowText(p4, '새로 배우기');
+    ok('★ 더 배우는 중에도 새로 배우기 줄은 5 / 5 마쳤어요다(5 / 15로 안 돌아간다) ★', fr.includes('마쳤어요') && /5\s*\/\s*5/.test(fr), fr);
+    ok('더 붙은 것은 덤으로 적는다', /더 배운 것\s*\d+\s*\/\s*10/.test(fr), fr);
+    const score = (await p4.locator('.tdq-score').innerText()).replace(/\s/g, '');
+    const rows = await p4.locator('.tdq-row').count();
+    const doneRows = await p4.locator('.tdq-row', { hasText: '마쳤어요' }).count();
+    ok('퀘스트 머리 숫자도 그 줄을 마친 것으로 센다', Number(score.split('/')[0]) === doneRows, `${score} · 마쳤어요 ${doneRows} / ${rows}줄`);
+    await p4.close();
   }
 
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 2).join(' | ') || '깨끗');
