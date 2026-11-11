@@ -45,6 +45,10 @@ console.log('\n[ 프롬프트 ]');
   ok('짧게 답하라고 적혀 있다', SYSTEM.includes('세 문장'));
   ok('items 상한이 프롬프트에 박혀 있다', SYSTEM.includes(String(MAX_ITEMS)));
   ok('JSON만 달라고 한다', SYSTEM.includes('마크다운 펜스'));
+  ok('길잡이에게 거는 잡담은 거절하지 말라고 적혀 있다', SYSTEM.includes('거절하지 마세요') && SYSTEM.includes('[길잡이]'));
+  ok('원작 대사를 옮기지 말라고 적혀 있다', SYSTEM.includes('원작의 대사를 그대로 옮기려 하지 마세요'));
+  ok('일본어 공부와 상관없는 일은 여전히 돌려보낸다', SYSTEM.includes('숙제 대필'));
+  ok('누구에게 묻는지 같이 보낸다', userText('너의 명대사는 뭐야', null, '곤').startsWith('[길잡이] 곤') && !userText('뭐야?', null).includes('[길잡이]'));
 }
 
 /* ── 받은 걸 읽는다 ── */
@@ -97,6 +101,12 @@ console.log('\n[ 두 번 안 묻는다 ]');
   ok('전에 물은 건 찾아진다', Boolean(findAsk(hist, 'n5-0012', '진행형이 뭐야')));
   ok('띄어쓰기가 달라도 찾아진다', Boolean(findAsk(hist, 'n5-0012', '진행형이  뭐야 ')));
   ok('안 물어본 건 없다고 한다', findAsk(hist, 'n5-0012', '반대말은?') === null);
+  {
+    const refused = rememberAsk([], { key: askKey('', '곤 너의 명대사는 뭐야'), q: '곤 너의 명대사는 뭐야', answer: '일본어나 일본 생활과 관계없는 질문입니다.', items: [] });
+    ok('예전에 거절로 저장된 답은 다시 꺼내지 않는다(다시 묻는다)', findAsk(refused, '', '곤 너의 명대사는 뭐야') === null);
+    const fine = rememberAsk([], { key: askKey('', '뭐야'), q: '뭐야', answer: '관계없는 질문은 아니고요, 이건 조사예요.', items: [{ jp: 'は', kana: 'は', ko: '은/는', note: '' }] });
+    ok('표현이 달린 답은 그대로 꺼낸다', Boolean(findAsk(fine, '', '뭐야')));
+  }
   ok('기록이 비어도 안 깨진다', findAsk([], 'a', 'b') === null && findAsk(undefined, 'a', 'b') === null);
 }
 

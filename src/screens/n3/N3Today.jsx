@@ -3,7 +3,7 @@ import { STEP_LABEL, STEP_MINUTES, lessonTitle, dayStatus } from '../../lib/n3.j
 
 /* 오늘의 N3 — 앱이 짠 다섯 단계를 차례로. 「뭘 공부하지」를 안 정하게 하려고
    만든 자리라 여기서는 순서만 보여 주고, 큰 버튼 하나가 다음 단계를 연다. */
-export default function N3Today({ day, today, onRun, onBack, onRebuild, flowNext = null }) {
+export default function N3Today({ day, today, onRun, onBack, onRebuild, flowNext = null, onHome = null }) {
   const steps = day?.steps || [];
   const st = dayStatus(day);
   const note = (s) => {
@@ -32,6 +32,7 @@ export default function N3Today({ day, today, onRun, onBack, onRebuild, flowNext
           <span>{steps.length}단계를 다 했어요. 내일은 오늘 틀린 것과 복습일이 된 것이 먼저 나와요.</span>
           {/* 하루 흐름의 다음 단계가 남았으면 홈으로 보내지 않고 바로 이어 준다 */}
           {flowNext && <button className="submit-btn n3-flownext" style={{ marginTop: 10 }} onClick={flowNext.go}>다음: {flowNext.label}</button>}
+          {onHome && <button className={`${flowNext ? 'ghost-btn' : 'submit-btn'} n3-home`} style={{ marginTop: 8 }} onClick={onHome}>홈으로</button>}
         </div>
       )}
 

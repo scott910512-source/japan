@@ -89,7 +89,7 @@ const Score = ({ session }) => {
 const Empty = ({ children }) => <div className="empty-state cmp-empty">{children}</div>;
 
 /* ── 조립 ── */
-function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivity, onAttempt, onExit, focusIds = null, questTarget = 0, questNext = null }) {
+function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivity, onAttempt, onExit, onHome = null, focusIds = null, questTarget = 0, questNext = null }) {
   const run = useRun({ sentences, review, progress, settings, mode: COMPOSE_MODE.BUILD, hasChunks: (id) => chunksOf(id) != null, onlyIds: focusIds });
   const [cur, setCur] = useState(() => run.next());
   const [solved, setSolved] = useState(false);
@@ -112,7 +112,7 @@ function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivi
         <b>문장 퀘스트를 마쳤어요</b>
         <span>{run.pool.length ? `새 문장을 배우고 ${run.session.log.length}문장을 조립해 봤어요.` : '새 문장을 배웠어요. 이 문장들은 조각 연습이 아직 없어요.'}</span>
         {questNext && <button className="submit-btn cmp-questnext" onClick={questNext.go}>다음: {questNext.label}</button>}
-        <button className={questNext ? 'ghost-btn' : 'submit-btn'} onClick={onExit}>오늘로</button>
+        <button className={`${questNext ? 'ghost-btn' : 'submit-btn'} cmp-questhome`} onClick={onHome || onExit}>홈으로</button>
       </div>
     );
   }

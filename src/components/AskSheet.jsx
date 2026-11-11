@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { IconSpeaker, IconPlus } from './Icons.jsx';
 import BottomSheet from './BottomSheet.jsx';
 import HunterTutor from './HunterTutor.jsx';
-import { questionTutor } from '../data/hunterTutors.js';
+import { questionTutor, TUTORS } from '../data/hunterTutors.js';
 import { speakJapanese, readingText } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { resolveProvider } from '../lib/aiClient.js';
@@ -99,7 +99,8 @@ export default function AskSheet({
 
     setBusy(true);
     try {
-      const got = await ask(text, card, settings);
+      /* 누구에게 말을 거는지 같이 보낸다 — 「너의 ○○는 뭐야」 같은 잡담도 받아 준다 */
+      const got = await ask(text, card, settings, { guideName: TUTORS[guide || questionTutor(text)]?.name || '' });
       const entry = {
         key: askKey(card?.id, text),
         q: text,
