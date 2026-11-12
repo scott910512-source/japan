@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_SETTINGS, loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce } from '../lib/storage.js';
 import { supabase, supabaseConfigured } from '../lib/supabase.js';
 import { syncNow, pushKeyEnvelope } from '../lib/sync.js';
-import { mergeSyncedSettings, mergeReview, mergeProgress, mergeStats, mergeStreak, mergeCustomWords, mergeMemos } from '../lib/merge.js';
+import { applySyncedSettings, mergeReview, mergeProgress, mergeStats, mergeStreak, mergeCustomWords, mergeMemos, mergeGone } from '../lib/merge.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from '../lib/crypto.js';
 import { looksPacked, reconcileKeys, unpackKeys } from '../lib/keyvault.js';
 import { AUTH_READY_TIMEOUT, sessionFrom } from '../lib/authboot.js';
@@ -100,6 +100,9 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
   }, []);
 
   const runSyncRef = useRef(null);
+  /* 지금의 진도 — 요청이 오가는 사이에 지운 내 단어를 다시 합칠 때 본다 */
+  const progressNow = useRef(progress);
+  progressNow.current = progress;
   /* 동기화가 값을 얹는 중인가 · 그 사이에 이 기기에서 바뀐 것이 있었나 — 아래 올리기 효과가 본다 */
   const fromSync = useRef(false);
   const movedDuring = useRef(false);
@@ -109,7 +112,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     try {
       const merged = await syncNow(authSession.user.id, {
         review, progress, settings, stats, streak, customWords, memos, videos: videoBundle,
-      });
+      }, { defaults: DEFAULT_SETTINGS });
       /* ★ 요청이 오가는 동안 이 기기에서 한 것을 지우지 않는다 ★
          merged는 요청을 보내기 전의 값(위에서 넘긴 것)으로 합친 결과다. 그걸 그대로 덮으면 그 사이에 판정한 카드의
          회독 기록과 그날 활동이 이 기기에서 사라지고 서버에도 못 올라갔다(2분마다 올리는 동기화가 학습 중에 돈다).
@@ -122,7 +125,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
       setStats((cur) => (cur === stats ? merged.stats : (moved(), mergeStats(cur, merged.stats))));
       setStreak((cur) => (cur === streak ? merged.streak : mergeStreak(cur, merged.streak)));
       /* 낱말은 같은 id면 뒤에 넘긴 쪽이 진다 — 그 사이에 고친 낱말(지금 값)이 이기게 앞뒤를 바꿔 넘긴다 */
-      setCustomWords((cur) => (cur === customWords ? merged.customWords : (moved(), mergeCustomWords(merged.customWords, cur))));
+      setCustomWords((cur) => (cur === customWords ? merged.customWords : (moved(), mergeCustomWords(merged.customWords, cur, mergeGone(progressNow.current?.wordsGone, merged.progress?.wordsGone)))));
       setMemos((cur) => (cur === memos ? merged.memos : (moved(), mergeMemos(cur, merged.memos))));
       applyVideoBundle(merged.videos);
       /* 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다.
@@ -130,13 +133,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
          것이라, 그냥 얹으면 만든 적도 없는 것처럼 사라진다. */
       /* 요청을 보낸 뒤에 이 기기에서 바꾼 설정 칸은 덮지 않는다 — merged는 보내기 전의 값으로 만든 것이라,
          그대로 얹으면 방금 바꾼 목표 · 레벨 · 길잡이가 되돌아갔다. */
-      setSettings((s) => {
-        const incoming = {};
-        for (const [k, v] of Object.entries(merged.settings || {})) {
-          if (JSON.stringify(s[k]) === JSON.stringify(settings[k])) incoming[k] = v;
-        }
-        return mergeSyncedSettings(s, incoming, DEFAULT_SETTINGS);
-      });
+      setSettings((s) => applySyncedSettings(s, merged.settings, settings, DEFAULT_SETTINGS));
       setRemoteKeyEnvelope(merged.gttsKeyEnc || null);
       /* 안내(note)와 오류(error)를 나눈다. 영상 칸이 없는 건 나머지가 다 올라간
          상태라, 이걸 오류 자리에 넣으면 "동기화가 안 되고 있어요"로 읽힌다. */
@@ -169,6 +166,19 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
 
   /* API 키(음성 · AI)를 계정에 자동으로 잠가 두고, 새 기기에서는 자동으로 풀어 온다.
    * 사용자가 따로 누를 게 없어야 한다 — 눌러야 하면 안 누른다. 규칙은 lib/keyvault.js. */
+  /* ★ 이 기기에서 방금 지운 키 ★ 있던 키가 빈 칸이 되면 「지웠다」로 적는다. 처음부터 비어 있던 기기(새 기기)와 가려야
+     한다 — 새 기기는 계정에서 가져와야 하고, 지운 기기는 가져오면 안 된다(그리고 계정에서도 빼야 한다). */
+  const keyCleared = useRef({});
+  const keySeen = useRef({ gttsKey: settings.gttsKey || '', geminiKey: settings.geminiKey || '' });
+  useEffect(() => {
+    for (const k of ['gttsKey', 'geminiKey']) {
+      const now = settings[k] || '';
+      if (keySeen.current[k] && !now) keyCleared.current = { ...keyCleared.current, [k]: true };
+      else if (now) keyCleared.current = { ...keyCleared.current, [k]: false };
+      keySeen.current[k] = now;
+    }
+  }, [settings.gttsKey, settings.geminiKey]);
+
   useEffect(() => {
     if (!authSession?.user || !vaultKey) return;
     /* 업데이트 전 버전이 새 봉투를 열어 묶음 글자를 음성 키 칸에 통째로 넣었으면 풀어서 제자리에 둔다 */
@@ -188,13 +198,16 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
         showToast('계정에 보관된 API 키를 열지 못했어요. 키를 다시 넣어 주세요');
         return;
       }
-      const { pull, push } = reconcileKeys({ gttsKey: settings.gttsKey, geminiKey: settings.geminiKey }, stored);
+      const { pull, push, clear } = reconcileKeys({ gttsKey: settings.gttsKey, geminiKey: settings.geminiKey }, stored, keyCleared.current);
       if (Object.keys(pull).length) {
         patchSettings(pull);
         showToast(pull.geminiKey && pull.gttsKey ? 'API 키를 계정에서 가져왔어요' : pull.geminiKey ? 'AI 키를 계정에서 가져왔어요' : '음성 키를 계정에서 가져왔어요');
       }
       if (push) {
         try { await saveRemoteKey(await encryptWithVaultKey(push, vaultKey)); } catch { /* 다음 동기화에서 다시 시도한다 */ }
+      } else if (clear) {
+        /* 키를 다 지웠다 — 계정의 봉투도 비운다(안 비우면 다음에 열 때 다시 내려온다) */
+        try { await saveRemoteKey(null); } catch { /* 다음에 다시 시도한다 */ }
       }
     })();
     return () => { live = false; };

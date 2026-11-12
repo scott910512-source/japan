@@ -161,12 +161,14 @@ export default function App() {
     if (onboardingDecided.current) return;
     if (!authReady) return;                                   // 로그인 상태를 아직 모른다
     const signedIn = Boolean(authSession?.user);
-    if (signedIn && syncedFor.current !== authSession.user.id) return;  // 동기화를 기다린다
+    /* 첫 동기화가 끝날 때까지(성공이든 실패든) 기다린다. 전에는 「동기화를 시작했나」만 봐서, 시작하자마자 —
+       계정의 답이 내려오기 전에 — 처음 화면을 띄웠다. 새 기기에서 로그인할 때마다 질문이 다시 나왔다. */
+    if (signedIn && (syncedFor.current !== authSession.user.id || (!syncState.at && !syncState.error))) return;
     onboardingDecided.current = true;
     /* 답이 이미 있으면 끝난 것으로 본다. onboarded 표시가 옛 기기에만 있고
        계정에는 없을 수 있어서, 답(canReadKana)이 있는지도 같이 본다. */
     setOnboardingOpen(!settings.onboarded && settings.canReadKana == null);
-  }, [authReady, authSession, settings.onboarded, settings.canReadKana, syncState.at]);
+  }, [authReady, authSession, settings.onboarded, settings.canReadKana, syncState.at, syncState.error]);
 
   usePersistAppData(appData);
 
@@ -610,7 +612,7 @@ export default function App() {
               asks={asks}
               onAsks={setAsks}
               onAddWord={(w) => setCustomWords((prev) => (
-                prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+                prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
               ))}
               onReviewChange={applyReview}
               onSessionChange={setSession}
@@ -648,7 +650,7 @@ export default function App() {
           asks={asks}
           onAsks={setAsks}
           onAddWord={(w) => setCustomWords((prev) => (
-            prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+            prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
           ))}
           onToast={showToast}
           placement="top"
@@ -794,7 +796,7 @@ export default function App() {
             settings={settings}
             words={words}
             onAddWord={(w) => setCustomWords((prev) => (
-              prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+              prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
             ))}
             onStartSet={startJlptSet}
             onToast={showToast}
@@ -955,7 +957,7 @@ export default function App() {
         asks={asks}
         onAsks={setAsks}
         onAddWord={(w) => setCustomWords((prev) => (
-          prev.some((x) => x.id === w.id) ? prev : [...prev, w]
+          prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
         ))}
         onToast={showToast}
         /* 상단 바가 있는 화면(오늘이 아닌 탭 · 하위 화면)에서는 떠 있는 단추를 두지 않는다 — 아래 버튼을 가리던 것을

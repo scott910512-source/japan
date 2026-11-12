@@ -22,7 +22,7 @@ import { READING_PASSAGES, READING_QUESTIONS, READING_LEVELS, readingById } from
 import { LISTENING_ITEMS, LISTENING_QUESTIONS, LISTENING_LEVELS, listeningById } from '../data/n3/listening.js';
 import { EXAM_MOJI, EXAM_NARABE, EXAM_BUNSHOU, EXAM_BUNSHOU_QUESTIONS, EXAM_QUESTIONS } from '../data/n3/exam.js';
 import { stateOf, isMastered, isDue, todayKey, dueCards, addDays, BOX, MASTER_STREAK } from './review.js';
-import { normalizeN3, noteN3Wrong } from './n3progress.js';
+import { normalizeN3, noteN3Wrong, noteN3Gone } from './n3progress.js';
 import { activeMistakes, prioritizeMistakes } from './mistakes.js';
 
 /* ── 섞기 (검사에서 고정할 수 있게 난수를 받는다) ── */
@@ -231,7 +231,7 @@ export function recordAnswer(n3, { qid, ok, cat = 'grammar', ref = null, today =
   day.answered = (day.answered || 0) + 1;
   day.right = (day.right || 0) + (ok ? 1 : 0);
   day.at = at;
-  return { ...p, q: { ...p.q, [qid]: q }, wrong, days: { ...p.days, [today]: day } };
+  return { ...p, q: { ...p.q, [qid]: q }, wrong, wrongGone: noteN3Gone(p.wrongGone, p.wrong, wrong, at), days: { ...p.days, [today]: day } };
 }
 
 export function markLesson(n3, id, { score = null, at = Date.now() } = {}) {

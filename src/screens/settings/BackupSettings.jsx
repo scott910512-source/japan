@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconDownload, IconUpload, IconTrash } from '../../components/Icons.jsx';
 import {
-  exportBackup, importBackup, backupSummary, backupContents, BACKUP_EXCLUDED, clearAll,
+  exportBackup, importBackup, backupSummary, backupContents, BACKUP_EXCLUDED, clearAll, markAccountReset,
 } from '../../lib/storage.js';
 import { todayKey } from '../../lib/review.js';
 
 /* 설정 → 기록 백업. Settings.jsx에서 떼어 냈다 — 저장 상태 한 줄·백업 범위·
    내려받기·복원·초기화. 동작은 그대로다. */
 export default function BackupSettings({ settings, onChange, onToast, onReload, session, syncState, storeError }) {
+  /* 로그인해 있으면 초기화 · 복원이 계정에도 닿는다(lib/sync.js resetOrder) */
+  const userId = session?.user?.id || null;
   /* ── 저장 상태 한 줄 ──
    *
    * 화면에 「계정에 저장돼요」와 「이 브라우저에만 저장돼요」가 같이 있어서,
@@ -89,10 +91,13 @@ export default function BackupSettings({ settings, onChange, onToast, onReload, 
         `이 백업으로 되돌릴까요?\n\n내 단어 ${s.customWords}개 · 학습한 단어 ${s.reviewed}개 · 연속 ${s.streak}일`
         + `${s.lastDate ? `\n마지막 학습일 ${s.lastDate}` : ''}`
         + `\n\n이 파일에 든 것: ${has.map((r) => r.label).join(' · ') || '없음'}`
-        + '\n이 항목만 교체돼요. 파일에 없는 기록과 이 기기의 API 키는 그대로 남아요.',
+        + '\n이 항목만 교체돼요. 파일에 없는 기록과 이 기기의 API 키는 그대로 남아요.'
+        + (userId ? '\n\n로그인해 있어서 계정의 기록도 이 백업으로 바뀌어요. 이 계정을 쓰는 다른 기기도 다음에 열 때 이 기록으로 맞춰져요.' : ''),
       );
       if (!ok) return;
       importBackup(backup);   // 하나라도 저장에 실패하면 되돌리고 던진다
+      /* 로그인한 채 복원했으면 계정도 이 기록으로 바꾼다 — 안 그러면 다음 동기화에서 서버의 옛 기록과 다시 섞인다 */
+      if (userId) markAccountReset(userId);
       onToast('복원했어요. 앱을 다시 불러올게요');
       setTimeout(onReload, 600);
     } catch (err) {
@@ -103,9 +108,11 @@ export default function BackupSettings({ settings, onChange, onToast, onReload, 
   };
 
   const reset = () => {
-    const typed = window.prompt('학습 기록을 모두 지우려면 "초기화"라고 입력해 주세요.');
+    const typed = window.prompt(userId
+      ? '학습 기록을 모두 지우려면 "초기화"라고 입력해 주세요.\n\n로그인해 있어서 계정에 저장된 기록도 같이 지워져요. 이 계정을 쓰는 다른 기기의 기록도 다음에 열 때 지워져요.'
+      : '학습 기록을 모두 지우려면 "초기화"라고 입력해 주세요.');
     if (typed !== '초기화') return;
-    clearAll();
+    clearAll(userId);
     onToast('초기화했어요');
     setTimeout(onReload, 500);
   };

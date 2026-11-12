@@ -773,8 +773,18 @@ export function importBackup(backup) {
   saveSession(null);
 }
 
-export function clearAll() {
+/* userId를 넘기면(로그인한 채 초기화) 「이 계정을 이때 초기화했다」를 남긴다 — 안 남기면 다음 동기화에서 서버에 있던
+   기록이 그대로 다시 내려온다(lib/sync.js resetOrder). 손님으로 쓰는 기기에서는 남기지 않는다. */
+export function clearAll(userId = null, at = Date.now()) {
   for (const key of Object.values(KEYS)) {
     try { localStorage.removeItem(key); } catch { /* 무시 */ }
   }
+  if (userId) markAccountReset(userId, at);
+}
+
+/* 지금 저장된 진도에 계정 초기화 · 복원 시각을 적는다 */
+export function markAccountReset(userId, at = Date.now()) {
+  if (!userId) return;
+  const cur = read(KEYS.progress, {});
+  write(KEYS.progress, { ...cur, resetAt: at, resetUser: userId });
 }
