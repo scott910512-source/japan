@@ -29,12 +29,12 @@ const review = {
   ...Object.fromEntries(weak.map((w) => [w.id, { box: 1, streak: 0, lastSeen: addDays(today, -4), rounds: 3, wrongCount: 3, vagueCount: 1, seenAt: 1, due: addDays(today, 5) }])),
 };
 
-async function boot(browser, progress = null, extraSettings = {}) {
+async function boot(browser, progress = null, extraSettings = {}, store = null) {
   /* 이 검사는 문장 퀘스트 말고의 흐름을 본다 — 오늘 문장 퀘스트는 건너뛴 것으로 심는다(문장 퀘스트는 sentence-quest-ui가 본다) */
   progress = { quests: { day: todayKey(), sentenceSkip: true }, ...(progress || {}) };
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(({ rv, progress, extraSettings }) => {
+  await page.evaluate(({ rv, progress, extraSettings, store }) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     localStorage.setItem('jp_optrev_open', '0');
     /* 옛 설정(번호 없음, 복습 9 · 새로 8)에서 시작한다 — 새 수량으로 바뀌는지도 같이 본다 */
@@ -42,7 +42,9 @@ async function boot(browser, progress = null, extraSettings = {}) {
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(rv));
     if (progress) localStorage.setItem('jp_manabu_progress_v1', JSON.stringify(progress));
-  }, { rv: review, progress, extraSettings });
+    /* 그 밖에 심어 둘 것(오늘의 계획 등) — 여기서 같이 심어야 다시 불러올 일이 없다 */
+    for (const [k, v] of Object.entries(store || {})) localStorage.setItem(k, JSON.stringify(v));
+  }, { rv: review, progress, extraSettings, store });
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
@@ -201,23 +203,15 @@ async function finishDeck(page) {
 
   console.log('\n[ 날이 바뀐 첫 화면 — 어제 다 마친 계획의 몫을 오늘 것으로 적지 않는다 ]');
   {
-    const p5 = await boot(browser);
-    p5.on('pageerror', (e) => errors.push(e.message));
-    /* 어제: 복습 2 · 새 낱말 1을 다 마친 작은 하루. 오늘은 새 낱말이 스무 개쯤 잡힌다 */
-    await p5.evaluate(() => {
-      const d = new Date(Date.now() - 86400000);
-      const y = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      localStorage.setItem('jp_manabu_plan_v1', JSON.stringify({ v: 1, date: y, goals: { fresh: 20, review: 30, weak: 3 }, reps: 3, extra: 0, sizes: {},
-        assigned: [{ id: 'x1', kind: 'word', bucket: 'review' }, { id: 'x2', kind: 'word', bucket: 'review' }, { id: 'x3', kind: 'word', bucket: 'fresh' }], done: { x1: true, x2: true, x3: true } }));
-      localStorage.setItem('jp_manabu_progress_v1', JSON.stringify({ quests: { day: y, stream: 20, sealReview: 2, sealFresh: 1 } }));
+    /* 어제: 복습 2 · 새 낱말 1을 다 마친 작은 하루. 오늘은 새 낱말이 스무 개쯤 잡힌다.
+       처음부터 심어 둔다 — 오프라인에서 다시 불러오면 느린 러너에서는 화면이 안 뜰 때가 있다(서비스워커가 덜 받은 채). */
+    const d = new Date(Date.now() - 86400000);
+    const y = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const p5 = await boot(browser, { quests: { day: y, stream: 20, sealReview: 2, sealFresh: 1 } }, {}, {
+      jp_manabu_plan_v1: { v: 1, date: y, goals: { fresh: 20, review: 30, weak: 3 }, reps: 3, extra: 0, sizes: {},
+        assigned: [{ id: 'x1', kind: 'word', bucket: 'review' }, { id: 'x2', kind: 'word', bucket: 'review' }, { id: 'x3', kind: 'word', bucket: 'fresh' }], done: { x1: true, x2: true, x3: true } },
     });
-    await p5.reload({ waitUntil: 'domcontentloaded' });
-    /* 오프라인으로 다시 불러오면 로그인 확인이 6초를 기다린 뒤에야 「이 기기 기록으로 계속하기」가 뜬다.
-       정해 둔 8초만 기다리면 느린 러너에서 그 단추가 뜨기 전에 지나가 버린다 — 단추나 앱 중 먼저 뜨는 쪽을 기다린다. */
-    const off5 = p5.locator('.gate-offline');
-    await p5.locator('.gate-offline, .tabbar').first().waitFor({ state: 'attached', timeout: 40000 });
-    if (await off5.count()) { await off5.click(); await p5.waitForTimeout(800); }
-    await p5.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 });
+    p5.on('pageerror', (e) => errors.push(e.message));
     await p5.waitForTimeout(1500);
     await goTab(p5, '오늘');
     const q = await p5.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}').quests || {});
