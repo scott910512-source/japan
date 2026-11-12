@@ -15,7 +15,7 @@
  *   그 뒤 7일 뒤에 한 번 더 기억을 확인한다. 같은 날 여러 번 맞혀도 한 번이다. 복습 간격(SRS)은 건드리지 않는다. */
 import { recordMistake } from './mistakes.js';
 import { noteWeak, WEAK_KIND } from './weak.js';
-import { noteN3Wrong } from './n3progress.js';
+import { noteN3Wrong, noteN3Gone } from './n3progress.js';
 import { todayKey } from './review.js';
 
 /* 다시 풀기에서 약점 장부로 이어질 수 있는 낱말 id인가 — 낱말 카드를 가리키는 ref만 */
@@ -46,7 +46,7 @@ export function applyAttempt(progress, attempt, { wordIds = null, today = todayK
     const n3 = p.n3;
     if (n3 && (attempt.ok ? n3.wrong?.[qid] : true)) {
       const wrong = noteN3Wrong(n3.wrong, qid, attempt.ok, { cat: n3.wrong?.[qid]?.cat, ref: attempt.ref ?? null, at });
-      if (wrong !== n3.wrong) next = { ...next, n3: { ...n3, wrong } };
+      if (wrong !== n3.wrong) next = { ...next, n3: { ...n3, wrong, wrongGone: noteN3Gone(n3.wrongGone, n3.wrong, wrong, at) } };
     }
   }
   return next;

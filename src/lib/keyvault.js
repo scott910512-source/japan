@@ -32,16 +32,21 @@ export function looksPacked(value) {
 }
 
 /* 이 기기의 키와 계정의 키를 맞춘다.
- *   pull  이 기기에 없고 계정에 있는 키 — 가져온다
- *   push  올릴 묶음(계정 것과 다를 때만). 이 기기에 있는 키가 우선이다(예전 음성 키 규칙 그대로) */
-export function reconcileKeys(local = {}, stored = null) {
+ *   pull   이 기기에 없고 계정에 있는 키 — 가져온다
+ *   push   올릴 묶음(계정 것과 다를 때만). 이 기기에 있는 키가 우선이다(예전 음성 키 규칙 그대로)
+ *   clear  계정의 봉투를 비워야 하나 — 키를 다 지워서 올릴 묶음이 없는데 계정에는 남아 있을 때
+ *
+ * cleared = { gttsKey: true } — 이 기기에서 방금 지운 키. 지운 키는 가져오지 않고 계정에서도 뺀다.
+ * 전에는 「이 기기에 없으면 가져온다」뿐이라, 설정에서 키를 지우면 곧바로 계정에서 다시 내려왔다. */
+export function reconcileKeys(local = {}, stored = null, cleared = {}) {
   const mine = { gttsKey: local.gttsKey || '', geminiKey: local.geminiKey || '' };
-  const theirs = stored || { gttsKey: '', geminiKey: '' };
+  const kept = stored || { gttsKey: '', geminiKey: '' };
+  const theirs = { gttsKey: cleared.gttsKey ? '' : kept.gttsKey, geminiKey: cleared.geminiKey ? '' : kept.geminiKey };
   const pull = {};
   if (!mine.gttsKey && theirs.gttsKey) pull.gttsKey = theirs.gttsKey;
   if (!mine.geminiKey && theirs.geminiKey) pull.geminiKey = theirs.geminiKey;
   const union = { gttsKey: mine.gttsKey || theirs.gttsKey, geminiKey: mine.geminiKey || theirs.geminiKey };
   const want = packKeys(union);
-  const have = stored ? packKeys(theirs) : '';
-  return { pull, push: want && want !== have ? want : null };
+  const have = stored ? packKeys(kept) : '';
+  return { pull, push: want && want !== have ? want : null, clear: Boolean(!want && have) };
 }

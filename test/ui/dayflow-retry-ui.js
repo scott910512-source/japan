@@ -29,12 +29,12 @@ const review = {
   ...Object.fromEntries(weak.map((w) => [w.id, { box: 1, streak: 0, lastSeen: addDays(today, -4), rounds: 3, wrongCount: 3, vagueCount: 1, seenAt: 1, due: addDays(today, 5) }])),
 };
 
-async function boot(browser, progress = null, extraSettings = {}) {
+async function boot(browser, progress = null, extraSettings = {}, store = null) {
   /* 이 검사는 문장 퀘스트 말고의 흐름을 본다 — 오늘 문장 퀘스트는 건너뛴 것으로 심는다(문장 퀘스트는 sentence-quest-ui가 본다) */
   progress = { quests: { day: todayKey(), sentenceSkip: true }, ...(progress || {}) };
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(({ rv, progress, extraSettings }) => {
+  await page.evaluate(({ rv, progress, extraSettings, store }) => {
     localStorage.setItem('jp_manabu_signed_in_v1', '1');
     localStorage.setItem('jp_optrev_open', '0');
     /* 옛 설정(번호 없음, 복습 9 · 새로 8)에서 시작한다 — 새 수량으로 바뀌는지도 같이 본다 */
@@ -42,7 +42,9 @@ async function boot(browser, progress = null, extraSettings = {}) {
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(s));
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(rv));
     if (progress) localStorage.setItem('jp_manabu_progress_v1', JSON.stringify(progress));
-  }, { rv: review, progress, extraSettings });
+    /* 그 밖에 심어 둘 것(오늘의 계획 등) — 여기서 같이 심어야 다시 불러올 일이 없다 */
+    for (const [k, v] of Object.entries(store || {})) localStorage.setItem(k, JSON.stringify(v));
+  }, { rv: review, progress, extraSettings, store });
   await page.waitForTimeout(900);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
@@ -197,6 +199,26 @@ async function finishDeck(page) {
     const doneRows = await p4.locator('.tdq-row', { hasText: '마쳤어요' }).count();
     ok('퀘스트 머리 숫자도 그 줄을 마친 것으로 센다', Number(score.split('/')[0]) === doneRows, `${score} · 마쳤어요 ${doneRows} / ${rows}줄`);
     await p4.close();
+  }
+
+  console.log('\n[ 날이 바뀐 첫 화면 — 어제 다 마친 계획의 몫을 오늘 것으로 적지 않는다 ]');
+  {
+    /* 어제: 복습 2 · 새 낱말 1을 다 마친 작은 하루. 오늘은 새 낱말이 스무 개쯤 잡힌다.
+       처음부터 심어 둔다 — 오프라인에서 다시 불러오면 느린 러너에서는 화면이 안 뜰 때가 있다(서비스워커가 덜 받은 채). */
+    const d = new Date(Date.now() - 86400000);
+    const y = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const p5 = await boot(browser, { quests: { day: y, stream: 20, sealReview: 2, sealFresh: 1 } }, {}, {
+      jp_manabu_plan_v1: { v: 1, date: y, goals: { fresh: 20, review: 30, weak: 3 }, reps: 3, extra: 0, sizes: {},
+        assigned: [{ id: 'x1', kind: 'word', bucket: 'review' }, { id: 'x2', kind: 'word', bucket: 'review' }, { id: 'x3', kind: 'word', bucket: 'fresh' }], done: { x1: true, x2: true, x3: true } },
+    });
+    p5.on('pageerror', (e) => errors.push(e.message));
+    await p5.waitForTimeout(1500);
+    await goTab(p5, '오늘');
+    const q = await p5.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}').quests || {});
+    ok('★ 오늘 것으로 적힌 몫이 없다(어제의 1 · 2가 넘어오지 않는다) ★', !(q.day === todayKey() && (q.sealFresh || q.sealReview)), JSON.stringify(q));
+    const fr5 = await rowText(p5, '새로 배우기');
+    ok('★ 새로 배우기 줄이 「마쳤어요」로 시작하지 않는다 ★', !fr5.includes('마쳤어요') && /0\s*\/\s*\d+/.test(fr5), fr5);
+    await p5.close();
   }
 
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 2).join(' | ') || '깨끗');

@@ -153,7 +153,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
 
   useHotkeys({
     Space: () => { if (run && !run.done) setPaused((v) => !v); },
-    Enter: () => { if (!run) start(); else if (run.done) setRun(null); else goNext(); },
+    Enter: () => { if (!run || run.done) start(); else goNext(); },   // 끝 화면의 Enter는 단추에 적힌 대로 「한 판 더」
     ArrowRight: () => { if (run && !run.done) goNext(); },
     ArrowLeft: () => { if (run && !run.done) goPrev(); },
     r: () => { if (run && !run.done) replay(); },

@@ -284,7 +284,8 @@ export default function StreamQuiz({
   const right = session.log.filter((e) => e.ok).length;
   /* 진행 현황 — 지금 몇 번째 / 한 묶음 몇 개. 맞힌 개수는 오른쪽에 따로 둔다(점수가 아니라 진행이 먼저 보여야 한다).
      묶음을 이어서 풀면 다시 1부터 센다. 끝없이(0)는 몇 번째인지만 보인다. */
-  const idx = answered ? total : total + 1;
+  /* 「거의 맞았어요」는 받아들일지 정하기 전이라 아직 기록에 없다 — 그때 한 칸 덜 세면 첫 문제가 「0 / 20」으로 보인다 */
+  const idx = answered && answered.verdict !== 'close' ? total : total + 1;
   const pos = batch > 0 ? ((idx - 1) % batch) + 1 : idx;
 
   /* ── 한 묶음을 다 풀었다: 계속할지, 오늘은 여기까지 할지 ── */

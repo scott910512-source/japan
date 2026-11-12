@@ -50,6 +50,7 @@ const UI_SECONDS = {
   'compose-ui.js': 39, 'menu-ui.js': 39, 'oldstate.js': 38, 'conjugate-ui.js': 36,
   'study-flow.js': 34, 'flow4.js': 32, 'grabtoggle.js': 30, 'qa-final.js': 29,
   'stream-ui.js': 29, 'back-sheet.js': 27, 'iphone-smoke.js': 27,
+  'dayflow-retry-ui.js': 150, 'speak-ui.js': 130, 'dayflow-ui.js': 120, 'sync-inflight-ui.js': 100, 'double-input-ui.js': 60,
 };
 function uiForShard(files) {
   if (!shard) return files;

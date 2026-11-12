@@ -1,5 +1,5 @@
 /* 영상이 진짜로 계정(서버)에 올라가는지 — 오가는 요청을 가로채서 본다. */
-import { syncNow, VIDEO_COLUMN_SQL } from '../../src/lib/sync.js';
+import { syncNow, pushKeyEnvelope, VIDEO_COLUMN_SQL } from '../../src/lib/sync.js';
 
 let pass = 0, fail = 0;
 const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefined ? '— ' + e : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? '— ' + e : ''); } };
@@ -58,9 +58,24 @@ const run = async (handler) => {
 
   ok('암기 상태도 같이 올라감', post.body.review['w-1'] !== undefined);
   ok('음성 키는 안 올라감', !JSON.stringify(post.body.settings).includes('비밀'), JSON.stringify(post.body.settings));
-
   ok('합친 결과를 돌려줌', merged.videos.list.length === 2, String(merged.videos.list.length));
   ok('칸이 있으면 안내가 없음', merged.videoNote === null, String(merged.videoNote));
+}
+
+// ── 서버 줄에 키가 들어 있어도(옛 버전이 올린 것 · 손으로 고친 것) 받지도 다시 올리지도 않는다 ──
+{
+  const merged = await run((u, opt) => {
+    if ((opt.method || 'GET') === 'GET') {
+      return { body: [{ review: {}, progress: {}, settings: { goalLevel: 'N4', geminiKey: '서버의키', gttsKey: '서버의음성키', claudeKey: '서버의클로드키', aiProvider: 'claude' }, stats: {}, custom_words: [], streak: {}, memos: {}, videos: {} }] };
+    }
+    return { body: [] };
+  });
+  const post = calls.find((c) => c.method === 'POST');
+  const sent = JSON.stringify(post.body.settings);
+  ok('★ 서버 줄의 키를 평문으로 다시 올리지 않는다 ★', !sent.includes('서버의'), sent);
+  ok('★ 서버 줄의 키가 이 기기 설정으로 내려오지 않는다 ★', !JSON.stringify(merged.settings).includes('서버의') && merged.settings.aiProvider === undefined, JSON.stringify(merged.settings));
+  ok('동기화하는 설정은 그대로 내려온다', merged.settings.goalLevel === 'N4');
+
 }
 
 // ── videos 칸이 아직 없는 서버 ──
@@ -93,6 +108,19 @@ const run = async (handler) => {
     await run(() => ({ status: 401, body: { message: 'JWT expired' } }));
   } catch (e) { threw = e.message; }
   ok('권한 오류는 그대로 알림', threw.includes('로그아웃'), threw);
+}
+
+// ── 키 봉투만 올린다 — 이 기기의 기록을 합치지 않은 채 같이 올리지 않는다 ──
+{
+  calls.length = 0;
+  globalThis.fetch = async (url, opt = {}) => {
+    calls.push({ url: String(url), method: opt.method || 'GET', body: opt.body ? JSON.parse(opt.body) : null });
+    return new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  await pushKeyEnvelope('user-1', { v: 1, iv: 'x', data: 'y' });
+  const post = calls.find((c) => c.method === 'POST');
+  const keys = Object.keys(post?.body || {}).sort().join();
+  ok('★ 봉투를 올릴 때 봉투와 사용자 칸만 보낸다(기록을 덮지 않는다) ★', keys === 'gtts_key_enc,user_id', keys);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

@@ -97,7 +97,8 @@ export function addSentences(store, list = [], max = MAX_SAVED) {
     added += 1;
   }
   const alive = Object.values(items).filter((x) => !gone[x.id]).sort((a, b) => (b.at || 0) - (a.at || 0));
-  for (const old of alive.slice(max)) delete items[old.id];
+  /* 상한을 넘어 밀려난 문장도 「지운 것」으로 적는다 — 안 적으면 다른 기기에 남아 있던 것이 다음에 합칠 때 되살아나 상한이 안 지켜진다 */
+  for (const old of alive.slice(max)) { delete items[old.id]; gone[old.id] = Math.max(gone[old.id] || 0, (old.at || 0) + 1); }
   return { store: added ? { items, gone } : store, added };
 }
 

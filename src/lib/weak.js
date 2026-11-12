@@ -54,6 +54,9 @@ export function weakEntry(ledger, id) {
     forgot: num(raw.forgot),
     fastDays: fd,
     at: num(raw.at),
+    /* 「다 외웠어요」를 누른 시각 · 마지막으로 바퀴가 쌓인 시각 — 있을 때만 싣는다(합칠 때 본다) */
+    ...(num(raw.clearedAt) ? { clearedAt: num(raw.clearedAt) } : {}),
+    ...(num(raw.stuckAt) ? { stuckAt: num(raw.stuckAt) } : {}),
   };
 }
 
@@ -100,10 +103,11 @@ export function noteWeak(ledger = {}, notes = [], at = Date.now()) {
     if (n.kind === WEAK_KIND.QUIZ_WRONG) next.quizWrong = cur.quizWrong + 1;
     else if (n.kind === WEAK_KIND.QUIZ_RIGHT) next.quizRight = cur.quizRight + 1;
     else if (n.kind === WEAK_KIND.LISTEN) next.listen = cur.listen + 1;
-    else if (n.kind === WEAK_KIND.STUCK) next.stuck = cur.stuck + 1;
+    else if (n.kind === WEAK_KIND.STUCK) { next.stuck = cur.stuck + 1; next.stuckAt = at; }
     else if (n.kind === WEAK_KIND.CLEARED) {
       if (!cur.stuck) continue;      // 되돌릴 게 없으면 장부를 안 건드린다
       next.stuck = 0;
+      next.clearedAt = at;
     }
     else if (n.kind === WEAK_KIND.FORGOT) {
       next.forgot = cur.forgot + 1;
@@ -315,18 +319,22 @@ export function mergeWeak(local = {}, remote = {}) {
     const a = weakEntry(local, id);
     const b = weakEntry(remote, id);
     const fd = [a.fastDays, b.fastDays].filter((v) => v != null);
+    const cleared = Math.max(a.clearedAt || 0, b.clearedAt || 0);
     out[id] = {
       quizWrong: Math.max(a.quizWrong, b.quizWrong),
       quizRight: Math.max(a.quizRight, b.quizRight),
       listen: Math.max(a.listen, b.listen),
-      /* 바퀴 수도 큰 쪽. 「다 외웠어요」로 0이 된 기기와 아직 도는 기기를
-         합치면 큰 쪽이 남는데, 그게 맞다 — 한쪽에서 아직 안 뗐으면 안 뗀
-         것이다. 뗀 쪽에서 한 번 더 누르면 그때 0이 된다. */
-      stuck: Math.max(a.stuck, b.stuck),
+      /* 바퀴 수도 큰 쪽 — 다만 「다 외웠어요」를 누른 뒤에 쌓인 것만 센다.
+         전에는 무조건 큰 쪽이라, 뗀 낱말이 다음 동기화에서(서버에 올라가 있던 내 옛 값 때문에) 다시 안 뗀 것으로 돌아왔다.
+         누른 시각을 아는 쪽(같은 clearedAt)이나 그 뒤에 바퀴가 쌓인 쪽(stuckAt이 더 나중)의 수만 쓴다. */
+      stuck: Math.max(stuckSince(a, cleared), stuckSince(b, cleared)),
       forgot: Math.max(a.forgot, b.forgot),
       fastDays: fd.length ? Math.min(...fd) : null,
       at: Math.max(a.at, b.at),
+      ...(cleared ? { clearedAt: cleared } : {}),
+      ...(Math.max(a.stuckAt || 0, b.stuckAt || 0) ? { stuckAt: Math.max(a.stuckAt || 0, b.stuckAt || 0) } : {}),
     };
   }
   return out;
 }
+const stuckSince = (e, cleared) => (!cleared || (e.clearedAt || 0) === cleared || (e.stuckAt || 0) > cleared ? e.stuck : 0);

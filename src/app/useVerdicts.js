@@ -133,9 +133,11 @@ export function useVerdicts({
 
   const saveMemo = useCallback((id, text) => {
     setMemos((prev) => {
+      /* ★ 지운 메모도 「언제 지웠나」를 남긴다 ★ 칸을 통째로 없애면, 다른 기기(또는 서버에 올라가 있던 내 것)의 옛 메모가
+         다음 동기화에서 되살아났다. 빈 글 + 지운 시각으로 남기면 합칠 때 나중 것이 이긴다. 화면은 글이 없으면 없는 메모로 본다. */
       if (!text) {
-        const { [id]: _drop, ...rest } = prev;
-        return rest;
+        if (!prev[id]?.text) return prev;
+        return { ...prev, [id]: { text: '', at: new Date().toISOString() } };
       }
       return { ...prev, [id]: { text, at: new Date().toISOString() } };
     });
@@ -145,9 +147,12 @@ export function useVerdicts({
   const toggleBookmark = useCallback((id) => {
     setProgress((p) => {
       const list = p.bookmarks || [];
+      const on = !list.includes(id);
       return {
         ...p,
-        bookmarks: list.includes(id) ? list.filter((x) => x !== id) : [...list, id],
+        bookmarks: on ? [...list, id] : list.filter((x) => x !== id),
+        /* 켜고 끈 시각 — 합칠 때 나중 것이 이긴다(lib/merge.js mergeBookmarks). 없으면 푼 북마크가 다음 동기화에서 돌아왔다 */
+        bookmarkAt: { ...(p.bookmarkAt || {}), [id]: { on, at: Date.now() } },
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

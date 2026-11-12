@@ -340,6 +340,12 @@ group('시험 · 출제');
 
   ok('단어보다 많이 요청해도 안전', buildQuiz(ALL_WORDS.slice(0, 3), { count: 20, rng }).length === 3);
   ok('빈 단어장도 안전', buildQuiz([], { count: 20, rng }).length === 0);
+  /* 낱말 하나만 낼 때(틀린 한 낱말 다시 풀기 · 약한 낱말이 하나 남았을 때) — 보기는 밖에서 끌어온다 */
+  const lone = buildQuiz(ALL_WORDS.slice(0, 1), { count: 1, type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO, rng });
+  ok('(전) 낱말 하나로만 만들면 보기가 정답 하나뿐이다', lone[0].options.length === 1, String(lone[0].options.length));
+  const withPool = buildQuiz(ALL_WORDS.slice(0, 1), { count: 1, type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO, rng, distractors: ALL_WORDS });
+  ok('★ 보기 후보를 따로 주면 낱말 하나만 내도 보기가 넷이다 ★', withPool.length === 1 && withPool[0].options.length === 4 && withPool[0].wordId === ALL_WORDS[0].id, String(withPool[0].options.length));
+  ok('보기 후보를 줘도 문제는 고른 낱말로만 낸다', buildQuiz(ALL_WORDS.slice(0, 3), { count: 20, rng, distractors: ALL_WORDS }).length === 3);
 }
 
 /* ── 시험: 범위 ── */

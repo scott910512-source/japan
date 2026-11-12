@@ -43,6 +43,9 @@ export default function AskSheet({
   const [shown, setShown] = useState(null);
   const [err, setErr] = useState('');
   const inputRef = useRef(null);
+  /* 지금 보는 카드 — 늦게 온 답이 어느 카드 것인지 견줄 때 쓴다 */
+  const cardNow = useRef(card?.id || '');
+  cardNow.current = card?.id || '';
   const ai = resolveProvider(settings);
 
   /* 카드가 바뀌면 앞 카드 이야기를 지운다. 「食べる 뭐가 어쩌고」가 남은 채로
@@ -109,8 +112,10 @@ export default function AskSheet({
         at: Date.now(),
         ...got,
       };
-      setShown(entry);
       onHistory(rememberAsk(history, entry));
+      /* 답을 기다리는 사이 다른 카드로 넘어갔으면 화면에는 안 띄운다(기록에는 남는다) — 앞 카드의 답이 새 카드에 보였다 */
+      if (cardNow.current !== (card?.id || '')) return;
+      setShown(entry);
       setQ('');   // 물은 글은 답 위에 남아 있다 — 글상자는 비워서 다음 질문을 바로 치게 한다
     } catch (e) {
       setErr(e.message || '물어보지 못했어요');

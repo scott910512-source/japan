@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { stampSettings } from '../lib/merge.js';
 import {
   loadCustomWords, saveCustomWords,
   loadProgress, saveProgress,
@@ -28,6 +29,14 @@ export function useAppData() {
      부풀지 않는다. */
   const [plan, setPlan] = useState(() => loadPlan());
   const [settings, setSettings] = useState(() => loadSettings());
+  /* 이 기기에서 바뀐 설정 칸에 바꾼 시각을 찍는다 — 기기끼리 합칠 때 나중에 바꾼 쪽이 이기게(lib/merge.js).
+     어디서 바꾸든(설정 화면 · 듣기 화면 · 처음 화면) 한 군데서 찍는다. 동기화가 얹은 칸은 시각이 같이 와서 건너뛴다. */
+  const settingsSeen = useRef(settings);
+  useEffect(() => {
+    const stamped = stampSettings(settingsSeen.current, settings, Date.now());
+    settingsSeen.current = stamped;
+    if (stamped !== settings) setSettings(stamped);
+  }, [settings]);
   const [review, setReview] = useState(() => loadReview());
   const [session, setSession] = useState(() => loadSession());
   const [stats, setStats] = useState(() => loadStats());

@@ -96,15 +96,40 @@ export function mergeStreak(local = {}, remote = {}) {
   };
 }
 
-export function mergeCustomWords(local = [], remote = []) {
+/* gone = { 낱말id: 지운 시각 } (progress.wordsGone). 지운 뒤에 다시 넣은 낱말(addedAt이 더 나중)은 살린다.
+   안 넘기면 예전처럼 합집합이다 — 그러면 지운 낱말이 다른 기기에서 되살아난다. */
+export function mergeCustomWords(local = [], remote = [], gone = null) {
   const seen = new Set();
   const out = [];
   for (const w of [...remote, ...local]) {
     if (!w?.id || seen.has(w.id)) continue;
+    if (gone && gone[w.id] && gone[w.id] >= (w.addedAt || 0)) continue;
     seen.add(w.id);
     out.push(w);
   }
   return out;
+}
+
+/* 지운 시각 꾸러미({ id: 시각 })는 큰 쪽 */
+export function mergeGone(a = {}, b = {}) {
+  const out = { ...(a || {}) };
+  for (const [id, at] of Object.entries(b || {})) out[id] = Math.max(out[id] || 0, Number(at) || 0);
+  return out;
+}
+
+/* 북마크 — 켜고 끈 시각(bookmarkAt)이 있으면 나중 것이 이긴다. 시각이 없는 옛 북마크는 예전처럼 합집합이다.
+   돌려주는 것: { bookmarks, bookmarkAt } */
+export function mergeBookmarks(local = {}, remote = {}) {
+  const at = { ...(remote.bookmarkAt || {}) };
+  for (const [id, m] of Object.entries(local.bookmarkAt || {})) {
+    const r = at[id];
+    /* 같은 시각이면 켠 쪽 — 순서를 바꿔도 같은 답이 나오게 */
+    if (!r || (m?.at || 0) > (r.at || 0) || ((m?.at || 0) === (r.at || 0) && m?.on)) at[id] = m;
+  }
+  const union = [...new Set([...(remote.bookmarks || []), ...(local.bookmarks || [])])];
+  const bookmarks = union.filter((id) => !at[id] || at[id].on);
+  for (const [id, m] of Object.entries(at)) if (m?.on && !bookmarks.includes(id)) bookmarks.push(id);
+  return { bookmarks, bookmarkAt: at };
 }
 
 /* 맞고 틀린 횟수는 더하지 않고 큰 쪽을 쓴다.
@@ -170,7 +195,9 @@ export function mergeProgress(local = {}, remote = {}) {
     ...remote,
     ...local,
     mistakes: mergeMistakes(local.mistakes, remote.mistakes),
-    bookmarks: [...new Set([...(remote.bookmarks || []), ...(local.bookmarks || [])])],
+    ...mergeBookmarks(local, remote),
+    /* 지운 내 단어 — 낱말은 다른 칸(custom_words)에 있어서 지운 시각만 여기 싣는다(mergeCustomWords가 본다) */
+    wordsGone: mergeGone(local.wordsGone, remote.wordsGone),
     grammarDone: { ...(remote.grammarDone || {}), ...(local.grammarDone || {}) },
     sentenceDone: { ...(remote.sentenceDone || {}), ...(local.sentenceDone || {}) },
     // 일상문법은 「몇 개 맞혔나」라 잘한 쪽을 남긴다 — 나중 것이 이기면 진도가 뒤로 간다
@@ -274,6 +301,8 @@ const SYNCED_SETTINGS = [
   'listenBeat', 'listenBpm',
   'listenShowYomi', 'listenDropped',
   'sentenceScope', 'purpose', 'tripDate', 'quickJudge',
+  /* 칸마다 이 사람이 마지막으로 바꾼 시각 — { 칸: ms }. 아래 「설정은 나중에 바꾼 쪽이 이긴다」가 본다 */
+  'settingsAt',
 ];
 
 export function pickSyncedSettings(settings = {}) {
@@ -282,6 +311,70 @@ export function pickSyncedSettings(settings = {}) {
     if (settings[key] !== undefined) out[key] = settings[key];
   }
   return out;
+}
+
+/* ── 설정은 칸마다 나중에 바꾼 쪽이 이긴다 ──
+ *
+ * 전에는 「이 기기 값이 언제나 이긴다」였다. 그런데 모든 칸에 기본값이 있어서, 새 기기에서 로그인하면 계정의 설정이
+ * 하나도 안 내려오고 오히려 기본값(처음 화면 안 봄 · N5 · 기본 목표)이 계정을 덮었다 — 가타카나 질문이 다시 나오고,
+ * 기기끼리 설정이 영영 안 맞았다.
+ *
+ * 그래서 칸마다 바꾼 시각을 적는다(settingsAt). 합칠 때:
+ *   둘 다 시각이 있으면        나중에 바꾼 쪽
+ *   한쪽만 시각이 있으면       그쪽(시각이 없는 쪽은 그 뒤로 손댄 적이 없다)
+ *   둘 다 없으면(옛 기록)      이 기기 값이 기본값 그대로이고 서버 값이 다르면 서버 값, 아니면 예전처럼 이 기기 값
+ * 돌려주는 것은 올려도 되는 칸만이다(키는 없다). */
+const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+export function mergeSettingsByTime(local = {}, remote = {}, defaults = {}) {
+  const l = pickSyncedSettings(local || {});
+  const r = pickSyncedSettings(remote || {});
+  const la = l.settingsAt || {}; const ra = r.settingsAt || {};
+  const out = {}; const at = {};
+  for (const k of new Set([...Object.keys(l), ...Object.keys(r)])) {
+    if (k === 'settingsAt') continue;
+    const lt = Number(la[k]) || 0; const rt = Number(ra[k]) || 0;
+    let fromRemote;
+    if (!(k in r)) fromRemote = false;
+    else if (!(k in l)) fromRemote = true;
+    else if (lt !== rt) fromRemote = rt > lt;
+    else fromRemote = lt === 0 && sameValue(l[k], defaults[k]) && !sameValue(r[k], defaults[k]);
+    out[k] = fromRemote ? r[k] : l[k];
+    if (Math.max(lt, rt)) at[k] = Math.max(lt, rt);
+  }
+  out.settingsAt = at;
+  return out;
+}
+
+/* 이 기기에서 바뀐 설정 칸에 시각을 찍는다. 바뀐 게 없으면 받은 그대로(next) 돌려준다.
+ * 동기화가 얹은 칸은 시각이 같이 바뀌어 오므로(applySyncedSettings) 다시 찍지 않는다 — 찍으면 받은 값이 「방금 바꾼 것」이 된다. */
+export function stampSettings(prev = {}, next = {}, now = Date.now()) {
+  if (prev === next) return next;
+  const pa = prev.settingsAt || {}; const na = next.settingsAt || {};
+  let at = null;
+  for (const k of SYNCED_SETTINGS) {
+    if (k === 'settingsAt') continue;
+    if (sameValue(prev[k], next[k])) continue;
+    if ((pa[k] || 0) !== (na[k] || 0)) continue;       // 시각이 같이 바뀌었다 — 동기화가 얹은 칸
+    at = { ...(at || na), [k]: now };
+  }
+  return at ? { ...next, settingsAt: at } : next;
+}
+
+/* 합친 설정(merged)을 지금 설정에 얹는다. 요청을 보낸 뒤에 이 기기에서 바꾼 칸(지금 값 ≠ 보낼 때 값)은 건드리지 않는다.
+ * 받은 칸에는 그 칸의 시각을 같이 적는다 — 시각이 없는 옛 값을 받았으면 1을 적어 「받은 값」임을 남긴다(다시 찍히지 않게). */
+export function applySyncedSettings(cur = {}, merged = {}, snapshot = {}, defaults = {}) {
+  const incoming = {};
+  const at = { ...(cur.settingsAt || {}) };
+  for (const [k, v] of Object.entries(merged || {})) {
+    if (k === 'settingsAt') continue;
+    if (!sameValue(cur[k], snapshot[k])) continue;
+    incoming[k] = v;
+    if (!sameValue(cur[k], v)) at[k] = Number(merged.settingsAt?.[k]) || at[k] || 1;
+    else if (Number(merged.settingsAt?.[k])) at[k] = Math.max(at[k] || 0, Number(merged.settingsAt[k]));
+  }
+  const next = mergeSyncedSettings(cur, incoming, defaults);
+  return sameValue(next.settingsAt || {}, at) ? next : { ...next, settingsAt: at };
 }
 
 /* 서버에서 온 설정을 지금 설정에 얹는다.

@@ -42,4 +42,24 @@ check('업데이트 전 버전이 묶음을 음성 키 칸에 넣은 흔적을 �
   assert.equal(looksPacked(packKeys({ gttsKey: 'T', geminiKey: 'G' })), true);
   assert.equal(looksPacked('AIzaTTS'), false); assert.equal(looksPacked(''), false);
 });
+check('이 기기에서 지운 키는 계정에서 다시 가져오지 않고, 계정에서도 뺀다', () => {
+  const stored = unpackKeys(packKeys({ gttsKey: 'T', geminiKey: 'G' }));
+  const before = reconcileKeys({ gttsKey: 'T', geminiKey: '' }, stored);            // (전) 지우자마자 다시 내려왔다
+  assert.deepEqual(before.pull, { geminiKey: 'G' });
+  const r = reconcileKeys({ gttsKey: 'T', geminiKey: '' }, stored, { geminiKey: true });
+  assert.deepEqual(r.pull, {});
+  assert.deepEqual(unpackKeys(r.push), { gttsKey: 'T', geminiKey: '' });             // 음성 키만 남긴 봉투를 올린다
+  assert.equal(r.clear, false);
+});
+check('키를 다 지우면 계정의 봉투를 비우라고 알린다', () => {
+  const stored = unpackKeys(packKeys({ gttsKey: 'T', geminiKey: 'G' }));
+  const r = reconcileKeys({ gttsKey: '', geminiKey: '' }, stored, { gttsKey: true, geminiKey: true });
+  assert.deepEqual(r.pull, {}); assert.equal(r.push, null); assert.equal(r.clear, true);
+  assert.equal(reconcileKeys({}, null, { gttsKey: true }).clear, false);              // 계정에 아무것도 없으면 비울 것도 없다
+});
+check('새 기기(처음부터 비어 있던 칸)는 여전히 계정에서 가져온다', () => {
+  const stored = unpackKeys(packKeys({ gttsKey: 'T', geminiKey: 'G' }));
+  const r = reconcileKeys({}, stored, {});
+  assert.deepEqual(r.pull, { gttsKey: 'T', geminiKey: 'G' }); assert.equal(r.push, null); assert.equal(r.clear, false);
+});
 console.log(`통과 ${pass} / 실패 0`);

@@ -20,6 +20,7 @@ export function questsOf(progress, today = todayKey()) {
     random: Math.max(0, Number(q.random) || 0),
     sentenceIds: Array.isArray(q.sentenceIds) ? q.sentenceIds.filter((x) => typeof x === 'string') : [],
     sentenceSkip: Boolean(q.sentenceSkip),
+    ...(Number(q.sentenceSkipAt) > 0 ? { sentenceSkipAt: Number(q.sentenceSkipAt) } : {}),
     ...sealsOf(q),
   };
 }
@@ -77,9 +78,10 @@ export function planSentenceQuest(prev, ids, today = todayKey()) {
   if (cur.sentenceIds.length) return prev && prev.day === today ? prev : { ...cur };   // 이미 정했으면 그대로(다시 정하면 배우던 게 바뀐다)
   return { ...cur, sentenceIds: ids.filter((x) => typeof x === 'string') };
 }
-export function skipSentenceQuest(prev, skip = true, today = todayKey()) {
+export function skipSentenceQuest(prev, skip = true, today = todayKey(), at = Date.now()) {
   const cur = questsOf({ quests: prev }, today);
-  return { ...cur, sentenceSkip: Boolean(skip) };
+  /* 누른 시각을 같이 적는다 — 합칠 때 「한쪽이라도 건너뛰었으면 건너뜀」이라 되돌리기가 다음 동기화에서 다시 건너뜀이 됐다 */
+  return { ...cur, sentenceSkip: Boolean(skip), sentenceSkipAt: at };
 }
 
 /* 아직 안 본 문장 중에서 오늘 배울 것을 고른다.
@@ -134,5 +136,8 @@ export function mergeQuests(a, b) {
     if (typeof a[k] === 'boolean' || typeof b[k] === 'boolean') { out[k] = Boolean(a[k]) || Boolean(b[k]); continue; }       // 건너뜀 — 한쪽이라도 건너뛰었으면
     out[k] = Math.max(Number(a[k]) || 0, Number(b[k]) || 0);
   }
+  /* 건너뛰기는 누른 시각이 있으면 나중에 누른 쪽 — 건너뛴 뒤 되돌린 것이 남는다. 시각이 없는 옛 기록은 위 규칙(한쪽이라도) 그대로 */
+  const sa = Number(a.sentenceSkipAt) || 0; const sb = Number(b.sentenceSkipAt) || 0;
+  if (sa || sb) out.sentenceSkip = sa === sb ? Boolean(a.sentenceSkip) || Boolean(b.sentenceSkip) : Boolean((sa > sb ? a : b).sentenceSkip);
   return out;
 }

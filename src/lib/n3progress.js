@@ -25,7 +25,17 @@ export function noteN3Wrong(wrong, qid, ok, { cat = 'grammar', ref = null, at = 
 }
 
 export function emptyN3() {
-  return { v: N3_VERSION, lessons: {}, skip: {}, days: {}, q: {}, wrong: {}, tests: {}, exams: [], summary: null };
+  return { v: N3_VERSION, lessons: {}, skip: {}, days: {}, q: {}, wrong: {}, wrongGone: {}, tests: {}, exams: [], summary: null };
+}
+
+/* 오답 노트를 고친 앞뒤를 보고, 빠진 문제에 뺀 시각을 적는다. 바뀐 게 없으면 받은 그대로 돌려준다. */
+export function noteN3Gone(gone, before, after, at = Date.now()) {
+  let out = gone || {};
+  for (const id of Object.keys(before || {})) {
+    if (after && id in after) continue;
+    out = { ...out, [id]: at };
+  }
+  return out;
 }
 
 export function normalizeN3(raw) {
@@ -38,6 +48,8 @@ export function normalizeN3(raw) {
     days: obj(s.days),         // { YYYY-MM-DD: { steps: [...], built, answered, right, at } }
     q: obj(s.q),               // { 문제id: { r, w } } — 문제별 정답률
     wrong: obj(s.wrong),       // { 문제id: { c, at, cat, ref, ok } } — 오답 노트
+    /* { 문제id: 노트에서 뺀 시각 } — 두 번 이어 맞혀 뺀 문제가 다른 기기(서버에 올라가 있던 내 것)에서 되살아나지 않게 */
+    wrongGone: obj(s.wrongGone),
     tests: obj(s.tests),       // { 테스트id: { best, last, tries, right, total, at } }
     exams: Array.isArray(s.exams) ? s.exams.slice(-20) : [],
     /* 홈·학습·내 학습이 읽는 요약 — { done, total, pct, ready, areas, at }.
@@ -70,9 +82,14 @@ export function mergeN3(a, b) {
   for (const id of new Set([...Object.keys(x.q), ...Object.keys(y.q)])) {
     q[id] = { r: Math.max(x.q[id]?.r || 0, y.q[id]?.r || 0), w: Math.max(x.q[id]?.w || 0, y.q[id]?.w || 0) };
   }
+  const wrongGone = { ...y.wrongGone };
+  for (const [id, at] of Object.entries(x.wrongGone)) wrongGone[id] = Math.max(wrongGone[id] || 0, Number(at) || 0);
+  /* 뺀 뒤에 다시 틀린 것(at이 더 나중)만 살린다 */
+  const alive = (w, id) => w && !(wrongGone[id] && wrongGone[id] >= (w.at || 0));
   const wrong = {};
   for (const id of new Set([...Object.keys(x.wrong), ...Object.keys(y.wrong)])) {
-    const l = x.wrong[id]; const r = y.wrong[id];
+    const l = alive(x.wrong[id], id) ? x.wrong[id] : null; const r = alive(y.wrong[id], id) ? y.wrong[id] : null;
+    if (!l && !r) continue;
     if (!l) { wrong[id] = r; continue; } if (!r) { wrong[id] = l; continue; }
     /* 같은 시각이면 더 많이 틀린 쪽 — 순서를 바꿔도 같은 답이 나와야 한다 */
     const later = (l.at || 0) !== (r.at || 0) ? ((l.at || 0) > (r.at || 0) ? l : r) : ((l.c || 0) >= (r.c || 0) ? l : r);
@@ -94,5 +111,5 @@ export function mergeN3(a, b) {
   const sx = x.summary; const sy = y.summary;
   let summary = sx || sy || null;
   if (sx && sy) summary = (sx.at || 0) !== (sy.at || 0) ? ((sx.at || 0) > (sy.at || 0) ? sx : sy) : ((sx.done || 0) >= (sy.done || 0) ? sx : sy);
-  return { v: N3_VERSION, lessons, skip, days, q, wrong, tests, exams: exams.slice(-20), summary };
+  return { v: N3_VERSION, lessons, skip, days, q, wrong, wrongGone, tests, exams: exams.slice(-20), summary };
 }
