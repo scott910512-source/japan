@@ -41,13 +41,15 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
   /* 회차 — 한 번 만들 때 나온 묶음. 고른 회차의 문장만 연습에 쓴다(안 골랐으면 전부) */
   const batches = useMemo(() => speakBatches(saved), [saved]);
   const chosen = useMemo(() => pickBatches(batches, prefs.batches), [batches, prefs.batches]);
-  const allBatches = chosen.length === batches.length;
+  /* 손으로 고른 회차 — 지금 있는 것만. 비어 있으면 「전체 섞기」다.
+     전부 손으로 골랐을 때도 고른 그대로 둔다(「전체 섞기」로 바꿔 버리면 고른 표시가 사라져서 선택이 풀린 것처럼 보인다) */
+  const picked = useMemo(() => {
+    const have = new Set(batches.map((b) => b.id));
+    return (Array.isArray(prefs.batches) ? prefs.batches : []).filter((id) => have.has(id));
+  }, [batches, prefs.batches]);
+  const allBatches = picked.length === 0;
   const pool = useMemo(() => batchSentences(chosen), [chosen]);
-  const toggleBatch = (id) => {
-    const cur = allBatches ? [] : chosen.map((b) => b.id);
-    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
-    setPref('batches', next.length === batches.length ? [] : next);
-  };
+  const toggleBatch = (id) => setPref('batches', picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
   const counts = useMemo(() => speakCounts({ saved: pool, sentenceCards, review }), [pool, sentenceCards, review]);
   const hasAi = Boolean(resolveProvider(settings).apiKey);
   const level = goalOf(settings);
@@ -256,7 +258,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
               전체 섞기 <span className="pk-count">{saved.length}개</span>
             </button>
             {[...batches].reverse().map((b) => {
-              const on = !allBatches && chosen.some((c) => c.id === b.id);
+              const on = picked.includes(b.id);
               return (
                 <button key={b.id} className={`ls-pill${on ? ' active' : ''}`} data-batch={b.id} data-no={b.no} aria-pressed={on} onClick={() => toggleBatch(b.id)}>
                   {batchLabel(b)} <span className="pk-count">{b.items.length}개</span>
@@ -264,7 +266,7 @@ export default function SpeakPractice({ sentenceCards = [], review = {}, progres
               );
             })}
           </div>
-          <p className="set-note sp-batchnote">회차 하나만 골라 그 문장만 연습하거나, 여러 개를 골라 섞을 수 있어요.</p>
+          <p className="set-note sp-batchnote">회차를 누를 때마다 골랐다 뺐다 해요. 여러 개를 고르면 그 문장들을 섞어서 아래에서 정한 수만큼 내요.</p>
         </>
       )}
       <div className="ls-pills sp-counts">
