@@ -1,4 +1,4 @@
-import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, TravelCourse, N3Course, DrillHub, StreamQuiz, ComposeQuiz, SpeakPractice } from './screens.js';
+import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, TravelCourse, N3Course, DrillHub, StreamQuiz, ComposeQuiz, SpeakPractice, StoryListen } from './screens.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
 export default function FeatureScreen({
@@ -110,6 +110,7 @@ export default function FeatureScreen({
             )}
             {/* 듣기 고르기 — 자동 듣기 · 따라 말하기 · 영상. 학습 탭 「듣기」에서 연다 */}
             {sub === 'listenhub' && <ListenHub onOpen={openListen} />}
+            {sub === 'story' && <StoryListen onActivity={noteActivity} onToast={showToast} />}
             {sub === 'grammar' && (
               <GrammarHub
                 onAttempt={onAttempt}

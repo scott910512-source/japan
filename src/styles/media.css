@@ -478,3 +478,53 @@
 .sp-replay svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
 .sp-donehead { font-size: 20px; }
 .sp-done .sp-card { display: grid; gap: 10px; text-align: center; padding: 28px 16px; }
+
+/* ── 이야기 연속 듣기 ── */
+.story { display: grid; gap: 10px; }
+.sl-empty { display: grid; gap: 6px; }
+.sl-empty p { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+.sl-list { display: grid; gap: 8px; }
+.sl-item { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; border: 1.5px solid var(--line); border-radius: 14px; background: var(--surface); }
+.sl-item.active { border-color: var(--kon); background: var(--kon-soft); }
+.sl-itembody { display: grid; gap: 3px; min-width: 0; padding: 12px 4px 12px 14px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.sl-itembody b { font-size: 15px; line-height: 1.45; }
+.sl-itembody span { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+.sl-itembody .sl-resume { color: var(--kon); font-weight: 700; }
+.sl-level { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 100px; border: 1px solid var(--line); font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-soft); vertical-align: 1px; }
+.sl-del { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--ink-soft); border-radius: 12px; cursor: pointer; }
+.sl-del svg { width: 18px; height: 18px; }
+.sl-start { margin-top: 6px; width: 100%; }
+.sl-start .bs-t svg { width: 18px; height: 18px; vertical-align: -3px; margin-right: 4px; }
+.sl-import { width: 100%; margin-top: 0; }
+.sl-konote { margin-top: 6px; }
+
+/* 위에 붙어 있는 머리 — 글이 흘러가도 「그만 듣기」와 구간이 손에 닿는다 */
+.sl-top { position: sticky; top: -16px; z-index: 2; display: grid; gap: 8px; margin: -16px -18px 0; padding: 10px 18px 8px; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.sl-head { display: flex; align-items: center; gap: 10px; }
+.sl-pos { flex: 0 0 auto; font-size: 14px; color: var(--ink-soft); }
+.sl-pos b { font-size: 20px; color: var(--ink); }
+.sl-title { flex: 1 1 auto; min-width: 0; font-size: 13px; font-weight: 700; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-quit { flex: 0 0 auto; margin-top: 0; }
+.sl-secs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.sl-secs::-webkit-scrollbar { display: none; }
+.sl-sec { flex: 0 0 auto; min-height: 36px; padding: 0 12px; border-radius: 100px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; max-width: 70vw; overflow: hidden; text-overflow: ellipsis; }
+.sl-sec.active { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
+.sl-text { display: grid; gap: 14px; padding: 16px 14px; }
+.sl-section { display: grid; gap: 10px; min-width: 0; }
+.sl-sectitle { display: grid; gap: 2px; font-size: 14px; font-weight: 800; color: var(--kon); padding-top: 4px; }
+.sl-sectitle small { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.sl-para { font-size: 17px; line-height: 2; overflow-wrap: anywhere; }
+.sl-s { cursor: pointer; border-radius: 6px; padding: 2px 1px; -webkit-box-decoration-break: clone; box-decoration-break: clone; transition: background .15s, color .15s; }
+.sl-s.past { color: var(--ink-soft); }
+.sl-s.cur { background: var(--kon-soft); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--kon) inset; }
+/* 아래에 붙어 있는 조작대 — 글이 길어도 손이 닿는 자리에 둔다 */
+.sl-bar { position: sticky; bottom: -28px; z-index: 2; display: grid; gap: 8px; margin: 0 -18px -28px; padding: 10px 18px calc(14px + env(safe-area-inset-bottom, 0px)); background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(14px); border-top: 1px solid var(--line); }
+.sl-ko { font-size: 14px; line-height: 1.6; color: var(--ink); padding: 8px 10px; border-radius: 10px; background: var(--surface-2); overflow-wrap: anywhere; max-height: 5.2em; overflow: auto; }
+.sl-ko.saying { box-shadow: 0 0 0 1.5px var(--kon) inset; }
+.sl-status { font-size: 12px; font-weight: 700; color: var(--ink-soft); text-align: center; }
+.sl-controls { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 8px; }
+.sl-controls .ghost-btn, .sl-controls .submit-btn { margin-top: 0; }
+.sl-quick { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.sl-chip { min-height: 32px; padding: 0 10px; border-radius: 100px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.sl-chip.active { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
+@media (prefers-reduced-motion: reduce) { .sl-s { transition: none; } }

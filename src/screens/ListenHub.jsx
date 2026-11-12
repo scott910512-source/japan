@@ -1,4 +1,4 @@
-import { IconHeadphone, IconRepeat, IconVideo, IconChevron } from '../components/Icons.jsx';
+import { IconHeadphone, IconRepeat, IconVideo, IconBook, IconChevron } from '../components/Icons.jsx';
 
 /* 듣기 — 화면을 안 보고 하는 공부.
  *
@@ -6,7 +6,7 @@ import { IconHeadphone, IconRepeat, IconVideo, IconChevron } from '../components
  * 외워야 하는 것이 다섯이다. 지하철에서 꺼내는 길은 학습 → 듣기 두 번이면
  * 되고, 자동 듣기는 들어가면 바로 흘러간다.
  *
- * 여기 세 가지는 다 「보거나 듣는」 일이다. 판정도 안 하고 손도 거의 안 쓴다. */
+ * 여기 있는 것은 다 「보거나 듣는」 일이다. 판정도 안 하고 손도 거의 안 쓴다. */
 
 const WAYS = [
   {
@@ -15,6 +15,13 @@ const WAYS = [
     title: '자동 듣기',
     sub: '단어와 문장이 저절로 흘러가요',
     note: '손을 안 대도 넘어가요. 일본어 → 뜻 · 뜻 → 일본어 둘 다 돼요',
+  },
+  {
+    id: 'story',
+    Icon: IconBook,
+    title: '이야기 연속 듣기',
+    sub: '긴 글 한 편을 끊지 않고 끝까지',
+    note: '천천히 읽어 줘요. 속도 · 반복 · 해석을 고를 수 있고, 듣던 자리부터 이어 들어요',
   },
   {
     id: 'shadow',
