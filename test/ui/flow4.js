@@ -208,7 +208,7 @@ async function judgeAll(page, max = 60, label = '알아요') {
   ok('★ 그 안의 N3 오답노트 줄은 N3 코스의 오답노트를 연다 ★', await page.locator('.n3-wrong').count() === 1);
   await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click(); await page.waitForTimeout(400);
   await openMenu(page, '듣기');
-  ok('학습 → 듣기: 자동 · 따라 · 영상', await page.locator('.lh-way').count() === 3);
+  ok('학습 → 듣기: 자동 · 이야기 · 따라 · 영상', (await page.locator('.lh-way').evaluateAll((els) => els.map((e) => e.dataset.way))).join(',') === 'auto,story,shadow,videos');
 
   console.log('\n── 옛 설정으로 켜도 새 칸이 보인다');
   {

@@ -753,6 +753,13 @@ export function speakJapaneseAsync(text, rate = 0.9, opts = {}) {
   });
 }
 
+/* 지금 소리가 나고 있는가 — 기기 음성이든 클라우드 음성이든. 끝 기별을 안 주는 길(한국어 뜻 읽기)이
+   언제 끝났는지 보려고 쓴다. 못 알아내는 기기에서는 거짓이 나오니, 부르는 쪽은 시간 상한도 같이 둔다. */
+export function soundPlaying() {
+  try { if (window.speechSynthesis?.speaking) return true; } catch { /* 무시 */ }
+  return Boolean(audioEl && !audioEl.paused && !audioEl.ended && audioEl.currentSrc);
+}
+
 export function stopSpeaking() {
   speakToken += 1;   // 진행 중인 요청이 뒤늦게 울리지 못하게 한다
   settlePending('interrupted');   // 🔊 버튼이 「읽는 중」을 내리게

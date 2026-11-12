@@ -44,7 +44,7 @@ const list = (dir, ext) => (existsSync(join(HERE, dir))
    and review tests from landing on the same runner. New files get a safe default.
    Selection is deterministic and every UI file belongs to exactly one shard. */
 const UI_SECONDS = {
-  'listen-ui.js': 158, 'weak-ui.js': 120, 'today.js': 96, 'n3-exam-ui.js': 68,
+  'listen-ui.js': 158, 'story-ui.js': 45, 'weak-ui.js': 120, 'today.js': 96, 'n3-exam-ui.js': 68,
   'n3-ui.js': 55, 'design.js': 53, 'swiss-ui.js': 52, 'travel-drill-ui.js': 51,
   'rpg.js': 47, 'steps-ui.js': 47, 'translate-ui.js': 44, 'kiju-ui.js': 42,
   'compose-ui.js': 39, 'menu-ui.js': 39, 'oldstate.js': 38, 'conjugate-ui.js': 36,

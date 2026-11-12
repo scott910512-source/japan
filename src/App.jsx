@@ -58,6 +58,7 @@ const SUB_TITLES = {
   adverb: '부사 연습',
   listenhub: '듣기',
   listen: '듣기 · 따라 말하기',
+  story: '이야기 연속 듣기',
   videos: '영상으로 배우기',
   swiss: '독일어 여행 회화',
   travel: '여행 일본어',

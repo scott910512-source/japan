@@ -135,6 +135,8 @@ export function useAppNavigation({ validSubs = null } = {}) {
      방식만 다르다 — 화면을 두 벌로 만들면 고친 게 한쪽에만 남는다. */
   const openListen = useCallback((id) => {
     if (id === 'videos') { setVideosSeen(true); setSub(null); setActiveTab('videos'); return; }
+    /* 이야기 연속 듣기는 따로 있는 화면이다 — 뒤로 가면 듣기 고르기로 돌아온다 */
+    if (id === 'story') { setParentSub('listenhub'); setSub('story'); return; }
     setListenMode(id === 'shadow' ? 'shadow' : 'listen');
     setSub('listen');
   }, []);
