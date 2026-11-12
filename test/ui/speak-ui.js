@@ -179,11 +179,19 @@ const SECOND = { sentences: [
   ok('★ 고른 회차의 문장만 나온다 ★', (await page.locator('.sp-pos').innerText()).replace(/\s/g, '') === '1/2' && SECOND.sentences.some((x) => x.jp === picked), picked);
   await page.locator('.sp-quit').click();
   await page.locator('.sp-batches [data-no="1"]').click();
-  ok('둘 다 고르면 전체 섞기와 같다', await page.locator('.sp-batches [data-batch="all"].active').count() === 1 && (await page.locator('.sp-start').innerText()).includes('4문장'));
+  ok('★ 하나 고른 뒤 다른 회차를 누르면 둘 다 고른 채로 남는다(전체 섞기로 안 넘어간다) ★', await page.locator('.sp-batches [data-no="1"].active').count() === 1 && await page.locator('.sp-batches [data-no="2"].active').count() === 1
+    && await page.locator('.sp-batches [data-batch="all"].active').count() === 0 && (await page.locator('.sp-start').innerText()).includes('4문장'));
   await page.waitForTimeout(260);   // 같은 자리를 0.2초 안에 또 누르면 한 번으로 본다(tapguard) — 사람처럼 틈을 둔다
   await page.locator('.sp-batches [data-no="1"]').click();
-  ok('전체에서 회차 하나를 누르면 그 회차만 고른다 · 고른 회차를 기억한다', await page.locator('.sp-batches [data-no="1"].active').count() === 1 && await page.locator('.sp-batches [data-no="2"].active').count() === 0 && await page.locator('.sp-batches [data-batch="all"].active').count() === 0
+  ok('고른 회차를 다시 누르면 그것만 빠진다 · 고른 회차를 기억한다', await page.locator('.sp-batches [data-no="1"].active').count() === 0 && await page.locator('.sp-batches [data-no="2"].active').count() === 1 && await page.locator('.sp-batches [data-batch="all"].active').count() === 0
+    && (await page.locator('.sp-start').innerText()).includes('2문장')
     && await page.evaluate(() => JSON.parse(localStorage.getItem('jp_speak_prefs_v1')).batches.length === 1));
+  await page.locator('.sp-batches [data-no="2"]').click();
+  ok('다 빼면 전체 섞기로 돌아간다', await page.locator('.sp-batches [data-batch="all"].active').count() === 1 && await page.locator('.sp-batches [data-no].active').count() === 0 && (await page.locator('.sp-start').innerText()).includes('4문장'));
+  await page.locator('.sp-batches [data-no="1"]').click();
+  await page.locator('.sp-batches [data-no="2"]').click();
+  await page.locator('.sp-batches [data-batch="all"]').click();
+  ok('전체 섞기를 누르면 고른 것이 풀린다', await page.locator('.sp-batches [data-batch="all"].active').count() === 1 && await page.locator('.sp-batches [data-no].active').count() === 0);
   if ((await page.locator('.sp-savedrow').getAttribute('aria-expanded')) !== 'true') await page.locator('.sp-savedrow').click();
   ok('저장한 문장도 회차별로 묶여 보인다', await page.locator('.sp-batch').count() === 2 && (await page.locator('.sp-batchhead').first().innerText()).includes('2회차'));
   ok('가로로 넘치지 않는다(회차)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
