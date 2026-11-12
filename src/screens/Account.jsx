@@ -4,11 +4,13 @@ import { supabase, supabaseConfigured, redirectUrl } from '../lib/supabase.js';
 import { deriveVaultKey } from '../lib/crypto.js';
 import { VIDEO_COLUMN_SQL } from '../lib/sync.js';
 import { isServerProblem, readableAuthError } from '../lib/authboot.js';
+import { findAccount, lastEmail, maskEmail } from '../lib/idfind.js';
 
 const MODES = {
   signin: { title: '로그인', action: '로그인', other: 'signup', otherLabel: '처음이신가요? 가입하기' },
   signup: { title: '가입하기', action: '가입하고 시작', other: 'signin', otherLabel: '이미 계정이 있어요' },
   reset: { title: '비밀번호 재설정', action: '재설정 메일 보내기', other: 'signin', otherLabel: '로그인으로 돌아가기' },
+  find: { title: '아이디 찾기', action: '가입된 이메일인지 확인', other: 'signin', otherLabel: '로그인으로 돌아가기' },
 };
 
 export default function Account({ session, syncState, onSync, onSignedOut, onToast, onVaultKey, onServerProblem }) {
@@ -26,6 +28,8 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [found, setFound] = useState('');            // 방금 가입된 주소로 확인된 이메일
+  const [known] = useState(lastEmail);                // 이 기기에서 로그인했던 이메일
 
   if (!supabaseConfigured) {
     return (
@@ -99,11 +103,24 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
       onToast('아이디가 아니라 이메일 주소를 넣어 주세요 (예: name@gmail.com)');
       return;
     }
-    if (mode !== 'reset' && password.length < 6) { onToast('비밀번호는 6자 이상이어야 해요'); return; }
+    if (mode !== 'reset' && mode !== 'find' && password.length < 6) { onToast('비밀번호는 6자 이상이어야 해요'); return; }
 
     setBusy(true);
     setNotice('');
     try {
+      if (mode === 'find') {
+        setFound('');
+        const answer = await findAccount(supabase, address, redirectUrl());
+        if (answer === 'yes') {
+          setFound(address);
+          setNotice('가입된 주소예요. 이 이메일이 아이디예요. 로그인 링크도 메일로 보냈어요. 비밀번호가 기억나면 「이 이메일로 로그인」을 누르세요.');
+        } else if (answer === 'no') {
+          setNotice('이 주소로 가입한 계정이 없어요. 다른 이메일을 넣어 보세요.');
+        } else {
+          setNotice('너무 자주 확인했어요. 1분쯤 뒤에 다시 해 주세요.');
+        }
+        return;
+      }
       if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(address, {
           redirectTo: redirectUrl(),
@@ -148,10 +165,19 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
     <div className="card">
       <div className="set-title">{cfg.title}</div>
       <div className="set-sub" style={{ marginBottom: 12 }}>
-        {mode === 'reset'
-          ? '가입한 이메일로 재설정 링크를 보내드려요.'
-          : '로그인하면 아이폰과 아이패드가 같은 진도를 봐요.'}
+        {mode === 'reset' && '가입한 이메일로 재설정 링크를 보내드려요.'}
+        {mode === 'find' && '아이디는 가입할 때 쓴 이메일이에요. 쓸 만한 이메일을 넣으면 가입된 주소인지 알려드려요.'}
+        {mode !== 'reset' && mode !== 'find' && '로그인하면 아이폰과 아이패드가 같은 진도를 봐요.'}
       </div>
+
+      {/* 이 기기에서 로그인한 적이 있으면 그 이메일을 알려 준다 — 누르면 칸에 채운다 */}
+      {known && mode !== 'signup' && email.trim() !== known && (
+        <button className="acct-known" onClick={() => { setEmail(known); setNotice(''); setFound(''); if (mode === 'find') setMode('signin'); }}>
+          <span>이 기기에서 쓰던 계정</span>
+          <b>{maskEmail(known)}</b>
+          <i>이 이메일 쓰기</i>
+        </button>
+      )}
 
       <input
         className="search-input"
@@ -160,10 +186,11 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
         autoComplete="email"
         placeholder="이메일"
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) => { setEmail(e.target.value); setFound(''); }}
+        onKeyDown={(e) => e.key === 'Enter' && (mode === 'reset' || mode === 'find') && submit()}
         style={{ marginBottom: 8 }}
       />
-      {mode !== 'reset' && (
+      {mode !== 'reset' && mode !== 'find' && (
         <input
           className="search-input"
           type="password"
@@ -176,16 +203,22 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
         />
       )}
 
-      {notice && <div className="acct-notice">{notice}</div>}
+      {notice && <div className="acct-notice" role="status">{notice}</div>}
+      {mode === 'find' && found && (
+        <button className="ghost-btn acct-usefound" onClick={() => { setEmail(found); setMode('signin'); setNotice(''); setFound(''); }}>이 이메일로 로그인</button>
+      )}
 
       <button className="submit-btn" onClick={submit} disabled={busy} style={{ marginTop: 4 }}>
         {busy ? '처리 중…' : cfg.action}
       </button>
 
       <div className="acct-links">
-        <button onClick={() => { setMode(cfg.other); setNotice(''); }}>{cfg.otherLabel}</button>
+        <button onClick={() => { setMode(cfg.other); setNotice(''); setFound(''); }}>{cfg.otherLabel}</button>
         {mode === 'signin' && (
-          <button onClick={() => { setMode('reset'); setNotice(''); }}>비밀번호를 잊었어요</button>
+          <button data-go="find" onClick={() => { setMode('find'); setNotice(''); }}>아이디를 잊었어요</button>
+        )}
+        {mode === 'signin' && (
+          <button data-go="reset" onClick={() => { setMode('reset'); setNotice(''); }}>비밀번호를 잊었어요</button>
         )}
       </div>
     </div>

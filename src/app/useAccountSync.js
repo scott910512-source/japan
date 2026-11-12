@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_SETTINGS, loadVaultKey, saveVaultKey, markSignedInOnce, hasSignedInOnce } from '../lib/storage.js';
 import { supabase, supabaseConfigured } from '../lib/supabase.js';
+import { rememberEmail } from '../lib/idfind.js';
 import { syncNow, pushKeyEnvelope } from '../lib/sync.js';
 import { applySyncedSettings, mergeReview, mergeProgress, mergeStats, mergeStreak, mergeCustomWords, mergeMemos, mergeGone } from '../lib/merge.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from '../lib/crypto.js';
@@ -276,6 +277,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     if (!authSession?.user || syncedFor.current === authSession.user.id) return;
     syncedFor.current = authSession.user.id;
     markSignedInOnce();
+    rememberEmail(authSession.user.email);   // 아이디 찾기 — 다음에 로그인 화면에서 알려 준다
     runSync(true);
   }, [authSession, runSync]);
 
