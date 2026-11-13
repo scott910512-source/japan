@@ -5,7 +5,7 @@ import { useWakeLock } from '../hooks/useWakeLock.js';
 import { speakJapaneseAsync, speakKorean, stopSpeaking, soundPlaying, unlockAudio } from '../lib/tts.js';
 import {
   STORY_RATES, STORY_REPEATS, STORY_KO,
-  loadStories, saveStories, loadStoryPos, saveStoryPos, loadStoryPrefs, saveStoryPrefs,
+  saveStories, loadStoryPos, saveStoryPos, loadStoryPrefs, saveStoryPrefs,
   storiesFromFile, addStories, removeStory, flatStory, storyStats, storyMinutes, sectionStarts, resumeAt, nextStoryAt,
 } from '../lib/story.js';
 
@@ -17,7 +17,8 @@ import {
  * 고르는 것은 셋이다: 읽는 속도(기본은 천천히) · 문장마다 몇 번 · 해석(끔 · 글자로 · 소리로도).
  * 긴 글이라 어디까지 들었는지 기기에 적어 두고 이어 듣는다.
  *
- * 글은 앱에 들어 있지 않다. 사용자가 파일로 불러온 것만 이 기기에 남는다(lib/story.js). */
+ * 글은 앱에 들어 있지 않다. 사용자가 파일로 불러온 것만 그 사람의 기기와 계정에 남는다(lib/story.js).
+ * 묶음(store = { list, removed })은 App이 들고 있다 — 동기화에 실어야 다른 기기에도 뜬다. */
 
 const sleepers = () => {
   const ids = new Set();
@@ -29,8 +30,10 @@ const sleepers = () => {
 
 const KO_LABEL = { [STORY_KO.OFF]: '끔', [STORY_KO.TEXT]: '글자로', [STORY_KO.VOICE]: '소리로도' };
 
-export default function StoryListen({ onActivity, onToast }) {
-  const [stories, setStories] = useState(loadStories);
+const EMPTY = { list: [], removed: {} };
+
+export default function StoryListen({ store = EMPTY, setStore, onActivity, onToast }) {
+  const stories = store?.list || EMPTY.list;
   const [pos, setPos] = useState(loadStoryPos);
   const [prefs, setPrefsState] = useState(loadStoryPrefs);
   const [pick, setPick] = useState(null);
@@ -53,6 +56,9 @@ export default function StoryListen({ onActivity, onToast }) {
 
   useWakeLock(Boolean(run?.playing));
   useEffect(() => () => { sleep.current.clear(); stopSpeaking(); }, []);
+
+  /* 듣던 이야기가 사라졌으면(다른 기기에서 지웠다) 듣기를 닫는다 */
+  useEffect(() => { if (run && !stories.some((s) => s.id === run.id)) setRun(null); }, [run, stories]);
 
   const savePos = (id, at) => setPos((p) => { const n = { ...p, [id]: at }; saveStoryPos(n); return n; });
 
@@ -149,7 +155,7 @@ export default function StoryListen({ onActivity, onToast }) {
     const res = addStories(stories, incoming);
     if (!res.added && !res.replaced) { onToast?.('이야기를 더 담을 자리가 없어요. 안 듣는 것을 지운 뒤 다시 해 주세요'); return; }
     if (!saveStories(res.list)) { onToast?.('기기 저장 공간이 모자라 불러오지 못했어요'); return; }
-    setStories(res.list);
+    setStore?.((cur) => ({ list: addStories(cur?.list || [], incoming).list, removed: cur?.removed || {} }));
     setPick(incoming[0].id);
     const parts = [];
     if (res.added) parts.push(`${res.added}편을 불러왔어요`);
@@ -158,10 +164,9 @@ export default function StoryListen({ onActivity, onToast }) {
     onToast?.(`이야기 ${parts.join(' · ')}`);
   };
   const drop = (s) => {
-    if (!window.confirm(`「${s.title}」을(를) 이 기기에서 지울까요?\n파일을 다시 불러오면 돌아와요.`)) return;
-    const next = removeStory(stories, s.id);
-    saveStories(next);
-    setStories(next);
+    if (!window.confirm(`「${s.title}」을(를) 지울까요?\n로그인한 다른 기기에서도 사라져요. 파일을 다시 불러오면 돌아와요.`)) return;
+    /* 지운 시각을 남긴다 — 안 남기면 다음 동기화에 계정에서 다시 내려온다 */
+    setStore?.((cur) => ({ list: removeStory(cur?.list || [], s.id), removed: { ...(cur?.removed || {}), [s.id]: Date.now() } }));
     setPos((p) => { const { [s.id]: _gone, ...rest } = p; saveStoryPos(rest); return rest; });
   };
 
@@ -240,7 +245,7 @@ export default function StoryListen({ onActivity, onToast }) {
       {stories.length === 0 ? (
         <div className="card sl-empty">
           <b>아직 불러온 이야기가 없어요</b>
-          <p>스크립트 파일(.json · .txt)을 불러오면 여기에 떠요. 글은 이 기기에만 저장돼요.</p>
+          <p>스크립트 파일(.json · .txt)을 불러오면 여기에 떠요. 한 번 불러오면 로그인한 다른 기기에도 떠요.</p>
         </div>
       ) : (
         <div className="sl-list" role="radiogroup" aria-label="이야기">
@@ -315,7 +320,7 @@ export default function StoryListen({ onActivity, onToast }) {
       <input ref={fileRef} className="sl-file" type="file" accept=".json,.txt,application/json,text/plain" multiple hidden onChange={(e) => onFiles(e.target.files)} />
       <p className="set-note">
         .json(해석이 붙은 파일)과 .txt(글만 있는 파일)를 받아요. 여러 개를 한꺼번에 골라도 돼요.
-        글은 이 기기에만 저장되고 계정으로 올라가지 않아요 — 다른 기기에서는 파일을 한 번 더 불러오세요.
+        글은 내 계정에만 저장돼요(다른 사람은 볼 수 없어요). 한 번 불러오면 로그인한 다른 기기에도 떠요.
       </p>
     </div>
   );

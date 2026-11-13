@@ -2,8 +2,10 @@
  *
  * ★ 글은 앱에 담아 두지 않는다 ★
  * 스크립트는 남의 저작물이다. 저장소에 넣으면 누구에게나 공개된다(영상 자막을 안 담는 것과 같은 이유 —
- * data/videos.js). 사용자가 자기 기기에서 파일로 불러온 것만 그 기기에 남긴다.
- * 학습 기록이 아니라서 초기화 · 백업 · 동기화가 건드리지 않는다(크기도 커서 올릴 때마다 실리면 안 된다).
+ * data/videos.js). 사용자가 파일로 불러온 것만 그 사람의 기기와 계정에 남긴다.
+ * 계정에는 영상 묶음(videos 칸)에 실려 올라간다 — 본인만 읽는 줄이라(RLS) 다른 사람에게는 안 보이고,
+ * 한 기기에서 한 번 불러오면 로그인한 다른 기기에도 뜬다. 지운 것은 지운 시각을 남겨 되살아나지 않게 한다.
+ * 어디까지 들었는지(자리)와 듣기 설정은 기기마다 따로 둔다.
  *
  * 불러오는 파일은 두 가지다.
  *   .json  — { format: 'jp-hunter-stories', stories: [...] }. 문장마다 해석(ko)이 붙어 있을 수 있다.
@@ -12,6 +14,7 @@
 
 export const STORY_FORMAT = 'jp-hunter-stories';
 const LIST_KEY = 'jp_manabu_stories_v1';
+const REMOVED_KEY = 'jp_manabu_story_removed_v1';
 const POS_KEY = 'jp_manabu_story_pos_v1';
 const PREF_KEY = 'jp_story_prefs_v1';
 export const STORY_LIMIT = 40;                  // 이야기 수
@@ -83,6 +86,7 @@ export function cleanStory(raw, now = Date.now()) {
     source: text(raw.source, 120),
     url: HTTP.test(url) ? url : '',
     addedAt: Number(raw.addedAt) > 0 ? Number(raw.addedAt) : now,
+    ...(Number(raw.updatedAt) > 0 ? { updatedAt: Number(raw.updatedAt) } : {}),   // 같은 이야기를 새 파일로 바꾼 시각
     sections,
   };
 }
@@ -190,12 +194,12 @@ const sizeOf = (list) => list.reduce((n, s) => n + flatStory(s).reduce((m, l) =>
 
 /* 불러온 것을 목록에 넣는다. 같은 id는 새 것으로 바꾼다(해석이 붙은 파일을 다시 불러오면 해석이 들어온다).
    돌려주는 것: { list, added, replaced, rejected } — 한도를 넘으면 넘는 것부터 안 받는다 */
-export function addStories(list = [], incoming = []) {
+export function addStories(list = [], incoming = [], now = Date.now()) {
   const out = [...list];
   let added = 0; let replaced = 0; let rejected = 0;
   for (const s of incoming) {
     const at = out.findIndex((x) => x.id === s.id);
-    const next = at >= 0 ? out.map((x, i) => (i === at ? { ...s, addedAt: x.addedAt } : x)) : [...out, s];
+    const next = at >= 0 ? out.map((x, i) => (i === at ? { ...s, addedAt: x.addedAt, updatedAt: now } : x)) : [...out, s];
     if (next.length > STORY_LIMIT || sizeOf(next) > STORY_CHAR_LIMIT) { rejected += 1; continue; }
     out.splice(0, out.length, ...next);
     if (at >= 0) replaced += 1; else added += 1;
@@ -203,6 +207,45 @@ export function addStories(list = [], incoming = []) {
   return { list: out, added, replaced, rejected };
 }
 export const removeStory = (list = [], id) => list.filter((s) => s.id !== id);
+
+/* ── 기기끼리 합치기 ──
+   묶음은 { list, removed }. 같은 id는 나중에 넣거나 바꾼 쪽이 남고, 지운 시각이 그보다 늦으면 뺀다.
+   다시 불러온 것은 넣은 시각이 지운 시각보다 늦으니 돌아온다. */
+const stamp = (s) => Math.max(Number(s?.updatedAt) || 0, Number(s?.addedAt) || 0);
+const TOMB_LIMIT = 200;
+export function mergeStoryStore(local = {}, remote = {}, now = Date.now()) {
+  const removed = {};
+  for (const src of [remote?.removed, local?.removed]) {
+    for (const [id, at] of Object.entries(src && typeof src === 'object' && !Array.isArray(src) ? src : {})) {
+      const n = Number(at) || 0;
+      if (n > (removed[id] || 0)) removed[id] = n;
+    }
+  }
+  const byId = new Map();
+  for (const src of [remote?.list, local?.list]) {
+    for (const raw of Array.isArray(src) ? src : []) {
+      const s = cleanStory(raw, now);
+      if (!s) continue;
+      const had = byId.get(s.id);
+      if (!had || stamp(s) > stamp(had)) byId.set(s.id, s);
+    }
+  }
+  const alive = [...byId.values()]
+    .filter((s) => !(removed[s.id] >= stamp(s)))
+    .sort((a, b) => a.addedAt - b.addedAt || a.id.localeCompare(b.id));
+  const list = [];
+  for (const s of alive) {                       // 한도는 먼저 넣은 것부터 채운다
+    if (list.length >= STORY_LIMIT || sizeOf([...list, s]) > STORY_CHAR_LIMIT) continue;
+    list.push(s);
+  }
+  const tombs = Object.entries(removed).sort((a, b) => b[1] - a[1]).slice(0, TOMB_LIMIT);
+  return { list, removed: Object.fromEntries(tombs) };
+}
+/* 내용이 같은 묶음인가 — 같으면 화면 상태를 갈아 끼우지 않는다 */
+export function sameStoryStore(a, b) {
+  const sig = (st) => JSON.stringify([(st?.list || []).map((s) => [s.id, stamp(s), s.title]), Object.entries(st?.removed || {}).sort()]);
+  return sig(a) === sig(b);
+}
 
 /* ── 기기에 남기기 ── */
 const store = () => { try { return globalThis.localStorage || null; } catch { return null; } };
@@ -216,6 +259,15 @@ export function loadStories(s = store()) {
 /* 저장에 실패하면(공간 부족) false — 부른 쪽이 알린다 */
 export function saveStories(list, s = store()) {
   try { s?.setItem(LIST_KEY, JSON.stringify(list)); return true; } catch { return false; }
+}
+export function loadStoryRemoved(s = store()) {
+  try {
+    const raw = JSON.parse(s?.getItem(REMOVED_KEY) || '{}');
+    return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  } catch { return {}; }
+}
+export function saveStoryRemoved(removed, s = store()) {
+  try { s?.setItem(REMOVED_KEY, JSON.stringify(removed || {})); } catch { /* 못 적으면 다음 동기화에 되살아날 수 있다 — 듣기는 된다 */ }
 }
 export function loadStoryPos(s = store()) {
   try {

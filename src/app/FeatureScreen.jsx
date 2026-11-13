@@ -7,6 +7,8 @@ export default function FeatureScreen({
   review,
   settings,
   patchSettings,
+  storyStore,
+  setStoryStore,
   startWordDeck,
   startKijuDeck,
   startJlptSet,
@@ -110,7 +112,7 @@ export default function FeatureScreen({
             )}
             {/* 듣기 고르기 — 자동 듣기 · 따라 말하기 · 영상. 학습 탭 「듣기」에서 연다 */}
             {sub === 'listenhub' && <ListenHub onOpen={openListen} />}
-            {sub === 'story' && <StoryListen onActivity={noteActivity} onToast={showToast} />}
+            {sub === 'story' && <StoryListen store={storyStore} setStore={setStoryStore} onActivity={noteActivity} onToast={showToast} />}
             {sub === 'grammar' && (
               <GrammarHub
                 onAttempt={onAttempt}

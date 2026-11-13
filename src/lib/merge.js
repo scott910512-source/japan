@@ -19,6 +19,7 @@ import { mergeRegions } from './regions.js';
 import { mergeSpeak } from './speak.js';
 /* 약점 장부 — 규칙은 lib/weak.js. 횟수는 큰 쪽, 잊어버린 간격은 작은 쪽. */
 import { mergeWeak } from './weak.js';
+import { mergeStoryStore } from './story.js';
 
 function laterOf(l, r) {
   const dl = l.lastSeen || '';
@@ -282,7 +283,10 @@ export function mergeVideos(local = {}, remote = {}) {
     };
   }
 
-  return { list, removed, scripts, analyses, progress };
+  /* 이야기 연속 듣기의 글 — 영상과 같은 칸에 실어 본인 계정에만 둔다. 규칙은 lib/story.js mergeStoryStore */
+  const stories = mergeStoryStore(local.stories, remote.stories);
+
+  return { list, removed, scripts, analyses, progress, stories };
 }
 
 // 설정은 기기마다 다른 게 자연스럽다(음성 속도, 테마). 학습 범위에 관한 것만 가져온다.

@@ -111,7 +111,9 @@ export default function App() {
     setTranslations,
     trends,
     setTrends,
-    removeVideo
+    removeVideo,
+    storyStore,
+    setStoryStore,
   } = appData;
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   /* 내 학습의 「계정과 동기화」「기록 백업」 줄이 설정의 그 묶음을 바로 연다 */
@@ -858,6 +860,8 @@ export default function App() {
                   />
               ) : (
               <FeatureScreen
+                storyStore={storyStore}
+                setStoryStore={setStoryStore}
                 composeStart={composeStart}
                 onAttempt={recordAttempt}
                 sub={sub}
