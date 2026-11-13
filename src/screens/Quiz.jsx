@@ -13,6 +13,7 @@ import {
   QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf, otherWordNote,
 } from '../lib/quiz.js';
 import { WEAK_KIND } from '../lib/weak.js';
+import { readQuizKeep, writeQuizKeep, keepModeOf } from '../lib/quizkeep.js';
 import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows, rowOf, wordInfo } from '../lib/optionInfo.js';
 
@@ -130,13 +131,29 @@ export default function Quiz({
      퀘스트 한 줄은 한 번 눌러 바로 풀려야 한다. 객관식, 일본어 → 한국어로 정해 두고(약한 낱말을 알아보는 판),
      설정은 건드리지 않는다(다음 일반 시험은 내가 정한 대로). 그만두면 이 화면의 설정이 아니라 온 곳으로 돌아간다. */
   const autoStarted = useRef(false);
+  /* 잇는 퀘스트 시험인가(약점 퀴즈 · 오늘 랜덤 테스트) — lib/quizkeep.js */
+  const keepMode = keepModeOf({ weak, flow });
   useEffect(() => {
     if ((!weak && !flow) || !set?.length || run || autoStarted.current) return;
     autoStarted.current = true;
+    /* ★ 풀던 시험이 있으면 새로 내지 않고 그 자리에서 잇는다 ★ 새로고침하거나 폰이 앱을 내렸다 올린 뒤다.
+       끝까지 풀고 결과를 보던 중이었으면 결과 화면으로 — 그 판의 기록은 이미 적혔으니 다시 적지 않는다(restored). */
+    const kept = keepMode ? readQuizKeep() : null;
+    if (kept?.mode === keepMode && kept.run) {
+      setRun({ ...kept.run, ...(kept.run.index >= kept.run.questions.length ? { restored: true } : {}) });
+      return;
+    }
     /* 랜덤 테스트는 고르는 것·쓰는 것, 일본어→한국어·한국어→일본어를 다 섞는다 */
     start(set, flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weak, flow, set, run]);
+
+  /* 풀 때마다 적어 둔다 — 문제 묶음 · 낸 답 · 지금 문항. 시험을 스스로 닫으면 App이 지운다 */
+  useEffect(() => {
+    if (!keepMode || !run || !set?.length) return;
+    writeQuizKeep({ mode: keepMode, ids: set.map((w) => w.id), run });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, keepMode]);
 
   if (run) {
     return (
@@ -432,6 +449,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
         onRetryWrong={onRetryWrong}
         onRetryQuiz={onRetryQuiz}
         retry={Boolean(run.retry)}
+        restored={Boolean(run.restored)}
         onToast={onToast}
         onActivity={onActivity}
         weak={weak}
@@ -627,7 +645,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
 
 /* ── 결과 ── */
 
-function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onRetryQuiz, retry = false, onToast, onActivity, weak, onExit, onHome, onNextQuest, flow, nextLabel, onComplete }) {
+function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onRetryQuiz, retry = false, restored = false, onToast, onActivity, weak, onExit, onHome, onNextQuest, flow, nextLabel, onComplete }) {
   const result = useMemo(() => gradeQuiz(questions, answers), [questions, answers]);
 
   /* 시험도 회독 진도를 올리지 않는다. 다만 몇 문항 풀었는지는 활동에 남긴다 —
@@ -636,6 +654,7 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
   useEffect(() => {
     if (noted.current) return;
     noted.current = true;
+    if (restored) return;   // 새로고침 뒤에 다시 띄운 결과 — 이 판의 활동과 오늘 몫은 처음 닿았을 때 적혔다
     onActivity?.({ quizzed: questions.length });
     /* 오늘 랜덤 테스트 · 지역 승급시험을 마쳤다고 적는다. 점수를 같이 넘겨 승급시험이 기록하게 한다 */
     if (!retry) onComplete?.({ correct: result.correct, total: result.total });   // 다시 푼 판은 처음 판의 기록에 또 적지 않는다

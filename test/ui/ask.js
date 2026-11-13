@@ -61,7 +61,7 @@ async function boot(browser, settings = {}) {
 async function stubAI(page, body = ANSWER) {
   const calls = { n: 0 };
   await page.route('**/generativelanguage.googleapis.com/**', async (route) => {
-    calls.n += 1;
+    calls.n += 1; calls.last = route.request().postData();
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -223,7 +223,29 @@ const openAsk = async (page) => {
     );
     ok('물어본 게 기기에 남는다', saved.length === 1 && saved[0].items.length === 2);
 
+    /* ★ 외우는 법 추천 — 마음에 드는 것을 골라 그 카드의 메모에 담는다 ★
+       글상자를 비운 채 누르면 지금 보는 카드로 묻는다 */
+    {
+      const cardLabel = ((await page.locator('.ask-chip').innerText()).split(/\s+/)[0] || '').trim();
+      const mcalls = await stubAI(page, { answer: '소리로 거는 쪽을 권해요.', items: [], kanji: [],
+        tips: [{ kind: '소리', text: '검사용 연상 문구 하나.' }, { kind: '묶기', text: '검사용 연상 문구 둘.' }] });
+      await page.locator('.asksheet textarea').fill('');
+      await page.locator('.ask-preset[data-preset="memo"]').click();
+      await page.locator('.ask-tip').first().waitFor({ timeout: 8000 });
+      ok('★ 글상자가 비어 있으면 지금 보는 카드로 외우는 법을 묻는다 ★', mcalls.n === 1 && JSON.stringify(mcalls.last).includes(`「${cardLabel}」 외우는 법을 추천해 줘`), cardLabel);
+      ok('추천마다 「이걸로 외울게요」가 있다', await page.locator('.ask-tip .ask-usetip').count() === 2);
+      await page.locator('.ask-tip .ask-usetip').first().click();
+      await page.waitForTimeout(500);
+      const memos = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_memos_v1') || '{}'));
+      ok('★ 고른 문구가 그 카드의 메모에 담긴다 ★', Object.values(memos).some((m) => m?.text === '검사용 연상 문구 하나.'), JSON.stringify(Object.values(memos).map((m) => m.text)));
+      await page.locator('.ask-tip .ask-usetip').nth(1).click();
+      await page.waitForTimeout(500);
+      const memos2 = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_memos_v1') || '{}'));
+      ok('하나 더 고르면 메모 뒤에 덧붙는다(앞의 것을 덮지 않는다)', Object.values(memos2).some((m) => m?.text === '검사용 연상 문구 하나.\n검사용 연상 문구 둘.'), JSON.stringify(Object.values(memos2).map((m) => m.text)));
+    }
+
     /* Esc는 창만 닫는다 — 학습을 끝내면 안 된다 */
+    await page.locator('.asksheet textarea').focus();
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
     ok('Esc를 누르면 창만 닫힌다', await page.locator('.sheet.open .asksheet').count() === 0);

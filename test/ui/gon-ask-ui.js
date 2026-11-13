@@ -74,30 +74,32 @@ async function stubAI(page, body = ANSWER) {
   console.log('\n[ 곤 얼굴 단추 ]');
   await goTab(page, '오늘');
   await page.waitForTimeout(400);
-  ok('오늘 화면에는 떠 있는 곤 단추가 있다', await page.locator('.gonfab').count() === 1);
+  ok('★ 오늘 화면에도 떠 있는 단추가 없고, 머리에 곤 얼굴(AI)이 있다 ★', await page.locator('.gonfab').count() === 0 && await page.locator('.hunter-top-ask').count() === 1 && (await page.locator('.hunter-top-ask .hunter-app-ai').innerText()).trim() === 'AI');
   /* 상단 바가 있는 화면은 떠 있는 단추 대신 상단 곤 얼굴이 연다(아래 버튼을 안 가리게) */
   await goTab(page, '학습');
   await page.waitForTimeout(400);
-  ok('★ 학습 탭에는 떠 있는 단추 대신 상단 곤 얼굴(AI)이 있다 ★', await page.locator('.gonfab').count() === 0 && await page.locator('.hunter-app-ask').count() === 1 && (await page.locator('.hunter-app-ask .hunter-app-ai').innerText()).trim() === 'AI');
-  const hb = await page.locator('.hunter-app-ask').boundingBox();
+  ok('★ 학습 탭에는 떠 있는 단추 대신 상단 곤 얼굴(AI)이 있다 ★', await page.locator('.gonfab').count() === 0 && await page.locator('.hunter-appbar .hunter-app-ask').count() === 1 && (await page.locator('.hunter-appbar .hunter-app-ask .hunter-app-ai').innerText()).trim() === 'AI');
+  const hb = await page.locator('.hunter-appbar .hunter-app-ask').boundingBox();
   ok('상단 곤 얼굴도 누르는 자리가 44px다', hb.width >= 43.5 && hb.height >= 43.5, `${hb.width}x${hb.height}`);
-  await page.locator('.hunter-app-ask').click();
+  await page.locator('.hunter-appbar .hunter-app-ask').click();
   await page.waitForTimeout(500);
   ok('★ 상단 곤 얼굴을 누르면 같은 질문 창이 열린다 ★', await page.locator('.sheet.open .asksheet').count() === 1);
   await page.locator('.sheet.open .sheet-x').click();
   await page.waitForTimeout(500);
   await goTab(page, '오늘');
   await page.waitForTimeout(400);
-  ok('★ 단추에 「AI」 표시가 있다 ★', (await page.locator('.gonfab .gonfab-ai').innerText()).trim() === 'AI');
-  ok('곤 얼굴 그림이 있다', await page.locator('.gonfab img').count() === 1);
-  const fab = await page.locator('.gonfab').boundingBox();
-  const bar = await page.locator('.tabbar').boundingBox();
-  const vp = page.viewportSize();
-  ok('★ 우측 하단, 탭바 바로 위에 있다 ★', fab && bar && fab.x + fab.width > vp.width * 0.8 && fab.y + fab.height <= bar.y, `${Math.round(fab.x)},${Math.round(fab.y)} / 탭바 ${Math.round(bar.y)}`);
-  ok('손가락으로 누를 크기(40px 이상)', fab.width >= 40 && fab.height >= 40);
+  ok('곤 얼굴 그림이 있다', await page.locator('.hunter-top-ask img').count() === 1);
+  const fab = await page.locator('.hunter-top-ask').boundingBox();
+  ok('★ 머리 오른쪽 위에 있다 · 누르는 자리가 44px다 ★', fab && fab.y < 90 && fab.x + fab.width > page.viewportSize().width * 0.8 && fab.width >= 43.5 && fab.height >= 43.5, `${Math.round(fab.x)},${Math.round(fab.y)} ${fab.width}x${fab.height}`);
+  /* 떠 있던 단추는 퀘스트 줄의 오른쪽(진행 숫자 · 화살표)을 가렸다 */
+  const covered = await page.evaluate(() => {
+    const f = document.querySelector('.hunter-top-ask').getBoundingClientRect();
+    return [...document.querySelectorAll('.tdq-row, .bigcta')].some((e) => { const r = e.getBoundingClientRect(); return !(f.right <= r.left || r.right <= f.left || f.bottom <= r.top || r.bottom <= f.top); });
+  });
+  ok('★ 큰 버튼 · 퀘스트 줄을 가리지 않는다 ★', !covered);
 
   console.log('\n[ 눌러서 묻기 ]');
-  await page.locator('.gonfab').click();
+  await page.locator('.hunter-top-ask').click();
   await page.waitForTimeout(500);
   ok('질문 창이 열린다', await page.locator('.sheet.open .asksheet').count() === 1);
   ok('제목이 「곤에게 물어보기」 + AI 표시', (await page.locator('.asksheet h3').innerText()).includes('곤에게 물어보기') && (await page.locator('.asksheet .ask-aitag').innerText()).trim() === 'AI');
@@ -129,29 +131,46 @@ async function stubAI(page, body = ANSWER) {
   await page.waitForTimeout(600);
   ok('✕로 닫힌다', await page.locator('.sheet.open .asksheet').count() === 0);
 
-  console.log('\n[ 작게 접고 펼치기 ]');
-  const big = await page.locator('.gonfab img').boundingBox();
-  ok('펼친 단추 위에 접기(−) 버튼이 있다', await page.locator('.gonfab-fold').count() === 1);
-  const fb = await page.locator('.gonfab-fold').boundingBox();
-  ok('접기 버튼도 누르는 자리는 44px다', fb.width >= 43.5 && fb.height >= 43.5 && fb.y + fb.height <= big.y + 1, `${fb.width}x${fb.height}`);
-  await page.locator('.gonfab-fold').click();
-  await page.waitForTimeout(300);
-  const small = await page.locator('.gonfab.mini img').boundingBox();
-  const miniBtn = await page.locator('.gonfab.mini').boundingBox();
-  ok('접힌 얼굴도 누르는 자리는 44px다', miniBtn.width >= 43.5 && miniBtn.height >= 43.5, `${miniBtn.width}x${miniBtn.height}`);
-  ok('★ 접으면 작은 곤 얼굴만 남는다 ★', small && small.width <= 30 && small.width < big.width && await page.locator('.gonfab-ai').count() === 0, `${big.width} → ${small?.width}`);
-  await page.locator('.gonfab.mini').click();
-  await page.waitForTimeout(300);
-  ok('★ 접힌 얼굴을 누르면 질문 창이 아니라 다시 펼쳐진다 ★', await page.locator('.sheet.open .asksheet').count() === 0 && (await page.locator('.gonfab img').boundingBox()).width >= 40);
-  await page.locator('.gonfab-fold').click();
-  await page.waitForTimeout(200);
-  /* 접힘을 기억하는지 — 저장소만 본다(오프라인 새로고침은 서비스워커 사정을 타서 이 검사의 일이 아니다) */
-  ok('★ 접어 둔 상태가 저장된다 ★', await page.evaluate(() => localStorage.getItem('jp_gonfab_mini')) === '1');
-  /* 접어 둔 채 저장된 기기로 새로 열면 접혀 있다 */
-  const again = await boot(browser, { geminiKey: 'AQ.test-not-a-real-key' }, { jp_gonfab_mini: '1' });
-  ok('★ 접어 둔 상태를 기억한다(다시 열어도 접혀 있다) ★', await again.locator('.gonfab.mini').count() === 1 && await again.locator('.gonfab-fold').count() === 0);
-  await again.close();
-  ok('접힌 뒤에도 곤 단추가 그대로 있다', await page.locator('.gonfab').count() === 1);
+  console.log('\n[ 바로 묻기 — 한자 설명 · 외우는 법 추천 ]');
+  {
+    await page.locator('.hunter-top-ask').click();
+    await page.waitForTimeout(500);
+    ok('글상자 밑에 「한자 설명」 · 「외우는 법 추천」이 있다', (await page.locator('.ask-presets .ask-preset').allInnerTexts()).join('|') === '한자 설명|외우는 법 추천');
+    const before = calls.n;
+    await page.locator('.asksheet textarea').fill('');
+    await page.locator('.ask-preset[data-preset="kanji"]').click();
+    await page.waitForTimeout(300);
+    ok('★ 낱말을 안 적고 누르면 부르지 않고 알려 준다 ★', calls.n === before && (await page.locator('.ask-err').innerText()).includes('글상자에 적고'));
+    await page.locator('.asksheet textarea').fill('かわいい');
+    await page.locator('.ask-preset[data-preset="kanji"]').click();
+    await page.waitForTimeout(300);
+    ok('★ 한자가 없는 낱말은 부르지 않고 알려 준다 ★', calls.n === before && (await page.locator('.ask-err').innerText()).includes('한자가 없어요'));
+
+    const kcalls = await stubAI(page, { answer: '習는 되풀이해 익힌다는 글자예요.', items: [{ jp: '練習', kana: 'れんしゅう', ko: '연습', note: '' }],
+      kanji: [{ char: '習', hanja: '익힐 습', korean: '한국어에서도 써요: 학습(學習) · 연습(練習)', parts: '羽(깃 우) + 白(흰 백). 어린 새가 날갯짓을 되풀이하는 모습이라고 풀이해요.', more: '음독 シュウ, 훈독 なら(う).' }], tips: [] });
+    await page.locator('.asksheet textarea').fill('習う');
+    await page.locator('.ask-preset[data-preset="kanji"]').click();
+    await page.locator('.ask-kanji').first().waitFor({ timeout: 8000 });
+    ok('★ 정해 둔 글로 한 번 묻는다 ★', kcalls.n === 1 && JSON.stringify(kcalls.last).includes('「習う」의 한자를 설명해 줘'));
+    const k = (await page.locator('.ask-kanji').first().innerText()).replace(/\s+/g, ' ');
+    ok('★ 글자마다 한국 한자음 · 한국어에서의 쓰임 · 짜임 · 덧붙임이 보인다 ★', k.includes('習') && k.includes('익힐 습') && k.includes('한국어에서') && k.includes('학습(學習)') && k.includes('짜임') && k.includes('羽') && k.includes('덧붙임'), k.slice(0, 120));
+    ok('물어본 글이 답 위에 남는다', (await page.locator('.ask-q').innerText()).includes('한자를 설명해 줘'));
+    ok('가로로 넘치지 않는다(한자 설명)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+
+    const mcalls = await stubAI(page, { answer: '소리로 거는 쪽을 권해요.', items: [], kanji: [],
+      tips: [{ kind: '소리', text: '「배울 사람 나라우(나와라)!」 하고 부르면 배우다.' }, { kind: '한자', text: '習는 학습(學習)의 습 — 익히는 것이 배우는 것.' }] });
+    await page.locator('.asksheet textarea').fill('習う');
+    await page.locator('.ask-preset[data-preset="memo"]').click();
+    await page.locator('.ask-tip').first().waitFor({ timeout: 8000 });
+    ok('★ 외우는 법을 두세 개 권한다(종류 표시와 함께) ★', mcalls.n === 1 && JSON.stringify(mcalls.last).includes('외우는 법을 추천해 줘') && await page.locator('.ask-tip').count() === 2 && (await page.locator('.ask-tip').first().innerText()).includes('소리') && (await page.locator('.ask-tip').first().innerText()).includes('나라우'));
+    ok('카드 없이 물었을 때는 메모에 담는 단추가 없다', await page.locator('.ask-usetip').count() === 0);
+    await page.locator('.asksheet textarea').fill('習う');
+    await page.locator('.ask-preset[data-preset="memo"]').click();
+    await page.waitForTimeout(500);
+    ok('★ 같은 걸 또 누르면 다시 부르지 않고 받아 둔 답을 보여 준다 ★', mcalls.n === 1 && await page.locator('.ask-tip').count() === 2);
+    await page.locator('.sheet.open .sheet-x').click();
+    await page.waitForTimeout(500);
+  }
 
   console.log('\n[ 회독(카드 학습) 화면에도 단추가 있다 ]');
   {

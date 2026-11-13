@@ -6,6 +6,7 @@
 import {
   MAX_ITEMS, MAX_QUESTION_CHARS, KEEP_ASKS,
   SYSTEM, userText, parseAsk, shapeAsk, askKey, findAsk, rememberAsk, ask,
+  ASK_PRESET, MAX_KANJI, MAX_TIPS, hasKanji, presetQuestion,
 } from '../../src/lib/ask.js';
 
 let pass = 0; let fail = 0;
@@ -155,6 +156,60 @@ console.log('\n[ 부르기 전에 ]');
     ok('모델을 안 골랐으면 가벼운 lite 별칭으로 묻는다', urls[0].includes('gemini-flash-lite-latest:generateContent'), urls[0]);
     await ask('다른 건?', CARD, { geminiKey: 'AQ.x', geminiModel: 'gemini-3.5-flash' });
     ok('직접 고른 모델은 그대로 쓴다', urls[1].includes('gemini-3.5-flash:generateContent'), urls[1]);
+  } finally { globalThis.fetch = realFetch; }
+}
+
+/* ── 한자 설명 · 외우는 법 ── */
+console.log('\n[ 눌러서 묻는 두 가지 ]');
+{
+  ok('한자 설명은 정해 둔 글로 묻는다', presetQuestion(ASK_PRESET.KANJI, ' 習う ') === '「習う」의 한자를 설명해 줘');
+  ok('외우는 법도 정해 둔 글로 묻는다', presetQuestion(ASK_PRESET.MEMO, '習う') === '「習う」 외우는 법을 추천해 줘');
+  ok('낱말이 없으면 묻지 않는다(빈 글)', presetQuestion(ASK_PRESET.KANJI, '  ') === '' && presetQuestion(ASK_PRESET.MEMO, null) === '');
+  ok('한자가 든 낱말인지 가린다', hasKanji('習う') && hasKanji('時々') && !hasKanji('かわいい') && !hasKanji('コーヒー') && !hasKanji(''));
+  ok('★ 프롬프트가 한자 설명의 세 가지를 요구한다: 한국 한자음 · 한국어에서의 쓰임 · 짜임 ★', SYSTEM.includes('훈음') && SYSTEM.includes('한국어에서도 같은 한자를 쓰는지') && SYSTEM.includes('부수') && SYSTEM.includes('정자'));
+  ok('★ 어원은 지어내지 말라고 한다 ★', SYSTEM.includes('지어내지 마세요') && SYSTEM.includes('풀이해요'));
+  ok('외우는 법은 짧게 두세 개, 종류를 나눠 권하게 한다', SYSTEM.includes('소리') && SYSTEM.includes('묶기') && SYSTEM.includes(`2~${MAX_TIPS}개`));
+}
+
+console.log('\n[ 한자 설명 · 외우는 법의 모양 ]');
+{
+  const got = shapeAsk({
+    answer: '요약',
+    kanji: [
+      { char: '習', hanja: '익힐 습', korean: '학습(學習)', parts: '羽 + 白', more: 'シュウ' },
+      { char: '習', hanja: '겹침' },                       // 같은 글자는 한 번만
+      { char: '学', hanja: '배울 학(學)' },
+      { char: '空' },                                       // 내용이 없는 칸은 버린다
+      null, 'x', { hanja: '글자 없음' },
+    ],
+    tips: [{ kind: '소리', text: '하나' }, { kind: '아무거나', text: '둘' }, { text: '' }, null, { kind: '묶기', text: '셋' }, { kind: '한자', text: '넷' }],
+  });
+  ok('글자마다 한 칸 · 같은 글자는 한 번 · 빈 칸은 버린다', got.kanji.map((k) => k.char).join('') === '習学', JSON.stringify(got.kanji.map((k) => k.char)));
+  ok('칸마다 다섯 항목이 글자로 채워진다(빠진 것은 빈 글)', got.kanji.every((k) => ['char', 'hanja', 'korean', 'parts', 'more'].every((f) => typeof k[f] === 'string')) && got.kanji[1].korean === '');
+  ok(`외우는 법은 ${MAX_TIPS}개까지 · 빈 것은 버린다`, got.tips.length === MAX_TIPS && got.tips.map((t) => t.text).join() === '하나,둘,셋');
+  ok('모르는 종류는 종류 없이 둔다', got.tips[0].kind === '소리' && got.tips[1].kind === '' && got.tips[2].kind === '묶기');
+  const many = shapeAsk({ answer: 'a', kanji: Array.from({ length: 9 }, (_, i) => ({ char: String.fromCharCode(0x4e00 + i), hanja: 'x' })) });
+  ok(`한자는 ${MAX_KANJI}글자까지`, many.kanji.length === MAX_KANJI);
+  const old = shapeAsk({ answer: '예전 답', items: [{ jp: '食べる' }] });
+  ok('★ 칸이 없는 답(예전 모양)도 빈 목록으로 받는다 ★', Array.isArray(old.kanji) && old.kanji.length === 0 && Array.isArray(old.tips) && old.tips.length === 0 && old.items.length === 1);
+  ok('모양이 틀린 칸이 와도 죽지 않는다', shapeAsk({ answer: 'a', kanji: 'x', tips: { a: 1 } }).kanji.length === 0 && shapeAsk({ answer: 'a', kanji: 'x', tips: { a: 1 } }).tips.length === 0);
+}
+
+console.log('\n[ 한 줄 요약이 빠진 답 ]');
+{
+  const realFetch = globalThis.fetch;
+  const reply = (body) => { globalThis.fetch = async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(body) }] } }] }), { status: 200 }); };
+  try {
+    reply({ answer: '', kanji: [{ char: '習', hanja: '익힐 습' }] });
+    const a = await ask(presetQuestion(ASK_PRESET.KANJI, '習う'), CARD, { geminiKey: 'AQ.x' });
+    ok('★ 한자 칸에 내용이 있으면 요약이 없어도 받는다 ★', a.kanji.length === 1 && a.answer === '');
+    reply({ answer: '', tips: [{ kind: '소리', text: '문구' }] });
+    const b = await ask(presetQuestion(ASK_PRESET.MEMO, '習う'), CARD, { geminiKey: 'AQ.x' });
+    ok('외우는 법도 마찬가지', b.tips.length === 1);
+    reply({ answer: '', kanji: [], tips: [] });
+    let threw = false;
+    try { await ask('뭐야?', CARD, { geminiKey: 'AQ.x' }); } catch { threw = true; }
+    ok('아무것도 없는 답은 여전히 빈 답으로 알린다', threw);
   } finally { globalThis.fetch = realFetch; }
 }
 

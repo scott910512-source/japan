@@ -31,6 +31,7 @@ import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
 import { MIN_POOL as STREAM_MIN_POOL } from './lib/stream.js';
 import { questsOf, sealQuests, sealedProgress, noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE } from './lib/quests.js';
+import { readQuizKeep, clearQuizKeep } from './lib/quizkeep.js';
 import { FLOW, FLOW_LABEL, nextStep, stepOfDeck, randomTestIds, n3Open, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
@@ -333,7 +334,7 @@ export default function App() {
   const [weakQuizMode, setWeakQuizMode] = useState(false);
   /* 곤에게 물어보기 창 — 떠 있는 단추(오늘 화면)와 상단 곤 얼굴(그 밖의 화면)이 같이 연다 */
   const [gonOpen, setGonOpen] = useState(false);
-  useEffect(() => { if (sub !== 'quiz') { weakQuizOn.current = false; setWeakQuizMode(false); } }, [sub]);
+  useEffect(() => { if (sub !== 'quiz') { weakQuizOn.current = false; setWeakQuizMode(false); clearQuizKeep(); } }, [sub]);   // 시험 화면을 닫았으면 풀던 자리도 지운다
   const startWeakQuiz = useCallback(() => {
     const cards = weakQuiz.ids.map((id) => byId.get(id)).filter(Boolean);
     if (!cards.length) { showToast('약점 퀴즈로 풀 낱말이 아직 없어요'); return; }
@@ -402,6 +403,24 @@ export default function App() {
     setActiveTab('me');
     openSub('quiz');
   }, [randomToday, randomSeen, wordIdSet, byId, showToast, setQuizSet, setActiveTab, openSub]);
+  /* ★ 풀던 퀘스트 시험을 잇는다 ★ 앱이 다시 떴을 때 「마지막에 있던 자리」가 시험 화면이면, 그게 약점 퀴즈였는지
+     랜덤 테스트였는지와 그 시험의 낱말을 되살린다(lib/quizkeep.js). 안 되살리면 일반 「단어 시험」 설정 화면이 뜬다.
+     문제 묶음과 낸 답은 시험 화면이 같은 곳에서 읽어 잇는다. 켤 때 한 번만 본다. */
+  const keepBoot = useRef(false);
+  useEffect(() => {
+    if (keepBoot.current) return;
+    /* 낱말 자료는 늦게 온다(따로 받는 조각이다) — 올 때까지 기다린다. 빈 채로 보면 낱말을 못 찾아 풀던 자리를 버리게 된다 */
+    if (!content) return;
+    keepBoot.current = true;
+    const kept = sub === 'quiz' ? readQuizKeep() : null;
+    if (!kept) return;
+    const cards = kept.ids.map((id) => byId.get(id)).filter(Boolean);
+    if (!cards.length) { clearQuizKeep(); return; }
+    setQuizSet(cards);
+    if (kept.mode === 'weak') { weakQuizOn.current = true; setWeakQuizMode(true); }
+    else { randomOn.current = true; setRandomMode(true); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content]);
   /* ★ 지역 승급시험 ★ 성장 지도에서 시작한다. N3 코스에 있는 시험(진단 · 확인 테스트 · 모의고사)은 그 화면으로 보내고,
      N5·N4 지역은 본 낱말 중에서 내는 확인 퀴즈를 단어 시험 화면으로 돈다. 결과는 progress.regions에 적는다. */
   const regionExamRef = useRef(null);
@@ -703,6 +722,7 @@ export default function App() {
 
           <Today
             homeResetKey={homeResetKey}
+            onAsk={() => setGonOpen(true)}
             wrongCount={wrongTotal.total}
             onOpenWrong={() => openSub('wrongbook', 'home')}
             onStartRegionExam={startRegionExam}
@@ -996,9 +1016,9 @@ export default function App() {
           prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
         ))}
         onToast={showToast}
-        /* 상단 바가 있는 화면(오늘이 아닌 탭 · 하위 화면)에서는 떠 있는 단추를 두지 않는다 — 아래 버튼을 가리던 것을
-           상단 곤 얼굴이 대신 연다. 창은 그대로 같은 것이다. */
-        hidden={onboardingOpen || activeTab !== 'home' || Boolean(sub)}
+        /* 떠 있는 단추는 두지 않는다 — 아래 버튼과 퀘스트 줄의 오른쪽(진행 숫자 · 화살표)을 가렸다.
+           어느 탭에서나 상단의 곤 얼굴이 연다(오늘 화면은 제 머리에, 다른 화면은 상단 바에). 창은 그대로 같은 것이다. */
+        hidden
         open={gonOpen}
         onOpenChange={setGonOpen}
       />

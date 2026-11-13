@@ -108,7 +108,7 @@ const reviewCount = (page) => page.evaluate(() => Object.keys(JSON.parse(localSt
     const page = await boot(browser, { geminiKey: 'AQ.test-not-a-real-key' }, { hasTouch: true, isMobile: true });
     page.on('pageerror', (e) => errors.push(e.message));
     ok('손가락 기기로 보인다', await page.evaluate(() => matchMedia('(hover: none) and (pointer: coarse)').matches));
-    await page.locator('.gonfab').click();
+    await page.locator('.hunter-top-ask').click();
     await page.locator('.asksheet textarea').waitFor({ timeout: 8000 });
     const fs = await page.locator('.asksheet textarea').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
     ok('★ 곤에게 물어보기 입력칸 글자가 16px 이상이다 ★', fs >= 16, `${fs}px`);
