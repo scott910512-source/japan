@@ -59,9 +59,8 @@ const questsOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('
   ok('처음엔 스무 문제가 남았다고 적힌다', (await row.innerText()).includes('20문제 남았어요'), (await row.innerText()).replace(/\s+/g, ' '));
   await row.click();
   await page.waitForTimeout(900);
-  ok('쭉 퀴즈 소개가 열린다', await page.locator('.st-intro').count() === 1);
-  await page.locator('.st-start').click();
-  await page.waitForTimeout(700);
+  /* 퀘스트 줄은 한 번 눌러 바로 풀린다 — 「한 번에 몇 문제」를 고르는 화면을 거치지 않는다 */
+  ok('★ 설정 화면 없이 바로 첫 문제가 나온다 ★', await page.locator('.st-run').count() === 1 && await page.locator('.st-intro').count() === 0);
   let answered = 0;
   for (let i = 0; i < 3; i++) {
     const run = page.locator('.st-run');

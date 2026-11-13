@@ -125,11 +125,11 @@ async function finishDeck(page) {
       ok('★ 완주 화면의 첫 단추가 「다음: 쭉 퀴즈」다 ★', await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('쭉 퀴즈'), (await page.locator('.finish').innerText()).replace(/\s+/g, ' ').slice(-80));
       await page.locator('.fin-next').click();
       await page.waitForTimeout(1200);
-      ok('★ 누르면 쭉 퀴즈가 열린다 ★', await page.locator('.st-intro, .st-run').count() === 1);
+      ok('★ 누르면 쭉 퀴즈가 설정 화면 없이 바로 첫 문제로 열린다 ★', await page.locator('.st-run').count() === 1 && await page.locator('.st-intro').count() === 0);
     } else {
       await page.locator('.wk-next').click();
       await page.waitForTimeout(900);
-      ok('★ 누르면 쭉 퀴즈가 열린다 ★', await page.locator('.st-intro, .st-run').count() === 1);
+      ok('★ 누르면 쭉 퀴즈가 설정 화면 없이 바로 첫 문제로 열린다 ★', await page.locator('.st-run').count() === 1 && await page.locator('.st-intro').count() === 0);
     }
   }
 

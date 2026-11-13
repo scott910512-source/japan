@@ -204,6 +204,7 @@
   padding: 16px 16px; text-align: left; font: inherit; cursor: pointer;
   color: #fff; min-height: 68px;
 }
+.td-resume-other { display: block; width: 100%; margin: -6px 0 14px; padding: 6px 4px; min-height: var(--touch); border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: 12.5px; font-weight: 600; text-align: center; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .bigcta .bc-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: rgba(255, 255, 255, .18); flex: 0 0 auto; }
 .bigcta .bc-icon svg { width: 20px; height: 20px; }
 .bigcta .bc-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }

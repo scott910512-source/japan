@@ -122,7 +122,7 @@ async function finishDeck(page) {
   ok('★ 「다음: 쭉 퀴즈로 이어서」가 뜬다 ★', await page.locator('.wk-next').count() === 1 && (await page.locator('.wk-next').innerText()).includes('쭉 퀴즈'));
   await page.locator('.wk-next').click();
   await page.waitForTimeout(900);
-  ok('쭉 퀴즈가 열린다', await page.locator('.st-intro, .st-run').count() === 1);
+  ok('★ 쭉 퀴즈가 설정 화면 없이 바로 첫 문제로 열린다 ★', await page.locator('.st-run').count() === 1 && await page.locator('.st-intro').count() === 0);
 
   console.log('\n[ 쭉 퀴즈 20문제 → 다음: 새로 배우기 ]');
   if (await page.locator('.st-start').count()) { await page.locator('.st-start').click(); await page.waitForTimeout(700); }
