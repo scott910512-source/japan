@@ -67,7 +67,10 @@ export async function startStudy(page, want = null) {
 
   if (!want) {
     const cta = page.locator('.bigcta');
-    if (await cta.count()) {
+    /* 큰 버튼은 지금 차례인 퀘스트를 연다 — 차례가 카드 판(복습 · 새로 배우기 · 이어하기)일 때만 누른다.
+       약점 퀴즈 · 쭉 퀴즈 차례면 카드가 아니라 퀴즈가 열리니, 아래에서 카드 판 줄을 골라 누른다. */
+    const step = await cta.count() ? await cta.getAttribute('data-step') : null;
+    if (await cta.count() && (!step || ['review', 'fresh', 'resume', 'start'].includes(step))) {
       await cta.click();
       /* 이어하기면 바로 카드가 뜨고, 새로 시작이면 무슨 판인지 먼저 알려 준다.
          ★ 정해 둔 시간(0.9초) 대신 화면이 뜰 때까지 기다린다 ★ 느린 러너에서 안내 화면이 0.9초 뒤에 떠서
@@ -92,7 +95,9 @@ export async function startStudy(page, want = null) {
 
   /* 「오늘」 목록의 줄. 이어서 공부하기의 N3·복습 줄도 같은 모양(.tdtask)이라
      이름으로 고른다 — 문법과 N3는 카드 판이 아니다. */
-  const rows = page.locator('.tdlist .tdtask').filter({ hasNotText: '오늘의 문법' }).filter({ hasNotText: '오늘의 N3' });
+  let rows = page.locator('.tdlist .tdtask').filter({ hasNotText: '오늘의 문법' }).filter({ hasNotText: '오늘의 N3' });
+  /* 갈래를 안 줬으면 카드 판 줄만 본다(퀴즈 · 문장 퀘스트 · 랜덤 테스트 줄은 카드 판이 아니다) */
+  if (!want) rows = rows.filter({ hasText: /복습 미션|새로 배우기/ });
   const n = await rows.count();
   if (n === 0) return false;
 

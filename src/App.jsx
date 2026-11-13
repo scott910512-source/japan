@@ -29,6 +29,7 @@ import { MemoContext } from './lib/memoContext.js';
 import { REGION_RULES, REGION_QUIZ_MIN, regionQuizIds, noteRegionExam, PASS_RATIO } from './lib/regions.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
+import { MIN_POOL as STREAM_MIN_POOL } from './lib/stream.js';
 import { questsOf, sealQuests, sealedProgress, noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE } from './lib/quests.js';
 import { FLOW, FLOW_LABEL, nextStep, stepOfDeck, randomTestIds, n3Open, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
 import { todayKey } from './lib/review.js';
@@ -354,7 +355,10 @@ export default function App() {
     });
   }, [noteWeakness, setProgress, today]);
   /* ★ 쭉 퀴즈 퀘스트 ★ 스무 문제. 쭉 퀴즈가 한 문제 풀 때마다 오늘 몫에 적는다 */
-  const streamQuest = useMemo(() => streamQuestState(progress, wordStat.seen > 0, today), [progress, wordStat.seen, today]);
+  /* 풀 수 있을 때만 줄을 세운다 — 쭉 퀴즈는 외운 것이 MIN_POOL개는 돼야 보기를 만든다. 한두 개 외운 사람에게 줄을 세우면
+     눌러도 「N개만 더 배우면 열려요」만 뜨고, 하루 흐름과 큰 버튼이 그 막힌 화면으로 보낸다. */
+  const memorized = useMemo(() => Object.values(review).filter((st) => st?.lastSeen).length, [review]);
+  const streamQuest = useMemo(() => streamQuestState(progress, memorized >= STREAM_MIN_POOL, today), [progress, memorized, today]);
   const onStreamAnswered = useCallback(() => {
     setProgress((p) => ({ ...p, quests: noteQuest(p.quests, 'stream', 1, today) }));
   }, [setProgress, today]);

@@ -170,7 +170,9 @@ async function judgeAll(page, max = 60, label = '알아요') {
   await page.locator('.study.intro .bigstart').click(); await page.waitForTimeout(800);
   await judgeAll(page, 1);
   await page.locator('.sh-close').click(); await page.waitForTimeout(600);
-  ok('나갔다 오면 큰 버튼이 이어하기', (await page.locator('.bigcta').innerText()).includes('이어하기'));
+  /* 큰 버튼은 지금 차례인 퀘스트를 연다. 하던 판이 그 차례의 것이면 「이어하기」, 다른 차례의 것이면 큰 버튼 밑에 작게 남는다 */
+  ok('나갔다 오면 하던 판으로 돌아갈 길이 있다', (await page.locator('.bigcta').innerText()).includes('이어하기') || await page.locator('.td-resume-other').count() === 1,
+    `${(await page.locator('.bigcta').innerText()).replace(/\s+/g, ' ')} | ${await page.locator('.td-resume-other').count()}`);
 
   console.log('\n── N3 코스: 시작 → 종료 → 다시 접속 → 이어서');
   ok('홈에 N3 진도 한 줄 (아직 시작 전)', /시작 전|단어 배움/.test(await page.locator('.hm-goal').innerText()));

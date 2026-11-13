@@ -136,12 +136,14 @@ export default function Today({
     if (!flowNow) return '';
     const k = flowNow.key;
     if (k === 'review') return `복습 ${backLeft}개 · 약 ${ctaMinutes}분`;
-    if (k === 'weakquiz') return `약점 퀴즈 · 약한 낱말 ${Math.max(0, (weakQuiz?.total || 0) - (weakQuiz?.done || 0))}문제`;
-    if (k === 'stream') return `쭉 퀴즈 · 외운 것을 이어서 ${Math.max(0, (streamQuest?.total || 0) - (streamQuest?.done || 0))}문제`;
-    if (k === 'fresh') return `새로 배우기 · ${freshMix}`;
-    if (k === 'sentence') return `문장 퀘스트 · 새 문장 ${Math.max(0, (sentenceQuest?.total || 0) - (sentenceQuest?.done || 0))}개`;
-    if (k === 'random') return '오늘 랜덤 테스트 · 오늘 만난 것을 다 섞어서';
-    return flowNow.label;
+    /* 첫 줄이 「다음: 쭉 퀴즈」면 둘째 줄에서 이름을 또 말하지 않는다 */
+    const named = (detail) => (started ? detail : `${flowNow.label} · ${detail}`);
+    if (k === 'weakquiz') return named(`약한 낱말 ${Math.max(0, (weakQuiz?.total || 0) - (weakQuiz?.done || 0))}문제`);
+    if (k === 'stream') return named(`외운 것을 이어서 ${Math.max(0, (streamQuest?.total || 0) - (streamQuest?.done || 0))}문제`);
+    if (k === 'fresh') return named(freshMix);
+    if (k === 'sentence') return named(`새 문장 ${Math.max(0, (sentenceQuest?.total || 0) - (sentenceQuest?.done || 0))}개 · 배우고 조립해 봐요`);
+    if (k === 'random') return named('오늘 만난 것을 다 섞어서 쉰 문제');
+    return started ? '퀘스트를 다 마쳤어요 · 코스로 이어 가요' : flowNow.label;
   })();
 
   return (
