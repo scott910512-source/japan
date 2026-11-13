@@ -19,6 +19,7 @@ import {
   loadTrends, saveTrends
 } from '../lib/storage.js';
 import { SEED_VIDEOS } from '../data/videos.js';
+import { loadStories, saveStories, loadStoryRemoved, saveStoryRemoved, mergeStoryStore, sameStoryStore } from '../lib/story.js';
 
 // 저장 키와 파일 형식은 storage.js에 유지한다. 화면은 상태와 명령만 사용한다.
 export function useAppData() {
@@ -50,6 +51,8 @@ export function useAppData() {
   const [videoScripts, setVideoScripts] = useState(() => loadVideoScripts());
   const [videoProgress, setVideoProgress] = useState(() => loadVideoProgress());
   const [videoRemoved, setVideoRemoved] = useState(() => loadVideoRemoved());
+  /* 이야기 연속 듣기의 글 — 영상 묶음에 실어 계정으로 올린다(본인만 읽는다). lib/story.js */
+  const [storyStore, setStoryStore] = useState(() => ({ list: loadStories(), removed: loadStoryRemoved() }));
   // 번역기에서 받아 둔 것 — 비행기 모드에서도 다시 봐야 해서 기기에 남긴다
   const [translations, setTranslations] = useState(() => loadTranslations());
   const [trends, setTrends] = useState(() => loadTrends());
@@ -58,7 +61,8 @@ export function useAppData() {
   const videoBundle = useMemo(() => ({
     list: videos, removed: videoRemoved,
     scripts: videoScripts, analyses: videoAnalyses, progress: videoProgress,
-  }), [videos, videoRemoved, videoScripts, videoAnalyses, videoProgress]);
+    stories: storyStore,
+  }), [videos, videoRemoved, videoScripts, videoAnalyses, videoProgress, storyStore]);
 
   const applyVideoBundle = useCallback((b) => {
     if (!b) return;
@@ -67,6 +71,9 @@ export function useAppData() {
     setVideoScripts(b.scripts || {});
     setVideoAnalyses(b.analyses || {});
     setVideoProgress(b.progress || {});
+    /* 이야기는 덮지 않고 지금 것에 합친다 — 요청이 오가는 사이에 불러오거나 지운 것이 사라지지 않게.
+       달라진 게 없으면 그대로 둔다(상태를 갈아 끼우면 화면이 괜히 다시 그려진다). */
+    if (b.stories) setStoryStore((cur) => { const next = mergeStoryStore(cur, b.stories); return sameStoryStore(cur, next) ? cur : next; });
   }, []);
 
   // 뺀 영상은 묘비를 남긴다. 남기지 않으면 다음 동기화에 서버에서 다시 내려온다.
@@ -113,12 +120,14 @@ export function useAppData() {
     setTrends,
     videoBundle,
     applyVideoBundle,
-    removeVideo
+    removeVideo,
+    storyStore,
+    setStoryStore,
   };
 }
 
 // App의 오류 핸들러가 등록된 다음 호출하여 첫 저장 실패도 화면에 남긴다.
-export function usePersistAppData({ customWords, progress, settings, review, session, stats, plan, memos, asks, videos, videoAnalyses, videoScripts, videoProgress, videoRemoved, translations, trends }) {
+export function usePersistAppData({ customWords, progress, settings, review, session, stats, plan, memos, asks, videos, videoAnalyses, videoScripts, videoProgress, videoRemoved, translations, trends, storyStore }) {
   useEffect(() => saveCustomWords(customWords), [customWords]);
   useEffect(() => saveProgress(progress), [progress]);
   useEffect(() => saveSettings(settings), [settings]);
@@ -133,6 +142,7 @@ export function usePersistAppData({ customWords, progress, settings, review, ses
   useEffect(() => saveVideoScripts(videoScripts), [videoScripts]);
   useEffect(() => saveVideoProgress(videoProgress), [videoProgress]);
   useEffect(() => saveVideoRemoved(videoRemoved), [videoRemoved]);
+  useEffect(() => { if (storyStore) { saveStories(storyStore.list); saveStoryRemoved(storyStore.removed); } }, [storyStore]);
   useEffect(() => saveTranslations(translations), [translations]);
   useEffect(() => { if (trends) saveTrends(trends); }, [trends]);
 

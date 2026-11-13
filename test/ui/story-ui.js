@@ -1,6 +1,7 @@
 /* 이야기 연속 듣기 — 진짜 화면에서. 서버는 가로채고(밖으로 안 나간다) 기기 음성은 가짜로 바꿔 무엇을 어떤 속도로 읽었는지 적는다.
  *   · 듣기 고르기에 「이야기 연속 듣기」가 있고, 처음에는 비어 있다(글은 앱에 들어 있지 않다)
  *   · 파일(.json · .txt)을 불러오면 목록에 뜨고 기기에 남는다
+ *   · 불러온 글은 내 계정으로 올라가서, 한 번도 안 불러온 다른 기기에도 뜬다. 지운 것은 거기서도 안 뜬다
  *   · 시작하면 문장이 끊기지 않고 이어진다 — 고른 속도로, 고른 횟수만큼, 해석은 고른 대로
  *   · 잠시 멈춤 · 문장을 눌러 건너뛰기 · 구간으로 가기
  *   · 그만두고 다시 오면 듣던 자리부터 이어 듣는다
@@ -44,17 +45,24 @@ URL: https://www.youtube.com/watch?v=abcdef12345
   const session = { access_token: jwt, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: exp, user };
 
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  let pushed = '';
-  await ctx.route('https://ifjgngkkozsiyoafhlkb.supabase.co/**', async (route) => {
+  /* 가짜 서버 — 계정의 줄 하나를 들고 있다. 두 기기(브라우저 창 둘)가 같은 줄을 본다 */
+  let server = null; const posts = [];
+  const serve = async (route) => {
     const req = route.request(); const url = req.url();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
     if (url.includes('/auth/v1/user')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) });
     if (url.includes('/auth/v1/')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(session) });
-    if (url.includes('/rest/v1/user_data') && req.method() === 'POST') { pushed += req.postData() || ''; return route.fulfill({ status: 201, contentType: 'application/json', body: '[]' }); }
+    if (url.includes('/rest/v1/user_data')) {
+      if (req.method() === 'POST') {
+        const body = req.postDataJSON(); const one = Array.isArray(body) ? body[0] : body;
+        posts.push(one); server = { ...(server || {}), ...one };          // 보낸 칸만 바뀐다(upsert)
+        return route.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
+      }
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(server ? [server] : []) });
+    }
     return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-  });
-  await ctx.addInitScript(([s]) => {
+  };
+  const seed = ([s]) => {
     if (!localStorage.getItem('qa_seeded')) {
       localStorage.setItem('qa_seeded', '1');
       localStorage.setItem('sb-ifjgngkkozsiyoafhlkb-auth-token', JSON.stringify(s));
@@ -79,7 +87,10 @@ URL: https://www.youtube.com/watch?v=abcdef12345
     };
     for (const k of ['speak', 'cancel', 'getVoices']) { try { Object.defineProperty(synth, k, { configurable: true, value: fake[k] }); } catch { /* 무시 */ } }
     try { Object.defineProperty(synth, 'speaking', { configurable: true, get: () => live.size > 0 }); } catch { /* 무시 */ }
-  }, [session]);
+  };
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await ctx.route('https://ifjgngkkozsiyoafhlkb.supabase.co/**', serve);
+  await ctx.addInitScript(seed, [session]);
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
@@ -171,13 +182,45 @@ URL: https://www.youtube.com/watch?v=abcdef12345
   ok('다 들은 이야기는 처음부터로 돌아간다', await page.locator('.sl-continue').count() === 0 && await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_story_pos_v1'))['demo-1']) === 0);
   ok('들은 문장이 활동 기록에 남는다', await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('jp_manabu_stats_v1') || '{}')).some((d) => d.listened > 0)));
 
-  console.log('\n[ 지우기 · 올리지 않기 ]');
+  console.log('\n[ 내 계정에 저장 ]');
+  await page.waitForFunction(() => true, null, { timeout: 1000 });
+  for (let i = 0; i < 40 && !(server?.videos?.stories?.list?.length === 2); i += 1) await page.waitForTimeout(500);   // 올리기는 바뀐 뒤 12초쯤에 간다
+  ok('★ 불러온 이야기가 내 계정으로 올라간다(해석까지) ★', server?.videos?.stories?.list?.length === 2 && JSON.stringify(server.videos.stories).includes(JP[0]) && JSON.stringify(server.videos.stories).includes(KO[0]), `이야기 ${server?.videos?.stories?.list?.length}편`);
+
+  console.log('\n[ 지우기 ]');
   page.once('dialog', (d) => d.accept());
   await page.locator('.sl-item[data-story="yt-abcdef12345"] .sl-del').click();
   await page.waitForTimeout(400);
   ok('지우면 목록과 기기에서 사라진다', await page.locator('.sl-item').count() === 1 && await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_stories_v1')).length) === 1);
-  await page.waitForTimeout(14000);   // 올리기는 바뀐 뒤 12초쯤에 간다
-  ok('★ 이야기 글은 계정으로 올라가지 않는다 ★', pushed.length > 0 && !pushed.includes(JP[0]) && !pushed.includes('庭に花'), `올린 양 ${pushed.length}자`);
+  for (let i = 0; i < 40 && !(server?.videos?.stories?.removed?.['yt-abcdef12345'] > 0); i += 1) await page.waitForTimeout(500);
+  ok('★ 지운 표시도 계정으로 올라간다 ★', server?.videos?.stories?.removed?.['yt-abcdef12345'] > 0 && server.videos.stories.list.length === 1);
+  const before = posts.length;
+  await page.locator('.sl-first').click();                               // 한 문장 듣는다 → 활동이 바뀌어 올리기가 한 번 더 돈다
+  await page.waitForFunction(() => Number(document.querySelector('.sl-run')?.dataset.at) >= 1, null, { timeout: 20000 });
+  await page.locator('.sl-quit').click();
+  for (let i = 0; i < 40 && posts.length === before; i += 1) await page.waitForTimeout(500);
+  ok('★ 글이 그대로면 그 뒤로는 큰 칸(영상 · 이야기)을 다시 올리지 않는다 ★', posts.length > before && posts.slice(before).every((p) => !('videos' in p)), `그 뒤 올리기 ${posts.length - before}번`);
+
+  console.log('\n[ 다른 기기 — 한 번도 안 불러왔다 ]');
+  {
+    const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx2.route('https://ifjgngkkozsiyoafhlkb.supabase.co/**', serve);
+    await ctx2.addInitScript(seed, [session]);
+    const p2 = await ctx2.newPage();
+    p2.on('pageerror', (e) => errors.push(e.message));
+    await p2.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await p2.locator('.tabbar').waitFor({ state: 'attached', timeout: 30000 });
+    await p2.waitForFunction(() => JSON.parse(localStorage.getItem('jp_manabu_stories_v1') || '[]').length > 0, null, { timeout: 20000 }).catch(() => {});
+    await openListen(p2, 'story');
+    const rows2 = (await p2.locator('.sl-item').allInnerTexts()).map((t) => t.replace(/\s+/g, ' '));
+    ok('★ 파일을 안 불러와도 계정에 있던 이야기가 뜬다 ★', rows2.length === 1 && rows2[0].includes('아침 이야기') && rows2[0].includes('해석 있음'), rows2.join(' | '));
+    ok('★ 다른 기기에서 지운 이야기는 안 뜬다 ★', await p2.locator('.sl-item[data-story="yt-abcdef12345"]').count() === 0);
+    ok('듣던 자리는 기기마다 따로다(여기서는 처음부터)', await p2.locator('.sl-continue').count() === 0 && await p2.locator('.sl-first').count() === 1);
+    await p2.locator('.sl-first').click();
+    await p2.waitForFunction(() => Number(document.querySelector('.sl-run')?.dataset.at) >= 1, null, { timeout: 20000 });
+    ok('받은 이야기를 바로 들을 수 있다', (await p2.evaluate(() => window._spoken[0]?.text)) === JP[0]);
+    await ctx2.close();
+  }
 
   ok('페이지 오류 없음', errors.length === 0, errors.slice(0, 2).join(' | ') || '없음');
   console.log(`\n통과 ${pass} / 실패 ${fail}`);

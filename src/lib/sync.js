@@ -52,7 +52,24 @@ export async function fetchRemote(userId) {
   return data || null;
 }
 
-export async function pushMerged(userId, merged) {
+/* 두 값의 내용이 같은가 — 열쇠 순서는 안 본다(서버의 jsonb는 열쇠 순서를 바꿔서 돌려준다) */
+function canon(v) {
+  if (Array.isArray(v)) return v.map(canon);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => [k, canon(v[k])]));
+  return v;
+}
+export function sameJson(a, b) {
+  if (a === undefined || b === undefined || a === null || b === null) return false;
+  try { return JSON.stringify(canon(a)) === JSON.stringify(canon(b)); } catch { return false; }
+}
+
+/* keepVideos: 영상 칸이 서버 것과 내용이 같으면 그 칸은 보내지 않는다.
+   영상 묶음에는 자막과 이야기 글이 들어 있어 크다 — 카드 한 장 넘길 때마다 다시 올릴 이유가 없다. */
+export async function pushMerged(userId, merged, { keepVideos = false } = {}) {
+  if (keepVideos) {
+    const { videos: _same, ...rest } = merged;
+    merged = rest;
+  }
   const { error } = await supabase
     .from('user_data')
     .upsert({
@@ -167,7 +184,7 @@ export async function syncNow(userId, localData, { defaults = {} } = {}) {
   const { resetAt: _a, resetUser: _u, ...rest } = merged.progress;
   merged.progress = { ...rest, syncUser: userId, ...(resetAt ? { resetAt, resetUser: userId } : {}) };
 
-  const { videoColumnMissing } = await pushMerged(userId, merged);
+  const { videoColumnMissing } = await pushMerged(userId, merged, { keepVideos: Boolean(remote) && !remote.videoColumnMissing && sameJson(merged.videos, remote.videos) });
   /* 칸이 없으면 서버엔 영상이 안 올라갔다. 합친 결과를 그대로 돌려주되(이 기기
      것은 살아 있다) 왜 다른 기기에 안 보이는지는 말해 준다. */
   return { ...merged, videoNote: (videoColumnMissing || remote?.videoColumnMissing) ? VIDEO_COLUMN_HINT : null };
