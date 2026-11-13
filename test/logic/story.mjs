@@ -5,6 +5,7 @@ import {
   splitSentences, cleanStory, parseStoryText, storiesFromFile, flatStory, storyStats, storyMinutes, sectionStarts,
   nextStoryAt, addStories, removeStory, loadStories, saveStories, loadStoryPos, saveStoryPos, resumeAt, loadStoryPrefs, saveStoryPrefs,
   mergeStoryStore, sameStoryStore, loadStoryRemoved, saveStoryRemoved,
+  STORY_SIZES, buildGlossIndex, glossSentence,
 } from '../../src/lib/story.js';
 import { mergeVideos } from '../../src/lib/merge.js';
 let pass = 0;
@@ -132,13 +133,52 @@ check('이어 들을 자리: 범위 안이면 그 자리, 벗어나면 처음', 
   assert.deepEqual(loadStoryPos({ getItem: () => '[1,2]' }), {});
 });
 check('설정: 기본은 천천히 · 한 번 · 해석 글자로. 표에 없는 값은 기본값으로', () => {
-  assert.deepEqual(DEFAULT_STORY_PREFS, { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false });
+  assert.deepEqual(DEFAULT_STORY_PREFS, { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false, size: 'l' });
   assert.deepEqual(cleanStoryPrefs({ rate: 3, repeat: 9, ko: 'x', loop: 'yes' }), DEFAULT_STORY_PREFS);
-  assert.deepEqual(cleanStoryPrefs({ rate: 0.6, repeat: 3, ko: 'voice', loop: true }), { rate: 0.6, repeat: 3, ko: 'voice', loop: true });
+  assert.deepEqual(cleanStoryPrefs({ rate: 0.6, repeat: 3, ko: 'voice', loop: true }), { rate: 0.6, repeat: 3, ko: 'voice', loop: true, size: 'l' });
   const s = memory();
-  saveStoryPrefs({ rate: 1, repeat: 2, ko: 'off', loop: true }, s);
-  assert.deepEqual(loadStoryPrefs(s), { rate: 1, repeat: 2, ko: 'off', loop: true });
+  saveStoryPrefs({ rate: 1, repeat: 2, ko: 'off', loop: true, size: 'xl' }, s);
+  assert.deepEqual(loadStoryPrefs(s), { rate: 1, repeat: 2, ko: 'off', loop: true, size: 'xl' });
   assert.deepEqual(loadStoryPrefs({ getItem: () => 'x' }), DEFAULT_STORY_PREFS);
+});
+check('글자 크기: 보통 · 크게 · 아주 크게. 기본은 크게, 모르는 값은 기본으로', () => {
+  assert.deepEqual(STORY_SIZES.map((x) => x.v), ['m', 'l', 'xl']);
+  assert.equal(cleanStoryPrefs({ size: 'm' }).size, 'm');
+  assert.equal(cleanStoryPrefs({ size: 'huge' }).size, 'l');
+  assert.equal(cleanStoryPrefs({}).size, 'l');
+});
+const DICT = [
+  { id: 'w1', kanji: '行く', kana: 'いく', mean: '가다', type: 'verb', group: '1' },
+  { id: 'w2', kanji: '銀行', kana: 'ぎんこう', mean: '은행; 뱅크', type: 'noun' },
+  { id: 'w3', kanji: '窓', kana: 'まど', mean: '창문', type: 'noun' },
+  { id: 'w4', kanji: '開ける', kana: 'あける', mean: '열다', type: 'verb', group: '2' },
+  { id: 'w5', kanji: '飲む', kana: 'のむ', mean: '마시다', type: 'verb', group: '1' },
+  { id: 'w6', kanji: '高い', kana: 'たかい', mean: '비싸다', type: 'adj-i' },
+  { id: 'w7', kanji: '勉強する', kana: 'べんきょうする', mean: '공부하다', type: 'verb', group: '3' },
+  { id: 'w8', kanji: '', kana: 'コーヒー', mean: '커피', type: 'noun' },
+  { id: 'w9', kanji: '朝', kana: 'あさ', mean: '아침', type: 'noun' },
+];
+const gloss = (t, max) => glossSentence(t, buildGlossIndex(DICT), max).map((w) => w.jp);
+check('★ 문장 속 낱말 찾기: 활용한 꼴도 사전 꼴로 찾는다 ★', () => {
+  assert.deepEqual(gloss('朝、コーヒーを飲みました。'), ['朝', '飲む']);
+  assert.deepEqual(gloss('学校に行って、窓を開けた。'), ['行く', '窓', '開ける']);
+  assert.deepEqual(gloss('高くないです。'), ['高い']);
+  assert.deepEqual(gloss('毎日勉強しています。'), ['勉強する']);
+});
+check('★ 다른 낱말 안에 든 글자는 잘못 집지 않는다(銀行의 行 ≠ 行く) ★', () => {
+  assert.deepEqual(gloss('銀行に行きます。'), ['銀行', '行く']);
+  assert.deepEqual(gloss('銀行は高い。'), ['銀行', '高い']);
+  assert.deepEqual(gloss('旅行が好きです。'), []);          // 行 뒤에 が — 行く가 아니다
+  assert.deepEqual(gloss('窓口で聞いた。'), []);            // 窓口는 사전에 없다 — 窓만 떼어 붙이지 않는다
+});
+check('가나뿐인 낱말은 붙이지 않고, 같은 낱말은 한 번만, 많아야 max개', () => {
+  assert.deepEqual(gloss('コーヒーをください。'), []);
+  assert.deepEqual(gloss('行って、行って、行った。'), ['行く']);
+  assert.equal(gloss('朝、銀行に行って窓を開けて飲んだ。', 3).length, 3);
+  const [w] = glossSentence('銀行に', buildGlossIndex(DICT));
+  assert.deepEqual(w, { id: 'w2', jp: '銀行', kana: 'ぎんこう', mean: '은행' });
+  assert.deepEqual(glossSentence('銀行', null), []);
+  assert.deepEqual(glossSentence('', buildGlossIndex([])), []);
 });
 check('어림 시간: 느릴수록 · 반복이 많을수록 · 해석을 읽을수록 길다', () => {
   const s = storiesFromFile('a.json', JSON.stringify({ stories: [{ title: 'x', sections: [{ paras: [Array.from({ length: 200 }, () => ({ jp: '今日はとても天気がいいので散歩をしました。', ko: '오늘은 날씨가 아주 좋아서 산책을 했어요.' }))] }] }] }))[0];

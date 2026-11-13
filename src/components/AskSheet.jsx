@@ -142,6 +142,9 @@ export default function AskSheet({
   };
 
   const mine = history.filter((h) => h.cardId === card?.id && h.key !== shown?.key);
+  /* 붙은 것이 낱말이 아니라 문장인가(이야기 듣기에서 문장을 꾹 눌러 물을 때) — 알약 대신 여러 줄로 보여 주고 예시 글도 바꾼다 */
+  const label = card?.kanji || card?.kana || '';
+  const isSentence = /[。！？!?]$/.test(label) || [...label].length > 12;
 
   return (
     <BottomSheet open={open} onClose={onClose} label="궁금한 것 물어보기">
@@ -149,7 +152,7 @@ export default function AskSheet({
         <div className="ask-head">
           <h3>{title}{guide && <small className="ask-aitag">AI</small>}</h3>
           {card && (
-            <span className="ask-chip">
+            <span className={`ask-chip${isSentence ? ' long' : ''}`} lang="ja">
               {card.kanji || card.kana}
               {card.kana && card.kana !== card.kanji && <i>{card.kana}</i>}
             </span>
@@ -170,7 +173,9 @@ export default function AskSheet({
               if (e.key === 'Escape') { e.preventDefault(); onClose(); }
             }}
             placeholder={card
-              ? `예: ${card.kanji || card.kana}랑 비슷한 말은? / 언제 쓰는 말이야?`
+              ? (isSentence
+                ? '예: 이 문장의 문법을 설명해 줘 / 〜는 무슨 뜻이야?'
+                : `예: ${card.kanji || card.kana}랑 비슷한 말은? / 언제 쓰는 말이야?`)
               : '예: 〜ている는 언제 써? / ありがとう랑 どうも 차이는?'}
             rows={2}
             /* ★ 기다리는 동안 잠그지(disabled) 않는다 ★ 잠그면 브라우저가 초점을 빼 버려서, 답이 온 뒤 다시 눌러야 다음 질문을 칠 수 있었다.
@@ -197,7 +202,7 @@ export default function AskSheet({
         {ai.apiKey && !shown && !err && (
           <p className="set-note">
             {card
-              ? '지금 보는 카드를 같이 보내니까 「이거 언제 써?」처럼 짧게 물어도 알아들어요. 「한자 설명」은 한국 한자음과 글자의 짜임을, 「외우는 법 추천」은 짧은 연상 문구를 알려 줘요.'
+              ? `${isSentence ? '고른 문장을' : '지금 보는 카드를'} 같이 보내니까 「이거 언제 써?」처럼 짧게 물어도 알아들어요. 「한자 설명」은 한국 한자음과 글자의 짜임을, 「외우는 법 추천」은 짧은 연상 문구를 알려 줘요.`
               : '일본어 공부하다 궁금한 건 뭐든 물어보세요. 낱말을 적고 「한자 설명」이나 「외우는 법 추천」을 누르면 그 낱말로 물어봐요. 답은 짧게 옵니다.'}
           </p>
         )}

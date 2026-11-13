@@ -29,7 +29,13 @@ export const STORY_RATES = [
 ];
 export const STORY_REPEATS = [1, 2, 3];
 export const STORY_KO = { OFF: 'off', TEXT: 'text', VOICE: 'voice' };
-export const DEFAULT_STORY_PREFS = { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false };
+/* 글자 크기 — 듣는 화면은 화면을 통째로 쓰고 글을 크게 보여 준다 */
+export const STORY_SIZES = [
+  { v: 'm', label: '보통' },
+  { v: 'l', label: '크게' },
+  { v: 'xl', label: '아주 크게' },
+];
+export const DEFAULT_STORY_PREFS = { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false, size: 'l' };
 
 export function cleanStoryPrefs(raw) {
   const p = raw && typeof raw === 'object' ? raw : {};
@@ -38,6 +44,7 @@ export function cleanStoryPrefs(raw) {
     repeat: STORY_REPEATS.includes(p.repeat) ? p.repeat : DEFAULT_STORY_PREFS.repeat,
     ko: Object.values(STORY_KO).includes(p.ko) ? p.ko : DEFAULT_STORY_PREFS.ko,
     loop: p.loop === true,
+    size: STORY_SIZES.some((x) => x.v === p.size) ? p.size : DEFAULT_STORY_PREFS.size,
   };
 }
 
@@ -187,6 +194,79 @@ export function sectionStarts(story) {
 export function nextStoryAt(at, total, loop = false) {
   if (at + 1 < total) return at + 1;
   return loop && total > 0 ? 0 : null;
+}
+
+/* ── 문장 속 낱말 풀이 ──
+   문장을 누르면 해석과 함께, 앱의 낱말 사전에 있는 낱말을 찾아 뜻을 붙여 준다. 형태소를 가르는 것이 아니라 글자를 맞춰 보는
+   것이라, 틀리게 붙이지 않는 쪽으로만 맞춘다 — 못 찾는 것은 괜찮지만 엉뚱한 뜻을 붙이면 그걸 외운다.
+     · 한자가 든 두 글자 이상의 낱말은 그대로 들어 있을 때(仕事 · 天気)
+     · 동사 · い형용사는 끝 글자를 뗀 줄기가 두 글자 이상이면 줄기로(食べ · 涼し)
+     · 줄기가 한자 한 글자면(行く · 見る · 高い) 뒤에 올 수 있는 활용 글자가 붙고 앞이 한자가 아닐 때만(銀行에 行く를 붙이지 않게)
+     · 한자 한 글자짜리 낱말(窓 · 空 · 秋)은 앞뒤가 모두 한자가 아닐 때만
+   가나로만 된 낱말은 붙이지 않는다(조사 · 어미와 겹친다). */
+const KANJI = /[\u3400-\u9fff々]/;
+const GODAN = { く: 'かきくけこい', ぐ: 'がぎぐげごい', す: 'さしすせそ', つ: 'たちつてとっ', ぬ: 'なにぬねのん', ぶ: 'ばびぶべぼん', む: 'まみむめもん', る: 'らりるれろっ', う: 'わいうえおっ' };
+const ICHIDAN = 'るてたまなよられず';
+export function buildGlossIndex(words = []) {
+  const whole = new Map();     // 그대로 맞추는 꼴 → 낱말
+  const stems = new Map();     // 두 글자 이상 줄기 → 낱말
+  const single = new Map();    // 한자 한 글자 줄기 → [{ next, word }]
+  const alone = new Map();     // 한자 한 글자짜리 낱말 → 낱말
+  for (const w of words) {
+    const form = String(w?.kanji || '');
+    if (!form || !KANJI.test(form) || !w.mean) continue;
+    const mean = String(w.mean).split(';')[0].trim();
+    const entry = { id: w.id, jp: form, kana: w.kana || '', mean };
+    const inflects = w.type === 'verb' || w.type === 'adj-i';
+    if (!inflects) {
+      if ([...form].length >= 2) { if (!whole.has(form)) whole.set(form, entry); } else if (!alone.has(form)) alone.set(form, entry);
+      continue;
+    }
+    /* 〜する 동사는 앞의 한자말로 찾는다(勉強しています → 勉強する). 같은 꼴의 명사가 있으면 명사가 먼저다 */
+    if (form.endsWith('する') && [...form].length >= 4) {
+      const noun = form.slice(0, -2);
+      if (KANJI.test(noun) && !stems.has(noun)) stems.set(noun, entry);
+      continue;
+    }
+    const chars = [...form]; const last = chars[chars.length - 1]; const stem = chars.slice(0, -1).join('');
+    if (!stem || !KANJI.test(stem)) continue;
+    if ([...stem].length >= 2) { if (!stems.has(stem)) stems.set(stem, entry); continue; }
+    let next = '';
+    if (w.type === 'adj-i') next = 'いくかけさ';
+    else if (form === '来る') next = 'るてたまなよられい';
+    else if (String(w.group) === '2') next = ICHIDAN;
+    else if (String(w.group) === '1') next = (GODAN[last] || '') + (form === '行く' ? 'っ' : '');
+    if (!next) continue;
+    single.set(stem, [...(single.get(stem) || []), { next, word: entry }]);
+  }
+  return { whole, stems, single, alone, max: Math.max(2, ...[...whole.keys(), ...stems.keys()].map((k) => [...k].length)) };
+}
+/* 문장에서 찾은 낱말 — 나오는 차례대로, 많아야 max개. 긴 것을 먼저 맞춰 겹치지 않게 한다 */
+export function glossSentence(sentence, index, max = 6) {
+  const chars = [...String(sentence || '')];
+  const out = []; const seen = new Set();
+  if (!index) return out;
+  for (let i = 0; i < chars.length && out.length < max; i += 1) {
+    if (!KANJI.test(chars[i])) continue;
+    let hit = null; let len = 0;
+    for (let n = Math.min(index.max, chars.length - i); n >= 2 && !hit; n -= 1) {
+      const piece = chars.slice(i, i + n).join('');
+      hit = index.whole.get(piece) || index.stems.get(piece) || null;
+      len = n;
+    }
+    if (!hit) {
+      const prev = chars[i - 1] || ''; const nxt = chars[i + 1] || '';
+      if (!KANJI.test(prev)) {
+        const cand = (index.single.get(chars[i]) || []).find((c) => nxt && c.next.includes(nxt));
+        if (cand) { hit = cand.word; len = 1; }
+        else if (!KANJI.test(nxt) && index.alone.has(chars[i])) { hit = index.alone.get(chars[i]); len = 1; }
+      }
+    }
+    if (!hit) continue;
+    if (!seen.has(hit.id)) { seen.add(hit.id); out.push(hit); }
+    i += len - 1;
+  }
+  return out;
 }
 
 /* ── 목록 합치기 · 빼기 ── */
