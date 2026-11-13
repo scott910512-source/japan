@@ -912,6 +912,8 @@ export default function App() {
               <FeatureScreen
                 storyStore={storyStore}
                 setStoryStore={setStoryStore}
+                asks={asks}
+                setAsks={setAsks}
                 composeStart={composeStart}
                 onAttempt={recordAttempt}
                 sub={sub}

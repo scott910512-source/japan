@@ -3,7 +3,9 @@
  *   · 파일(.json · .txt)을 불러오면 목록에 뜨고 기기에 남는다
  *   · 불러온 글은 내 계정으로 올라가서, 한 번도 안 불러온 다른 기기에도 뜬다. 지운 것은 거기서도 안 뜬다
  *   · 시작하면 문장이 끊기지 않고 이어진다 — 고른 속도로, 고른 횟수만큼, 해석은 고른 대로
- *   · 잠시 멈춤 · 문장을 눌러 건너뛰기 · 구간으로 가기
+ *   · 듣는 화면은 화면을 통째로 쓰고 글자가 크다. 글자 크기를 바꿀 수 있고, 가로로 눕혀도 조작대가 화면 안에 있다
+ *   · 잠시 멈춤 · 구간으로 가기. 문장을 한 번 누르면 해석과 낱말 뜻(재생은 그대로), 「여기부터 듣기」로 건너뛴다
+ *   · 꾹 누르거나 두 번 누르면 그 문장을 붙인 곤 질문 창이 열리고, 묻는 동안 읽기를 멈춘다
  *   · 그만두고 다시 오면 듣던 자리부터 이어 듣는다
  *   · 모바일 폭에서 가로로 안 넘친다
  * 여기 쓰는 글은 검사용으로 지은 것이다. */
@@ -67,7 +69,7 @@ URL: https://www.youtube.com/watch?v=abcdef12345
       localStorage.setItem('qa_seeded', '1');
       localStorage.setItem('sb-ifjgngkkozsiyoafhlkb-auth-token', JSON.stringify(s));
       localStorage.setItem('jp_manabu_signed_in_v1', '1');
-      localStorage.setItem('jp_manabu_settings_v1', JSON.stringify({ onboarded: true, canReadKana: true, autoTTS: false, goalsV: 3 }));
+      localStorage.setItem('jp_manabu_settings_v1', JSON.stringify({ onboarded: true, canReadKana: true, autoTTS: false, goalsV: 3, geminiKey: 'AQ.test-not-a-real-key' }));
     }
     /* 가짜 기기 음성 — 무엇을 어떤 말 · 속도로 읽었는지 적고, 글자 수만큼 걸린 뒤 끝났다고 알린다 */
     window._spoken = [];
@@ -90,6 +92,12 @@ URL: https://www.youtube.com/watch?v=abcdef12345
   };
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.route('https://ifjgngkkozsiyoafhlkb.supabase.co/**', serve);
+  /* AI 자리에는 가짜 답을 놓는다 — 무엇을 보냈는지만 적는다 */
+  const ai = { n: 0, last: '' };
+  await ctx.route('**/generativelanguage.googleapis.com/**', async (route) => {
+    ai.n += 1; ai.last = route.request().postData() || '';
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ answer: '검사용 답이에요.', items: [], kanji: [], tips: [] }) }] } }] }) });
+  });
   await ctx.addInitScript(seed, [session]);
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
@@ -146,9 +154,51 @@ URL: https://www.youtube.com/watch?v=abcdef12345
   const stoppedAt = await at(); const n0 = (await spoken()).length;
   await page.waitForTimeout(1500);
   ok('★ 멈추면 더 읽지 않고 그 자리에 선다 ★', await at() === stoppedAt && (await spoken()).length === n0 && (await page.locator('.sl-status').innerText()).includes('잠시 멈춤'));
-  await page.locator('.sl-s[data-at="1"]').click();
+
+  console.log('\n[ 화면을 통째로 · 큰 글자 ]');
+  const cover = await page.evaluate(() => {
+    const r = document.querySelector('.sl-full').getBoundingClientRect();
+    const top = document.elementFromPoint(20, 20); const bottom = document.elementFromPoint(innerWidth / 2, innerHeight - 20);
+    return { full: r.left === 0 && r.top === 0 && Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight, top: Boolean(top?.closest('.sl-full')), bottom: Boolean(bottom?.closest('.sl-full')), font: parseFloat(getComputedStyle(document.querySelector('.sl-para')).fontSize) };
+  });
+  ok('★ 듣는 화면이 화면을 통째로 쓴다(앱 머리 · 뒤로 줄 · 아래까지 덮는다) ★', cover.full && cover.top && cover.bottom, JSON.stringify(cover));
+  ok('★ 글자가 크다(기본 「크게」 24px) ★', cover.font >= 23, `${cover.font}px`);
+  await page.locator('.sl-size').click();
+  await page.waitForTimeout(200);
+  const bigger = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.sl-para')).fontSize));
+  ok('★ 「가」를 누르면 글자가 더 커지고 기억한다 ★', bigger > cover.font && await page.evaluate(() => JSON.parse(localStorage.getItem('jp_story_prefs_v1')).size) === 'xl', `${cover.font} → ${bigger}px`);
+  await page.locator('.sl-size').click(); await page.waitForTimeout(260);
+  await page.locator('.sl-size').click(); await page.waitForTimeout(200);
+  ok('한 바퀴 돌면 다시 「크게」다', await page.evaluate(() => JSON.parse(localStorage.getItem('jp_story_prefs_v1')).size) === 'l');
+
+  console.log('\n[ 가로로 눕혀도 ]');
+  await page.setViewportSize({ width: 844, height: 390 });
   await page.waitForTimeout(400);
-  ok('★ 문장을 누르면 그 문장부터 다시 읽는다 ★', (await spoken()).pop().text === JP[1] && await page.locator('.sl-run').getAttribute('data-playing') === '1');
+  const land = await page.evaluate(() => {
+    const b = document.querySelector('.sl-pause').getBoundingClientRect(); const q = document.querySelector('.sl-quit').getBoundingClientRect(); const sc = document.querySelector('.sl-scroll').getBoundingClientRect();
+    return { pause: b.top >= 0 && b.bottom <= innerHeight, quit: q.top >= 0 && q.bottom <= innerHeight, text: Math.round(sc.height), over: document.documentElement.scrollWidth <= innerWidth };
+  });
+  ok('★ 조작대와 「그만 듣기」가 화면 안에 있고, 글 자리가 남는다 ★', land.pause && land.quit && land.text >= 150 && land.over, JSON.stringify(land));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(400);
+
+  console.log('\n[ 문장을 한 번 누르면 해석 · 낱말 뜻 ]');
+  const nSpoken = (await spoken()).length;
+  await page.locator('.sl-s[data-at="2"]').click();
+  await page.waitForTimeout(300);
+  const pick = (await page.locator('.sl-pick').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  ok('★ 그 문장의 해석이 뜬다 ★', pick.includes(KO[2]) && pick.includes('3번째 문장'), pick.slice(0, 90));
+  ok('★ 문장 속 낱말의 뜻도 붙는다(앱 사전에 있는 것) ★', pick.includes('飲む') && pick.includes('마시다') && pick.includes('朝'), pick.slice(0, 140));
+  ok('★ 누르기만 해서는 읽는 자리가 안 바뀐다 ★', await at() === stoppedAt && (await spoken()).length === nSpoken && await page.locator('.sl-s.sel').getAttribute('data-at') === '2');
+  await page.waitForTimeout(260);
+  await page.locator('.sl-s[data-at="2"]').click();
+  await page.waitForTimeout(300);
+  ok('같은 문장을 다시 누르면 닫힌다', await page.locator('.sl-pick').count() === 0);
+  await page.locator('.sl-s[data-at="1"]').click();
+  await page.waitForTimeout(300);
+  await page.locator('.sl-pick .sl-from').click();
+  await page.waitForTimeout(400);
+  ok('★ 「여기부터 듣기」를 누르면 그 문장부터 다시 읽는다 ★', (await spoken()).pop().text === JP[1] && await page.locator('.sl-run').getAttribute('data-playing') === '1' && await page.locator('.sl-pick').count() === 0);
   await page.locator('.sl-sec[data-sec="1"]').click();
   await page.waitForTimeout(400);
   ok('구간을 누르면 그 구간의 첫 문장으로 간다', (await spoken()).pop().text === JP[2]);
@@ -157,10 +207,42 @@ URL: https://www.youtube.com/watch?v=abcdef12345
   ok('듣는 중에 속도를 바꾸면 바로 그 속도로 읽는다', (await spoken()).pop().rate === 1);
   ok('가로로 넘치지 않는다(듣는 중)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 
+  console.log('\n[ 꾹 누르거나 두 번 눌러 곤에게 묻기 ]');
+  {
+    const box = await page.locator('.sl-s[data-at="4"]').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(700);
+    await page.mouse.up();
+    await page.waitForTimeout(600);
+    ok('★ 꾹 누르면 곤 질문 창이 열리고 고른 문장이 붙어 있다 ★', await page.locator('.sheet.open .asksheet').count() === 1 && (await page.locator('.sheet.open .ask-chip').innerText()).includes(JP[4]) && (await page.locator('.sheet.open .asksheet h3').innerText()).includes('곤에게 물어보기'), (await page.locator('.sheet.open .ask-chip').innerText().catch(() => '')));
+    ok('★ 묻는 동안은 읽기를 멈춘다 ★', await page.locator('.sl-run').getAttribute('data-playing') === '0');
+    ok('꾹 누른 뒤 손을 떼도 해석 칸이 닫히지 않는다(고른 문장 그대로)', await page.locator('.sl-s.sel').getAttribute('data-at') === '4');
+    await page.locator('.sheet.open .asksheet textarea').fill('이 문장 문법을 설명해 줘');
+    await page.locator('.sheet.open .asksheet .ask-box > .submit-btn').click();
+    await page.locator('.sheet.open .ask-text').waitFor({ timeout: 8000 });
+    ok('★ 질문과 함께 고른 문장 · 해석을 보낸다 ★', ai.n === 1 && ai.last.includes(JP[4]) && ai.last.includes(KO[4]) && ai.last.includes('이 문장 문법을 설명해 줘'));
+    ok('답이 같은 창에 뜬다', (await page.locator('.sheet.open .ask-text').innerText()).includes('검사용 답'));
+    ok('가로로 넘치지 않는다(질문 창)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.locator('.sheet.open .sheet-x').click();
+    await page.waitForTimeout(600);
+    ok('창을 닫으면 듣는 화면으로 돌아온다(읽기는 멈춘 채)', await page.locator('.sheet.open').count() === 0 && await page.locator('.sl-full').count() === 1 && await page.locator('.sl-run').getAttribute('data-playing') === '0');
+    await page.locator('.sl-s[data-at="0"]').dblclick();
+    await page.waitForTimeout(600);
+    const chip = (await page.locator('.sheet.open .ask-chip').innerText().catch(() => '')).trim();
+    ok('★ 두 번 눌러도 질문 창이 열린다(그 문장이나 고른 낱말이 붙는다) ★', await page.locator('.sheet.open .asksheet').count() === 1 && chip.length > 0 && JP[0].includes(chip.split(/\s/)[0]), chip);
+    await page.locator('.sheet.open .sheet-x').click();
+    await page.waitForTimeout(600);
+    await page.locator('.sl-pickx').click().catch(() => {});
+    await page.waitForTimeout(200);
+  }
+
   console.log('\n[ 이어 듣기 ]');
   await page.locator('.sl-prev').click();
   await page.waitForTimeout(260);
   await page.locator('.sl-s[data-at="3"]').click();
+  await page.waitForTimeout(300);
+  await page.locator('.sl-pick .sl-from').click();
   await page.waitForTimeout(300);
   await page.locator('.sl-quit').click();
   await page.waitForTimeout(400);

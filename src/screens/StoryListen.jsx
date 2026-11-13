@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { IconHeadphone, IconPlay, IconTrash, IconUpload } from '../components/Icons.jsx';
+import AskSheet from '../components/AskSheet.jsx';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
 import { speakJapaneseAsync, speakKorean, stopSpeaking, soundPlaying, unlockAudio } from '../lib/tts.js';
 import {
-  STORY_RATES, STORY_REPEATS, STORY_KO,
+  STORY_RATES, STORY_REPEATS, STORY_KO, STORY_SIZES, buildGlossIndex, glossSentence,
   saveStories, loadStoryPos, saveStoryPos, loadStoryPrefs, saveStoryPrefs,
   storiesFromFile, addStories, removeStory, flatStory, storyStats, storyMinutes, sectionStarts, resumeAt, nextStoryAt,
 } from '../lib/story.js';
@@ -16,6 +18,11 @@ import {
  *
  * 고르는 것은 셋이다: 읽는 속도(기본은 천천히) · 문장마다 몇 번 · 해석(끔 · 글자로 · 소리로도).
  * 긴 글이라 어디까지 들었는지 기기에 적어 두고 이어 듣는다.
+ *
+ * ★ 듣는 화면은 화면을 통째로 쓴다 ★ 앱 머리와 뒤로 줄이 화면의 삼분의 일을 차지해서 글이 두세 줄밖에 안 보였다.
+ * 듣는 동안은 body에 따로 붙여(portal) 글을 크게 보여 준다. 가로로 눕혀도 된다.
+ *   · 문장을 한 번 누르면 그 문장의 해석과, 앱 사전에 있는 낱말의 뜻이 아래에 뜬다(재생은 그대로 간다)
+ *   · 꾹 누르거나 두 번 누르면 그 문장(낱말을 골랐으면 그 낱말)을 붙여 곤에게 묻는 창이 열린다
  *
  * 글은 앱에 들어 있지 않다. 사용자가 파일로 불러온 것만 그 사람의 기기와 계정에 남는다(lib/story.js).
  * 묶음(store = { list, removed })은 App이 들고 있다 — 동기화에 실어야 다른 기기에도 뜬다. */
@@ -32,13 +39,18 @@ const KO_LABEL = { [STORY_KO.OFF]: '끔', [STORY_KO.TEXT]: '글자로', [STORY_K
 
 const EMPTY = { list: [], removed: {} };
 
-export default function StoryListen({ store = EMPTY, setStore, onActivity, onToast }) {
+const LONG_PRESS_MS = 480;
+const DOUBLE_TAP_MS = 350;
+
+export default function StoryListen({ store = EMPTY, setStore, onActivity, onToast, words = [], settings = {}, asks = [], onAsks, onAddWord }) {
   const stories = store?.list || EMPTY.list;
   const [pos, setPos] = useState(loadStoryPos);
   const [prefs, setPrefsState] = useState(loadStoryPrefs);
   const [pick, setPick] = useState(null);
   const [run, setRun] = useState(null);          // { id, at, playing, tick }
   const [phase, setPhase] = useState('jp');      // jp | again | ko
+  const [sel, setSel] = useState(null);          // 눌러서 고른 문장 번호(해석 · 낱말 뜻을 보여 준다)
+  const [asking, setAsking] = useState({ open: false, card: null });   // 곤에게 묻기 — 문장(또는 고른 낱말)을 붙여서
   const fileRef = useRef(null);
   const sleep = useRef(null);
   if (!sleep.current) sleep.current = sleepers();
@@ -110,9 +122,9 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run?.id, run?.at, run?.playing, run?.tick, prefs.rate, prefs.repeat, koMode]);
 
-  /* 지금 읽는 문장이 화면에 보이게 */
+  /* 지금 읽는 문장이 화면에 보이게 — 문장을 골라 해석을 보는 중에는 글을 끌고 가지 않는다 */
   useEffect(() => {
-    if (!run) return;
+    if (!run || sel !== null) return;
     const el = document.querySelector(`.sl-s[data-at="${run.at}"]`);
     try { el?.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { el?.scrollIntoView(); }
   }, [run?.id, run?.at]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -131,7 +143,44 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
     setRun((r) => (r ? { ...r, at: to, playing: true, tick: r.tick + 1 } : r));
   };
   const toggle = () => setRun((r) => (r ? { ...r, playing: !r.playing, tick: r.tick + 1 } : r));
-  const quit = () => { sleep.current.clear(); stopSpeaking(); setRun(null); };
+  const quit = () => { sleep.current.clear(); stopSpeaking(); setRun(null); setSel(null); setAsking((a) => ({ ...a, open: false })); };
+
+  /* ── 문장 누르기 ── 한 번: 해석 · 낱말 뜻 / 꾹 누르기 · 두 번: 곤에게 묻기 */
+  const glossIndex = useMemo(() => buildGlossIndex(words), [words]);
+  const selLine = sel !== null ? flat[sel] : null;
+  const selWords = useMemo(() => (selLine ? glossSentence(selLine.jp, glossIndex) : []), [selLine, glossIndex]);
+  const openAsk = (at, word = '') => {
+    const l = flat[at];
+    if (!l || !run) return;
+    const w = String(word || '').trim();
+    /* 낱말을 골랐으면 그 낱말을 묻고 문장은 예문으로 같이 보낸다. 아니면 문장을 통째로 붙인다 */
+    const card = w && w !== l.jp && l.jp.includes(w) && [...w].length <= 12
+      ? { id: `story:${run.id}:${at}:${w}`, kanji: w, kana: '', mean: '', example: l.jp, exampleKo: l.ko || '' }
+      : { id: `story:${run.id}:${at}`, kanji: l.jp, kana: '', mean: l.ko || '' };
+    setSel(at);
+    setRun((r) => (r ? { ...r, playing: false } : r));     // 묻는 동안은 읽기를 멈춘다(창의 듣기 단추와 겹치지 않게)
+    setAsking({ open: true, card });
+  };
+  const press = useRef({ timer: null, fired: false, x: 0, y: 0 });
+  const tap = useRef({ at: -1, t: 0 });
+  const pressStart = (e, at) => {
+    const pr = press.current;
+    clearTimeout(pr.timer); pr.fired = false; pr.x = e.clientX; pr.y = e.clientY;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pr.timer = setTimeout(() => { pr.fired = true; openAsk(at); }, LONG_PRESS_MS);
+  };
+  const pressMove = (e) => { const pr = press.current; if (Math.abs(e.clientX - pr.x) > 10 || Math.abs(e.clientY - pr.y) > 10) clearTimeout(pr.timer); };
+  const pressEnd = () => clearTimeout(press.current.timer);
+  const tapSentence = (at) => {
+    if (press.current.fired) { press.current.fired = false; return; }   // 꾹 누른 뒤 손을 뗄 때 오는 누름은 버린다
+    /* 두 번 누르기는 직접 센다 — 손가락 화면에서는 dblclick이 안 오는 브라우저가 있다 */
+    const now = Date.now(); const last = tap.current;
+    tap.current = { at, t: now };
+    if (last.at === at && now - last.t < DOUBLE_TAP_MS) { tap.current = { at: -1, t: 0 }; openAsk(at); return; }
+    setSel((cur) => (cur === at ? null : at));
+  };
+  const pickedWord = () => { try { return String(window.getSelection?.() || '').trim(); } catch { return ''; } };
+  useEffect(() => () => clearTimeout(press.current.timer), []);
 
   useHotkeys({
     Space: () => { if (run) toggle(); },
@@ -170,58 +219,94 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
     setPos((p) => { const { [s.id]: _gone, ...rest } = p; saveStoryPos(rest); return rest; });
   };
 
-  /* ── 듣는 중 ── */
+  /* ── 듣는 중 ── 화면을 통째로 쓴다(body에 붙인다) */
   if (run && story && line) {
     const secNow = line.sec;
+    const sizeNow = STORY_SIZES.find((x) => x.v === prefs.size) || STORY_SIZES[1];
+    const nextSize = STORY_SIZES[(STORY_SIZES.indexOf(sizeNow) + 1) % STORY_SIZES.length];
     let n = -1;
-    return (
-      <div className="story sl-run" data-at={run.at} data-playing={run.playing ? '1' : '0'} data-phase={phase}>
+    const view = (
+      <div className="story sl-run sl-full" data-at={run.at} data-playing={run.playing ? '1' : '0'} data-phase={phase} data-size={sizeNow.v} data-sel={sel === null ? '' : sel}>
         <div className="sl-top">
-        <div className="sl-head">
-          <span className="sl-pos"><b>{run.at + 1}</b> / {flat.length}</span>
-          <span className="sl-title">{story.title}</span>
-          <button className="ghost-btn sl-quit" onClick={quit}>그만 듣기</button>
-        </div>
-        {story.sections.length > 1 && (
-          <div className="sl-secs" role="tablist" aria-label="구간">
-            {story.sections.map((sec, i) => (
-              <button key={i} className={`sl-sec${i === secNow ? ' active' : ''}`} data-sec={i} role="tab" aria-selected={i === secNow} onClick={() => jump(starts[i])}>
-                {sec.titleKo || sec.title || (i === 0 ? '처음' : `${i + 1}번째`)}
-              </button>
-            ))}
+          <div className="sl-head">
+            <span className="sl-pos"><b>{run.at + 1}</b> / {flat.length}</span>
+            <span className="sl-title">{story.title}</span>
+            <button type="button" className="sl-size" onClick={() => setPref('size', nextSize.v)} aria-label={`글자 크기: ${sizeNow.label}. 눌러서 ${nextSize.label}로`}>
+              <b aria-hidden="true">가</b><small>{sizeNow.label}</small>
+            </button>
+            <button className="ghost-btn sl-quit" onClick={quit}>그만 듣기</button>
           </div>
-        )}
+          {story.sections.length > 1 && (
+            <div className="sl-secs" role="tablist" aria-label="구간">
+              {story.sections.map((sec, i) => (
+                <button key={i} className={`sl-sec${i === secNow ? ' active' : ''}`} data-sec={i} role="tab" aria-selected={i === secNow} onClick={() => { setSel(null); jump(starts[i]); }}>
+                  {sec.titleKo || sec.title || (i === 0 ? '처음' : `${i + 1}번째`)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="card sl-text" lang="ja">
-          {story.sections.map((sec, s) => (
-            <section key={s} className="sl-section">
-              {sec.title && <h3 className="sl-sectitle">{sec.title}{sec.titleKo && <small lang="ko">{sec.titleKo}</small>}</h3>}
-              {sec.paras.map((para, p) => (
-                <p key={p} className="sl-para">
-                  {para.map((l) => {
-                    n += 1; const at = n;
-                    return (
-                      <span key={at} className={`sl-s${at === run.at ? ' cur' : ''}${at < run.at ? ' past' : ''}`} data-at={at} role="button" tabIndex={-1} onClick={() => jump(at)}>{l.jp}</span>
-                    );
-                  })}
-                </p>
-              ))}
-            </section>
-          ))}
+        <div className="sl-scroll">
+          <div className="sl-text" lang="ja">
+            {story.sections.map((sec, s) => (
+              <section key={s} className="sl-section">
+                {sec.title && <h3 className="sl-sectitle">{sec.title}{sec.titleKo && <small lang="ko">{sec.titleKo}</small>}</h3>}
+                {sec.paras.map((para, p) => (
+                  <p key={p} className="sl-para">
+                    {para.map((l) => {
+                      n += 1; const at = n;
+                      return (
+                        <span
+                          key={at} data-at={at} data-rapid="1" role="button" tabIndex={-1}
+                          className={`sl-s${at === run.at ? ' cur' : ''}${at < run.at ? ' past' : ''}${at === sel ? ' sel' : ''}`}
+                          onClick={() => tapSentence(at)}
+                          onDoubleClick={() => openAsk(at, pickedWord())}
+                          onPointerDown={(e) => pressStart(e, at)} onPointerMove={pressMove}
+                          onPointerUp={pressEnd} onPointerCancel={pressEnd} onPointerLeave={pressEnd}
+                          onContextMenu={(e) => { if (press.current.fired || e.pointerType === 'touch') e.preventDefault(); }}
+                        >{l.jp}</span>
+                      );
+                    })}
+                  </p>
+                ))}
+              </section>
+            ))}
+          </div>
         </div>
 
         <div className="sl-bar">
-          {koMode !== STORY_KO.OFF && <div className={`sl-ko${phase === 'ko' ? ' saying' : ''}`} lang="ko">{line.ko || '이 문장은 해석이 없어요'}</div>}
+          {selLine ? (
+            /* 고른 문장 — 해석과 낱말 뜻. 재생은 그대로 가고, 여기서 그 문장부터 듣거나 곤에게 물을 수 있다 */
+            <div className="sl-pick" data-at={sel}>
+              <div className="sl-pickhead">
+                <span>{sel + 1}번째 문장</span>
+                <button type="button" className="sl-pickx" onClick={() => setSel(null)} aria-label="해석 닫기">✕</button>
+              </div>
+              <div className="sl-ko" lang="ko">{selLine.ko || '이 문장은 해석이 없는 파일이에요. 곤에게 물어볼 수 있어요.'}</div>
+              {selWords.length > 0 && (
+                <div className="sl-gloss" aria-label="문장 속 낱말">
+                  {selWords.map((g) => <span key={g.id} className="sl-g"><b lang="ja">{g.jp}</b>{g.kana && g.kana !== g.jp && <i lang="ja">{g.kana}</i>}{g.mean}</span>)}
+                </div>
+              )}
+              <div className="sl-pickbtns">
+                <button type="button" className="ghost-btn sl-from" onClick={() => { const at = sel; setSel(null); jump(at); }}>여기부터 듣기</button>
+                <button type="button" className="ghost-btn sl-askbtn" onClick={() => openAsk(sel)}>곤에게 묻기</button>
+              </div>
+            </div>
+          ) : (
+            koMode !== STORY_KO.OFF && <div className={`sl-ko${phase === 'ko' ? ' saying' : ''}`} lang="ko">{line.ko || '이 문장은 해석이 없어요'}</div>
+          )}
           <div className="sl-status" role="status">
             {!run.playing ? '잠시 멈춤' : phase === 'ko' ? '해석' : phase === 'again' ? '한 번 더' : '듣는 중'}
+            <span className="sl-hint"> · 문장을 누르면 해석, 꾹 누르면 곤에게 묻기</span>
           </div>
           <div className="sl-controls">
-            <button className="ghost-btn sl-prev" onClick={() => jump(run.at - 1)} disabled={run.at === 0} aria-label="이전 문장">이전</button>
+            <button className="ghost-btn sl-prev" onClick={() => { setSel(null); jump(run.at - 1); }} disabled={run.at === 0} aria-label="이전 문장">이전</button>
             <button className="submit-btn sl-pause" onClick={toggle} aria-pressed={!run.playing}>
               {run.playing ? '잠시 멈춤' : '이어서'}{hasKeyboard && <kbd className="inline-key">Space</kbd>}
             </button>
-            <button className="ghost-btn sl-next" onClick={() => jump(run.at + 1)} disabled={run.at + 1 >= flat.length} aria-label="다음 문장">다음</button>
+            <button className="ghost-btn sl-next" onClick={() => { setSel(null); jump(run.at + 1); }} disabled={run.at + 1 >= flat.length} aria-label="다음 문장">다음</button>
           </div>
           <div className="sl-quick" aria-label="읽기 속도">
             {STORY_RATES.map((r) => (
@@ -229,8 +314,23 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
             ))}
           </div>
         </div>
+
+        {/* 곤에게 묻기 — 고른 문장(또는 낱말)이 창 위에 작게 붙는다. 기록과 창은 다른 화면의 것과 같다 */}
+        <AskSheet
+          open={asking.open}
+          card={asking.card}
+          guide="gon"
+          title="곤에게 물어보기"
+          settings={settings}
+          history={asks}
+          onHistory={onAsks || (() => {})}
+          onAddWord={onAddWord}
+          onClose={() => setAsking((a) => ({ ...a, open: false }))}
+          onToast={onToast}
+        />
       </div>
     );
+    return typeof document !== 'undefined' ? createPortal(view, document.body) : view;
   }
 
   /* ── 고르기 ── */
@@ -239,7 +339,8 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
   return (
     <div className="story sl-setup">
       <p className="vd-note" style={{ marginTop: 0 }}>
-        긴 글 한 편을 처음부터 끝까지 이어서 들어요. 문장이 끝나면 바로 다음 문장으로 넘어가고, 어디까지 들었는지 기억해요.
+        긴 글 한 편을 처음부터 끝까지 이어서 들어요. 듣는 동안은 화면을 통째로 써서 글을 크게 보여 줘요.
+        문장을 누르면 해석과 낱말 뜻이 뜨고, 꾹 누르면 그 문장으로 곤에게 물어볼 수 있어요.
       </p>
 
       {stories.length === 0 ? (
@@ -275,6 +376,13 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
               <button key={r.v} className={`ls-pill${prefs.rate === r.v ? ' active' : ''}`} data-rate={r.v} aria-pressed={prefs.rate === r.v} onClick={() => setPref('rate', r.v)}>
                 {r.label} <span className="pk-count">{r.v}배</span>
               </button>
+            ))}
+          </div>
+
+          <div className="section-label">글자 크기</div>
+          <div className="ls-pills sl-sizes">
+            {STORY_SIZES.map((x) => (
+              <button key={x.v} className={`ls-pill${prefs.size === x.v ? ' active' : ''}`} data-size={x.v} aria-pressed={prefs.size === x.v} onClick={() => setPref('size', x.v)}>{x.label}</button>
             ))}
           </div>
 

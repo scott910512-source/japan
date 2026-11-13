@@ -528,3 +528,63 @@
 .sl-chip { min-height: 32px; padding: 0 10px; border-radius: 100px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .sl-chip.active { border-color: var(--kon); color: var(--kon); background: var(--kon-soft); }
 @media (prefers-reduced-motion: reduce) { .sl-s { transition: none; } }
+
+/* ── 이야기 듣기: 듣는 화면은 화면을 통째로 쓴다 ──
+   앱 머리와 뒤로 줄을 덮고(body에 붙인다) 글을 크게 보여 준다. 위 머리 · 가운데 글(여기만 굴러간다) · 아래 조작대. */
+.sl-full { position: fixed; inset: 0; z-index: 90; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0; background: var(--paper); color: var(--ink); }
+.sl-full .sl-top { position: static; margin: 0; padding: calc(env(safe-area-inset-top, 0px) + 8px) max(14px, env(safe-area-inset-right, 0px)) 8px max(14px, env(safe-area-inset-left, 0px)); background: var(--surface); backdrop-filter: none; }
+.sl-full .sl-scroll { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 16px max(18px, env(safe-area-inset-right, 0px)) 28px max(18px, env(safe-area-inset-left, 0px)); }
+.sl-full .sl-text { max-width: 900px; margin: 0 auto; padding: 0; gap: 18px; }
+.sl-full .sl-para { line-height: 1.95; }
+.sl-full[data-size="m"] .sl-para { font-size: 19px; }
+.sl-full[data-size="l"] .sl-para { font-size: 24px; }
+.sl-full[data-size="xl"] .sl-para { font-size: 30px; }
+.sl-full .sl-sectitle { font-size: 16px; }
+.sl-full .sl-sectitle small { font-size: 13px; }
+.sl-full .sl-bar { position: static; margin: 0; padding: 8px max(14px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)); background: var(--surface); backdrop-filter: none; }
+.sl-full .sl-bar > *, .sl-full .sl-top > * { width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; }
+.sl-full .sl-bar > .sl-ko { font-size: 16px; }
+.sl-size { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 4px; min-height: var(--touch); padding: 0 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font: inherit; cursor: pointer; }
+.sl-size b { font-size: 17px; }
+.sl-size small { font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+.sl-hint { font-weight: 500; }
+/* 눌러서 고른 문장 — 해석과 낱말 뜻 */
+.sl-s.sel { outline: 2px dashed var(--kon); outline-offset: 1px; }
+.sl-pick { display: grid; gap: 7px; padding: 8px 10px 10px; border: 1px solid var(--kon); border-radius: 12px; background: var(--paper); max-height: 40vh; overflow: auto; }
+.sl-pickhead { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.sl-pickx { width: 36px; height: 36px; margin: -6px -6px -6px 0; border: 0; border-radius: 10px; background: none; color: var(--ink-soft); font: inherit; font-size: 15px; cursor: pointer; }
+.sl-pick .sl-ko { font-size: 16px; padding: 0; background: none; max-height: none; overflow: visible; }
+.sl-gloss { display: flex; flex-wrap: wrap; gap: 6px; }
+.sl-g { display: inline-flex; align-items: baseline; gap: 5px; padding: 3px 9px; border-radius: 100px; border: 1px solid var(--line); background: var(--surface-2); font-size: 12.5px; }
+.sl-g b { font-size: 14.5px; }
+.sl-g i { font-style: normal; font-size: 11px; color: var(--kon); }
+.sl-pickbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sl-pickbtns .ghost-btn { margin-top: 0; min-height: 40px; padding: 8px 10px; font-size: 13px; }
+/* 꾹 누를 때 기기의 글자 고르기 · 돋보기가 먼저 뜨지 않게(손가락 기기) — 마우스로는 낱말을 끌어 고를 수 있다 */
+.sl-full .sl-s { -webkit-touch-callout: none; }
+@media (hover: none) { .sl-full .sl-text { -webkit-user-select: none; user-select: none; } }
+/* 질문 창에 붙는 것이 문장일 때 — 한 줄 알약이 아니라 여러 줄로 */
+.ask-chip.long { display: block; width: 100%; border-radius: 12px; font-size: 13.5px; font-weight: 600; line-height: 1.6; white-space: normal; overflow-wrap: anywhere; }
+/* 가로로 눕혔을 때(세로가 짧다) — 머리와 조작대를 한 줄씩으로 줄여 글 자리를 남긴다 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .sl-full .sl-top { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; padding-top: calc(env(safe-area-inset-top, 0px) + 4px); padding-bottom: 4px; }
+  .sl-full .sl-top > * { max-width: none; margin: 0; }
+  .sl-full .sl-title { display: none; }
+  .sl-full .sl-quit, .sl-full .sl-size { min-height: 36px; padding-top: 4px; padding-bottom: 4px; }
+  .sl-full .sl-sec { min-height: 32px; }
+  .sl-full .sl-scroll { padding-top: 10px; padding-bottom: 14px; }
+  .sl-full .sl-bar { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
+  .sl-full .sl-bar > * { max-width: none; margin: 0; }
+  .sl-full .sl-bar > .sl-ko, .sl-full .sl-bar > .sl-pick { grid-column: 1; grid-row: 1 / span 2; max-height: 34vh; align-self: stretch; }
+  /* 고른 문장 칸은 왼쪽에 해석 · 낱말, 오른쪽에 단추 둘 — 세로가 짧아도 단추가 잘리지 않게 */
+  .sl-full .sl-pick { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-content: start; padding: 6px 10px 8px; }
+  .sl-full .sl-pickhead { grid-column: 1 / -1; }
+  .sl-full .sl-pick .sl-ko, .sl-full .sl-gloss { grid-column: 1; }
+  .sl-full .sl-pickbtns { grid-column: 2; grid-row: 2 / span 2; grid-template-columns: 1fr; align-self: start; gap: 6px; }
+  .sl-full .sl-pickbtns .ghost-btn { min-height: 34px; padding: 4px 12px; white-space: nowrap; }
+  .sl-full .sl-status { display: none; }
+  .sl-full .sl-controls { grid-column: 2; grid-row: 1; grid-template-columns: auto auto auto; gap: 6px; }
+  .sl-full .sl-controls .ghost-btn, .sl-full .sl-controls .submit-btn { min-height: 38px; padding: 6px 14px; }
+  .sl-full .sl-quick { grid-column: 2; grid-row: 2; flex-wrap: nowrap; }
+  .sl-full .sl-chip { min-height: 28px; padding: 0 8px; font-size: 11.5px; }
+}
