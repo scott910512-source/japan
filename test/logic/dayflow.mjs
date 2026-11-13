@@ -7,17 +7,30 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
 console.log('\n[ 순서 ]');
 {
   ok('★ 순서는 퀘스트 줄과 같다: 복습 · 약점 퀴즈 · 쭉 퀴즈 · 새로 배우기 · 문장 · 랜덤 테스트, 그 뒤에 오늘의 N3 ★', FLOW.join() === 'review,weakquiz,stream,fresh,sentence,random,n3');
-  const all = { review: true, weakquiz: true, stream: true, fresh: true, sentence: true, n3: true, random: true };
-  ok('복습 다음은 약점 퀴즈', nextStep('review', all).to === 'weakquiz');
-  ok('약점 퀴즈 다음은 쭉 퀴즈', nextStep('weakquiz', all).to === 'stream');
-  ok('쭉 퀴즈 다음은 새로 배우기', nextStep('stream', all).to === 'fresh');
-  ok('새로 배우기 다음은 문장 퀘스트', nextStep('fresh', all).to === 'sentence' && nextStep('fresh', all).label === '문장 퀘스트');
-  ok('★ 문장 퀘스트 다음은 오늘 랜덤 테스트(N3 코스로 새지 않는다) ★', nextStep('sentence', all).to === 'random');
-  ok('★ 문장 퀘스트를 건너뛰었거나 마쳤으면(false) 새로 배우기 다음이 랜덤 테스트로 넘어간다 ★', nextStep('fresh', { ...all, sentence: false }).to === 'random');
-  ok('랜덤 테스트 다음은 오늘의 N3', nextStep('random', all).to === 'n3');
-  ok('N3를 안 켰거나 다 했으면 랜덤 테스트가 마지막', nextStep('random', { ...all, n3: false }) === null);
-  ok('오늘의 N3 다음은 없다', nextStep('n3', all) === null);
-  ok('이름표가 붙어 있다', nextStep('review', all).label === '약점 퀴즈' && nextStep('sentence', all).label === '오늘 랜덤 테스트');
+  /* 차례대로 하는 사람 — 지나온 단계는 마쳤고(false) 뒤 단계는 남았다(true) */
+  const from = (step) => Object.fromEntries(FLOW.map((s, i) => [s, i > FLOW.indexOf(step)]));
+  ok('복습 다음은 약점 퀴즈', nextStep('review', from('review')).to === 'weakquiz');
+  ok('약점 퀴즈 다음은 쭉 퀴즈', nextStep('weakquiz', from('weakquiz')).to === 'stream');
+  ok('쭉 퀴즈 다음은 새로 배우기', nextStep('stream', from('stream')).to === 'fresh');
+  ok('새로 배우기 다음은 문장 퀘스트', nextStep('fresh', from('fresh')).to === 'sentence' && nextStep('fresh', from('fresh')).label === '문장 퀘스트');
+  ok('★ 문장 퀘스트 다음은 오늘 랜덤 테스트(N3 코스로 새지 않는다) ★', nextStep('sentence', from('sentence')).to === 'random');
+  ok('★ 문장 퀘스트를 건너뛰었거나 마쳤으면(false) 새로 배우기 다음이 랜덤 테스트로 넘어간다 ★', nextStep('fresh', { ...from('fresh'), sentence: false }).to === 'random');
+  ok('랜덤 테스트 다음은 오늘의 N3', nextStep('random', from('random')).to === 'n3');
+  ok('N3를 안 켰거나 다 했으면 랜덤 테스트가 마지막', nextStep('random', { ...from('random'), n3: false }) === null);
+  ok('오늘의 N3 다음은 없다', nextStep('n3', from('n3')) === null);
+  ok('이름표가 붙어 있다', nextStep('review', from('review')).label === '약점 퀴즈' && nextStep('sentence', from('sentence')).label === '오늘 랜덤 테스트');
+}
+
+console.log('\n[ 앞에서 건너뛴 단계로 돌아간다 ]');
+{
+  /* 첫날 — 외운 것이 없어 쭉 퀴즈가 닫혀 있다가, 새로 배우기를 마치면 열린다 */
+  const firstDay = { review: false, weakquiz: false, stream: true, fresh: false, sentence: true, random: false, n3: false };
+  ok('새로 배우기 다음은 그대로 문장 퀘스트(뒤쪽이 먼저)', nextStep('fresh', firstDay).to === 'sentence');
+  ok('★ 문장 퀘스트를 마치면 방금 열린 쭉 퀴즈로 이어진다(「홈으로」만 남지 않는다) ★', nextStep('sentence', { ...firstDay, sentence: false }).to === 'stream');
+  ok('★ 랜덤 테스트는 앞에서 건너뛴 단계보다 뒤다 ★', nextStep('sentence', { ...firstDay, sentence: false, random: true }).to === 'stream' && nextStep('stream', { ...firstDay, stream: false, sentence: false, random: true }).to === 'random');
+  ok('복습을 미뤄 두고 새로 배우기부터 한 사람은 뒤 단계를 마친 뒤 복습으로 돌아간다', nextStep('fresh', { review: true, random: true }).to === 'review' && nextStep('review', { random: true }).to === 'random');
+  ok('★ 방금 마친 단계 자신으로는 돌아가지 않는다 ★', nextStep('stream', { stream: true }) === null && nextStep('random', { random: true }) === null);
+  ok('랜덤 테스트를 먼저 본 사람도 남은 앞 단계로 이어진다', nextStep('random', { stream: true, n3: true }).to === 'n3' && nextStep('random', { stream: true }).to === 'stream' && nextStep('n3', { fresh: true }).to === 'fresh');
 }
 
 console.log('\n[ 할 게 없는 단계는 건너뛴다 ]');

@@ -49,14 +49,25 @@ export function n3Progress(n3, today) {
   return { done: steps.filter((s) => s.done).length, total: steps.length };
 }
 
+/* 하루의 마지막 구간 — 앞 단계(복습 · 퀴즈 · 새로 배우기 · 문장)를 다 돈 뒤에만 내민다 */
+const TAIL = ['random', 'n3'];
+const MAIN = FLOW.filter((s) => !TAIL.includes(s));
+
 /* after 다음 단계. states = { review: bool, weakquiz: bool, stream: bool, fresh: bool, random: bool }
-   (true = 아직 할 게 남은 단계). 없으면 null. */
+   (true = 아직 할 게 남은 단계). 없으면 null.
+
+   ★ 뒤쪽만 보지 않는다 ★ 첫날에는 외운 것이 없어 쭉 퀴즈가 닫혀 있다가, 새로 배우기를 마치면 열린다. 뒤쪽만 찾으면
+   새로 배우기 → 문장 퀘스트에서 끝나고, 방금 열린 쭉 퀴즈(순서로는 앞)는 「0 / 20」으로 남은 채 「홈으로」만 나왔다.
+   그래서 뒤쪽에 남은 게 없으면 앞에서 건너뛴 단계로 돌아가고, 그것도 없을 때 마지막 구간(랜덤 테스트 · 오늘의 N3)을 내민다. */
 export function nextStep(after, states = {}) {
-  const at = FLOW.indexOf(after);
-  for (let i = at + 1; i < FLOW.length; i++) {
-    if (states[FLOW[i]]) return { to: FLOW[i], label: FLOW_LABEL[FLOW[i]] };
+  const open = (list) => list.find((s) => states[s]) || null;
+  const make = (s) => (s ? { to: s, label: FLOW_LABEL[s] } : null);
+  if (TAIL.includes(after)) {
+    const at = TAIL.indexOf(after);
+    return make(open(TAIL.slice(at + 1)) || open(MAIN) || open(TAIL.slice(0, at)));
   }
-  return null;
+  const at = MAIN.indexOf(after);
+  return make(open(MAIN.slice(at + 1)) || open(MAIN.slice(0, Math.max(0, at))) || open(TAIL));
 }
 
 /* 덱 id가 어느 단계의 판인가. 다른 판(고른 단어 · 취약 · 기출…)이면 null — 그때는 흐름을 안 잇는다.

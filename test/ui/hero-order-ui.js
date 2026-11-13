@@ -5,7 +5,9 @@
  *   · 큰 버튼은 아직 안 마친 첫 퀘스트를 연다
  *   · 다른 차례의 하던 판은 큰 버튼 밑에 작게 남는다(길은 남기되 순서를 어지럽히지 않는다)
  *   · 큰 버튼으로 들어간 쭉 퀴즈는 설정 화면 없이 바로 첫 문제가 나온다
- *   · 풀 수 없는 쭉 퀴즈(외운 것이 너무 적다)는 줄도 안 서고 큰 버튼도 그리로 안 보낸다 */
+ *   · 풀 수 없는 쭉 퀴즈(외운 것이 너무 적다)는 줄도 안 서고 큰 버튼도 그리로 안 보낸다
+ *   · 첫날: 새로 배우기를 마치면 방금 열린 쭉 퀴즈로 이어진다(「홈으로」만 남지 않는다)
+ *   · 카드만 끝났고 퀘스트가 남았으면 「오늘 학습 완료」라고 하지 않는다 */
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import * as allWords from '../../src/data/allWords.js';
@@ -23,18 +25,18 @@ const N5 = WORDS.filter((w) => String(w.level).toUpperCase() === 'N5');
 /* 외웠고 복습 차례는 아직인 낱말 — 복습 미션도 약점 퀴즈도 없고, 쭉 퀴즈가 첫 차례가 된다 */
 const known = (n) => Object.fromEntries(N5.slice(0, n).map((w) => [w.id, { ...applyVerdict(undefined, VERDICT.KNOWN, addDays(today, -2)), due: addDays(today, 6) }]));
 
-async function boot(browser, review) {
+async function boot(browser, review, goals = null) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 900 } });
   /* 서버는 가로챈다 — 손님으로 쓴다(밖으로 안 나간다) */
   await ctx.route('https://ifjgngkkozsiyoafhlkb.supabase.co/**', (r) => r.fulfill({ status: 400, contentType: 'application/json', body: '{"message":"x"}' }));
-  await ctx.addInitScript(({ rv, day }) => {
+  await ctx.addInitScript(({ rv, day, goals }) => {
     if (localStorage.getItem('qa_seeded')) return;
     localStorage.setItem('qa_seeded', '1');
     localStorage.setItem('jp_manabu_guest_v1', '1');
-    localStorage.setItem('jp_manabu_settings_v1', JSON.stringify({ onboarded: true, canReadKana: true, autoTTS: false, goalsV: 3 }));
+    localStorage.setItem('jp_manabu_settings_v1', JSON.stringify({ onboarded: true, canReadKana: true, autoTTS: false, goalsV: 3, ...(goals ? { goals } : {}) }));
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(rv));
     localStorage.setItem('jp_manabu_progress_v1', JSON.stringify({ quests: { day, sentenceSkip: true } }));
-  }, { rv: review, day: today });
+  }, { rv: review, day: today, goals });
   const page = await ctx.newPage();
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page.locator('.tabbar, .gate').first().waitFor({ timeout: 30000 });
@@ -106,6 +108,42 @@ const cta = async (page) => ({ step: await page.locator('.bigcta').getAttribute(
     await page.locator('.bigcta').click();
     await page.waitForTimeout(900);
     ok('누르면 새 단어 판이 열린다', await page.locator('.study').count() === 1 && await page.locator('.st-intro').count() === 0);
+    await ctx.close();
+  }
+
+  console.log('\n[ 첫날 — 새로 배우기를 마치면 방금 열린 쭉 퀴즈로 이어진다 ]');
+  {
+    const { ctx, page } = await boot(browser, {}, { fresh: 5, review: 9, weak: 3 });
+    page.on('pageerror', (e) => errors.push(e.message));
+    ok('처음에는 쭉 퀴즈 줄이 없다(외운 것이 없다)', await page.locator('.tdq-row', { hasText: '쭉 퀴즈' }).count() === 0);
+    let c = await cta(page);
+    ok('큰 버튼은 새로 배우기다', c.step === 'fresh', c.text);
+    await page.locator('.bigcta').click();
+    await page.waitForTimeout(900);
+    /* 새 단어 다섯 장을 끝까지 — 모두 「알아요」 */
+    let g = 0;
+    while (g < 200 && !(await page.locator('.finish').count())) {
+      g += 1;
+      const start = page.locator('.study.intro .bigstart, .study .start-btn, .study .intro-start, .study .study-start').first();
+      if (await start.count()) { await start.click(); await page.waitForTimeout(400); continue; }
+      const go = page.locator('.study .st-go, .study .ph-btn, .study [data-verdict="known"], .study button.known').first();
+      if (await go.count()) { await go.click(); await page.waitForTimeout(220); continue; }
+      await page.keyboard.press('ArrowRight'); await page.waitForTimeout(150);
+      await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+    }
+    ok('새 단어 판을 끝까지 마쳤다', await page.locator('.finish').count() === 1, `${g}걸음`);
+    const next = page.locator('.fin-next');
+    ok('★ 완주 화면이 「다음: 쭉 퀴즈」를 내민다(문장 퀘스트는 건너뛴 날) ★', await next.count() === 1 && (await next.innerText()).includes('쭉 퀴즈'), (await page.locator('.finish').innerText()).replace(/\s+/g, ' ').slice(-90));
+    await next.click();
+    await page.waitForTimeout(1200);
+    ok('★ 누르면 쭉 퀴즈 첫 문제가 바로 나온다 ★', await page.locator('.st-run').count() === 1);
+    await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click();
+    await page.waitForTimeout(600);
+    await home(page);
+    c = await cta(page);
+    ok('홈의 큰 버튼도 「다음: 쭉 퀴즈」다', c.step === 'stream' && c.text.includes('다음: 쭉 퀴즈'), c.text);
+    const done = page.locator('.td-done');
+    ok('★ 카드만 끝났고 퀘스트가 남았으면 「오늘 학습 완료」라고 하지 않는다 ★', await done.count() === 0 || ((await done.innerText()).includes('오늘 카드 학습 완료') && !(await done.innerText()).includes('내일 복습으로')), (await done.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 80));
     await ctx.close();
   }
 

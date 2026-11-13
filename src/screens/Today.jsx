@@ -125,7 +125,7 @@ export default function Today({
     /* ★ 오늘 랜덤 테스트 ★ 하루의 마지막. 오늘 만난 것을 다 섞어서 쉰 문제 */
     randomQuest && {
       key: 'randomtest', title: '오늘 랜덤 테스트',
-      note: randomQuest.complete ? '오늘 랜덤 테스트를 마쳤어요' : '오늘 만난 것을 다 섞어서 쉰 문제',
+      note: randomQuest.complete ? '오늘 랜덤 테스트를 마쳤어요' : `오늘 만난 것을 다 섞어서 ${randomQuest.count || 50}문제`,
       done: randomQuest.done, total: randomQuest.total, icon: <IconFlame />, onClick: onStartRandomTest,
     },
   ].filter(Boolean);
@@ -142,7 +142,7 @@ export default function Today({
     if (k === 'stream') return named(`외운 것을 이어서 ${Math.max(0, (streamQuest?.total || 0) - (streamQuest?.done || 0))}문제`);
     if (k === 'fresh') return named(freshMix);
     if (k === 'sentence') return named(`새 문장 ${Math.max(0, (sentenceQuest?.total || 0) - (sentenceQuest?.done || 0))}개 · 배우고 조립해 봐요`);
-    if (k === 'random') return named('오늘 만난 것을 다 섞어서 쉰 문제');
+    if (k === 'random') return named(`오늘 만난 것을 다 섞어서 ${randomQuest?.count || 50}문제`);
     return started ? '퀘스트를 다 마쳤어요 · 코스로 이어 가요' : flowNow.label;
   })();
 
@@ -209,8 +209,11 @@ export default function Today({
       {/* ★ 계획을 다 하면 거기서 끝이다 ★ 더 하고 싶으면 명시적으로 늘린다. */}
       {allDone && (
         <div className="td-done">
-          <b>오늘 학습 완료</b>
-          <span>오늘 정한 {planNow.assigned}개를 마쳤어요. 내일 복습으로 다시 만나요.</span>
+          {/* 카드만 끝났고 퀘스트가 남았으면 「오늘 학습 완료」라고 하지 않는다 — 위에 남은 퀘스트가 보이는데 다 했다고 하면 어긋난다 */}
+          <b>{flowNow ? '오늘 카드 학습 완료' : '오늘 학습 완료'}</b>
+          <span>{flowNow
+            ? `오늘 정한 카드 ${planNow.assigned}개를 마쳤어요. 남은 퀘스트는 위 버튼으로 이어 가요.`
+            : `오늘 정한 ${planNow.assigned}개를 마쳤어요. 내일 복습으로 다시 만나요.`}</span>
           <button className="ghost-btn td-more" onClick={() => onLearnMore(10)}>
             10개 더 배우기
           </button>

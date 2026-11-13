@@ -107,7 +107,7 @@ async function finishDeck(page) {
   ok('★ 약점 퀴즈는 서른 문제 ★', (await rowText(page, '약점 퀴즈')).includes('30문제 남았어요'), await rowText(page, '약점 퀴즈'));
   ok('★ 쭉 퀴즈는 스무 문제 ★', (await rowText(page, '쭉 퀴즈')).includes('20문제 남았어요'), await rowText(page, '쭉 퀴즈'));
   ok('★ 새로 배우기는 스무 개 ★', /20/.test(await rowText(page, '새로 배우기')), await rowText(page, '새로 배우기'));
-  ok('오늘 랜덤 테스트 줄이 있다', (await rowText(page, '오늘 랜덤 테스트')).includes('쉰 문제'));
+  ok('오늘 랜덤 테스트 줄이 있다(실제로 낼 문제 수를 적는다)', (await rowText(page, '오늘 랜덤 테스트')).includes('50문제'), await rowText(page, '오늘 랜덤 테스트'));
   const st = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}'));
   ok('★ 옛 설정(9·8·3)이 새 수량(복습 30 · 새로 20)으로 맞춰진다 ★', st.goals?.review === 30 && st.goals?.fresh === 20 && st.goalsV === 3, JSON.stringify(st.goals));
 
@@ -156,15 +156,19 @@ async function finishDeck(page) {
   ok('완주 화면이 뜬다', await page.locator('.finish').count() === 1, `${g}걸음`);
   if (await page.locator('.finish').count()) {
     ok('★ 「10개 더 배우기」가 있다 ★', await page.locator('.fin-more').count() === 1);
-    ok('★ 「다음: 오늘 랜덤 테스트」가 있다(퀘스트 줄의 다음 칸 — N3 코스로 새지 않는다) ★', await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('오늘 랜덤 테스트'), await page.locator('.fin-next').innerText().catch(() => '없음'));
+    /* 이 검사는 복습 미션을 건너뛰고 왔다 — 뒤쪽 단계를 마쳤으니 건너뛴 복습 미션으로 돌아간다. 랜덤 테스트는 하루의 마지막이다 */
+    ok('★ 「다음: 복습 미션」이 있다(건너뛴 단계가 랜덤 테스트보다 먼저 — N3 코스로 새지 않는다) ★', await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('복습 미션'), (await page.locator('.fin-next').innerText().catch(() => '')));
     /* ★ 「10개 더 배우기」를 누르면 새 판이 열리고, 그 판을 끝내면 또 같은 두 버튼이 뜬다 ★ */
     await page.locator('.fin-more').click();
     await page.waitForTimeout(1200);
     ok('★ 10개 더: 완주 화면이 내려가고 새 판이 열린다 ★', await page.locator('.finish').count() === 0 && await page.locator('.study').count() >= 1);
     const g2 = await finishDeck(page);
     ok('더 배운 판도 끝나면 완주 화면', await page.locator('.finish').count() === 1, `${g2}걸음`);
-    ok('★ 끝나면 또 「10개 더」와 「다음: 오늘 랜덤 테스트」 ★', await page.locator('.fin-more').count() === 1 && await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('오늘 랜덤 테스트'));
-    await page.locator('.fin-next').click();
+    ok('★ 끝나면 또 「10개 더」와 「다음: 복습 미션」 ★', await page.locator('.fin-more').count() === 1 && await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('복습 미션'));
+    /* 랜덤 테스트는 오늘 화면의 줄에서 연다(복습 미션까지 돌면 검사가 너무 길어진다) */
+    await page.locator('.finish button', { hasText: '오늘로' }).click();
+    await page.waitForTimeout(800);
+    await page.locator('.tdq-row', { hasText: '오늘 랜덤 테스트' }).click();
     await page.waitForTimeout(1200);
 
     console.log('\n[ 오늘 랜덤 테스트 ]');
@@ -212,7 +216,11 @@ async function finishDeck(page) {
     await p2.locator('.n3-hub').waitFor({ timeout: 8000 });
     await p2.locator('.n3-cta').click();
     await p2.waitForTimeout(1200);
-    ok('★ 끝낸 오늘의 N3는 흐름의 마지막이다 — 「다음」 없이 「홈으로」 ★', await p2.locator('.n3-daydone').count() === 1 && await p2.locator('.n3-flownext').count() === 0 && await p2.locator('.n3-home').count() === 1);
+    /* 오늘의 N3는 흐름의 마지막 칸이다. 그 뒤에는 뒤쪽 단계가 없으니, 아직 안 한 앞 퀘스트(여기서는 복습 미션)가 있으면
+       그걸 내밀고 — 없으면 「다음」 없이 「홈으로」만 둔다. 어느 쪽이든 「홈으로」는 있다 */
+    const n3next = p2.locator('.n3-flownext');
+    ok('★ 끝낸 오늘의 N3 — 남은 앞 퀘스트(복습 미션)를 내밀고 「홈으로」가 있다 ★', await p2.locator('.n3-daydone').count() === 1 && await p2.locator('.n3-home').count() === 1
+      && (await n3next.count() === 0 || (await n3next.innerText()).includes('복습 미션')), (await n3next.innerText().catch(() => '없음')).replace(/\s+/g, ' '));
     await p2.locator('.n3-home').click();
     await p2.waitForTimeout(800);
     ok('★ 홈으로를 누르면 오늘 화면이다 ★', await p2.locator('.tdhead').count() === 1 && await p2.locator('.subscreen.open').count() === 0);

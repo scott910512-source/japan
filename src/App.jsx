@@ -382,11 +382,16 @@ export default function App() {
   const randomOn = useRef(false);
   const [randomMode, setRandomMode] = useState(false);
   useEffect(() => { if (sub !== 'quiz') { randomOn.current = false; setRandomMode(false); } }, [sub]);
-  const randomAvailable = useMemo(
-    () => randomTestIds({ today: randomToday, seen: randomSeen, wordIds: wordIdSet, size: RANDOM_TEST_SIZE, rng: () => 0.5 }).length >= RANDOM_TEST_MIN,
+  const randomCount = useMemo(
+    () => randomTestIds({ today: randomToday, seen: randomSeen, wordIds: wordIdSet, size: RANDOM_TEST_SIZE, rng: () => 0.5 }).length,
     [randomToday, randomSeen, wordIdSet],
   );
-  const randomQuest = useMemo(() => randomQuestState(progress, randomAvailable, today), [progress, randomAvailable, today]);
+  const randomAvailable = randomCount >= RANDOM_TEST_MIN;
+  /* 줄에 적는 문제 수는 실제로 낼 수 — 낼 낱말이 열일곱뿐인 날 「쉰 문제」라고 적어 놓고 「1 / 17」로 시작했다 */
+  const randomQuest = useMemo(() => {
+    const q = randomQuestState(progress, randomAvailable, today);
+    return q ? { ...q, count: randomCount } : q;
+  }, [progress, randomAvailable, randomCount, today]);
   const startRandomTest = useCallback(() => {
     const cards = randomTestIds({ today: randomToday, seen: randomSeen, wordIds: wordIdSet, size: RANDOM_TEST_SIZE })
       .map((id) => byId.get(id)).filter(Boolean);
