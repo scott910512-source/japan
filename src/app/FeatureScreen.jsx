@@ -59,6 +59,7 @@ export default function FeatureScreen({
   regionExam = null,
   onRegionDone = null,
   streamNext = null,
+  streamAuto = false,
   n3Next = null,
   composeFocus = null,
   composeNext = null,
@@ -235,6 +236,7 @@ export default function FeatureScreen({
                 next={streamNext}
                 seenToday={seenToday}
                 questDone={streamQuestDone}
+                autoStart={streamAuto}
                 onHome={onHome}
               />
             )}

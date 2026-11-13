@@ -239,17 +239,34 @@ async function boot(browser, patch = {}, init = null) {
   const knownBtn = page.locator('.judgerow button', { hasText: '알아요' });
   if (await knownBtn.count()) { await knownBtn.click(); await page.waitForTimeout(700); }
   await goTab(page, '홈');
-  /* 이어하기는 이제 따로 한 줄이 아니라 주요 버튼 자체다 — 하다 만 게 있으면
-     그게 무조건 먼저라, 버튼 하나가 그때그때 맞는 행동으로 바뀐다. */
-  ok('★ 주요 버튼이 이어하기가 된다 ★',
-    (await page.textContent('.bigcta')).includes('이어하기'),
+  /* ★ 큰 버튼은 퀘스트 순서를 따른다 ★ 지금 차례는 아직 남은 복습 미션이고, 하던 판(새로 배우기)은 뒤 차례다.
+     하던 판을 큰 버튼으로 내밀면 아래 퀘스트 줄과 순서가 어긋난다 — 큰 버튼 밑에 작게 남겨 길만 둔다. */
+  ok('★ 큰 버튼은 지금 차례(복습 미션)를 가리킨다 ★',
+    (await page.locator('.bigcta').getAttribute('data-step')) === 'review' && (await page.textContent('.bigcta')).includes('복습'),
     (await page.textContent('.bigcta')).replace(/\n/g, ' '));
-  await page.locator('.bigcta').click();
+  ok('★ 다른 차례의 하던 판은 큰 버튼 밑에 「하던 판 이어하기」로 남는다 ★', await page.locator('.td-resume-other').count() === 1,
+    (await page.locator('.td-resume-other').innerText().catch(() => '')).replace(/\s+/g, ' '));
+  await page.locator('.td-resume-other').click();
   await page.waitForTimeout(900);
   ok('하던 자리로 돌아감', await page.locator('.studycard').count() === 1);
   ok('처음부터 다시 시작하지 않음', !(await page.textContent('.sh-title')).includes(' 0 /'));
   await page.locator('.sh-close').first().click();
   await page.waitForTimeout(600);
+
+  /* 지금 차례의 판을 하다 나오면 그때는 큰 버튼이 「이어하기」다 */
+  await goTab(page, '홈');
+  await page.locator('.bigcta').click();
+  await page.waitForTimeout(800);
+  { const sw = page.locator('.swapask .submit-btn'); if (await sw.count()) { await sw.click(); await page.waitForTimeout(800); } }
+  { const go = page.locator('.study.intro .bigstart'); if (await go.count()) { await go.click(); await page.waitForTimeout(800); } }
+  { const c = page.locator('.studycard'); if (await c.count()) { await c.click(); await page.locator('.judgerow').waitFor({ timeout: 4000 }).catch(() => {}); } }
+  { const k = page.locator('.judgerow button', { hasText: '알아요' }); if (await k.count()) { await k.click(); await page.waitForTimeout(700); } }
+  await page.locator('.sh-close').first().click();
+  await page.waitForTimeout(600);
+  await goTab(page, '홈');
+  ok('★ 지금 차례의 판을 하다 나오면 큰 버튼이 이어하기가 된다 ★',
+    (await page.textContent('.bigcta')).includes('이어하기') && await page.locator('.td-resume-other').count() === 0,
+    (await page.textContent('.bigcta')).replace(/\n/g, ' '));
 
   /* ★ 이번 개편의 제일 큰 약속 — 아무것도 안 없어진다 ★
      자리를 옮긴 것과 없앤 것은 다르다. 옮긴 것도 갈 길이 있어야 한다. */
@@ -435,7 +452,8 @@ async function boot(browser, patch = {}, init = null) {
        안 그려진 화면을 누르게 된다. 끝내 안 뜨면 뒤따르는 검사가
        제 말로 실패하는 쪽이 읽기 쉽다. */
     await p3.locator('.tabbar').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
-    const resume = p3.locator('.bigcta');
+    /* 하던 판으로 돌아가는 길 — 그 판이 지금 차례의 것이면 큰 버튼(이어하기), 다른 차례의 것이면 그 밑의 작은 줄이다 */
+    const resume = p3.locator('.bigcta[data-step="resume"], .td-resume-other').first();
     /* ★ 여기가 CI에서 95개 대신 93개를 찍은 자리다 ★
        이 버튼이 없으면 아래 검사 둘이 조용히 사라지고, 그래도 통과로
        찍힌다. 전제를 적어 두면 어긋나는 순간 소리가 난다. */

@@ -38,7 +38,7 @@ const readyShown = (s) => {
 };
 
 export default function Today({
-  plan, planNow, settings, streak, session, resumeLabel,
+  plan, planNow, settings, streak, session, resumeLabel, flowNow = null, sessionStep = null,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
   onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, sentenceQuest = null, onStartSentenceQuest, onSkipSentenceQuest, onUndoSkipSentenceQuest, onOpenProgress, wrongCount = 0, onOpenWrong, onStartRegionExam, questSeal = null,
 }) {
@@ -77,7 +77,11 @@ export default function Today({
   const goalLevel = goalOf(settings);
   const showReady = Boolean(summary) && n3Included(goalLevel);
   const hello = HELLO[(streak.count || 0) % HELLO.length];
-  const resuming = session?.date === today && session.queue?.length > 0;
+  const hasSession = session?.date === today && session.queue?.length > 0;
+  /* ★ 큰 버튼은 퀘스트 순서를 따른다 ★ 하던 판이 지금 차례인 퀘스트의 것일 때만 「이어하기」다.
+     다른 단계의 판(예: 쭉 퀴즈 차례인데 열어만 본 새 단어 판)이 남아 있다고 그걸 내밀면 아래 퀘스트 줄과 순서가 어긋난다.
+     지금 차례가 없으면(퀘스트를 다 마쳤거나 흐름 밖) 전처럼 하던 판을 내민다. */
+  const resuming = hasSession && (!flowNow || sessionStep === flowNow.key);
   const allDone = Boolean(planNow?.finished);
   const backlog = back.backlog;
   const trip = tripLabel(settings, today);
@@ -121,11 +125,26 @@ export default function Today({
     /* ★ 오늘 랜덤 테스트 ★ 하루의 마지막. 오늘 만난 것을 다 섞어서 쉰 문제 */
     randomQuest && {
       key: 'randomtest', title: '오늘 랜덤 테스트',
-      note: randomQuest.complete ? '오늘 랜덤 테스트를 마쳤어요' : '오늘 만난 것을 다 섞어서 쉰 문제',
+      note: randomQuest.complete ? '오늘 랜덤 테스트를 마쳤어요' : `오늘 만난 것을 다 섞어서 ${randomQuest.count || 50}문제`,
       done: randomQuest.done, total: randomQuest.total, icon: <IconFlame />, onClick: onStartRandomTest,
     },
   ].filter(Boolean);
   const missionDone = missions.filter((m) => m.done >= m.total).length;
+  /* 큰 버튼의 말 — 오늘 아무것도 안 했으면 「오늘 학습 시작」, 하나라도 했으면 「다음: ○○」. 둘째 줄은 그 단계에 남은 양 */
+  const started = missions.some((m) => m.done > 0);
+  const flowNote = (() => {
+    if (!flowNow) return '';
+    const k = flowNow.key;
+    if (k === 'review') return `복습 ${backLeft}개 · 약 ${ctaMinutes}분`;
+    /* 첫 줄이 「다음: 쭉 퀴즈」면 둘째 줄에서 이름을 또 말하지 않는다 */
+    const named = (detail) => (started ? detail : `${flowNow.label} · ${detail}`);
+    if (k === 'weakquiz') return named(`약한 낱말 ${Math.max(0, (weakQuiz?.total || 0) - (weakQuiz?.done || 0))}문제`);
+    if (k === 'stream') return named(`외운 것을 이어서 ${Math.max(0, (streamQuest?.total || 0) - (streamQuest?.done || 0))}문제`);
+    if (k === 'fresh') return named(freshMix);
+    if (k === 'sentence') return named(`새 문장 ${Math.max(0, (sentenceQuest?.total || 0) - (sentenceQuest?.done || 0))}개 · 배우고 조립해 봐요`);
+    if (k === 'random') return named(`오늘 만난 것을 다 섞어서 ${randomQuest?.count || 50}문제`);
+    return started ? '퀘스트를 다 마쳤어요 · 코스로 이어 가요' : flowNow.label;
+  })();
 
   return (
     <HunterDashboard words={words} review={review} progress={progress} stats={stats} streak={streak} settings={settings} onOpen={onOpen} onSettings={onSettings} onReview={onOpenReview} onStartRegionExam={onStartRegionExam} onOpenProgress={onOpenProgress} homeResetKey={homeResetKey}>
@@ -157,21 +176,29 @@ export default function Today({
       {/* ★ 누를 것은 하나 ★ 하던 게 있으면 이어하기, 없으면 오늘 학습 시작.
           복습이 남았으면 복습(약점 포함)만 돈다. 새 단어는 새로 배우기 퀘스트에서 —
           복습이 없는 날만 새로 배우기부터 시작한다. */}
-      {!allDone && (
-        <button className="bigcta" onClick={resuming ? onResume : onStartAll}>
+      {(!allDone || flowNow) && (
+        <button className="bigcta" data-step={resuming ? 'resume' : (flowNow?.key || 'start')} onClick={resuming ? onResume : (flowNow ? flowNow.go : onStartAll)}>
           <span className="bc-icon"><IconPlay /></span>
           <span className="bc-body">
-            <b>{resuming ? '이어하기' : '오늘 학습 시작'}</b>
+            <b>{resuming ? '이어하기' : (flowNow && started ? `다음: ${flowNow.label}` : '오늘 학습 시작')}</b>
             <span>
               {resuming
                 ? `${resumeLabel || '학습'} · ${session.round}회독 · ${session.queue.length}개 남음`
-                : (planNow?.assigned > 0
-                  /* 큰 버튼은 복습부터 한다(새 단어는 새로 배우기 퀘스트에서). 복습이 없는 날만 새로 배우기부터 */
-                  ? `${backLeft > 0 ? '복습' : '새로 배우기'} ${ctaCount}개 · 약 ${ctaMinutes}분`
-                  : '오늘 배정된 게 없어요 — 학습 탭에서 골라 보세요')}
+                : flowNow
+                  ? flowNote
+                  : (planNow?.assigned > 0
+                    /* 큰 버튼은 복습부터 한다(새 단어는 새로 배우기 퀘스트에서). 복습이 없는 날만 새로 배우기부터 */
+                    ? `${backLeft > 0 ? '복습' : '새로 배우기'} ${ctaCount}개 · 약 ${ctaMinutes}분`
+                    : '오늘 배정된 게 없어요 — 학습 탭에서 골라 보세요')}
             </span>
           </span>
           <IconChevron className="chev" />
+        </button>
+      )}
+      {/* 지금 차례가 아닌 판이 남아 있으면 큰 버튼 밑에 작게 둔다 — 길은 남기되 순서를 어지럽히지 않는다 */}
+      {hasSession && !resuming && (
+        <button className="td-resume-other" onClick={onResume}>
+          하던 판 이어하기 · {resumeLabel || '학습'} {session.queue.length}개 남음
         </button>
       )}
 
@@ -182,8 +209,11 @@ export default function Today({
       {/* ★ 계획을 다 하면 거기서 끝이다 ★ 더 하고 싶으면 명시적으로 늘린다. */}
       {allDone && (
         <div className="td-done">
-          <b>오늘 학습 완료</b>
-          <span>오늘 정한 {planNow.assigned}개를 마쳤어요. 내일 복습으로 다시 만나요.</span>
+          {/* 카드만 끝났고 퀘스트가 남았으면 「오늘 학습 완료」라고 하지 않는다 — 위에 남은 퀘스트가 보이는데 다 했다고 하면 어긋난다 */}
+          <b>{flowNow ? '오늘 카드 학습 완료' : '오늘 학습 완료'}</b>
+          <span>{flowNow
+            ? `오늘 정한 카드 ${planNow.assigned}개를 마쳤어요. 남은 퀘스트는 위 버튼으로 이어 가요.`
+            : `오늘 정한 ${planNow.assigned}개를 마쳤어요. 내일 복습으로 다시 만나요.`}</span>
           <button className="ghost-btn td-more" onClick={() => onLearnMore(10)}>
             10개 더 배우기
           </button>

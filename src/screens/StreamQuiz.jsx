@@ -37,6 +37,8 @@ export default function StreamQuiz({
   words, review, progress, settings, sentenceCards, onVerdicts, onActivity, onToast, onExit, onAttempt, onAnswered,
   /* 하루 흐름 — 쭉 퀴즈 오늘 몫(스무 문제)을 마치면 다음 단계를 바로 내민다. next = { label, go } */
   next = null, questDone = false, seenToday = null, onHome = null,
+  /* 퀘스트 줄 · 하루 흐름으로 들어왔다 — 설정 화면(한 번에 몇 문제)을 건너뛰고 바로 첫 문제를 낸다 */
+  autoStart = false,
 }) {
   const goal = goalOf(settings);
   const [n3, setN3] = useState(null);
@@ -117,6 +119,16 @@ export default function StreamQuiz({
     questShown.current = questDone;   // 이미 오늘 몫을 마치고 다시 들어온 판은 끊지 않는다
     setCur(first); setAnswered(null); setTyped(''); setPhase('run');
   };
+
+  /* ★ 퀘스트로 들어왔으면 바로 시작한다 ★ 자료가 준비되는 대로 한 번만. 풀 문제가 모자라면(MIN_POOL) 소개 화면에 남아
+     왜 안 열리는지 알려 준다. 그만하고 다시 소개로 돌아왔을 때 또 저절로 시작하지는 않는다. */
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!autoStart || autoStarted.current || phase !== 'intro' || !live || live.length < MIN_POOL) return;
+    autoStarted.current = true;
+    start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, phase, live]);
 
   /* 한 묶음(기본 20문제)을 다 풀었으면 다음 문제 대신 멈춰서 묻는다 */
   const goNext = useCallback(() => {

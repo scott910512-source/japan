@@ -29,8 +29,9 @@ import { MemoContext } from './lib/memoContext.js';
 import { REGION_RULES, REGION_QUIZ_MIN, regionQuizIds, noteRegionExam, PASS_RATIO } from './lib/regions.js';
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
+import { MIN_POOL as STREAM_MIN_POOL } from './lib/stream.js';
 import { questsOf, sealQuests, sealedProgress, noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE } from './lib/quests.js';
-import { nextStep, stepOfDeck, randomTestIds, n3Open, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
+import { FLOW, FLOW_LABEL, nextStep, stepOfDeck, randomTestIds, n3Open, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
 import { todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
@@ -354,11 +355,19 @@ export default function App() {
     });
   }, [noteWeakness, setProgress, today]);
   /* ★ 쭉 퀴즈 퀘스트 ★ 스무 문제. 쭉 퀴즈가 한 문제 풀 때마다 오늘 몫에 적는다 */
-  const streamQuest = useMemo(() => streamQuestState(progress, wordStat.seen > 0, today), [progress, wordStat.seen, today]);
+  /* 풀 수 있을 때만 줄을 세운다 — 쭉 퀴즈는 외운 것이 MIN_POOL개는 돼야 보기를 만든다. 한두 개 외운 사람에게 줄을 세우면
+     눌러도 「N개만 더 배우면 열려요」만 뜨고, 하루 흐름과 큰 버튼이 그 막힌 화면으로 보낸다. */
+  const memorized = useMemo(() => Object.values(review).filter((st) => st?.lastSeen).length, [review]);
+  const streamQuest = useMemo(() => streamQuestState(progress, memorized >= STREAM_MIN_POOL, today), [progress, memorized, today]);
   const onStreamAnswered = useCallback(() => {
     setProgress((p) => ({ ...p, quests: noteQuest(p.quests, 'stream', 1, today) }));
   }, [setProgress, today]);
-  const startStreamQuest = useCallback(() => { setActiveTab('me'); openSub('stream'); }, [setActiveTab, openSub]);
+  /* ★ 퀘스트로 들어온 쭉 퀴즈는 설정을 묻지 않고 바로 시작한다 ★
+     약점 퀴즈에서 「다음: 쭉 퀴즈」로 넘어오면 문제가 아니라 「한 번에 몇 문제」를 고르는 화면이 떠서 흐름이 끊겼다.
+     퀘스트 줄 · 하루 흐름으로 들어왔다는 표시를 달아 두고, 메뉴에서 연 쭉 퀴즈는 전처럼 설정부터 보여 준다. */
+  const [streamAuto, setStreamAuto] = useState(false);
+  useEffect(() => { if (sub !== 'stream') setStreamAuto(false); }, [sub]);
+  const startStreamQuest = useCallback(() => { setStreamAuto(true); setActiveTab('me'); openSub('stream'); }, [setActiveTab, openSub]);
 
   /* ★ 오늘 랜덤 테스트 ★ 오늘 만난 낱말(오늘 계획 · 오늘 푼 약점 퀴즈)을 다 섞어서 쉰 문제. 모자라면 외운 낱말로 채운다.
      하루 흐름의 마지막 칸이라, 앞 단계를 다 하고 나서 한 번 본다. */
@@ -373,11 +382,16 @@ export default function App() {
   const randomOn = useRef(false);
   const [randomMode, setRandomMode] = useState(false);
   useEffect(() => { if (sub !== 'quiz') { randomOn.current = false; setRandomMode(false); } }, [sub]);
-  const randomAvailable = useMemo(
-    () => randomTestIds({ today: randomToday, seen: randomSeen, wordIds: wordIdSet, size: RANDOM_TEST_SIZE, rng: () => 0.5 }).length >= RANDOM_TEST_MIN,
+  const randomCount = useMemo(
+    () => randomTestIds({ today: randomToday, seen: randomSeen, wordIds: wordIdSet, size: RANDOM_TEST_SIZE, rng: () => 0.5 }).length,
     [randomToday, randomSeen, wordIdSet],
   );
-  const randomQuest = useMemo(() => randomQuestState(progress, randomAvailable, today), [progress, randomAvailable, today]);
+  const randomAvailable = randomCount >= RANDOM_TEST_MIN;
+  /* 줄에 적는 문제 수는 실제로 낼 수 — 낼 낱말이 열일곱뿐인 날 「쉰 문제」라고 적어 놓고 「1 / 17」로 시작했다 */
+  const randomQuest = useMemo(() => {
+    const q = randomQuestState(progress, randomAvailable, today);
+    return q ? { ...q, count: randomCount } : q;
+  }, [progress, randomAvailable, randomCount, today]);
   const startRandomTest = useCallback(() => {
     const cards = randomTestIds({ today: randomToday, seen: randomSeen, wordIds: wordIdSet, size: RANDOM_TEST_SIZE })
       .map((id) => byId.get(id)).filter(Boolean);
@@ -489,6 +503,20 @@ export default function App() {
     const n = nextStep(step, flowOpen);
     return n ? { ...n, go: () => goStep(n.to) } : null;
   };
+  /* ★ 오늘 화면의 큰 버튼은 지금 차례인 퀘스트를 연다 ★
+     큰 버튼은 「복습이 남았으면 복습, 아니면 새로 배우기」만 알았다. 복습과 약점 퀴즈를 마친 사람에게 퀘스트 줄은
+     「3 쭉 퀴즈」를 가리키는데 큰 버튼은 새 단어를 열어서 순서가 어긋났다. 퀘스트 줄과 같은 순서(FLOW)에서
+     아직 안 마친 첫 단계가 지금 차례다. 카드 판(복습 · 새로 배우기)은 하던 판이 있으면 접을지 묻고 연다. */
+  const stepNow = FLOW.find((s) => flowOpen[s]) || null;
+  const flowNow = stepNow ? {
+    key: stepNow,
+    label: FLOW_LABEL[stepNow],
+    go: () => {
+      if (stepNow === 'review') guardDeck(() => startToday(['review', 'weak']), LANE_DECK(['review', 'weak']));
+      else if (stepNow === 'fresh') guardDeck(() => startToday(['fresh']), LANE_DECK(['fresh']));
+      else goStep(stepNow);
+    },
+  } : null;
   /* ★ 틀린 단어를 카드로 외우는 판도 하루 흐름을 잇는다 ★
      약점 퀴즈(또는 오늘 랜덤 테스트)의 결과에서 「카드로 외우기」로 넘어가면 그 판이 끝난 뒤 「오늘로」만 남아서
      쭉 퀴즈로 이어지던 길이 끊겼다. 어느 단계에서 넘어왔는지 적어 두고, 판이 끝나면 그다음 단계를 내민다. */
@@ -690,6 +718,8 @@ export default function App() {
             streak={streak}
             session={session}
             resumeLabel={session?.label}
+            flowNow={flowNow}
+            sessionStep={stepOfDeck(session?.deckId)}
             grammarLeft={grammarLeft}
             grammarNext={grammarNext}
             /* ★ 주요 버튼 하나 ★ 갈래를 안 주면 배정된 것을 순서대로 다 돈다. */
@@ -922,6 +952,7 @@ export default function App() {
                 composeNext={flowAfter('sentence')}
                 seenToday={streamSeenToday}
                 streamNext={flowAfter('stream')}
+                streamAuto={streamAuto}
                 streamQuestDone={!streamQuest || streamQuest.complete}
                 onStreamAnswered={onStreamAnswered}
               />
