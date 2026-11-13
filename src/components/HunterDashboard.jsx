@@ -27,7 +27,7 @@ const HOME_TABS = [
   { id: 'record', title: '기록', sub: '헌터 성장' },
 ];
 
-export default function HunterDashboard({ children, words, review, progress, stats, streak, settings, onOpen, onSettings, onReview, onOpenProgress, onStartRegionExam, homeResetKey }) {
+export default function HunterDashboard({ children, words, review, progress, stats, streak, settings, onOpen, onSettings, onReview, onOpenProgress, onStartRegionExam, homeResetKey, onAsk = null }) {
   const profile = useMemo(() => hunterProfile({ words, review, progress }), [words, review, progress]);
   const lastReward = useRef({ xp: profile.xp, level: profile.level });
   const [reward, setReward] = useState(null);
@@ -70,6 +70,13 @@ export default function HunterDashboard({ children, words, review, progress, sta
     <header className="hunter-top">
       <div className="hunter-brand"><span className="hunter-brand-mark" aria-hidden="true">H<span>×</span>H</span><div><small>YOUR JAPANESE ADVENTURE</small><h1><span lang="ja">日本語</span> HUNTER</h1></div></div>
       <div className="hunter-top-stats"><span>🔥 <b>{streak.count || 0}일</b> 연속</span><span>◆ <b>{profile.xp.toLocaleString()}</b> XP</span><span>♛ <b>Lv. {profile.level}</b></span></div>
+      {/* 곤에게 물어보기(AI) — 떠 있던 단추가 퀘스트 줄 오른쪽을 가려서 머리로 올렸다. 다른 화면의 상단 곤 얼굴과 같은 단추다 */}
+      {onAsk && (
+        <button type="button" className="hunter-app-ask hunter-top-ask" onClick={onAsk} aria-label="곤에게 물어보기 (AI)">
+          <img src={guide.portrait} alt="" onError={(event) => { event.currentTarget.style.visibility = 'hidden'; }} />
+          <span className="hunter-app-ai" aria-hidden="true">AI</span>
+        </button>
+      )}
     </header>
     <div className="hunter-welcome"><HunterGuide guide={guide} celebrate={Boolean(profile.seen)} /><div><small>{guide.name} · {guide.role}</small><h2>오늘도 한 걸음, 헌터의 길!</h2><p>{guide.quote}</p></div><span className="hunter-welcome-seal">HUNTER<br />EXAM<br /><b>N5 → N3</b></span></div>
     <div className="hunter-home-navigation">

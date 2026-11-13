@@ -703,6 +703,7 @@ export default function App() {
 
           <Today
             homeResetKey={homeResetKey}
+            onAsk={() => setGonOpen(true)}
             wrongCount={wrongTotal.total}
             onOpenWrong={() => openSub('wrongbook', 'home')}
             onStartRegionExam={startRegionExam}
@@ -996,9 +997,9 @@ export default function App() {
           prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
         ))}
         onToast={showToast}
-        /* 상단 바가 있는 화면(오늘이 아닌 탭 · 하위 화면)에서는 떠 있는 단추를 두지 않는다 — 아래 버튼을 가리던 것을
-           상단 곤 얼굴이 대신 연다. 창은 그대로 같은 것이다. */
-        hidden={onboardingOpen || activeTab !== 'home' || Boolean(sub)}
+        /* 떠 있는 단추는 두지 않는다 — 아래 버튼과 퀘스트 줄의 오른쪽(진행 숫자 · 화살표)을 가렸다.
+           어느 탭에서나 상단의 곤 얼굴이 연다(오늘 화면은 제 머리에, 다른 화면은 상단 바에). 창은 그대로 같은 것이다. */
+        hidden
         open={gonOpen}
         onOpenChange={setGonOpen}
       />

@@ -6,7 +6,7 @@ import { questionTutor, TUTORS } from '../data/hunterTutors.js';
 import { speakJapanese, readingText } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { resolveProvider } from '../lib/aiClient.js';
-import { MAX_QUESTION_CHARS, ask, askKey, findAsk, rememberAsk } from '../lib/ask.js';
+import { MAX_QUESTION_CHARS, ASK_PRESET, ask, askKey, findAsk, hasKanji, presetQuestion, rememberAsk } from '../lib/ask.js';
 
 /* 공부하다 떠오른 걸 물어보는 창.
  *
@@ -37,6 +37,8 @@ function toCard(item, from) {
 export default function AskSheet({
   open, card, settings, history, onHistory, onAddWord, onClose, onToast,
   guide = null, title = '궁금한 거 물어보기',
+  /* 외우는 법을 골라 그 카드의 메모에 담는다 — 카드를 보고 물을 때만(memoText는 지금 메모) */
+  onSaveMemo = null, memoText = '',
 }) {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
@@ -85,8 +87,18 @@ export default function AskSheet({
     };
   }, [open]);
 
-  const run = async () => {
-    const text = q.trim();
+  /* ★ 눌러서 묻는 두 가지: 한자 설명 · 외우는 법 ★
+     글상자에 적은 것이 있으면 그것을, 없으면 지금 보는 카드를 두고 묻는다. 정해 둔 글로 묻는 것뿐이라 같은 기록에 남는다. */
+  const target = () => q.trim() || card?.kanji || card?.kana || '';
+  const runPreset = (kind) => {
+    const t = target();
+    if (!t) { setErr('설명할 낱말이나 한자를 글상자에 적고 눌러 주세요.'); return; }
+    if (kind === ASK_PRESET.KANJI && !hasKanji(t)) { setErr(`「${t}」에는 한자가 없어요. 한자가 든 낱말을 적고 눌러 주세요.`); return; }
+    run(presetQuestion(kind, t));
+  };
+
+  const run = async (preset = '') => {
+    const text = (typeof preset === 'string' && preset) ? preset : q.trim();
     if (!text || busy) return;
     setErr('');
 
@@ -166,9 +178,14 @@ export default function AskSheet({
             readOnly={busy}
             aria-busy={busy}
           />
-          <button className="submit-btn" disabled={busy || !q.trim() || !ai.apiKey} onClick={run}>
+          <button className="submit-btn" disabled={busy || !q.trim() || !ai.apiKey} onClick={() => run()}>
             {busy ? '물어보는 중…' : '물어보기'}
           </button>
+          {/* 자주 묻는 두 가지는 눌러서 — 글상자에 적은 낱말(없으면 지금 카드)을 두고 묻는다 */}
+          <div className="ask-presets" role="group" aria-label="바로 묻기">
+            <button type="button" className="ask-preset" data-preset="kanji" disabled={busy || !ai.apiKey} onClick={() => runPreset(ASK_PRESET.KANJI)}>한자 설명</button>
+            <button type="button" className="ask-preset" data-preset="memo" disabled={busy || !ai.apiKey} onClick={() => runPreset(ASK_PRESET.MEMO)}>외우는 법 추천</button>
+          </div>
         </div>
 
         {!ai.apiKey && (
@@ -180,8 +197,8 @@ export default function AskSheet({
         {ai.apiKey && !shown && !err && (
           <p className="set-note">
             {card
-              ? '지금 보는 카드를 같이 보내니까 「이거 언제 써?」처럼 짧게 물어도 알아들어요. 공부하다 옆길로 새는 용이라 답은 짧게 옵니다.'
-              : '일본어 공부하다 궁금한 건 뭐든 물어보세요. 어떤 카드를 보고 있는지는 몰라서, 물어볼 표현을 같이 적어 주세요. 답은 짧게 옵니다.'}
+              ? '지금 보는 카드를 같이 보내니까 「이거 언제 써?」처럼 짧게 물어도 알아들어요. 「한자 설명」은 한국 한자음과 글자의 짜임을, 「외우는 법 추천」은 짧은 연상 문구를 알려 줘요.'
+              : '일본어 공부하다 궁금한 건 뭐든 물어보세요. 낱말을 적고 「한자 설명」이나 「외우는 법 추천」을 누르면 그 낱말로 물어봐요. 답은 짧게 옵니다.'}
           </p>
         )}
         {err && <p className="ask-err">{err}</p>}
@@ -192,7 +209,33 @@ export default function AskSheet({
             <HunterTutor guide={guide || questionTutor(shown.q)} scene="city" title="궁금한 표현 설명" line="지금 질문한 내용과 카드의 표현을 함께 살펴봐요." compact>
               <p className="ask-text">{shown.answer}</p>
             </HunterTutor>
-            {shown.items.map((it) => (
+            {/* 한자 설명 — 글자마다: 한국 한자음 · 한국어에서의 쓰임 · 짜임 · 덧붙임 */}
+            {(shown.kanji || []).map((k) => (
+              <div key={k.char} className="ask-kanji">
+                <div className="ask-ktop"><b lang="ja">{k.char}</b>{k.hanja && <span>{k.hanja}</span>}</div>
+                {k.korean && <p><i>한국어에서</i>{k.korean}</p>}
+                {k.parts && <p><i>짜임</i>{k.parts}</p>}
+                {k.more && <p><i>덧붙임</i>{k.more}</p>}
+              </div>
+            ))}
+            {/* 외우는 법 — 마음에 드는 것을 골라 카드 메모에 담는다 */}
+            {(shown.tips || []).map((t, i) => (
+              <div key={`${i}:${t.text}`} className="ask-tip">
+                <p>{t.kind && <i>{t.kind}</i>}{t.text}</p>
+                {onSaveMemo && card?.id && shown.cardId === card.id && (
+                  <button
+                    type="button" className="ghost-btn ask-usetip"
+                    onClick={() => {
+                      const cur = String(memoText || '').trim();
+                      if (cur.includes(t.text)) { onToast?.('이미 메모에 있어요'); return; }
+                      onSaveMemo(card.id, cur ? `${cur}\n${t.text}` : t.text);
+                      onToast?.('외우는 법 메모에 담았어요');
+                    }}
+                  >이걸로 외울게요</button>
+                )}
+              </div>
+            ))}
+            {(shown.items || []).map((it) => (
               <div key={it.jp} className="ask-item">
                 <div className="ask-itop">
                   <b>{it.jp}</b>

@@ -648,6 +648,8 @@ export default function Study({
         onAddWord={onAddWord}
         onClose={() => setAsking(false)}
         onToast={onToast}
+        onSaveMemo={onSaveMemo}
+        memoText={memos?.[word?.id]?.text || ''}
       />
     </div>
   );

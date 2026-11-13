@@ -38,7 +38,7 @@ const readyShown = (s) => {
 };
 
 export default function Today({
-  plan, planNow, settings, streak, session, resumeLabel, flowNow = null, sessionStep = null,
+  plan, planNow, settings, streak, session, resumeLabel, flowNow = null, sessionStep = null, onAsk = null,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
   onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, sentenceQuest = null, onStartSentenceQuest, onSkipSentenceQuest, onUndoSkipSentenceQuest, onOpenProgress, wrongCount = 0, onOpenWrong, onStartRegionExam, questSeal = null,
 }) {
@@ -147,7 +147,7 @@ export default function Today({
   })();
 
   return (
-    <HunterDashboard words={words} review={review} progress={progress} stats={stats} streak={streak} settings={settings} onOpen={onOpen} onSettings={onSettings} onReview={onOpenReview} onStartRegionExam={onStartRegionExam} onOpenProgress={onOpenProgress} homeResetKey={homeResetKey}>
+    <HunterDashboard words={words} review={review} progress={progress} stats={stats} streak={streak} settings={settings} onOpen={onOpen} onSettings={onSettings} onReview={onOpenReview} onStartRegionExam={onStartRegionExam} onOpenProgress={onOpenProgress} homeResetKey={homeResetKey} onAsk={onAsk}>
       <div className="hunter-today-main">
       {/* 머리는 한 줄로. 여기에 장식을 얹으면 정작 눌러야 할 것이 아래로 밀린다 */}
       <div className="tdhead">

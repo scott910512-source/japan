@@ -58,6 +58,9 @@
 .hunter-tabpanel[hidden] { display: none !important; }
 .hunter-home-tabs .hunter-tabpanel { grid-column: auto; grid-row: auto; }
 .hunter-home-tabs .hunter-top { margin-bottom: 12px; gap: 12px; }
+.hunter-top-ask { flex: 0 0 auto; margin: -3px -3px -3px 0; }
+.hunter-top-ask img { width: 38px; height: 38px; object-fit: cover; border: 1px solid #afd78d88; border-radius: 50%; background: #fffaf0; }
+.hunter-home-tabs .hunter-top-stats { margin-left: auto; }
 .hunter-home-tabs .hunter-brand h1 { font-size: 23px; }
 .hunter-home-tabs .hunter-top-stats > span { padding: 7px 11px; }
 .hunter-home-tabs .hunter-welcome { min-height: 98px; border-radius: 16px; gap: 12px; padding-left: 6px; }
