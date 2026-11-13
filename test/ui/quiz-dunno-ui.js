@@ -132,7 +132,7 @@ async function startWordQuiz(page) {
     await page.locator('.qtyping input').fill(w.kana);
     await page.locator('.qtyping .submit-btn').click();      // 맞히면 0.8초 뒤 저절로 다음 문제(터치 기기)
     await page.waitForTimeout(150);
-    await page.locator('.hunter-app-ask').click();         // 퀴즈 화면은 상단 곤 얼굴이 연다
+    await page.locator('.hunter-appbar .hunter-app-ask').click();         // 퀴즈 화면은 상단 곤 얼굴이 연다
     await page.waitForTimeout(450);                          // 질문 창 초점이 자리 잡을 시간
     const ta = page.locator('.asksheet textarea');
     ok('질문 창이 열렸다', await ta.count() === 1);
@@ -156,8 +156,8 @@ async function startWordQuiz(page) {
     await page.locator('.qopt').first().click();
     await page.waitForTimeout(500);
     ok('★ 답을 본 뒤 「다음 문제」가 화면 아래에 붙어 있어 스크롤 없이 누른다 ★', (await page.locator('.qnext .submit-btn').count()) === 0 || await inView('.qnext .submit-btn'));
-    await page.locator('.hunter-app-ask').waitFor({ timeout: 3000 }).catch(() => {});
-    ok('퀴즈 화면에는 떠 있는 곤 단추가 없다(상단 곤 얼굴이 연다)', await page.locator('.gonfab').count() === 0 && await page.locator('.hunter-app-ask').count() === 1);
+    await page.locator('.hunter-appbar .hunter-app-ask').waitFor({ timeout: 3000 }).catch(() => {});
+    ok('퀴즈 화면에는 떠 있는 곤 단추가 없다(상단 곤 얼굴이 연다)', await page.locator('.gonfab').count() === 0 && await page.locator('.hunter-appbar .hunter-app-ask').count() === 1);
     await page.close();
     const p2 = await boot(browser, { touch: true, size: { width: 375, height: 667 } });
     p2.on('pageerror', (e) => errors.push(e.message));
