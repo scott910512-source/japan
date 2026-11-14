@@ -11,15 +11,20 @@ const KEEP_MONTHS = 6;
 
 // 목소리 등급별 월 무료 한도(글자). 등급이 섞이면 각각 따로 계산되지만,
 // 우리는 한 번에 한 목소리만 쓰므로 지금 고른 목소리 기준으로 보여준다.
+/* 구글 요금표(2026-11 확인): Chirp 3 HD · Neural2 · Studio는 월 100만 자, WaveNet · Standard는 월 400만 자 */
 export const FREE_LIMITS = {
   standard: 4_000_000,
-  wavenet: 1_000_000,
+  wavenet: 4_000_000,
   neural2: 1_000_000,
-  studio: 100_000,
+  chirp: 1_000_000,
+  studio: 1_000_000,
 };
+/* 무료 분량을 넘은 뒤 100만 자당 요금(달러) */
+export const PRICE_PER_MILLION = { standard: 4, wavenet: 4, neural2: 16, chirp: 30, studio: 160 };
 
 export function tierOfVoice(voice = '') {
   const v = String(voice).toLowerCase();
+  if (v.includes('chirp')) return 'chirp';
   if (v.includes('studio')) return 'studio';
   if (v.includes('neural')) return 'neural2';
   if (v.includes('wavenet')) return 'wavenet';

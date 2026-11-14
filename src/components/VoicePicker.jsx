@@ -25,28 +25,38 @@ export default function VoicePicker({ settings, onChange, cloudReady }) {
 
   const preview = () => speakJapanese(SAMPLE, settings.speechRate);
 
+  const cell = (v) => (
+    <button
+      key={v.id}
+      className={`voicecell${settings.gttsVoice === v.id ? ' active' : ''}`}
+      data-voice={v.id}
+      aria-pressed={settings.gttsVoice === v.id}
+      onClick={() => { onChange({ gttsVoice: v.id }); setTimeout(preview, 120); }}
+    >
+      <span className="vc-label">{v.label}</span>
+      <span className="vc-tier">{v.tier}</span>
+    </button>
+  );
+
   if (cloudReady) {
     return (
       <div className="setrow col">
         <div className="set-title">목소리</div>
+        {/* 회화형을 맨 위에 따로 둔다 — 긴 글 · 일상 회화를 사람이 말하듯 읽는다 */}
+        <div className="voicegroup">회화형 <i>사람이 말하듯 읽어요 · 이야기 듣기에 좋아요</i></div>
+        <div className="voicegrid talk">
+          {CLOUD_VOICES.filter((v) => v.talk).map(cell)}
+        </div>
+        <div className="voicegroup">낭독형 <i>또박또박 읽어요</i></div>
         <div className="voicegrid">
-          {CLOUD_VOICES.map((v) => (
-            <button
-              key={v.id}
-              className={`voicecell${settings.gttsVoice === v.id ? ' active' : ''}`}
-              onClick={() => { onChange({ gttsVoice: v.id }); setTimeout(preview, 120); }}
-            >
-              <span className="vc-label">{v.label}</span>
-              <span className="vc-tier">{v.tier}</span>
-            </button>
-          ))}
+          {CLOUD_VOICES.filter((v) => !v.talk).map(cell)}
         </div>
         <button className="ghost-btn" style={{ width: '100%', marginTop: 10 }} onClick={preview}>
           <IconSpeaker /> 지금 목소리로 들어보기
         </button>
         <div className="set-note">
-          Neural2가 가장 자연스러워요. 프로젝트에 따라 못 쓰는 목소리가 있으면
-          다른 걸 골라 주세요.
+          회화형은 월 100만 자까지 무료이고, 넘으면 100만 자당 약 30달러예요(낭독형 Neural2는 16달러).
+          낭독형 중에서는 Neural2가 가장 자연스러워요. 키에 따라 못 쓰는 목소리는 「여성 1」로 대신 읽고 알려 드려요.
         </div>
       </div>
     );
