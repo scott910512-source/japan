@@ -6,8 +6,10 @@ import {
   nextStoryAt, addStories, removeStory, loadStories, saveStories, loadStoryPos, saveStoryPos, resumeAt, loadStoryPrefs, saveStoryPrefs,
   mergeStoryStore, sameStoryStore, loadStoryRemoved, saveStoryRemoved,
   STORY_SIZES, STORY_VOICES, buildGlossIndex, glossSentence,
+  isBuiltinStory, withBuiltin,
 } from '../../src/lib/story.js';
 import { mergeVideos } from '../../src/lib/merge.js';
+import { BUILTIN_STORIES } from '../../src/data/stories.js';
 let pass = 0;
 function check(label, run) { run(); pass++; console.log('✓', label); }
 const memory = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; };
@@ -263,5 +265,38 @@ check('★ 영상 묶음에 실린다: 이야기가 계정 칸(videos)으로 같
   /* 옛 버전이 올린 줄(stories가 없다)과 합쳐도 이 기기의 이야기는 남는다 */
   assert.equal(mergeVideos({ list: [], stories: { list: [one('a', 10)] } }, { list: [] }).stories.list.length, 1);
   assert.deepEqual(mergeVideos({}, {}).stories, { list: [], removed: {} });
+});
+check('★ 앱 기본 회화: 네 편, 문장마다 해석과 말하는 사람이 있다 ★', () => {
+  const clean = BUILTIN_STORIES.map((s) => cleanStory(s, 0));
+  assert.deepEqual(clean.map((s) => s.id), ['app:izakaya', 'app:smalltalk', 'app:shopping', 'app:hotel']);
+  for (const s of clean) {
+    const flat = flatStory(s);
+    assert.ok(isBuiltinStory(s), s.id);
+    assert.ok(flat.length >= 40 && flat.length <= 80, `${s.id} ${flat.length}문장`);
+    assert.ok(s.sections.length === 4 && s.sections.every((x) => x.title && x.titleKo), s.id);
+    for (const l of flat) {
+      assert.ok(l.ko && l.who, `${s.id}: ${l.jp}`);
+      assert.ok(/[。！？]$/.test(l.jp), `문장 끝: ${l.jp}`);
+      assert.ok(!/[가-힣]/.test(l.jp), `일본어 칸에 한글: ${l.jp}`);
+      assert.ok([...l.jp].length <= 45, `너무 긴 문장: ${l.jp}`);
+      assert.deepEqual(splitSentences(l.jp), [l.jp], `한 칸에 한 문장: ${l.jp}`);
+    }
+    /* 한 묶음은 한 사람이 이어서 하는 말이다 */
+    for (const sec of s.sections) for (const para of sec.paras) assert.equal(new Set(para.map((l) => l.who)).size, 1);
+  }
+});
+check('기본 회화는 내 이야기 뒤에 붙고, 같은 id를 내가 불러왔으면 내 것이 이긴다', () => {
+  const mine = [one('a', 10), { ...one('app:hotel', 20), title: '내가 고친 것' }];
+  const built = [{ id: 'app:izakaya', title: 'i' }, { id: 'app:hotel', title: 'h' }];
+  const all = withBuiltin(mine, built);
+  assert.deepEqual(all.map((s) => s.id), ['a', 'app:hotel', 'app:izakaya']);
+  assert.equal(all[1].title, '내가 고친 것');
+  assert.deepEqual(withBuiltin([], built).map((s) => s.id), ['app:izakaya', 'app:hotel']);
+  assert.ok(!isBuiltinStory(one('a', 1)) && !isBuiltinStory(null));
+});
+check('말하는 사람(who)은 있을 때만 남는다 — 화면용이고 글자 수 · 문장 나누기에는 안 들어간다', () => {
+  const s = cleanStory({ title: 't', sections: [{ paras: [[{ who: '점원', jp: 'いらっしゃいませ。', ko: '어서 오세요.' }, { jp: 'はい。' }]] }] }, 1);
+  assert.deepEqual(s.sections[0].paras[0], [{ jp: 'いらっしゃいませ。', ko: '어서 오세요.', who: '점원' }, { jp: 'はい。' }]);
+  assert.deepEqual(flatStory(s).map((l) => l.who), ['점원', '']);
 });
 console.log(`통과 ${pass} / 실패 0`);

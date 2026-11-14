@@ -549,6 +549,10 @@
 .sl-size small { font-size: 11px; font-weight: 700; color: var(--ink-soft); }
 .sl-hint { font-weight: 500; }
 /* 눌러서 고른 문장 — 해석과 낱말 뜻 */
+.sl-who { display: inline-block; margin-right: .45em; padding: 0 .5em; border-radius: 100px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); font-style: normal; font-size: .58em; font-weight: 700; vertical-align: .22em; line-height: 1.6; }
+.sl-kowho { display: inline-block; margin-right: 8px; padding: 0 8px; border-radius: 100px; border: 1px solid var(--line); font-style: normal; font-size: .8em; font-weight: 700; color: var(--ink-soft); }
+.sl-grouplabel { margin: 14px 0 6px; }
+.sl-grouplabel span { font-weight: 600; color: var(--ink-soft); margin-left: 6px; text-transform: none; letter-spacing: 0; }
 .sl-s.sel { outline: 2px dashed var(--kon); outline-offset: 1px; }
 .sl-pick { display: grid; gap: 7px; padding: 8px 10px 10px; border: 1px solid var(--kon); border-radius: 12px; background: var(--paper); max-height: 40vh; overflow: auto; }
 .sl-pickhead { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--ink-soft); }

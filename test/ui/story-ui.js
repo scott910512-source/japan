@@ -111,19 +111,36 @@ URL: https://www.youtube.com/watch?v=abcdef12345
   console.log('\n[ 들어가기 · 비어 있는 화면 ]');
   await openListen(page, 'story');
   ok('듣기 고르기에서 「이야기 연속 듣기」가 열린다', await page.locator('.sl-setup').count() === 1 && (await page.locator('.subscreen.open .sub-title').innerText()).includes('이야기 연속 듣기'));
-  ok('★ 처음에는 이야기가 없다(글은 앱에 들어 있지 않다) ★', await page.locator('.sl-empty').count() === 1 && await page.locator('.sl-item').count() === 0 && await page.locator('.sl-start').count() === 0);
+  ok('★ 처음에는 내 이야기는 없고(남의 글은 앱에 들어 있지 않다) 앱 기본 회화 4편이 있다 ★', await page.locator('.sl-item:not(.builtin)').count() === 0 && await page.locator('.sl-item.builtin').count() === 4 && await page.locator('.sl-grouplabel').count() === 1, (await page.locator('.sl-item.builtin b').allInnerTexts()).join(' · '));
+  ok('★ 기본 회화는 지울 수 없다(지우기 단추가 없다) ★', await page.locator('.sl-item.builtin .sl-del').count() === 0);
+  ok('★ 기본 회화는 기기 · 계정에 저장하지 않는다 ★', await page.evaluate(() => !(JSON.parse(localStorage.getItem('jp_manabu_stories_v1') || '[]')).length));
+  {
+    /* 기본 회화를 한 편 틀어 본다 — 말하는 사람이 화면에 보이고 소리로는 읽지 않는다 */
+    await page.locator('.sl-item[data-story="app:izakaya"] .sl-itembody').click();
+    await page.locator('.sl-start').first().click();
+    await page.waitForTimeout(1500);
+    const who = await page.locator('.sl-full .sl-who').allInnerTexts();
+    ok('★ 회화에는 말하는 사람이 보인다(점원 · 나 · 친구) ★', who.includes('점원') && who.includes('나') && who.includes('친구'), [...new Set(who)].join(' · '));
+    const said = await page.evaluate(() => window._spoken.map((x) => x.text));
+    ok('★ 말하는 사람 이름은 소리로 읽지 않는다 ★', said.length >= 1 && said[0] === 'いらっしゃいませ。' && !said.some((t) => /점원|나\b/.test(t)), said.slice(0, 2).join(' / '));
+    ok('해석 칸에도 누가 한 말인지 보인다', (await page.locator('.sl-bar .sl-ko').innerText()).includes('점원'));
+    ok('가로로 넘치지 않는다(회화)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.locator('.sl-quit').click();
+    await page.waitForTimeout(400);
+    await page.evaluate(() => { window._spoken.length = 0; localStorage.removeItem('jp_manabu_story_pos_v1'); });
+  }
 
   console.log('\n[ 파일 불러오기 ]');
   await upload([{ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{ 깨진 파일') }]);
   await page.waitForTimeout(500);
-  ok('못 읽는 파일은 알리고 아무것도 안 담는다', (await page.locator('.toast').innerText()).includes('읽을 수 없는') && await page.locator('.sl-item').count() === 0);
+  ok('못 읽는 파일은 알리고 아무것도 안 담는다', (await page.locator('.toast').innerText()).includes('읽을 수 없는') && await page.locator('.sl-item:not(.builtin)').count() === 0);
   await upload([
     { name: 'stories.json', mimeType: 'application/json', buffer: Buffer.from(STORY_JSON) },
     { name: 'garden.txt', mimeType: 'text/plain', buffer: Buffer.from(STORY_TXT) },
   ]);
   await page.waitForTimeout(600);
-  ok('★ json과 txt를 한꺼번에 불러온다 ★', await page.locator('.sl-item').count() === 2, (await page.locator('.toast').innerText()).trim());
-  const rows = (await page.locator('.sl-item').allInnerTexts()).map((t) => t.replace(/\s+/g, ' '));
+  ok('★ json과 txt를 한꺼번에 불러온다 ★', await page.locator('.sl-item:not(.builtin)').count() === 2, (await page.locator('.toast').innerText()).trim());
+  const rows = (await page.locator('.sl-item:not(.builtin)').allInnerTexts()).map((t) => t.replace(/\s+/g, ' '));
   ok('목록에 제목 · 급수 · 문장 수 · 해석 여부가 보인다', rows[0].includes('아침 이야기') && rows[0].includes('N5') && rows[0].includes('5문장') && rows[0].includes('해석 있음') && rows[1].includes('My small garden') && rows[1].includes('4문장') && !rows[1].includes('해석 있음'), rows.join(' | '));
   ok('★ 기기에 남는다 ★', await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_stories_v1') || '[]').length) === 2);
 
@@ -274,7 +291,7 @@ URL: https://www.youtube.com/watch?v=abcdef12345
   page.once('dialog', (d) => d.accept());
   await page.locator('.sl-item[data-story="yt-abcdef12345"] .sl-del').click();
   await page.waitForTimeout(400);
-  ok('지우면 목록과 기기에서 사라진다', await page.locator('.sl-item').count() === 1 && await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_stories_v1')).length) === 1);
+  ok('지우면 목록과 기기에서 사라진다', await page.locator('.sl-item:not(.builtin)').count() === 1 && await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_stories_v1')).length) === 1);
   for (let i = 0; i < 40 && !(server?.videos?.stories?.removed?.['yt-abcdef12345'] > 0); i += 1) await page.waitForTimeout(500);
   ok('★ 지운 표시도 계정으로 올라간다 ★', server?.videos?.stories?.removed?.['yt-abcdef12345'] > 0 && server.videos.stories.list.length === 1);
   const before = posts.length;
@@ -295,7 +312,7 @@ URL: https://www.youtube.com/watch?v=abcdef12345
     await p2.locator('.tabbar').waitFor({ state: 'attached', timeout: 30000 });
     await p2.waitForFunction(() => JSON.parse(localStorage.getItem('jp_manabu_stories_v1') || '[]').length > 0, null, { timeout: 20000 }).catch(() => {});
     await openListen(p2, 'story');
-    const rows2 = (await p2.locator('.sl-item').allInnerTexts()).map((t) => t.replace(/\s+/g, ' '));
+    const rows2 = (await p2.locator('.sl-item:not(.builtin)').allInnerTexts()).map((t) => t.replace(/\s+/g, ' '));
     ok('★ 파일을 안 불러와도 계정에 있던 이야기가 뜬다 ★', rows2.length === 1 && rows2[0].includes('아침 이야기') && rows2[0].includes('해석 있음'), rows2.join(' | '));
     ok('★ 다른 기기에서 지운 이야기는 안 뜬다 ★', await p2.locator('.sl-item[data-story="yt-abcdef12345"]').count() === 0);
     ok('듣던 자리는 기기마다 따로다(여기서는 처음부터)', await p2.locator('.sl-continue').count() === 0 && await p2.locator('.sl-first').count() === 1);
