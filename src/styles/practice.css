@@ -447,8 +447,11 @@
 .ask-ktop { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .ask-ktop b { font-size: 26px; font-weight: 700; line-height: 1.2; }
 .ask-ktop span { font-size: 14px; font-weight: 700; color: var(--kon); }
-.ask-kanji p, .ask-tip p { margin: 0; font-size: 13.5px; line-height: 1.65; overflow-wrap: anywhere; }
-.ask-kanji p i, .ask-tip p i { display: inline-block; margin-right: 6px; padding: 0 7px; border-radius: 100px; border: 1px solid var(--line); font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-soft); vertical-align: 1px; }
+.ask-word { margin-top: 10px; padding: 10px 12px; border: 1.5px solid var(--kon); border-radius: 12px; background: var(--kon-soft); display: grid; gap: 4px; }
+.ask-word b { font-size: 22px; font-weight: 700; line-height: 1.25; }
+.ask-word small { font-size: 11.5px; color: var(--ink-soft); }
+.ask-kanji p, .ask-tip p, .ask-word p { margin: 0; font-size: 13.5px; line-height: 1.65; overflow-wrap: anywhere; }
+.ask-kanji p i, .ask-tip p i, .ask-word p i, .ask-ktop span i { display: inline-block; margin-right: 6px; padding: 0 7px; border-radius: 100px; border: 1px solid var(--line); font-style: normal; font-size: 11px; font-weight: 700; color: var(--ink-soft); vertical-align: 1px; }
 .ask-tip { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 8px; }
 .ask-usetip { margin-top: 0; min-height: 38px; padding: 6px 12px; font-size: 12.5px; justify-self: start; }
 .ask-warn { margin: 12px 0 0; font-size: 11px; color: var(--ink-soft); }

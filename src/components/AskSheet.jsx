@@ -6,7 +6,7 @@ import { questionTutor, TUTORS } from '../data/hunterTutors.js';
 import { speakJapanese, readingText } from '../lib/tts.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { resolveProvider } from '../lib/aiClient.js';
-import { MAX_QUESTION_CHARS, ASK_PRESET, ask, askKey, findAsk, hasKanji, presetQuestion, rememberAsk } from '../lib/ask.js';
+import { MAX_QUESTION_CHARS, ASK_PRESET, ask, askKey, findAsk, presetQuestion, rememberAsk } from '../lib/ask.js';
 
 /* 공부하다 떠오른 걸 물어보는 창.
  *
@@ -93,11 +93,10 @@ export default function AskSheet({
   const runPreset = (kind) => {
     const t = target();
     if (!t) { setErr('설명할 낱말이나 한자를 글상자에 적고 눌러 주세요.'); return; }
-    if (kind === ASK_PRESET.KANJI && !hasKanji(t)) { setErr(`「${t}」에는 한자가 없어요. 한자가 든 낱말을 적고 눌러 주세요.`); return; }
-    run(presetQuestion(kind, t));
+    run(presetQuestion(kind, t), kind);
   };
 
-  const run = async (preset = '') => {
+  const run = async (preset = '', kind = '') => {
     const text = (typeof preset === 'string' && preset) ? preset : q.trim();
     if (!text || busy) return;
     setErr('');
@@ -115,7 +114,7 @@ export default function AskSheet({
     setBusy(true);
     try {
       /* 누구에게 말을 거는지 같이 보낸다 — 「너의 ○○는 뭐야」 같은 잡담도 받아 준다 */
-      const got = await ask(text, card, settings, { guideName: TUTORS[guide || questionTutor(text)]?.name || '' });
+      const got = await ask(text, card, settings, { guideName: TUTORS[guide || questionTutor(text)]?.name || '', preset: kind });
       const entry = {
         key: askKey(card?.id, text),
         q: text,
@@ -214,10 +213,19 @@ export default function AskSheet({
             <HunterTutor guide={guide || questionTutor(shown.q)} scene="city" title="궁금한 표현 설명" line="지금 질문한 내용과 카드의 표현을 함께 살펴봐요." compact>
               <p className="ask-text">{shown.answer}</p>
             </HunterTutor>
-            {/* 한자 설명 — 글자마다: 한국 한자음 · 한국어에서의 쓰임 · 짜임 · 덧붙임 */}
+            {/* 설명한 낱말 — 일본어로 읽는 법과 한국 한자음을 따로 적는다(둘을 섞어 부르면 틀린 말을 외운다) */}
+            {shown.word?.jp && (shown.kanji || []).length > 0 && (
+              <div className="ask-word">
+                <b lang="ja">{shown.word.jp}</b>
+                {shown.word.kana && <p><i>일본어 읽기</i><span lang="ja">{shown.word.kana}</span></p>}
+                {shown.word.eum && <p><i>한국 한자음</i>{shown.word.eum}<small> · 한국어로 읽을 때의 소리예요(일본어 발음이 아니에요)</small></p>}
+              </div>
+            )}
+            {/* 한자 설명 — 글자마다: 한국 훈음 · 일본어 읽기(음독 · 훈독) · 한국어에서의 쓰임 · 짜임 · 덧붙임 */}
             {(shown.kanji || []).map((k) => (
               <div key={k.char} className="ask-kanji">
-                <div className="ask-ktop"><b lang="ja">{k.char}</b>{k.hanja && <span>{k.hanja}</span>}</div>
+                <div className="ask-ktop"><b lang="ja">{k.char}</b>{k.hanja && <span><i>한국 훈음</i>{k.hanja}</span>}</div>
+                {(k.on || k.kun) && <p className="ask-kyomi"><i>일본어 읽기</i><span lang="ja">{[k.on && `음독 ${k.on}`, k.kun && `훈독 ${k.kun}`].filter(Boolean).join(' · ')}</span></p>}
                 {k.korean && <p><i>한국어에서</i>{k.korean}</p>}
                 {k.parts && <p><i>짜임</i>{k.parts}</p>}
                 {k.more && <p><i>덧붙임</i>{k.more}</p>}

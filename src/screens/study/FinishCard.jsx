@@ -1,8 +1,17 @@
 import HunterTutor from '../../components/HunterTutor.jsx';
 
+/* 완주 화면에서 가장 큰 단추가 하는 일 — Enter도 같은 일을 한다(Study.jsx의 단축키가 이것을 부른다).
+   다음 단계가 있으면 그리로, 없으면 「10개 더」(끝까지 마쳤을 때만), 그것도 없으면 오늘 화면으로 */
+export function finishPrimary({ finished, deck, onNext, flowNext, onMore, onHome, onClose }) {
+  const next = flowNext !== undefined ? flowNext : deck?.next;
+  if (onNext && next) return onNext;
+  if (onMore && finished?.reason === 'clear') return onMore;
+  return onHome || onClose;
+}
+
 /* 완주 카드 — 몇 장 끝냈나 · 판정 셋 · 다음으로.
    Study.jsx에서 떼어 냈다. 동작은 그대로다. */
-export default function FinishCard({ finished, deck, settings, onClose, onHome, onNext, onUndo, flowNext, onMore: onMoreAll }) {
+export default function FinishCard({ finished, deck, settings, onClose, onHome, onNext, onUndo, flowNext, onMore: onMoreAll, hasKeyboard = false }) {
   /* 「10개 더」는 끝까지 마쳤을 때만 — 오늘은 여기까지 하고 나온 자리에서는 안 낸다 */
   const onMore = finished.reason === 'clear' ? onMoreAll : null;
   /* 하루 흐름이 다음 단계를 정해 주면(flowNext) 그걸 쓴다. null이면 이을 게 없다는 말이고,
@@ -41,19 +50,19 @@ export default function FinishCard({ finished, deck, settings, onClose, onHome, 
         {onNext && next ? (
           <>
             <button className="submit-btn fin-next" onClick={onNext}>
-              다음: {next.label}
+              다음: {next.label}{hasKeyboard && <kbd className="inline-key">Enter</kbd>}
             </button>
             {onMore && <button className="ghost-btn fin-more" onClick={onMore}>10개 더 배우기</button>}
             <button className="ghost-btn" onClick={onHome || onClose}>오늘로</button>
           </>
         ) : (
           <>
-            {onMore && <button className="submit-btn fin-more" onClick={onMore}>10개 더 배우기</button>}
-            <button className={onMore ? 'ghost-btn' : 'submit-btn'} onClick={onHome || onClose}>오늘로</button>
+            {onMore && <button className="submit-btn fin-more" onClick={onMore}>10개 더 배우기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>}
+            <button className={onMore ? 'ghost-btn' : 'submit-btn fin-home'} onClick={onHome || onClose}>오늘로{!onMore && hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
           </>
         )}
         {onUndo && (
-          <button className="ghost-btn" onClick={onUndo}>↩ 마지막 판정 되돌리기</button>
+          <button className="ghost-btn fin-undo" onClick={onUndo}>↩ 마지막 판정 되돌리기{hasKeyboard && <kbd className="inline-key">←</kbd>}</button>
         )}
       </div>
     </div>
