@@ -12,6 +12,8 @@
  *   .txt   — 글 그대로. 위에 「제목: · 채널: · URL:」 줄과 ==== 줄이 있으면 읽고, 【…】 줄은 구간 이름으로 쓴다.
  *            해석은 없다 — 여기서 지어내지 않는다. */
 
+import { CLOUD_VOICES } from './voices.js';
+
 export const STORY_FORMAT = 'jp-hunter-stories';
 const LIST_KEY = 'jp_manabu_stories_v1';
 const REMOVED_KEY = 'jp_manabu_story_removed_v1';
@@ -35,7 +37,10 @@ export const STORY_SIZES = [
   { v: 'l', label: '크게' },
   { v: 'xl', label: '아주 크게' },
 ];
-export const DEFAULT_STORY_PREFS = { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false, size: 'l' };
+/* 이야기를 읽을 목소리 — 비우면 설정 → 음성에서 고른 목소리다. 긴 글은 회화형이 덜 딱딱해서 여기서 따로 고를 수 있게 둔다
+   (낱말 카드는 또박또박한 낭독형으로 두고 이야기만 회화형으로 들을 수 있다) */
+export const STORY_VOICES = [{ v: '', label: '설정과 같게' }, ...CLOUD_VOICES.filter((x) => x.talk).map((x) => ({ v: x.id, label: x.label }))];
+export const DEFAULT_STORY_PREFS = { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false, size: 'l', voice: '' };
 
 export function cleanStoryPrefs(raw) {
   const p = raw && typeof raw === 'object' ? raw : {};
@@ -45,6 +50,7 @@ export function cleanStoryPrefs(raw) {
     ko: Object.values(STORY_KO).includes(p.ko) ? p.ko : DEFAULT_STORY_PREFS.ko,
     loop: p.loop === true,
     size: STORY_SIZES.some((x) => x.v === p.size) ? p.size : DEFAULT_STORY_PREFS.size,
+    voice: STORY_VOICES.some((x) => x.v === p.voice) ? p.voice : DEFAULT_STORY_PREFS.voice,
   };
 }
 

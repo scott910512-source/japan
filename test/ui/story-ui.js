@@ -128,6 +128,7 @@ URL: https://www.youtube.com/watch?v=abcdef12345
   ok('★ 기기에 남는다 ★', await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_stories_v1') || '[]').length) === 2);
 
   console.log('\n[ 설정 ]');
+  ok('클라우드 음성을 안 쓰면 목소리 칸은 없다(기기 음성은 설정에서 고른다)', await page.locator('.sl-voices').count() === 0);
   ok('기본은 천천히(0.75배) · 문장마다 1번 · 해석 글자로', await page.locator('.sl-rates [data-rate="0.75"].active').count() === 1 && await page.locator('.sl-repeats [data-repeat="1"].active').count() === 1 && await page.locator('.sl-kos [data-ko="text"].active').count() === 1);
   await page.locator('.sl-item[data-story="yt-abcdef12345"] .sl-itembody').click();
   ok('해석이 없는 이야기는 해석을 고를 수 없다', await page.locator('.sl-kos [data-ko="voice"]').isDisabled() && await page.locator('.sl-kos [data-ko="off"].active').count() === 1 && (await page.locator('.sl-konote').innerText()).includes('해석이 없는'));

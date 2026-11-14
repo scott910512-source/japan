@@ -12,7 +12,7 @@ let deviceVoiceURI = '';   // 기기 내장 음성 중 사용자가 고른 것
 let config = { gttsKey: '', useCloud: true, voice: DEFAULT_VOICE };
 /* 이 키로는 못 쓰는 것으로 드러난 일본어 목소리. 같은 목소리를 문장마다 다시 물어 거절당하지 않게 기억한다.
    목소리나 키를 바꾸면 지운다 */
-let jaVoiceBroken = '';
+const jaVoiceBroken = new Set();
 
 // 같은 문장은 다시 부르지 않는다 — 무료 한도를 아끼기 위한 메모리 캐시.
 const cloudCache = new Map();
@@ -34,11 +34,11 @@ export function configureTTS(patch) {
   if (patch.deviceVoiceURI !== undefined) deviceVoiceURI = patch.deviceVoiceURI || '';
   config = { ...config, ...patch };
   // 목소리를 바꿨으면 예전 목소리로 받아 둔 캐시를 쓰면 안 된다
-  if (config.voice !== prevVoice) { cloudCache.clear(); jaVoiceBroken = ''; }
+  if (config.voice !== prevVoice) { cloudCache.clear(); jaVoiceBroken.clear(); }
   if (config.gttsKey !== prevKey) {
     cloudDisabled = false;
     cloudCache.clear();
-    jaVoiceBroken = '';
+    jaVoiceBroken.clear();
     // 키를 바꿨으면 한국어가 조용한 이유도 달라진다 — 다시 말해 줄 수 있게 놓는다
     koToldSilent = false;
   }
@@ -571,8 +571,10 @@ async function requestCloud(text, rate, withRate, lang = 'ja', override = null) 
 
 /* lang은 캐시 열쇠에도 들어가야 한다. 안 넣으면 같은 글자를 두 말로 부를 때
    먼저 받은 소리가 다른 말 자리에서 다시 난다 — 한국어 자리에서 일본어가 난다. */
-async function speakCloud(text, rate, token, lang = 'ja', beforePlay = null) {
-  const cacheKey = `${lang}|${text}|${rate}|${lang === 'ja' ? config.voice : lang}`;
+/* voice: 이번 한 번만 다른 일본어 목소리로 읽는다(이야기 듣기가 제 목소리를 따로 고른다). 비우면 설정의 목소리다 */
+async function speakCloud(text, rate, token, lang = 'ja', beforePlay = null, voice = '') {
+  const chosen = lang === 'ja' ? (voice || config.voice || DEFAULT_VOICE) : null;
+  const cacheKey = `${lang}|${text}|${rate}|${lang === 'ja' ? chosen : lang}`;
   let b64 = cloudCache.get(cacheKey);
 
   if (!b64) {
@@ -587,17 +589,16 @@ async function speakCloud(text, rate, token, lang = 'ja', beforePlay = null) {
      * 401·403은 키 문제라 되물어도 소용없다 — 바로 올린다. */
     /* 일본어는 사용자가 고른 목소리로 부른다. 그 목소리를 이 키가 못 쓰면(새로 나온 회화형 목소리가 그럴 수 있다)
        기본 목소리로 한 번 더 묻는다 — 목소리 하나 때문에 클라우드 전체를 잠그고 기기 음성으로 떨어지면 안 된다. */
-    const chosen = lang === 'ja' ? (config.voice || DEFAULT_VOICE) : null;
     const spare = lang === 'ja' ? (chosen !== DEFAULT_VOICE ? DEFAULT_VOICE : null) : CLOUD_FALLBACK_VOICE[lang];
     const tries = [];
-    if (!(lang === 'ja' && spare && jaVoiceBroken === chosen)) {
-      tries.push({ withRate: true, voice: null });
-      if (rate !== 1) tries.push({ withRate: false, voice: null });
+    if (!(lang === 'ja' && spare && jaVoiceBroken.has(chosen))) {
+      tries.push({ withRate: true, voice: chosen });
+      if (rate !== 1) tries.push({ withRate: false, voice: chosen });
     }
     const spareFrom = tries.length;
     if (spare) {
-      tries.push({ withRate: true, voice: spare });
-      if (rate !== 1) tries.push({ withRate: false, voice: spare });
+      tries.push({ withRate: true, voice: spare, spare: true });
+      if (rate !== 1) tries.push({ withRate: false, voice: spare, spare: true });
     }
 
     let last = null;
@@ -607,7 +608,7 @@ async function speakCloud(text, rate, token, lang = 'ja', beforePlay = null) {
       try {
         b64 = await requestCloud(text, rate, t.withRate, lang, t.voice);
         last = null;
-        usedSpare = Boolean(t.voice);
+        usedSpare = Boolean(t.spare);
         break;
       } catch (err) {
         last = err;
@@ -618,8 +619,8 @@ async function speakCloud(text, rate, token, lang = 'ja', beforePlay = null) {
       }
     }
     if (last) throw last;
-    if (lang === 'ja' && usedSpare && jaVoiceBroken !== chosen) {
-      jaVoiceBroken = chosen;
+    if (lang === 'ja' && usedSpare && !jaVoiceBroken.has(chosen)) {
+      jaVoiceBroken.add(chosen);
       onCloudError?.('고른 목소리를 이 키로는 쓸 수 없어서 「여성 1」 목소리로 읽었어요. 설정 → 음성에서 다른 목소리를 골라 주세요.');
     }
     if (!b64) throw new Error('빈 응답');
@@ -768,7 +769,7 @@ export function speakJapaneseAsync(text, rate = 0.9, opts = {}) {
     };
     // play() resolves when playback begins. Only ended means the next line may
     // start; stopSpeaking() settles interruption and removes these listeners.
-    speakCloud(text, rate, token, 'ja', waitForPlayback)
+    speakCloud(text, rate, token, 'ja', waitForPlayback, opts.voice || '')
       .then(() => { if (token !== speakToken) finish('interrupted'); })
       .catch(fallback);
   });

@@ -352,6 +352,26 @@ console.log('\n[ ★ 회화형 목소리: 고른 대로 부르고, 이 키가 �
   await settle();
   ok('기본 목소리는 하던 대로다(속도를 빼고 한 번 더)', calls.length === 2 && calls.every((c) => c.name === 'ja-JP-Neural2-B') && calls[1].rate === null, JSON.stringify(calls));
   cloudReject = null;
+
+  /* 이야기 듣기는 제 목소리를 따로 고른다 — 설정의 목소리는 그대로 두고 그 한 번만 다른 목소리로 부른다 */
+  tts.configureTTS({ gttsKey: 'KEY-H', useCloud: true, voice: 'ja-JP-Neural2-B' });
+  reset();
+  said.length = 0;
+  const how = await tts.speakJapaneseAsync('ながいはなし', 0.75, { id: 's1', voice: CHIRP });
+  ok('★ 이야기 목소리로 부른다(설정은 Neural2 그대로) ★', calls.length === 1 && calls[0].name === CHIRP && calls[0].rate === 0.75, `${how} ${JSON.stringify(calls)}`);
+  tts.speakJapanese('たんご', 1);
+  await settle();
+  ok('★ 낱말은 설정의 목소리로 읽는다 ★', calls[calls.length - 1].name === 'ja-JP-Neural2-B', JSON.stringify(calls));
+  calls.length = 0;
+  await tts.speakJapaneseAsync('ながいはなし', 0.75, { id: 's2', voice: 'ja-JP-Neural2-B' });
+  ok('★ 같은 글도 목소리가 다르면 따로 받는다(캐시가 섞이지 않는다) ★', calls.length === 1 && calls[0].name === 'ja-JP-Neural2-B', JSON.stringify(calls));
+  calls.length = 0;
+  await tts.speakJapaneseAsync('ながいはなし', 0.75, { id: 's3', voice: CHIRP });
+  ok('같은 목소리로 다시 들으면 받아 둔 소리를 쓴다', calls.length === 0, JSON.stringify(calls));
+  cloudReject = { status: 400, when: (c) => c.name === CHIRP };
+  await tts.speakJapaneseAsync('べつのはなし', 0.75, { id: 's4', voice: CHIRP });
+  ok('★ 이야기 목소리가 막혀도 기본 목소리로 읽고 한 번 알린다 ★', calls[calls.length - 1].name === 'ja-JP-Neural2-B' && said.length === 1 && tts.cloudTTSReady(), `${JSON.stringify(calls)} ${JSON.stringify(said)}`);
+  cloudReject = null;
 }
 
 console.log('\n[ ★ 캐시가 두 말을 섞지 않는다 ★ ]');
