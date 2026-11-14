@@ -9,7 +9,7 @@ import AskSheet from '../components/AskSheet.jsx';
 import HunterTutor from '../components/HunterTutor.jsx';
 /* 머리와 완주 카드는 제 파일로 — 이 파일이 700줄이라 떼어 냈다. 동작은 그대로다 */
 import StudyHeader from './study/StudyHeader.jsx';
-import FinishCard from './study/FinishCard.jsx';
+import FinishCard, { finishPrimary } from './study/FinishCard.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
@@ -21,6 +21,8 @@ import {
   VERDICT, advanceSession, buildDailySession, buildRound1, isWeak, nextRoundOf,
   selfKnownLabel, stateOf, todayKey,
 } from '../lib/review.js';
+/* 끝 화면이 뜬 뒤 Enter를 받기까지 두는 틈 — 마지막 카드를 판정한 Enter가 이어져 끝 화면을 건너뛰지 않게 */
+const FINISH_ENTER_WAIT_MS = 500;
 
 
 /* 읽어 줄 때는 한자가 아니라 가나를 보낸다.
@@ -322,7 +324,16 @@ export default function Study({
    * 물어보는 창이 열려 있으면 다 끈다. 창 안에서 버튼을 한 번 누르면 초점이
    * 글상자를 떠나는데, 그 상태로 3을 치면 「알아요」가 눌린다 — 물어보다가
    * 카드가 판정돼 버린다. Esc는 창만 닫는다. */
-  useHotkeys(showingIntro ? { Enter: () => setIntroSeen(true), Escape: onClose }
+  /* 끝 화면에서도 Enter로 넘어간다 — 가장 큰 단추(다음 단계 · 10개 더 · 오늘로)와 같은 일을 한다.
+     마지막 카드를 Enter로 판정한 손이 그대로 한 번 더 눌러 끝 화면을 못 보고 지나가지 않게, 뜨고 나서 잠깐은 안 받는다 */
+  const finishShown = useRef(0);
+  useEffect(() => { if (finished) finishShown.current = Date.now(); }, [finished]);
+  const finishEnter = () => {
+    if (Date.now() - finishShown.current < FINISH_ENTER_WAIT_MS) return;
+    finishPrimary({ finished, deck, onNext, flowNext, onMore, onHome, onClose })?.();
+  };
+  useHotkeys(finished ? { Enter: finishEnter, ArrowLeft: () => { if (history.current.length) undo(); }, Backspace: () => { if (history.current.length) undo(); }, Escape: onClose }
+    : showingIntro ? { Enter: () => setIntroSeen(true), Escape: onClose }
     : asking ? { Escape: () => setAsking(false) }
       : !studyReady ? { Escape: onClose } : {
     ' ': speakCurrent,
@@ -358,6 +369,7 @@ export default function Study({
         flowNext={flowNext}
         onMore={onMore}
         onUndo={history.current.length ? undo : null}
+        hasKeyboard={hasKeyboard}
       />
     );
   }

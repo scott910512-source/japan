@@ -158,8 +158,9 @@ export default function StreamQuiz({
     options: phase === 'run' && !checkpoint ? cur?.q.options : [], onChoose: (o) => { if (!answered) answer(o.key); else { const text = speakText(o.info || textInfo(o.label)); if (text) speak(text); } }, legacyNext: true,
     onNext: () => {
       if (phase === 'intro') { if (live?.length >= MIN_POOL) start(); }
-      else if (phase === 'sum') onExit?.();
-      else if (checkpoint) goNext();
+      /* 끝 화면 · 중간 멈춤의 Enter는 가장 큰 단추와 같은 일을 한다 — 오늘 몫을 마쳤으면 다음 단계로 간다 */
+      else if (phase === 'sum') { if (questDone && next) next.go(); else onExit?.(); }
+      else if (checkpoint) { if (questDone && next) next.go(); else goNext(); }
       else if (answered?.verdict === 'close') settleClose(false);
       else if (answered) advance();
       else if (cur?.q.mode === 'typing' && typed.trim()) answer(typed);
@@ -288,7 +289,7 @@ export default function StreamQuiz({
 
   if (phase === 'sum') {
     return <StreamSummary session={session} goal={goal} wordById={wordById} sentenceById={sentenceById}
-      onAgain={start} onExit={onExit} onHome={questDone && next ? onHome : null} next={questDone ? next : null} />;
+      onAgain={start} onExit={onExit} onHome={questDone && next ? onHome : null} next={questDone ? next : null} hasKeyboard={hasKeyboard} />;
   }
 
   const { q } = cur;
@@ -311,8 +312,8 @@ export default function StreamQuiz({
             맞힌 것 <b>{right}</b> / {total}{session.streak >= 3 ? ` · 연속 ${session.streak}` : ''}.
             더 풀면 같은 판에서 이어져요. 오늘은 여기까지 하면 지금까지의 평가가 나와요.
           </p>
-          {questDone && next && <button className="submit-btn st-next" onClick={next.go}>다음: {next.label}</button>}
-          <button className={`${questDone && next ? 'ghost-btn' : 'submit-btn'} st-continue`} onClick={goNext}>계속하기{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
+          {questDone && next && <button className="submit-btn st-next" onClick={next.go}>다음: {next.label}{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>}
+          <button className={`${questDone && next ? 'ghost-btn' : 'submit-btn'} st-continue`} onClick={goNext}>계속하기{!(questDone && next) && hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
           <button className="ghost-btn st-enough" onClick={() => { setCheckpoint(false); setPhase('sum'); }}>오늘은 여기까지</button>
           {questDone && next && onHome && <button className="ghost-btn st-home" onClick={onHome}>홈으로</button>}
         </div>
@@ -445,7 +446,7 @@ function labelOf(id, wordById, sentenceById) {
   return { main: id, sub: '문법' };
 }
 
-function StreamSummary({ session, goal, wordById, sentenceById, onAgain, onExit, onHome = null, next = null }) {
+function StreamSummary({ session, goal, wordById, sentenceById, onAgain, onExit, onHome = null, next = null, hasKeyboard = false }) {
   const r = useMemo(() => summarize(session.log), [session.log]);
   const tone = r.pct >= 90 ? 'great' : r.pct >= 70 ? 'good' : r.pct >= 50 ? 'okay' : 'weak';
   if (r.total === 0) {
@@ -493,11 +494,11 @@ function StreamSummary({ session, goal, wordById, sentenceById, onAgain, onExit,
       ) : <p className="set-note">하나도 안 틀렸어요. 맞힌 것은 복습 간격이 늘어나요.</p>}
 
       <div className="qnext">
-        {next && <button className="submit-btn st-next" onClick={next.go}>다음: {next.label}</button>}
+        {next && <button className="submit-btn st-next" onClick={next.go}>다음: {next.label}{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>}
         <button className={`${next ? 'ghost-btn' : 'submit-btn'} st-again`} onClick={onAgain}>계속 풀기</button>
         {onHome
           ? <button className="ghost-btn st-home" onClick={onHome}>홈으로</button>
-          : <button className="ghost-btn st-exit" onClick={onExit}>나가기</button>}
+          : <button className="ghost-btn st-exit" onClick={onExit}>나가기{!next && hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>}
       </div>
     </div>
   );

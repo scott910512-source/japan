@@ -111,8 +111,14 @@ async function finishDeck(page) {
   }
   ok('★ 마무리 카드가 뜬다 ★', await page.locator('.cmp-questdone').count() === 1, `${solved}문장 조립`);
   ok('★ 마무리 카드에 「다음」(오늘의 N3나 랜덤 테스트)과 「홈으로」가 있다 ★', await page.locator('.cmp-questnext').count() === 1 && (await page.locator('.cmp-questdone button', { hasText: '홈으로' }).count()) === 1, await page.locator('.cmp-questnext').count() ? await page.locator('.cmp-questnext').innerText() : '다음 없음');
-  await page.locator('.cmp-questdone button', { hasText: '홈으로' }).click().catch(() => {});
-  await page.waitForTimeout(700);
+  /* ★ 「다음: ○○」이 실제로 넘어간다 ★ 건너뛴 복습 미션으로 돌아가는 「다음: 복습 미션」은 눌러도 아무 일도 없었다 */
+  const nextLabel = (await page.locator('.cmp-questnext').innerText()).replace(/\s+/g, ' ');
+  ok('「다음」 단추에 Enter 표시가 있다', await page.locator('.cmp-questnext kbd').count() === 1, nextLabel);
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1500);
+  const after = await page.evaluate(() => ({ done: document.querySelectorAll('.cmp-questdone').length, study: document.querySelectorAll('.study').length, quiz: document.querySelectorAll('.qoptions, .qtyping, .stream, .n3-today').length }));
+  ok('★ Enter를 누르면 다음 단계가 열린다(마무리 카드에 머물지 않는다) ★', after.done === 0 && (after.study + after.quiz) >= 1, `${nextLabel} → ${JSON.stringify(after)}`);
   await goTab(page, '오늘');
   const r1 = await rowText(page, '문장 퀘스트');
   ok('★ 오늘 탭에서 5 / 5 마쳤어요로 바뀐다 ★', /5\s*\/\s*5/.test(r1) && r1.includes('배웠어요'), r1);

@@ -511,7 +511,9 @@ export default function App() {
   };
   const goStep = useCallback((to) => {
     setDeck(null);
-    if (to === 'weakquiz') startWeakQuiz();
+    /* 건너뛴 복습 미션으로 돌아오는 길(nextStep이 앞의 안 한 단계로 돌려보낸다) — 이 줄이 없어서 「다음: 복습 미션」을 눌러도 아무 일도 없었다 */
+    if (to === 'review') startToday(['review', 'weak']);
+    else if (to === 'weakquiz') startWeakQuiz();
     else if (to === 'stream') startStreamQuest();
     else if (to === 'fresh') startToday(['fresh']);
     else if (to === 'sentence') startSentenceQuest();

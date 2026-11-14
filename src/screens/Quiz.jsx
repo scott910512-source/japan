@@ -647,6 +647,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
 
 function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, onRetryQuiz, retry = false, restored = false, onToast, onActivity, weak, onExit, onHome, onNextQuest, flow, nextLabel, onComplete }) {
   const result = useMemo(() => gradeQuiz(questions, answers), [questions, answers]);
+  const hasKeyboard = useHasKeyboard();
 
   /* 시험도 회독 진도를 올리지 않는다. 다만 몇 문항 풀었는지는 활동에 남긴다 —
      안 남기면 스무 문항 풀고도 기록이 그대로다. 결과 화면에 들어올 때 한 번만. */
@@ -721,7 +722,7 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
             </div>
           )}
           {/* 랜덤 테스트 뒤에 이을 단계(오늘의 N3)가 남았으면 그걸 먼저 내민다 */}
-          {flow.kind !== 'region' && onNextQuest && <button className="submit-btn flow-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: {nextLabel}</button>}
+          {flow.kind !== 'region' && onNextQuest && <button className="submit-btn flow-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: {nextLabel}{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>}
           <button className={`${flow.kind !== 'region' && onNextQuest ? 'ghost-btn' : 'submit-btn'} flow-done`} style={{ marginTop: flow.kind !== 'region' && onNextQuest ? 8 : 12 }} onClick={onHome || onExit || onQuit}>{flow.kind === 'region' ? '지도로 돌아가기' : '오늘 학습 마치기 · 홈으로'}</button>
         </>
       ) : weak ? (
@@ -744,7 +745,7 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
           {/* ★ 오늘 퀘스트의 다음 줄(쭉 퀴즈)이 남았으면 홈으로 돌려보내지 않고 바로 이어 준다 ★ */}
           {onNextQuest ? (
             <>
-              <button className="submit-btn wk-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: {nextLabel}</button>
+              <button className="submit-btn wk-next" style={{ marginTop: 12 }} onClick={onNextQuest}>다음: {nextLabel}{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
               <button className="ghost-btn wk-resultdone" style={{ marginTop: 8 }} onClick={onHome || onExit || onQuit}>약점 퀴즈 마치고 홈으로</button>
             </>
           ) : (

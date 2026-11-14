@@ -141,21 +141,38 @@ async function stubAI(page, body = ANSWER) {
     await page.locator('.ask-preset[data-preset="kanji"]').click();
     await page.waitForTimeout(300);
     ok('★ 낱말을 안 적고 누르면 부르지 않고 알려 준다 ★', calls.n === before && (await page.locator('.ask-err').innerText()).includes('글상자에 적고'));
-    await page.locator('.asksheet textarea').fill('かわいい');
+    /* 한자를 몰라서 묻는 것이다 — 한글로 적고 눌러도 그 낱말의 일본어 한자를 찾아 설명해 준다 */
+    const hcalls = await stubAI(page, { answer: '지하철은 일본어로 地下鉄(ちかてつ)라고 써요.', items: [{ jp: '地下鉄', kana: 'ちかてつ', ko: '지하철', note: '' }],
+      kanji: [{ char: '地', hanja: '땅 지', korean: '한국어에서도 써요: 지구(地球)', parts: '土(흙 토) + 也', more: '음독 チ · ジ' }, { char: '下', hanja: '아래 하', korean: '한국어에서도 써요: 지하(地下)', parts: '가로선 아래를 가리키는 모양', more: '음독 カ · ゲ' }, { char: '鉄', hanja: '쇠 철(鐵)', korean: '한국어에서도 써요: 철도(鐵道)', parts: '金(쇠 금) + 失', more: '', on: 'テツ', kun: '' }], tips: [], word: { jp: '地下鉄', kana: 'ちかてつ' } });
+    await page.locator('.asksheet textarea').fill('지하철');
     await page.locator('.ask-preset[data-preset="kanji"]').click();
-    await page.waitForTimeout(300);
-    ok('★ 한자가 없는 낱말은 부르지 않고 알려 준다 ★', calls.n === before && (await page.locator('.ask-err').innerText()).includes('한자가 없어요'));
+    await page.locator('.ask-kanji').first().waitFor({ timeout: 8000 });
+    ok('★ 한글로 적고 「한자 설명」을 눌러도 묻는다(일본어 한자로 어떻게 쓰는지부터) ★', hcalls.n === 1 && JSON.stringify(hcalls.last).includes('「지하철」를 일본어 한자로 어떻게 쓰는지') && JSON.stringify(hcalls.last).includes('[요청] 한자 설명'));
+    const hk = (await page.locator('.asksheet').innerText()).replace(/\s+/g, ' ');
+    ok('★ 일본어 낱말(地下鉄)과 글자마다의 풀이가 보인다 ★', await page.locator('.ask-kanji').count() === 3 && hk.includes('地下鉄') && hk.includes('땅 지') && hk.includes('아래 하') && hk.includes('쇠 철'), hk.slice(0, 120));
+    const wd = (await page.locator('.ask-word').innerText()).replace(/\s+/g, ' ');
+    ok('★ 낱말의 「일본어 읽기」와 「한국 한자음」을 따로 적는다 ★', wd.includes('地下鉄') && /일본어 읽기\s*ちかてつ/.test(wd) && /한국 한자음\s*지하철/.test(wd) && wd.includes('일본어 발음이 아니에요'), wd);
+    const k3 = (await page.locator('.ask-kanji').nth(2).innerText()).replace(/\s+/g, ' ');
+    ok('★ 글자마다 「한국 훈음」과 「일본어 읽기(음독)」가 이름표를 달고 따로 보인다 ★', /한국 훈음\s*쇠 철/.test(k3) && /일본어 읽기\s*음독 テツ/.test(k3), k3);
+    await page.unroute('**/generativelanguage.googleapis.com/**');
 
     const kcalls = await stubAI(page, { answer: '習는 되풀이해 익힌다는 글자예요.', items: [{ jp: '練習', kana: 'れんしゅう', ko: '연습', note: '' }],
       kanji: [{ char: '習', hanja: '익힐 습', korean: '한국어에서도 써요: 학습(學習) · 연습(練習)', parts: '羽(깃 우) + 白(흰 백). 어린 새가 날갯짓을 되풀이하는 모습이라고 풀이해요.', more: '음독 シュウ, 훈독 なら(う).' }], tips: [] });
     await page.locator('.asksheet textarea').fill('習う');
     await page.locator('.ask-preset[data-preset="kanji"]').click();
     await page.locator('.ask-kanji').first().waitFor({ timeout: 8000 });
+    await page.waitForFunction(() => document.querySelector('.ask-q')?.textContent.includes('習う'), null, { timeout: 8000 });   // 앞 답(地下鉄)이 아니라 이번 답이 뜬 뒤에 본다
     ok('★ 정해 둔 글로 한 번 묻는다 ★', kcalls.n === 1 && JSON.stringify(kcalls.last).includes('「習う」의 한자를 설명해 줘'));
+    ok('★ 단추로 물었다고 알려 보낸다([요청] 한자 설명) ★', JSON.stringify(kcalls.last).includes('[요청] 한자 설명'));
     const k = (await page.locator('.ask-kanji').first().innerText()).replace(/\s+/g, ' ');
     ok('★ 글자마다 한국 한자음 · 한국어에서의 쓰임 · 짜임 · 덧붙임이 보인다 ★', k.includes('習') && k.includes('익힐 습') && k.includes('한국어에서') && k.includes('학습(學習)') && k.includes('짜임') && k.includes('羽') && k.includes('덧붙임'), k.slice(0, 120));
     ok('물어본 글이 답 위에 남는다', (await page.locator('.ask-q').innerText()).includes('한자를 설명해 줘'));
     ok('가로로 넘치지 않는다(한자 설명)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    /* 같은 답(글자별 풀이가 든)이 와도, 글로 그냥 물은 것에는 글자별 풀이를 보이지 않는다 */
+    await page.locator('.asksheet textarea').fill('習う는 언제 써?');
+    await page.locator('.asksheet .ask-box > .submit-btn').click();
+    await page.waitForFunction(() => document.querySelector('.ask-q')?.textContent.includes('언제 써'), null, { timeout: 8000 });
+    ok('★ 그냥 물은 것에는 글자별 한자 풀이가 안 붙는다 ★', kcalls.n === 2 && await page.locator('.ask-kanji').count() === 0 && (await page.locator('.asksheet').innerText()).includes('되풀이해 익힌다') && !JSON.stringify(kcalls.last).includes('[요청] 한자 설명'), `${kcalls.n}번`);
 
     const mcalls = await stubAI(page, { answer: '소리로 거는 쪽을 권해요.', items: [], kanji: [],
       tips: [{ kind: '소리', text: '「배울 사람 나라우(나와라)!」 하고 부르면 배우다.' }, { kind: '한자', text: '習는 학습(學習)의 습 — 익히는 것이 배우는 것.' }] });

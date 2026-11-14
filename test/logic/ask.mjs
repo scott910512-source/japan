@@ -5,7 +5,7 @@
  * 요금이 두 번 나가면 안 된다. */
 import {
   MAX_ITEMS, MAX_QUESTION_CHARS, KEEP_ASKS,
-  SYSTEM, userText, parseAsk, shapeAsk, askKey, findAsk, rememberAsk, ask,
+  SYSTEM, userText, parseAsk, shapeAsk, askKey, findAsk, rememberAsk, ask, eumOf, hanjaEum,
   ASK_PRESET, MAX_KANJI, MAX_TIPS, hasKanji, presetQuestion,
 } from '../../src/lib/ask.js';
 
@@ -164,6 +164,8 @@ console.log('\n[ 눌러서 묻는 두 가지 ]');
 {
   ok('한자 설명은 정해 둔 글로 묻는다', presetQuestion(ASK_PRESET.KANJI, ' 習う ') === '「習う」의 한자를 설명해 줘');
   ok('외우는 법도 정해 둔 글로 묻는다', presetQuestion(ASK_PRESET.MEMO, '習う') === '「習う」 외우는 법을 추천해 줘');
+  ok('★ 한글로 적어도 묻는다 — 일본어 한자로 어떻게 쓰는지부터 ★', presetQuestion(ASK_PRESET.KANJI, '지하철') === '「지하철」를 일본어 한자로 어떻게 쓰는지, 그 한자를 설명해 줘' && presetQuestion(ASK_PRESET.KANJI, 'ちかてつ').includes('일본어 한자로 어떻게 쓰는지'));
+  ok('한글 · 가나로 온 낱말은 한자 표기를 찾아 설명하라고 적혀 있다', SYSTEM.includes('한글(지하철)이나 가나') && SYSTEM.includes('보통 한자로 쓰지 않는 낱말이면'));
   ok('낱말이 없으면 묻지 않는다(빈 글)', presetQuestion(ASK_PRESET.KANJI, '  ') === '' && presetQuestion(ASK_PRESET.MEMO, null) === '');
   ok('한자가 든 낱말인지 가린다', hasKanji('習う') && hasKanji('時々') && !hasKanji('かわいい') && !hasKanji('コーヒー') && !hasKanji(''));
   ok('★ 프롬프트가 한자 설명의 세 가지를 요구한다: 한국 한자음 · 한국어에서의 쓰임 · 짜임 ★', SYSTEM.includes('훈음') && SYSTEM.includes('한국어에서도 같은 한자를 쓰는지') && SYSTEM.includes('부수') && SYSTEM.includes('정자'));
@@ -201,7 +203,7 @@ console.log('\n[ 한 줄 요약이 빠진 답 ]');
   const reply = (body) => { globalThis.fetch = async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(body) }] } }] }), { status: 200 }); };
   try {
     reply({ answer: '', kanji: [{ char: '習', hanja: '익힐 습' }] });
-    const a = await ask(presetQuestion(ASK_PRESET.KANJI, '習う'), CARD, { geminiKey: 'AQ.x' });
+    const a = await ask(presetQuestion(ASK_PRESET.KANJI, '習う'), CARD, { geminiKey: 'AQ.x' }, { preset: ASK_PRESET.KANJI });
     ok('★ 한자 칸에 내용이 있으면 요약이 없어도 받는다 ★', a.kanji.length === 1 && a.answer === '');
     reply({ answer: '', tips: [{ kind: '소리', text: '문구' }] });
     const b = await ask(presetQuestion(ASK_PRESET.MEMO, '習う'), CARD, { geminiKey: 'AQ.x' });
@@ -211,6 +213,50 @@ console.log('\n[ 한 줄 요약이 빠진 답 ]');
     try { await ask('뭐야?', CARD, { geminiKey: 'AQ.x' }); } catch { threw = true; }
     ok('아무것도 없는 답은 여전히 빈 답으로 알린다', threw);
   } finally { globalThis.fetch = realFetch; }
+}
+
+console.log('\n[ ★ 일본어 읽기와 한국 한자음을 따로 적는다 ★ ]');
+{
+  ok('훈음의 마지막 소리가 한국 한자음이다', eumOf('큰 대') === '대' && eumOf('끊을 절') === '절' && eumOf('배울 학(學)') === '학' && eumOf('쇠 철（鐵）') === '철');
+  ok('훈음이 없거나 한글로 안 끝나면 빈 글', eumOf('') === '' && eumOf('big') === '' && eumOf(null) === '');
+  const K = [{ char: '大', hanja: '큰 대' }, { char: '切', hanja: '끊을 절' }];
+  ok('★ 낱말의 한국 한자음은 글자마다의 훈음에서 만든다(大切 → 대절) ★', hanjaEum('大切', K) === '대절');
+  ok('가나는 건너뛴다(習う → 습)', hanjaEum('習う', [{ char: '習', hanja: '익힐 습' }]) === '습');
+  ok('★ 훈음을 못 받은 한자가 있으면 만들지 않는다(반쪽 소리를 낱말처럼 보이지 않는다) ★', hanjaEum('大切', [K[0]]) === '' && hanjaEum('', K) === '' && hanjaEum('かな', K) === '');
+  const got = shapeAsk({ answer: '大切(たいせつ)는 소중하다는 뜻이에요.', word: { jp: '大切', kana: 'たいせつ' }, kanji: [
+    { char: '大', hanja: '큰 대', on: 'タイ · ダイ', kun: 'おお(きい)', korean: '대학(大學)' },
+    { char: '切', hanja: '끊을 절', on: 'セツ · サイ', kun: 'き(る)', korean: '친절(親切)' },
+  ] });
+  ok('★ 낱말 칸: 일본어 읽기와 한국 한자음이 따로 온다 ★', got.word?.jp === '大切' && got.word.kana === 'たいせつ' && got.word.eum === '대절', JSON.stringify(got.word));
+  ok('글자마다 음독 · 훈독 칸이 따로 있다', got.kanji[0].on === 'タイ · ダイ' && got.kanji[0].kun === 'おお(きい)' && got.kanji[1].on === 'セツ · サイ');
+  ok('모델이 한국 한자음을 보내도 쓰지 않는다(훈음에서 만든 것만)', shapeAsk({ answer: 'a', word: { jp: '大切', kana: 'たいせつ', eum: '대체' }, kanji: [{ char: '大', hanja: '큰 대' }, { char: '切', hanja: '끊을 절' }] }).word.eum === '대절');
+  ok('한자 설명이 아니면 낱말 칸은 없다', shapeAsk({ answer: 'a', word: { jp: '大切', kana: 'たいせつ' } }).word === null && shapeAsk({ answer: 'a' }).word === null);
+  ok('옛 답(on · kun · word가 없는 것)도 그대로 받는다', shapeAsk({ answer: 'a', kanji: [{ char: '習', hanja: '익힐 습', more: '음독 シュウ' }] }).kanji[0].on === '' && shapeAsk({ answer: 'a', kanji: [{ char: '習', hanja: '익힐 습' }] }).word === null);
+  ok('규칙에 적혀 있다: 일본어 낱말은 한자(가나)로, 한국 한자음은 이름표를 붙여', SYSTEM.includes('일본어 읽기와 한국 한자음을 섞지 마세요') && SYSTEM.includes('大切(たいせつ)') && SYSTEM.includes('한국 한자음으로는'));
+}
+
+console.log('\n[ ★ 글자별 한자 설명은 「한자 설명」 단추를 눌렀을 때만 ★ ]');
+{
+  const realFetch = globalThis.fetch;
+  let sent = '';
+  const reply = (body) => { globalThis.fetch = async (url, opt) => { sent = String(opt?.body || ''); return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(body) }] } }] }), { status: 200 }); }; };
+  const WITH_KANJI = { answer: '習는 익힌다는 글자예요.', items: [], kanji: [{ char: '習', hanja: '익힐 습', parts: '羽 + 白' }], tips: [] };
+  try {
+    reply(WITH_KANJI);
+    const typed = await ask('習う의 한자가 뭐야?', CARD, { geminiKey: 'AQ.x' });
+    ok('★ 그냥 물은 것에는 글자별 풀이를 붙이지 않는다(모델이 붙여 와도 버린다) ★', typed.kanji.length === 0 && typed.answer.includes('익힌다'));
+    ok('그냥 물을 때는 [요청]을 보내지 않는다', !sent.includes('[요청] 한자 설명'));
+    const pressed = await ask(presetQuestion(ASK_PRESET.KANJI, '習う'), CARD, { geminiKey: 'AQ.x' }, { preset: ASK_PRESET.KANJI });
+    ok('★ 「한자 설명」 단추로 물으면 글자별 풀이가 온다 ★', pressed.kanji.length === 1 && pressed.kanji[0].hanja === '익힐 습');
+    ok('★ 단추로 물었다고 알려 보낸다([요청] 한자 설명) ★', sent.includes('[요청] 한자 설명'));
+    const memo = await ask(presetQuestion(ASK_PRESET.MEMO, '習う'), CARD, { geminiKey: 'AQ.x' }, { preset: ASK_PRESET.MEMO });
+    ok('외우는 법 단추로는 글자별 풀이를 받지 않는다', memo.kanji.length === 0 && !sent.includes('[요청] 한자 설명'));
+    reply({ answer: '', items: [], kanji: [{ char: '習', hanja: '익힐 습' }], tips: [] });
+    let threw = false;
+    try { await ask('習가 뭐야', CARD, { geminiKey: 'AQ.x' }); } catch { threw = true; }
+    ok('그냥 물었는데 글자별 풀이만 온 답은 빈 답으로 알린다', threw);
+  } finally { globalThis.fetch = realFetch; }
+  ok('규칙에 적혀 있다(단추를 눌렀을 때만)', SYSTEM.includes('[요청]에 「한자 설명」이 없으면'));
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

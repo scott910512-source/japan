@@ -4,7 +4,7 @@ import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows, rowOf, speakText } from '../lib/optionInfo.js';
 import BuildQuiz from '../components/BuildQuiz.jsx';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
-import { useQuizHotkeys, shortcutEvent } from '../lib/useHotkeys.js';
+import { useQuizHotkeys, useHotkeys, useHasKeyboard, shortcutEvent } from '../lib/useHotkeys.js';
 import HunterTutor from '../components/HunterTutor.jsx';
 import { conversationTutor } from '../data/hunterTutors.js';
 import { readingText, speakJapanese } from '../lib/tts.js';
@@ -88,6 +88,21 @@ const Score = ({ session }) => {
 
 const Empty = ({ children }) => <div className="empty-state cmp-empty">{children}</div>;
 
+/* 문장 퀘스트 마무리 카드 — Enter는 가장 큰 단추(다음 단계, 없으면 홈으로)와 같은 일을 한다 */
+function QuestDone({ done, hasPool, questNext, onHome }) {
+  const hasKeyboard = useHasKeyboard();
+  const scope = useHotkeys({ Enter: () => (questNext ? questNext.go() : onHome?.()) });
+  const key = hasKeyboard && <kbd className="inline-key">Enter</kbd>;
+  return (
+    <div ref={scope} className="card cmp-questdone" data-quest="sentence" data-done={done}>
+      <b>문장 퀘스트를 마쳤어요</b>
+      <span>{hasPool ? `새 문장을 배우고 ${done}문장을 조립해 봤어요.` : '새 문장을 배웠어요. 이 문장들은 조각 연습이 아직 없어요.'}</span>
+      {questNext && <button className="submit-btn cmp-questnext" onClick={questNext.go}>다음: {questNext.label}{key}</button>}
+      <button className={`${questNext ? 'ghost-btn' : 'submit-btn'} cmp-questhome`} onClick={onHome}>홈으로{!questNext && key}</button>
+    </div>
+  );
+}
+
 /* ── 조립 ── */
 function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivity, onAttempt, onExit, onHome = null, focusIds = null, questTarget = 0, questNext = null }) {
   const run = useRun({ sentences, review, progress, settings, mode: COMPOSE_MODE.BUILD, hasChunks: (id) => chunksOf(id) != null, onlyIds: focusIds });
@@ -107,14 +122,7 @@ function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivi
   const questOn = Array.isArray(focusIds) && focusIds.length > 0;
   const target = questOn ? Math.min(questTarget || focusIds.length, run.pool.length) : 0;
   if (questOn && (run.pool.length === 0 || (run.session.log.length >= target && !solved))) {
-    return (
-      <div className="card cmp-questdone" data-quest="sentence" data-done={run.session.log.length}>
-        <b>문장 퀘스트를 마쳤어요</b>
-        <span>{run.pool.length ? `새 문장을 배우고 ${run.session.log.length}문장을 조립해 봤어요.` : '새 문장을 배웠어요. 이 문장들은 조각 연습이 아직 없어요.'}</span>
-        {questNext && <button className="submit-btn cmp-questnext" onClick={questNext.go}>다음: {questNext.label}</button>}
-        <button className={`${questNext ? 'ghost-btn' : 'submit-btn'} cmp-questhome`} onClick={onHome || onExit}>홈으로</button>
-      </div>
-    );
+    return <QuestDone done={run.session.log.length} hasPool={run.pool.length > 0} questNext={questNext} onHome={onHome || onExit} />;
   }
   if (!run.pool.length) return <Empty>조립할 문장이 아직 없어요. 오늘 화면에서 문장을 먼저 배워 보세요. 목표 {goalOf(settings)} 안의 문장만 나와요.</Empty>;
   const s = run.byId.get(cur.id);
