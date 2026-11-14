@@ -39,7 +39,7 @@ export const STORY_SIZES = [
 ];
 /* 이야기를 읽을 목소리 — 비우면 설정 → 음성에서 고른 목소리다. 긴 글은 회화형이 덜 딱딱해서 여기서 따로 고를 수 있게 둔다
    (낱말 카드는 또박또박한 낭독형으로 두고 이야기만 회화형으로 들을 수 있다) */
-export const STORY_VOICES = [{ v: '', label: '설정과 같게' }, ...CLOUD_VOICES.filter((x) => x.talk).map((x) => ({ v: x.id, label: x.label }))];
+export const STORY_VOICES = [{ v: '', label: '설정과 같게' }, ...CLOUD_VOICES.filter((x) => x.talk).map((x) => ({ v: x.id, label: x.trait ? `${x.label} · ${x.trait}` : x.label }))];
 export const DEFAULT_STORY_PREFS = { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false, size: 'l', voice: '' };
 
 export function cleanStoryPrefs(raw) {

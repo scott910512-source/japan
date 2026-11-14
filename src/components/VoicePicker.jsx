@@ -34,7 +34,7 @@ export default function VoicePicker({ settings, onChange, cloudReady }) {
       onClick={() => { onChange({ gttsVoice: v.id }); setTimeout(preview, 120); }}
     >
       <span className="vc-label">{v.label}</span>
-      <span className="vc-tier">{v.tier}</span>
+      <span className="vc-tier">{v.trait || v.tier}</span>
     </button>
   );
 

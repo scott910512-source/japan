@@ -148,7 +148,8 @@ check('글자 크기: 보통 · 크게 · 아주 크게. 기본은 크게, 모�
   assert.equal(cleanStoryPrefs({}).size, 'l');
 });
 check('이야기 목소리: 기본은 설정과 같게, 회화형 넷 중에서 고른다. 모르는 이름은 버린다', () => {
-  assert.deepEqual(STORY_VOICES.map((x) => x.v), ['', 'ja-JP-Chirp3-HD-Aoede', 'ja-JP-Chirp3-HD-Kore', 'ja-JP-Chirp3-HD-Charon', 'ja-JP-Chirp3-HD-Puck']);
+  assert.deepEqual(STORY_VOICES.map((x) => x.v), ['', 'ja-JP-Chirp3-HD-Aoede', 'ja-JP-Chirp3-HD-Kore', 'ja-JP-Chirp3-HD-Leda', 'ja-JP-Chirp3-HD-Vindemiatrix', 'ja-JP-Chirp3-HD-Achernar', 'ja-JP-Chirp3-HD-Charon', 'ja-JP-Chirp3-HD-Puck']);
+  assert.ok(STORY_VOICES.some((x) => x.label === '회화 여성 4 · 상냥한') && STORY_VOICES.some((x) => x.label === '회화 여성 3 · 젊은'));
   assert.equal(cleanStoryPrefs({}).voice, '');
   assert.equal(cleanStoryPrefs({ voice: 'ja-JP-Chirp3-HD-Puck' }).voice, 'ja-JP-Chirp3-HD-Puck');
   assert.equal(cleanStoryPrefs({ voice: 'en-US-Whatever' }).voice, '');

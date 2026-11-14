@@ -51,9 +51,11 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
 
   console.log('\n[ 목소리 목록 ]');
   const talk = await page.locator('.voicegrid.talk .voicecell').evaluateAll((els) => els.map((e) => ({ id: e.dataset.voice, label: e.querySelector('.vc-label').textContent })));
-  ok('★ 회화형 목소리 4개가 있다(여성 2 · 남성 2) ★', talk.length === 4 && talk.every((v) => v.id.startsWith('ja-JP-Chirp3-HD-')) && talk.filter((v) => v.label.includes('여성')).length === 2 && talk.filter((v) => v.label.includes('남성')).length === 2, talk.map((v) => v.label).join(' · '));
+  ok('★ 회화형 목소리 7개가 있다(여성 5 · 남성 2) ★', talk.length === 7 && talk.every((v) => v.id.startsWith('ja-JP-Chirp3-HD-')) && talk.filter((v) => v.label.includes('여성')).length === 5 && talk.filter((v) => v.label.includes('남성')).length === 2, talk.map((v) => v.label).join(' · '));
   const order = await page.evaluate(() => { const a = document.querySelector('.voicegrid.talk').getBoundingClientRect(); const b = document.querySelector('.voicegrid:not(.talk)').getBoundingClientRect(); return a.bottom <= b.top; });
   ok('★ 회화형이 낭독형보다 위에 있다 ★', order);
+  const traits = await page.locator('.voicegrid.talk .voicecell .vc-tier').allInnerTexts();
+  ok('★ 목소리마다 결(젊은 · 상냥한 · 부드러운 …)이 적혀 있다 ★', ['젊은', '상냥한', '부드러운'].every((t) => traits.includes(t)), traits.join(' · '));
   ok('낭독형 9개는 그대로다', await page.locator('.voicegrid:not(.talk) .voicecell').count() === 9);
   ok('처음에는 「여성 1」(Neural2)이 골라져 있다', await page.locator('.voicecell.active').getAttribute('data-voice') === 'ja-JP-Neural2-B');
   ok('요금을 적어 둔다', (await page.locator('.setrow:has(.voicegrid) .set-note').innerText()).includes('100만 자'));
@@ -83,7 +85,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
   await openListen(page, 'story');
   await page.locator('.sl-voices').waitFor({ timeout: 15000 });
   const pills = await page.locator('.sl-voices .ls-pill').evaluateAll((els) => els.map((e) => e.textContent.trim()));
-  ok('★ 「설정과 같게」와 회화형 넷 중에서 고른다 ★', pills.length === 5 && pills[0] === '설정과 같게' && pills.slice(1).every((t) => t.startsWith('회화')), pills.join(' · '));
+  ok('★ 「설정과 같게」와 회화형 일곱 중에서 고른다(결이 같이 적혀 있다) ★', pills.length === 8 && pills.some((t) => t.includes('상냥한')) && pills[0] === '설정과 같게' && pills.slice(1).every((t) => t.startsWith('회화')), pills.join(' · '));
   ok('기본은 「설정과 같게」다', await page.locator('.sl-voices .ls-pill.active').getAttribute('data-voice') === '');
   tts.calls.length = 0;
   await page.locator('.sl-voices [data-voice="ja-JP-Chirp3-HD-Kore"]').click();
