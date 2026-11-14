@@ -445,6 +445,7 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
 function ShowCard({ item, settings, onClose }) {
   /* 키보드로도 닫는다 — 「화면을 탭하면 닫혀요」뿐이라 Esc를 눌러도 그대로였다 */
   const scope = useHotkeys({ Escape: onClose, Enter: onClose });
+  const hasKeyboard = useHasKeyboard();
   return (
     <div ref={scope} className="showcard" onClick={onClose}>
       <div className="show-jp">{item.jp}</div>
@@ -455,7 +456,7 @@ function ShowCard({ item, settings, onClose }) {
       >
         <IconSpeaker /> 소리로 들려주기
       </button>
-      <div className="show-hint">화면을 탭하면 닫혀요 · Esc</div>
+      <div className="show-hint">화면을 탭하면 닫혀요{hasKeyboard && <kbd className="inline-key">Esc</kbd>}</div>
     </div>
   );
 }
