@@ -5,7 +5,7 @@ import {
   splitSentences, cleanStory, parseStoryText, storiesFromFile, flatStory, storyStats, storyMinutes, sectionStarts,
   nextStoryAt, addStories, removeStory, loadStories, saveStories, loadStoryPos, saveStoryPos, resumeAt, loadStoryPrefs, saveStoryPrefs,
   mergeStoryStore, sameStoryStore, loadStoryRemoved, saveStoryRemoved,
-  STORY_SIZES, buildGlossIndex, glossSentence,
+  STORY_SIZES, STORY_VOICES, buildGlossIndex, glossSentence,
 } from '../../src/lib/story.js';
 import { mergeVideos } from '../../src/lib/merge.js';
 let pass = 0;
@@ -133,12 +133,12 @@ check('이어 들을 자리: 범위 안이면 그 자리, 벗어나면 처음', 
   assert.deepEqual(loadStoryPos({ getItem: () => '[1,2]' }), {});
 });
 check('설정: 기본은 천천히 · 한 번 · 해석 글자로. 표에 없는 값은 기본값으로', () => {
-  assert.deepEqual(DEFAULT_STORY_PREFS, { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false, size: 'l' });
+  assert.deepEqual(DEFAULT_STORY_PREFS, { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false, size: 'l', voice: '' });
   assert.deepEqual(cleanStoryPrefs({ rate: 3, repeat: 9, ko: 'x', loop: 'yes' }), DEFAULT_STORY_PREFS);
-  assert.deepEqual(cleanStoryPrefs({ rate: 0.6, repeat: 3, ko: 'voice', loop: true }), { rate: 0.6, repeat: 3, ko: 'voice', loop: true, size: 'l' });
+  assert.deepEqual(cleanStoryPrefs({ rate: 0.6, repeat: 3, ko: 'voice', loop: true }), { rate: 0.6, repeat: 3, ko: 'voice', loop: true, size: 'l', voice: '' });
   const s = memory();
-  saveStoryPrefs({ rate: 1, repeat: 2, ko: 'off', loop: true, size: 'xl' }, s);
-  assert.deepEqual(loadStoryPrefs(s), { rate: 1, repeat: 2, ko: 'off', loop: true, size: 'xl' });
+  saveStoryPrefs({ rate: 1, repeat: 2, ko: 'off', loop: true, size: 'xl', voice: 'ja-JP-Chirp3-HD-Kore' }, s);
+  assert.deepEqual(loadStoryPrefs(s), { rate: 1, repeat: 2, ko: 'off', loop: true, size: 'xl', voice: 'ja-JP-Chirp3-HD-Kore' });
   assert.deepEqual(loadStoryPrefs({ getItem: () => 'x' }), DEFAULT_STORY_PREFS);
 });
 check('글자 크기: 보통 · 크게 · 아주 크게. 기본은 크게, 모르는 값은 기본으로', () => {
@@ -146,6 +146,13 @@ check('글자 크기: 보통 · 크게 · 아주 크게. 기본은 크게, 모�
   assert.equal(cleanStoryPrefs({ size: 'm' }).size, 'm');
   assert.equal(cleanStoryPrefs({ size: 'huge' }).size, 'l');
   assert.equal(cleanStoryPrefs({}).size, 'l');
+});
+check('이야기 목소리: 기본은 설정과 같게, 회화형 넷 중에서 고른다. 모르는 이름은 버린다', () => {
+  assert.deepEqual(STORY_VOICES.map((x) => x.v), ['', 'ja-JP-Chirp3-HD-Aoede', 'ja-JP-Chirp3-HD-Kore', 'ja-JP-Chirp3-HD-Charon', 'ja-JP-Chirp3-HD-Puck']);
+  assert.equal(cleanStoryPrefs({}).voice, '');
+  assert.equal(cleanStoryPrefs({ voice: 'ja-JP-Chirp3-HD-Puck' }).voice, 'ja-JP-Chirp3-HD-Puck');
+  assert.equal(cleanStoryPrefs({ voice: 'en-US-Whatever' }).voice, '');
+  assert.equal(cleanStoryPrefs({ voice: 7 }).voice, '');
 });
 const DICT = [
   { id: 'w1', kanji: '行く', kana: 'いく', mean: '가다', type: 'verb', group: '1' },

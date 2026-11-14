@@ -4,9 +4,9 @@ import { IconHeadphone, IconPlay, IconTrash, IconUpload } from '../components/Ic
 import AskSheet from '../components/AskSheet.jsx';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
-import { speakJapaneseAsync, speakKorean, stopSpeaking, soundPlaying, unlockAudio } from '../lib/tts.js';
+import { speakJapaneseAsync, speakKorean, stopSpeaking, soundPlaying, unlockAudio, cloudTTSReady } from '../lib/tts.js';
 import {
-  STORY_RATES, STORY_REPEATS, STORY_KO, STORY_SIZES, buildGlossIndex, glossSentence,
+  STORY_RATES, STORY_REPEATS, STORY_KO, STORY_SIZES, STORY_VOICES, buildGlossIndex, glossSentence,
   saveStories, loadStoryPos, saveStoryPos, loadStoryPrefs, saveStoryPrefs,
   storiesFromFile, addStories, removeStory, flatStory, storyStats, storyMinutes, sectionStarts, resumeAt, nextStoryAt,
 } from '../lib/story.js';
@@ -85,7 +85,7 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
     (async () => {
       for (let i = 0; i < prefs.repeat; i += 1) {
         setPhase(i === 0 ? 'jp' : 'again');
-        const how = await speakJapaneseAsync(line.jp, prefs.rate, { id: `story:${run.at}:${i}` });
+        const how = await speakJapaneseAsync(line.jp, prefs.rate, { id: `story:${run.at}:${i}`, voice: prefs.voice });
         if (dead) return;
         if (how === 'interrupted') { pause(); return; }     // 다른 소리가 끼어들었다 — 겹쳐 읽지 않고 멈춘다
         if (how === 'failed') { onToast?.('이 기기에서 일본어를 소리로 읽지 못했어요. 설정 → 음성을 확인해 주세요'); pause(); return; }
@@ -120,7 +120,7 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
     })();
     return () => { dead = true; sleep.current.clear(); stopSpeaking(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [run?.id, run?.at, run?.playing, run?.tick, prefs.rate, prefs.repeat, koMode]);
+  }, [run?.id, run?.at, run?.playing, run?.tick, prefs.rate, prefs.repeat, prefs.voice, koMode]);
 
   /* 지금 읽는 문장이 화면에 보이게 — 문장을 골라 해석을 보는 중에는 글을 끌고 가지 않는다 */
   useEffect(() => {
@@ -378,6 +378,19 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
               </button>
             ))}
           </div>
+
+          {/* 목소리는 클라우드 음성을 쓸 때만 고른다 — 기기 음성은 설정 → 음성에서 고른다 */}
+          {cloudTTSReady() && (
+            <>
+              <div className="section-label">목소리</div>
+              <div className="ls-pills sl-voices">
+                {STORY_VOICES.map((x) => (
+                  <button key={x.v || 'same'} className={`ls-pill${prefs.voice === x.v ? ' active' : ''}`} data-voice={x.v} aria-pressed={prefs.voice === x.v} onClick={() => { setPref('voice', x.v); unlockAudio(); speakJapaneseAsync('こんにちは。今日もよろしくお願いします。', prefs.rate, { id: `story-voice:${x.v}`, voice: x.v }); }}>{x.label}</button>
+                ))}
+              </div>
+              <div className="set-note sl-voicenote">회화형은 사람이 말하듯 읽어서 긴 글에 잘 맞아요. 누르면 그 목소리로 한 번 들려줘요. 낱말 카드 목소리는 설정 → 음성에서 따로 골라요.</div>
+            </>
+          )}
 
           <div className="section-label">글자 크기</div>
           <div className="ls-pills sl-sizes">
