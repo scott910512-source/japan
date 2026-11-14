@@ -88,7 +88,7 @@ export default function Study({
   asks, onAsks, onAddWord,
   onReviewChange, onSessionChange, onSettingsChange, onBookmark, onClose, onNext, onToast,
   /* 하루 흐름 — 다음 단계(flowNext)와 「10개 더」(onMore). 없으면 예전 그대로 */
-  flowNext, onMore,
+  flowNext, onMore, onFinished,
   /* 「홈으로」 — 닫기(onClose)는 오던 자리로 돌아가지만, 판을 끝내고 누르는
      홈으로는 글자 그대로 홈이어야 한다. 복습 탭에서 시작했어도 끝나면 홈에서
      오늘 진도가 오른 것을 본다. 없으면 닫기로 대신한다. */
@@ -282,6 +282,7 @@ export default function Study({
       onToast(`${next.session.round}회독 시작 — 남은 ${next.session.queue.length}개`);
     } else {
       onSessionChange(null);
+      onFinished?.(deck.id);
       setFinished({
         done: result.session.done,
         reason: next.reason,

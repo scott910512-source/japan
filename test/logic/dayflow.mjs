@@ -96,5 +96,17 @@ console.log('\n[ 랜덤 테스트 문제 ]');
   ok('순서가 섞인다', t.join() !== [...today, ...seen.filter((i) => !today.includes(i))].slice(0, 50).join());
 }
 
+console.log('\n[ ★ 끝까지 돈 카드 판으로는 「다음」이 돌려보내지 않는다 ★ ]');
+{
+  /* 「몰라요」가 섞이면 복습 미션과 새로 배우기가 둘 다 조금 남은 채 끝난다 — 전에는 다음이 서로를 가리켜 여러 번 오갔다 */
+  const left = { review: true, fresh: true, random: true };
+  ok('전에는: 복습 → 새로 배우기 → 복습 → …(서로를 가리킨다)', nextStep('review', left).to === 'fresh' && nextStep('fresh', left).to === 'review');
+  ok('★ 새로 배우기를 끝까지 돌았으면 복습 뒤의 다음은 랜덤 테스트다 ★', nextStep('review', left, { review: true, fresh: true }).to === 'random');
+  ok('★ 복습을 끝까지 돌았으면 새로 배우기 뒤에 복습으로 돌아가지 않는다 ★', nextStep('fresh', { ...left, sentence: true }, { review: true }).to === 'sentence' && nextStep('sentence', left, { review: true, fresh: true }).to === 'random');
+  ok('★ 건너뛰어서 안 열어 본 복습으로는 그대로 돌아간다 ★', nextStep('sentence', left, { fresh: true }).to === 'review');
+  ok('랜덤 테스트 뒤에도 끝까지 돈 판으로는 안 돌아간다', nextStep('random', { review: true, fresh: true, n3: true }, { review: true, fresh: true }).to === 'n3' && nextStep('random', { review: true }, { review: true }) === null);
+  ok('안 적어 주면(예전 부르는 쪽) 그대로다', nextStep('fresh', { review: true }).to === 'review');
+}
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

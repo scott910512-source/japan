@@ -520,8 +520,15 @@ export default function App() {
     else if (to === 'n3') nav.openMenu('n3', { view: { kind: 'today' } });
     else if (to === 'random') startRandomTest();
   }, [setDeck, startWeakQuiz, startStreamQuest, startToday, startSentenceQuest, startRandomTest, nav]);
+  /* 오늘 끝 화면까지 간 카드 판(복습 · 새로 배우기) — 「다음」이 이 판들로 되돌려 보내지 않게 적어 둔다(dayflow.nextStep) */
+  const [flowTried, setFlowTried] = useState({ day: today, steps: {} });
+  const markTried = useCallback((step) => {
+    if (step !== 'review' && step !== 'fresh') return;
+    setFlowTried((cur) => (cur.day === today && cur.steps[step] ? cur : { day: today, steps: { ...(cur.day === today ? cur.steps : {}), [step]: true } }));
+  }, [today]);
+  const triedToday = flowTried.day === today ? flowTried.steps : {};
   const flowAfter = (step) => {
-    const n = nextStep(step, flowOpen);
+    const n = nextStep(step, flowOpen, triedToday);
     return n ? { ...n, go: () => goStep(n.to) } : null;
   };
   /* ★ 오늘 화면의 큰 버튼은 지금 차례인 퀘스트를 연다 ★
@@ -667,6 +674,7 @@ export default function App() {
                 prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
               ))}
               onReviewChange={applyReview}
+              onFinished={(id) => markTried(deckStep(id))}
               onSessionChange={setSession}
               onSettingsChange={patchSettings}
               onBookmark={toggleBookmark}

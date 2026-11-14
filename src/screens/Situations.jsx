@@ -443,8 +443,11 @@ function SentencePlayer({ part, items, mode, review, settings, onReviewChange, o
 /* ── 보여주기 카드 ──
  * 말이 안 나올 때 점원에게 화면을 그대로 보여주는 용도. 글씨를 최대한 키운다. */
 function ShowCard({ item, settings, onClose }) {
+  /* 키보드로도 닫는다 — 「화면을 탭하면 닫혀요」뿐이라 Esc를 눌러도 그대로였다 */
+  const scope = useHotkeys({ Escape: onClose, Enter: onClose });
+  const hasKeyboard = useHasKeyboard();
   return (
-    <div className="showcard" onClick={onClose}>
+    <div ref={scope} className="showcard" onClick={onClose}>
       <div className="show-jp">{item.jp}</div>
       <div className="show-ko">{item.ko}</div>
       <button
@@ -453,7 +456,7 @@ function ShowCard({ item, settings, onClose }) {
       >
         <IconSpeaker /> 소리로 들려주기
       </button>
-      <div className="show-hint">화면을 탭하면 닫혀요</div>
+      <div className="show-hint">화면을 탭하면 닫혀요{hasKeyboard && <kbd className="inline-key">Esc</kbd>}</div>
     </div>
   );
 }

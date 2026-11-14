@@ -59,8 +59,12 @@ const MAIN = FLOW.filter((s) => !TAIL.includes(s));
    ★ 뒤쪽만 보지 않는다 ★ 첫날에는 외운 것이 없어 쭉 퀴즈가 닫혀 있다가, 새로 배우기를 마치면 열린다. 뒤쪽만 찾으면
    새로 배우기 → 문장 퀘스트에서 끝나고, 방금 열린 쭉 퀴즈(순서로는 앞)는 「0 / 20」으로 남은 채 「홈으로」만 나왔다.
    그래서 뒤쪽에 남은 게 없으면 앞에서 건너뛴 단계로 돌아가고, 그것도 없을 때 마지막 구간(랜덤 테스트 · 오늘의 N3)을 내민다. */
-export function nextStep(after, states = {}) {
-  const open = (list) => list.find((s) => states[s]) || null;
+/* ★ 이미 끝 화면까지 간 카드 판으로는 돌려보내지 않는다(tried) ★
+   「몰라요」를 누른 카드는 그 판이 끝나도 오늘 몫에 남는다. 그래서 복습 미션과 새로 배우기가 둘 다 「조금 남은」 채로 끝나면
+   다음이 서로를 가리켜서, 한두 장짜리 판을 열 번 가까이 오갔다(30명 시뮬레이션에서 「몰라요」가 많은 사람). 한 번 끝까지 돈 판은
+   「다음」에서 빼고, 남은 카드는 오늘 화면의 줄과 큰 버튼에서 고르게 둔다. 건너뛰어서 안 열어 본 단계는 그대로 돌아간다. */
+export function nextStep(after, states = {}, tried = {}) {
+  const open = (list) => list.find((s) => states[s] && !tried[s]) || null;
   const make = (s) => (s ? { to: s, label: FLOW_LABEL[s] } : null);
   if (TAIL.includes(after)) {
     const at = TAIL.indexOf(after);
