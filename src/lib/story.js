@@ -39,7 +39,7 @@ export const STORY_SIZES = [
 ];
 /* 이야기를 읽을 목소리 — 비우면 설정 → 음성에서 고른 목소리다. 긴 글은 회화형이 덜 딱딱해서 여기서 따로 고를 수 있게 둔다
    (낱말 카드는 또박또박한 낭독형으로 두고 이야기만 회화형으로 들을 수 있다) */
-export const STORY_VOICES = [{ v: '', label: '설정과 같게' }, ...CLOUD_VOICES.filter((x) => x.talk).map((x) => ({ v: x.id, label: x.label }))];
+export const STORY_VOICES = [{ v: '', label: '설정과 같게' }, ...CLOUD_VOICES.filter((x) => x.talk).map((x) => ({ v: x.id, label: x.trait ? `${x.label} · ${x.trait}` : x.label }))];
 export const DEFAULT_STORY_PREFS = { rate: 0.75, repeat: 1, ko: STORY_KO.TEXT, loop: false, size: 'l', voice: '' };
 
 export function cleanStoryPrefs(raw) {
@@ -69,6 +69,14 @@ function hash(s) {
   return h.toString(36);
 }
 
+/* 앱에 들어 있는 기본 회화(data/stories.js)인가 — 기기 · 계정에 저장하지 않고, 지울 수도 없다 */
+export const isBuiltinStory = (s) => String(s?.id || '').startsWith('app:');
+/* 내 이야기 뒤에 기본 회화를 붙인 목록. 같은 id를 내가 불러왔으면 내 것이 이긴다 */
+export function withBuiltin(mine = [], builtin = []) {
+  const have = new Set(mine.map((s) => s.id));
+  return [...mine, ...builtin.filter((b) => !have.has(b.id))];
+}
+
 /* 한 이야기를 앱이 쓰는 모양으로. 모양이 틀린 것은 버린다(문장이 하나도 없으면 null) */
 export function cleanStory(raw, now = Date.now()) {
   if (!raw || typeof raw !== 'object') return null;
@@ -81,7 +89,9 @@ export function cleanStory(raw, now = Date.now()) {
         const jp = text(typeof line === 'string' ? line : line?.jp, 600);
         if (!jp) continue;
         const ko = text(typeof line === 'string' ? '' : line?.ko, 900);
-        lines.push(ko ? { jp, ko } : { jp });
+        /* 말하는 사람(회화) — 화면에만 보이고 소리로는 읽지 않는다 */
+        const who = text(typeof line === 'string' ? '' : line?.who, 20);
+        lines.push({ jp, ...(ko ? { ko } : {}), ...(who ? { who } : {}) });
       }
       if (lines.length) paras.push(lines);
     }
@@ -167,7 +177,7 @@ export function flatStory(story) {
   const out = [];
   (story?.sections || []).forEach((sec, s) => {
     sec.paras.forEach((para, p) => {
-      para.forEach((line, i) => out.push({ jp: line.jp, ko: line.ko || '', sec: s, para: p, last: i === para.length - 1 }));
+      para.forEach((line, i) => out.push({ jp: line.jp, ko: line.ko || '', who: line.who || '', sec: s, para: p, last: i === para.length - 1 }));
     });
   });
   return out;

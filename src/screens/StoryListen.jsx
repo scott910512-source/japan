@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconHeadphone, IconPlay, IconTrash, IconUpload } from '../components/Icons.jsx';
 import AskSheet from '../components/AskSheet.jsx';
@@ -6,10 +6,11 @@ import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
 import { speakJapaneseAsync, speakKorean, stopSpeaking, soundPlaying, unlockAudio, cloudTTSReady } from '../lib/tts.js';
 import {
-  STORY_RATES, STORY_REPEATS, STORY_KO, STORY_SIZES, STORY_VOICES, buildGlossIndex, glossSentence,
+  STORY_RATES, STORY_REPEATS, STORY_KO, STORY_SIZES, STORY_VOICES, cleanStory, isBuiltinStory, withBuiltin, buildGlossIndex, glossSentence,
   saveStories, loadStoryPos, saveStoryPos, loadStoryPrefs, saveStoryPrefs,
   storiesFromFile, addStories, removeStory, flatStory, storyStats, storyMinutes, sectionStarts, resumeAt, nextStoryAt,
 } from '../lib/story.js';
+import { BUILTIN_STORIES } from '../data/stories.js';
 
 /* 이야기 연속 듣기 — 긴 글을 처음부터 끝까지 이어서 듣는다.
  *
@@ -39,11 +40,15 @@ const KO_LABEL = { [STORY_KO.OFF]: '끔', [STORY_KO.TEXT]: '글자로', [STORY_K
 
 const EMPTY = { list: [], removed: {} };
 
+/* 앱 기본 회화 — 직접 지은 글이라 앱에 담는다. 한 번만 다듬어 둔다 */
+const BUILTIN = BUILTIN_STORIES.map((s) => cleanStory(s, 0)).filter(Boolean);
 const LONG_PRESS_MS = 480;
 const DOUBLE_TAP_MS = 350;
 
 export default function StoryListen({ store = EMPTY, setStore, onActivity, onToast, words = [], settings = {}, asks = [], onAsks, onAddWord }) {
-  const stories = store?.list || EMPTY.list;
+  /* 내가 불러온 이야기 + 앱 기본 회화. 저장 · 동기화는 내 것(mine)만 한다 */
+  const mine = store?.list || EMPTY.list;
+  const stories = useMemo(() => withBuiltin(mine, BUILTIN), [mine]);
   const [pos, setPos] = useState(loadStoryPos);
   const [prefs, setPrefsState] = useState(loadStoryPrefs);
   const [pick, setPick] = useState(null);
@@ -201,7 +206,7 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
     }
     if (fileRef.current) fileRef.current.value = '';
     if (!incoming.length) { onToast?.(bad ? '이야기로 읽을 수 없는 파일이에요 (.json · .txt)' : '고른 파일이 없어요'); return; }
-    const res = addStories(stories, incoming);
+    const res = addStories(mine, incoming);
     if (!res.added && !res.replaced) { onToast?.('이야기를 더 담을 자리가 없어요. 안 듣는 것을 지운 뒤 다시 해 주세요'); return; }
     if (!saveStories(res.list)) { onToast?.('기기 저장 공간이 모자라 불러오지 못했어요'); return; }
     setStore?.((cur) => ({ list: addStories(cur?.list || [], incoming).list, removed: cur?.removed || {} }));
@@ -254,8 +259,9 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
                 {sec.title && <h3 className="sl-sectitle">{sec.title}{sec.titleKo && <small lang="ko">{sec.titleKo}</small>}</h3>}
                 {sec.paras.map((para, p) => (
                   <p key={p} className="sl-para">
-                    {para.map((l) => {
+                    {para.map((l, li) => {
                       n += 1; const at = n;
+                      const prevWho = li > 0 ? para[li - 1].who : '';   // 한 사람이 이어 말하는 동안은 이름을 한 번만 보인다
                       return (
                         <span
                           key={at} data-at={at} data-rapid="1" role="button" tabIndex={-1}
@@ -265,7 +271,7 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
                           onPointerDown={(e) => pressStart(e, at)} onPointerMove={pressMove}
                           onPointerUp={pressEnd} onPointerCancel={pressEnd} onPointerLeave={pressEnd}
                           onContextMenu={(e) => { if (press.current.fired || e.pointerType === 'touch') e.preventDefault(); }}
-                        >{l.jp}</span>
+                        >{l.who && l.who !== prevWho && <i className="sl-who" lang="ko">{l.who}</i>}{l.jp}</span>
                       );
                     })}
                   </p>
@@ -280,7 +286,7 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
             /* 고른 문장 — 해석과 낱말 뜻. 재생은 그대로 가고, 여기서 그 문장부터 듣거나 곤에게 물을 수 있다 */
             <div className="sl-pick" data-at={sel}>
               <div className="sl-pickhead">
-                <span>{sel + 1}번째 문장</span>
+                <span>{sel + 1}번째 문장{selLine.who ? ` · ${selLine.who}` : ''}</span>
                 <button type="button" className="sl-pickx" onClick={() => setSel(null)} aria-label="해석 닫기">✕</button>
               </div>
               <div className="sl-ko" lang="ko">{selLine.ko || '이 문장은 해석이 없는 파일이에요. 곤에게 물어볼 수 있어요.'}</div>
@@ -295,7 +301,7 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
               </div>
             </div>
           ) : (
-            koMode !== STORY_KO.OFF && <div className={`sl-ko${phase === 'ko' ? ' saying' : ''}`} lang="ko">{line.ko || '이 문장은 해석이 없어요'}</div>
+            koMode !== STORY_KO.OFF && <div className={`sl-ko${phase === 'ko' ? ' saying' : ''}`} lang="ko">{line.who && <i className="sl-kowho">{line.who}</i>}{line.ko || '이 문장은 해석이 없어요'}</div>
           )}
           <div className="sl-status" role="status">
             {!run.playing ? '잠시 멈춤' : phase === 'ko' ? '해석' : phase === 'again' ? '한 번 더' : '듣는 중'}
@@ -350,19 +356,24 @@ export default function StoryListen({ store = EMPTY, setStore, onActivity, onToa
         </div>
       ) : (
         <div className="sl-list" role="radiogroup" aria-label="이야기">
-          {stories.map((s) => {
+          {stories.map((s, si) => {
             const st = storyStats(s);
             const at = resumeAt(pos, s.id, st.sentences);
             const on = s.id === chosenId;
+            const built = isBuiltinStory(s);
+            const firstBuilt = built && (si === 0 || !isBuiltinStory(stories[si - 1]));
             return (
-              <div key={s.id} className={`sl-item${on ? ' active' : ''}`} data-story={s.id}>
+              <Fragment key={s.id}>
+              {firstBuilt && <div className="section-label sl-grouplabel">앱 기본 회화 <span>직접 지은 여행 회화예요</span></div>}
+              <div className={`sl-item${on ? ' active' : ''}${built ? ' builtin' : ''}`} data-story={s.id}>
                 <button className="sl-itembody" role="radio" aria-checked={on} onClick={() => setPick(s.id)}>
                   <b>{s.level && <i className="sl-level">{s.level}</i>}{s.title}</b>
                   <span>{st.sentences}문장 · 약 {storyMinutes(s, prefs)}분{st.hasKo ? ' · 해석 있음' : ''}{s.source ? ` · ${s.source}` : ''}</span>
                   {at > 0 && <span className="sl-resume">{at + 1}번째 문장까지 들었어요</span>}
                 </button>
-                <button className="sl-del" onClick={() => drop(s)} aria-label={`${s.title} 지우기`}><IconTrash /></button>
+                {!built && <button className="sl-del" onClick={() => drop(s)} aria-label={`${s.title} 지우기`}><IconTrash /></button>}
               </div>
+              </Fragment>
             );
           })}
         </div>
