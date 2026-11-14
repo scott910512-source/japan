@@ -10,6 +10,9 @@ const DEFAULT_VOICE = 'ja-JP-Neural2-B';
 let deviceVoiceURI = '';   // 기기 내장 음성 중 사용자가 고른 것
 
 let config = { gttsKey: '', useCloud: true, voice: DEFAULT_VOICE };
+/* 이 키로는 못 쓰는 것으로 드러난 일본어 목소리. 같은 목소리를 문장마다 다시 물어 거절당하지 않게 기억한다.
+   목소리나 키를 바꾸면 지운다 */
+let jaVoiceBroken = '';
 
 // 같은 문장은 다시 부르지 않는다 — 무료 한도를 아끼기 위한 메모리 캐시.
 const cloudCache = new Map();
@@ -31,10 +34,11 @@ export function configureTTS(patch) {
   if (patch.deviceVoiceURI !== undefined) deviceVoiceURI = patch.deviceVoiceURI || '';
   config = { ...config, ...patch };
   // 목소리를 바꿨으면 예전 목소리로 받아 둔 캐시를 쓰면 안 된다
-  if (config.voice !== prevVoice) cloudCache.clear();
+  if (config.voice !== prevVoice) { cloudCache.clear(); jaVoiceBroken = ''; }
   if (config.gttsKey !== prevKey) {
     cloudDisabled = false;
     cloudCache.clear();
+    jaVoiceBroken = '';
     // 키를 바꿨으면 한국어가 조용한 이유도 달라진다 — 다시 말해 줄 수 있게 놓는다
     koToldSilent = false;
   }
@@ -528,7 +532,7 @@ const CLOUD_LANG = { ko: 'ko-KR', de: 'de-DE' };
 const CLOUD_FALLBACK_VOICE = { ko: 'ko-KR-Standard-A', de: 'de-DE-Standard-A' };
 
 function cloudVoiceFor(lang, override) {
-  if (lang === 'ja') return { languageCode: 'ja-JP', name: config.voice || DEFAULT_VOICE };
+  if (lang === 'ja') return { languageCode: 'ja-JP', name: override || config.voice || DEFAULT_VOICE };
   const languageCode = CLOUD_LANG[lang] || 'ko-KR';
   return override ? { languageCode, name: override } : { languageCode };
 }
@@ -581,26 +585,43 @@ async function speakCloud(text, rate, token, lang = 'ja', beforePlay = null) {
      *     확인 못 하는 위험은 코드로 없앤다. 표준 목소리를 박아 한 번 더 묻는다.
      *
      * 401·403은 키 문제라 되물어도 소용없다 — 바로 올린다. */
-    const tries = [{ withRate: true, voice: null }];
-    if (rate !== 1) tries.push({ withRate: false, voice: null });
-    const spare = CLOUD_FALLBACK_VOICE[lang];
+    /* 일본어는 사용자가 고른 목소리로 부른다. 그 목소리를 이 키가 못 쓰면(새로 나온 회화형 목소리가 그럴 수 있다)
+       기본 목소리로 한 번 더 묻는다 — 목소리 하나 때문에 클라우드 전체를 잠그고 기기 음성으로 떨어지면 안 된다. */
+    const chosen = lang === 'ja' ? (config.voice || DEFAULT_VOICE) : null;
+    const spare = lang === 'ja' ? (chosen !== DEFAULT_VOICE ? DEFAULT_VOICE : null) : CLOUD_FALLBACK_VOICE[lang];
+    const tries = [];
+    if (!(lang === 'ja' && spare && jaVoiceBroken === chosen)) {
+      tries.push({ withRate: true, voice: null });
+      if (rate !== 1) tries.push({ withRate: false, voice: null });
+    }
+    const spareFrom = tries.length;
     if (spare) {
       tries.push({ withRate: true, voice: spare });
       if (rate !== 1) tries.push({ withRate: false, voice: spare });
     }
 
     let last = null;
-    for (const t of tries) {
+    let usedSpare = false;
+    for (let i = 0; i < tries.length; i += 1) {
+      const t = tries[i];
       try {
         b64 = await requestCloud(text, rate, t.withRate, lang, t.voice);
         last = null;
+        usedSpare = Boolean(t.voice);
         break;
       } catch (err) {
         last = err;
-        if (err.status !== 400) break;   // 키 문제는 되물어도 같다
+        if (err.status === 400) continue;
+        /* 고른 일본어 목소리만 막힌 것일 수 있다(403 · 404) — 기본 목소리로 건너뛴다. 키가 틀렸으면 거기서도 같은 답이 온다 */
+        if (lang === 'ja' && spare && i < spareFrom && (err.status === 403 || err.status === 404)) { i = spareFrom - 1; continue; }
+        break;   // 키 문제는 되물어도 같다
       }
     }
     if (last) throw last;
+    if (lang === 'ja' && usedSpare && jaVoiceBroken !== chosen) {
+      jaVoiceBroken = chosen;
+      onCloudError?.('고른 목소리를 이 키로는 쓸 수 없어서 「여성 1」 목소리로 읽었어요. 설정 → 음성에서 다른 목소리를 골라 주세요.');
+    }
     if (!b64) throw new Error('빈 응답');
     // 서버까지 간 요청만 센다 — 캐시로 다시 튼 소리는 청구되지 않는다
     addChars([...text].length);

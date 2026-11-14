@@ -66,7 +66,7 @@ globalThis.localStorage = {
 let cloudReject = null;   // { status, when: (call) => bool }
 globalThis.fetch = (url, opt) => {
   const body = JSON.parse(opt.body);
-  const call = { lang: body.voice.languageCode, name: body.voice.name ?? null, text: body.input.text };
+  const call = { lang: body.voice.languageCode, name: body.voice.name ?? null, text: body.input.text, rate: body.audioConfig?.speakingRate ?? null };
   calls.push(call);
   if (cloudReject && cloudReject.when(call)) {
     return Promise.resolve({
@@ -288,6 +288,70 @@ console.log('\n[ 키 문제는 되물어도 소용없다 ]');
   ok('★ 한 번만 묻는다 ★', calls.filter((c) => c.lang === 'ko-KR').length === 1,
     `${calls.filter((c) => c.lang === 'ko-KR').length}회`);
   ok('왜 안 됐는지 알린다', said.length === 1, JSON.stringify(said));
+}
+
+console.log('\n[ ★ 회화형 목소리: 고른 대로 부르고, 이 키가 못 쓰면 「여성 1」로 대신 읽는다 ★ ]');
+{
+  const CHIRP = 'ja-JP-Chirp3-HD-Aoede';
+  const said = [];
+  tts.setTTSErrorHandler((m) => said.push(m));
+  voices = [];
+  synth.onvoiceschanged?.();
+  tts.configureTTS({ gttsKey: 'KEY-C', useCloud: true, voice: CHIRP });
+  reset();
+  tts.speakJapanese('はなし', 0.9);
+  await settle();
+  ok('★ 회화형 목소리를 고르면 그 이름과 속도로 부른다 ★', calls.length === 1 && calls[0].name === CHIRP && calls[0].rate === 0.9, JSON.stringify(calls));
+  ok('잘 되면 아무 말도 안 한다', said.length === 0 && spoken.length === 0);
+
+  /* 이 키로는 회화형 목소리를 못 쓴다(구글이 400으로 거절) */
+  tts.configureTTS({ gttsKey: 'KEY-D', useCloud: true, voice: CHIRP });
+  reset();
+  cloudReject = { status: 400, when: (c) => c.name === CHIRP };
+  tts.speakJapanese('ひとつ', 0.9);
+  await settle();
+  ok('★ 거절당하면 기본 목소리(Neural2-B)로 다시 묻는다 ★', calls[calls.length - 1].name === 'ja-JP-Neural2-B' && calls[calls.length - 1].rate === 0.9, JSON.stringify(calls));
+  ok('★ 기기 음성으로 떨어지지 않는다(클라우드를 잠그지 않는다) ★', spoken.length === 0 && tts.cloudTTSReady(), JSON.stringify(spoken));
+  ok('★ 대신 읽었다고 한 번 알린다 ★', said.length === 1 && said[0].includes('여성 1'), JSON.stringify(said));
+  const before = calls.length;
+  tts.speakJapanese('ふたつ', 0.9);
+  await settle();
+  ok('★ 다음 문장부터는 거절당할 목소리를 다시 묻지 않는다 ★', calls.length === before + 1 && calls[before].name === 'ja-JP-Neural2-B', JSON.stringify(calls.slice(before)));
+  ok('알림도 되풀이하지 않는다', said.length === 1);
+
+  /* 다른 회화형 목소리로 바꾸면 처음부터 다시 물어본다 */
+  cloudReject = null;
+  tts.configureTTS({ voice: 'ja-JP-Chirp3-HD-Kore' });
+  calls.length = 0;
+  tts.speakJapanese('みっつ', 1);
+  await settle();
+  ok('목소리를 바꾸면 그 목소리로 다시 묻는다', calls.length === 1 && calls[0].name === 'ja-JP-Chirp3-HD-Kore', JSON.stringify(calls));
+
+  /* 403 · 404로 거절해도 같다 — 목소리 하나만 막힌 것일 수 있다 */
+  tts.configureTTS({ gttsKey: 'KEY-E', useCloud: true, voice: CHIRP });
+  reset();
+  cloudReject = { status: 403, when: (c) => c.name === CHIRP };
+  tts.speakJapanese('よっつ', 1);
+  await settle();
+  ok('403으로 막혀도 기본 목소리로 읽는다', calls.length === 2 && calls[1].name === 'ja-JP-Neural2-B' && spoken.length === 0 && tts.cloudTTSReady(), JSON.stringify(calls));
+
+  /* 키 자체가 틀렸으면(기본 목소리도 403) 하던 대로 기기 음성으로 간다 */
+  tts.configureTTS({ gttsKey: 'KEY-F', useCloud: true, voice: CHIRP });
+  reset();
+  said.length = 0;
+  cloudReject = { status: 403, when: () => true };
+  tts.speakJapanese('いつつ', 1);
+  await settle();
+  ok('키가 틀렸으면 두 번만 묻고 기기 음성으로 간다', calls.length === 2 && !tts.cloudTTSReady() && said.length === 1 && said[0].includes('기기 음성'), `${calls.length}회 ${JSON.stringify(said)}`);
+
+  /* 기본 목소리를 쓰는 사람은 달라지는 것이 없다 */
+  tts.configureTTS({ gttsKey: 'KEY-G', useCloud: true, voice: 'ja-JP-Neural2-B' });
+  reset();
+  cloudReject = { status: 400, when: (c) => c.rate !== null };
+  tts.speakJapanese('むっつ', 0.9);
+  await settle();
+  ok('기본 목소리는 하던 대로다(속도를 빼고 한 번 더)', calls.length === 2 && calls.every((c) => c.name === 'ja-JP-Neural2-B') && calls[1].rate === null, JSON.stringify(calls));
+  cloudReject = null;
 }
 
 console.log('\n[ ★ 캐시가 두 말을 섞지 않는다 ★ ]');

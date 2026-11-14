@@ -380,6 +380,9 @@
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px;
   border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); cursor: pointer;
 }
+.voicegrid.talk { grid-template-columns: repeat(2, 1fr); }
+.voicegroup { margin: 10px 0 6px; font-size: 12px; font-weight: 800; color: var(--ink); }
+.voicegroup i { font-style: normal; font-weight: 600; color: var(--ink-soft); margin-left: 4px; }
 .voicecell.active { border-color: var(--kon); background: var(--kon-soft); }
 .vc-label { font-size: 12.5px; font-weight: 700; color: var(--ink); }
 .voicecell.active .vc-label { color: var(--kon); }
