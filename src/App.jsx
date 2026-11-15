@@ -860,6 +860,7 @@ export default function App() {
             syncState={syncState}
             storeError={storeError}
             onSync={() => runSync(false)}
+            onFlush={() => runSync(true)}
             onSignedOut={() => {
               setAuthSession(null); setRemoteKeyEnvelope(null); rememberVaultKey(null); setOfflinePass(false); setGuest(false);
               syncedFor.current = null; showToast('로그아웃했어요');
