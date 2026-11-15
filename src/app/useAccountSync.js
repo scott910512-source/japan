@@ -7,6 +7,7 @@ import { applySyncedSettings, mergeReview, mergeProgress, mergeStats, mergeStrea
 import { encryptWithVaultKey, decryptWithVaultKey } from '../lib/crypto.js';
 import { looksPacked, reconcileKeys, unpackKeys } from '../lib/keyvault.js';
 import { AUTH_READY_TIMEOUT, sessionFrom } from '../lib/authboot.js';
+import { isSwitching, switchAccountStorage, switchedFrom } from '../lib/accountswitch.js';
 
 // 기존 서버 왕복과 병합 규칙을 보존한 계정 어댑터. 학습 화면은 서버에 직접 접근하지 않는다.
 export function useAccountSync({ data, streak, setStreak, showToast }) {
@@ -108,7 +109,16 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
   const fromSync = useRef(false);
   const movedDuring = useRef(false);
   const runSync = useCallback(async (silent = false) => {
-    if (!authSession?.user) return;
+    if (!authSession?.user || isSwitching()) return;
+    /* ★ 이 기기의 기록이 다른 계정 것이면 합치지 않는다 ★ 보관함에 옮기고(되살릴 것이 있으면 되살리고) 다시 불러온다.
+       다시 뜬 앱은 이 계정의 기록(또는 빈 기록)으로 이 계정의 클라우드와 평소대로 합친다 — lib/accountswitch.js */
+    const from = switchedFrom(progressNow.current, authSession.user.id);
+    if (from) {
+      const { restored } = switchAccountStorage(from, authSession.user.id);
+      try { sessionStorage.setItem('jp_switch_note', restored ? 'back' : 'new'); } catch { /* 안내만 못 띄운다 */ }
+      window.location.reload();
+      return;
+    }
     setSyncState((s) => ({ ...s, busy: true }));
     try {
       const merged = await syncNow(authSession.user.id, {
@@ -182,6 +192,9 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
 
   useEffect(() => {
     if (!authSession?.user || !vaultKey) return;
+    /* ★ 이 기기의 기록이 이 계정과 맞춰진 뒤에만 키를 맞춘다 ★ 다른 계정으로 막 로그인한 기기는 아직 이전 계정의 키를 들고 있다.
+       첫 동기화(계정 전환 확인)보다 먼저 돌면 이전 계정의 키를 새 계정의 보관함에 올렸다. */
+    if (progressNow.current?.syncUser !== authSession.user.id || isSwitching()) return;
     /* 업데이트 전 버전이 새 봉투를 열어 묶음 글자를 음성 키 칸에 통째로 넣었으면 풀어서 제자리에 둔다 */
     if (looksPacked(settings.gttsKey)) {
       const fixed = unpackKeys(settings.gttsKey);
@@ -213,7 +226,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     })();
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authSession, vaultKey, settings.gttsKey, settings.geminiKey, remoteKeyEnvelope]);
+  }, [authSession, vaultKey, settings.gttsKey, settings.geminiKey, remoteKeyEnvelope, progress.syncUser]);
 
   /* 공부한 걸 자동으로 올린다.
    * 로그인할 때와 버튼을 누를 때만 올리면, 메모를 적고 다른 기기를 열었을 때 없다.
@@ -256,7 +269,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
 
   useEffect(() => {
     const flush = () => {
-      if (!dirty.current || !authSession?.user) return;
+      if (!dirty.current || !authSession?.user || isSwitching()) return;
       dirty.current = false;
       pushedAt.current = Date.now();
       clearTimeout(pushTimer.current);
@@ -278,6 +291,14 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     syncedFor.current = authSession.user.id;
     markSignedInOnce();
     rememberEmail(authSession.user.email);   // 아이디 찾기 — 다음에 로그인 화면에서 알려 준다
+    /* 계정을 바꿔 다시 불러온 뒤라면 무슨 일이 있었는지 한 번 알린다(accountswitch) */
+    try {
+      const note = sessionStorage.getItem('jp_switch_note');
+      if (note) {
+        sessionStorage.removeItem('jp_switch_note');
+        showToast(note === 'back' ? '이 계정으로 공부하던 기록을 되살렸어요' : '다른 계정의 기록은 따로 보관했어요 · 이 계정의 기록으로 시작해요');
+      }
+    } catch { /* 안내만 못 띄운다 */ }
     runSync(true);
   }, [authSession, runSync]);
 

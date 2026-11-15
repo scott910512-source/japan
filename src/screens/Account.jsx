@@ -14,7 +14,7 @@ const MODES = {
   find: { title: '아이디 찾기', action: '가입된 이메일인지 확인', other: 'signin', otherLabel: '로그인으로 돌아가기' },
 };
 
-export default function Account({ session, syncState, onSync, onSignedOut, onToast, onVaultKey, onServerProblem, vaultReady = true }) {
+export default function Account({ session, syncState, onSync, onFlush, onSignedOut, onToast, onVaultKey, onServerProblem, vaultReady = true }) {
   // 복사가 막힌 브라우저에서도 글은 그대로 보이니 길게 눌러 복사하면 된다
   const copySql = async () => {
     try {
@@ -81,7 +81,12 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
           </button>
           <button
             className="ghost-btn"
-            onClick={async () => { await supabase.auth.signOut(); onSignedOut(); }}
+            onClick={async () => {
+              /* 나가기 전에 아직 못 올린 것을 올린다 — 다른 계정으로 로그인하면 이 기기의 기록은 따로 보관되고 그 계정에 안 섞인다.
+                 오래 걸리면(오프라인) 기다리지 않는다 — 못 올린 것은 보관함에 남았다가 이 계정으로 돌아오면 이어진다 */
+              await Promise.race([Promise.resolve(onFlush?.()).catch(() => {}), new Promise((r) => { setTimeout(r, 5000); })]);
+              await supabase.auth.signOut(); onSignedOut();
+            }}
           >
             로그아웃
           </button>

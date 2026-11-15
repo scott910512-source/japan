@@ -50,7 +50,7 @@ const DIRECTIONS = [
 
 export default function Settings({
   initialGroup = null, settings, onChange, onReplayOnboarding, onOpenWordManager, onOpenTranslate, onOpenSwiss, onToast, onReload,
-  session, syncState, storeError, onSync, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
+  session, syncState, storeError, onSync, onFlush, onSignedOut, onVaultKey, remoteKeyEnvelope, vaultReady,
 }) {
   const goals = normalizeGoals(settings.goals ?? settings.dailyGoal);
   /* 총량으로 고르고 갈래는 접어 둔다. 기존에 직접 맞춰 둔 목표는 프리셋에
@@ -160,6 +160,7 @@ export default function Settings({
         session={session}
         syncState={syncState}
         onSync={onSync}
+        onFlush={onFlush}
         onSignedOut={onSignedOut}
         onVaultKey={onVaultKey}
         vaultReady={vaultReady}
