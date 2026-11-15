@@ -7,10 +7,14 @@
  *
  * ★ 예전 봉투와 같이 산다 ★
  *   예전 봉투의 속은 음성 키 글자 그대로다. AI 키가 없으면 지금도 그 모양으로 올린다.
- *   AI 키가 있으면 {"v":2,"gttsKey","geminiKey"} 글자로 올린다. 읽을 때는 둘 다 읽는다. */
-export function packKeys({ gttsKey = '', geminiKey = '' } = {}) {
-  if (!geminiKey) return gttsKey || '';
-  return JSON.stringify({ v: 2, gttsKey: gttsKey || '', geminiKey });
+ *   AI 키가 있으면 {"v":2,"gttsKey","geminiKey"} 글자로 올린다. 읽을 때는 둘 다 읽는다.
+ *
+ * ★ Claude 키도 같은 봉투에 ★ 영상 분석 · 곤에게 묻기를 Claude로 쓰는 사람의 키는 봉투에 안 들어가서, 컴퓨터에서 넣어도
+ *   다른 기기에는 빈 칸이었다. 있으면 claudeKey 칸을 더한다(없으면 예전 모양 그대로라 이미 올라간 봉투와 같은 글자다). */
+export const VAULT_KEYS = ['gttsKey', 'geminiKey', 'claudeKey'];
+export function packKeys({ gttsKey = '', geminiKey = '', claudeKey = '' } = {}) {
+  if (!geminiKey && !claudeKey) return gttsKey || '';
+  return JSON.stringify({ v: 2, gttsKey: gttsKey || '', geminiKey: geminiKey || '', ...(claudeKey ? { claudeKey } : {}) });
 }
 
 /* 봉투 속 글자 → 키 둘. 못 읽으면 null. */
@@ -19,7 +23,7 @@ export function unpackKeys(plain) {
   if (plain.startsWith('{')) {
     try {
       const o = JSON.parse(plain);
-      if (o && o.v === 2) return { gttsKey: String(o.gttsKey || ''), geminiKey: String(o.geminiKey || '') };
+      if (o && o.v === 2) return { gttsKey: String(o.gttsKey || ''), geminiKey: String(o.geminiKey || ''), ...(o.claudeKey ? { claudeKey: String(o.claudeKey) } : {}) };
     } catch { /* 키 글자가 우연히 {로 시작했을 뿐이다 */ }
   }
   return { gttsKey: plain, geminiKey: '' };
@@ -28,7 +32,7 @@ export function unpackKeys(plain) {
 /* 업데이트 전 버전이 새 봉투를 열면 묶음 글자를 통째로 음성 키 칸에 넣는다. 그 흔적인가 */
 export function looksPacked(value) {
   const u = typeof value === 'string' && value.startsWith('{"v":2') ? unpackKeys(value) : null;
-  return Boolean(u && (u.geminiKey || u.gttsKey !== value));
+  return Boolean(u && (u.geminiKey || u.claudeKey || u.gttsKey !== value));
 }
 
 /* 이 기기의 키와 계정의 키를 맞춘다.
@@ -39,14 +43,17 @@ export function looksPacked(value) {
  * cleared = { gttsKey: true } — 이 기기에서 방금 지운 키. 지운 키는 가져오지 않고 계정에서도 뺀다.
  * 전에는 「이 기기에 없으면 가져온다」뿐이라, 설정에서 키를 지우면 곧바로 계정에서 다시 내려왔다. */
 export function reconcileKeys(local = {}, stored = null, cleared = {}) {
-  const mine = { gttsKey: local.gttsKey || '', geminiKey: local.geminiKey || '' };
-  const kept = stored || { gttsKey: '', geminiKey: '' };
-  const theirs = { gttsKey: cleared.gttsKey ? '' : kept.gttsKey, geminiKey: cleared.geminiKey ? '' : kept.geminiKey };
+  const mine = {};
+  const theirs = {};
   const pull = {};
-  if (!mine.gttsKey && theirs.gttsKey) pull.gttsKey = theirs.gttsKey;
-  if (!mine.geminiKey && theirs.geminiKey) pull.geminiKey = theirs.geminiKey;
-  const union = { gttsKey: mine.gttsKey || theirs.gttsKey, geminiKey: mine.geminiKey || theirs.geminiKey };
+  const union = {};
+  for (const k of VAULT_KEYS) {
+    mine[k] = local[k] || '';
+    theirs[k] = cleared[k] ? '' : (stored?.[k] || '');
+    if (!mine[k] && theirs[k]) pull[k] = theirs[k];
+    union[k] = mine[k] || theirs[k];
+  }
   const want = packKeys(union);
-  const have = stored ? packKeys(kept) : '';
+  const have = stored ? packKeys(stored) : '';
   return { pull, push: want && want !== have ? want : null, clear: Boolean(!want && have) };
 }
