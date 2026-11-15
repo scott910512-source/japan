@@ -26,7 +26,18 @@ export const EXTRA_WHOLE = {
   storyPos: 'jp_manabu_story_pos_v1',
   travel: 'jp_manabu_travel_v1',
   swiss: 'jp_manabu_swiss_v1',
+  storyPrefs: 'jp_story_prefs_v1',          // 이야기 연속 듣기의 속도 · 반복
+  speakPrefs: 'jp_speak_prefs_v1',          // 말하기 연습 설정
+  trends: 'jp_manabu_trends_v1',            // 받아 둔 요즘 일본어
 };
+/* 기기마다 따로 세서 더하는 수 — 음성 사용량({ '2026-11': 글자 수 }).
+ *   통째로 「나중 것」을 쓰면 두 기기에서 쓴 양 중 하나가 사라지고, 그냥 더하면 동기화할 때마다 두 번 센다.
+ *   그래서 기기마다 제 몫을 따로 싣고(기기 id), 화면에는 모든 기기 몫의 합을 둔다. 키가 계정을 따라가니
+ *   무료 한도도 계정 전체로 센다. */
+export const EXTRA_COUNTERS = {
+  ttsUsage: 'jp_manabu_tts_usage_v1',
+};
+export const DEVICE_ID_KEY = 'jp_manabu_device_id_v1';
 /* 목록 · 합친다 */
 export const EXTRA_LISTS = {
   asks: { key: 'jp_manabu_asks_v1', id: 'key', keep: 40 },
@@ -47,11 +58,22 @@ const store = () => { try { return globalThis.localStorage || null; } catch { re
 const readJson = (raw, fallback) => { try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } };
 function readMeta(storage) {
   const m = readJson(storage?.getItem(EXTRA_META_KEY), null);
-  return { whole: { ...(m?.whole || {}) }, lists: { ...(m?.lists || {}) } };
+  return { whole: { ...(m?.whole || {}) }, lists: { ...(m?.lists || {}) }, counters: { ...(m?.counters || {}) } };
 }
 function writeMeta(storage, meta) {
   try { storage?.setItem(EXTRA_META_KEY, JSON.stringify(meta)); } catch { /* 지문을 못 적으면 다음에 「바뀌었다」로 볼 뿐이다 */ }
 }
+function deviceId(storage) {
+  let id = null;
+  try { id = storage.getItem(DEVICE_ID_KEY); } catch { /* 아래에서 만든다 */ }
+  if (!id) {
+    id = `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    try { storage.setItem(DEVICE_ID_KEY, id); } catch { /* 이번만 쓰는 id — 다음에 새 id로 다시 센다 */ }
+  }
+  return id;
+}
+const numMap = (v) => (v && typeof v === 'object' && !Array.isArray(v)
+  ? Object.fromEntries(Object.entries(v).filter(([, n]) => Number.isFinite(Number(n))).map(([k, n]) => [k, Number(n)])) : {});
 const idOf = (item, field) => (item && typeof item === 'object' ? String(item[field] ?? '') : '');
 
 /* 이 기기의 기록을 계정에 실을 묶음으로. 바뀐 칸에는 지금 시각을 찍는다 */
@@ -83,8 +105,18 @@ export function collectExtra(storage = store(), now = Date.now()) {
     meta.lists[name] = { ids, gone };
     lists[name] = { items: list, gone };
   }
+  const counters = {};
+  const dev = deviceId(storage);
+  for (const [name, key] of Object.entries(EXTRA_COUNTERS)) {
+    const total = numMap(readJson(storage.getItem(key), {}));
+    const others = numMap(meta.counters[name]?.others);
+    const own = {};
+    for (const [m, n] of Object.entries(total)) own[m] = Math.max(0, n - (others[m] || 0));
+    meta.counters[name] = { others, seen: total };
+    counters[name] = { [dev]: own };
+  }
   writeMeta(storage, meta);
-  return { v: 1, whole, lists };
+  return { v: 1, whole, lists, counters };
 }
 
 /* 두 묶음을 합친다(순수). 같은 시각이면 이 기기(local) 것 */
@@ -116,7 +148,19 @@ export function mergeExtra(local, remote) {
       .slice(0, spec.keep);
     lists[name] = { items, gone };
   }
-  return { v: 1, whole, lists };
+  const counters = {};
+  for (const name of new Set([...Object.keys(local.counters || {}), ...Object.keys(remote.counters || {})])) {
+    const out = {};
+    for (const side of [remote.counters?.[name], local.counters?.[name]]) {
+      for (const [dev, months] of Object.entries(side || {})) {
+        const cur = out[dev] || {};
+        for (const [m, n] of Object.entries(numMap(months))) cur[m] = Math.max(cur[m] || 0, n);   // 한 기기의 몫은 늘기만 한다
+        out[dev] = cur;
+      }
+    }
+    counters[name] = out;
+  }
+  return { v: 1, whole, lists, counters };
 }
 
 /* 합친 묶음을 이 기기에 얹는다. 바뀐 칸 이름을 돌려준다(화면 상태를 다시 읽을 것) */
@@ -150,6 +194,28 @@ export function applyExtra(merged, storage = store()) {
       try { storage.setItem(spec.key, raw); changed.push(name); } catch { continue; }
     }
     meta.lists[name] = { ids: (got.items || []).map((it) => idOf(it, spec.id)), gone: got.gone || {} };
+  }
+  const dev = deviceId(storage);
+  for (const [name, key] of Object.entries(EXTRA_COUNTERS)) {
+    const got = merged.counters?.[name];
+    if (!got) continue;
+    const own = numMap(got[dev]);
+    const total = {};
+    for (const months of Object.values(got)) for (const [m, n] of Object.entries(numMap(months))) total[m] = (total[m] || 0) + n;
+    const others = {};
+    for (const [m, n] of Object.entries(total)) others[m] = Math.max(0, n - (own[m] || 0));
+    /* 요청이 오가는 사이에 이 기기에서 더 쓴 만큼은 더해 둔다 */
+    const cur = numMap(readJson(storage.getItem(key), {}));
+    const seen = numMap(meta.counters[name]?.seen);
+    const next = { ...total };
+    for (const [m, n] of Object.entries(cur)) { const d = n - (seen[m] || 0); if (d > 0) next[m] = (next[m] || 0) + d; }
+    const months = Object.keys(next).sort().slice(-6);
+    const trimmed = Object.fromEntries(months.map((m) => [m, next[m]]));
+    const raw = JSON.stringify(trimmed);
+    if ((storage.getItem(key) || '{}') !== raw) {
+      try { storage.setItem(key, raw); changed.push(name); } catch { continue; }
+    }
+    meta.counters[name] = { others, seen: trimmed };
   }
   writeMeta(storage, meta);
   return changed;

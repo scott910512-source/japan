@@ -1,6 +1,6 @@
 /* 기기에만 두던 공부 기록을 계정에 싣고 합치기 — lib/devicesync.js */
 import assert from 'node:assert/strict';
-import { collectExtra, mergeExtra, applyExtra, EXTRA_WHOLE, EXTRA_LISTS } from '../../src/lib/devicesync.js';
+import { collectExtra, mergeExtra, applyExtra, EXTRA_WHOLE, EXTRA_LISTS, EXTRA_COUNTERS } from '../../src/lib/devicesync.js';
 import { ACCOUNT_DATA_KEYS } from '../../src/lib/accountswitch.js';
 
 let pass = 0;
@@ -95,11 +95,40 @@ check('요청이 오가는 사이에 이 기기에서 바꾼 것은 덮지 않�
 });
 check('계정마다 따로 — 지문 기록도 계정 전환 때 같이 보관된다', () => {
   assert.ok(ACCOUNT_DATA_KEYS.includes('jp_manabu_extra_meta_v1'));
-  for (const k of [...Object.values(EXTRA_WHOLE), ...Object.values(EXTRA_LISTS).map((l) => l.key)]) assert.ok(ACCOUNT_DATA_KEYS.includes(k), k);
+  for (const k of [...Object.values(EXTRA_WHOLE), ...Object.values(EXTRA_LISTS).map((l) => l.key), ...Object.values(EXTRA_COUNTERS)]) assert.ok(ACCOUNT_DATA_KEYS.includes(k), k);
 });
 check('묶음이 없는 옛 서버 · 옛 기기와도 산다', () => {
   assert.equal(mergeExtra(undefined, undefined), undefined);
   const local = collectExtra(mem({ [P]: J({ done: 1 }) }), 1000);
   assert.equal(mergeExtra(local, undefined), local);
+});
+const U = EXTRA_COUNTERS.ttsUsage;
+const used = (st) => JSON.parse(st.getItem(U) || '{}');
+check('★ 음성 사용량은 두 기기에서 쓴 만큼 더해진다(두 번 세지 않는다) ★', () => {
+  const server = {};
+  const pc = mem({ [U]: J({ '2026-11': 1000 }) });
+  const phone = mem({ [U]: J({ '2026-11': 300 }) });
+  sync(pc, server, 1000);
+  sync(phone, server, 2000);
+  sync(pc, server, 3000);
+  assert.equal(used(pc)['2026-11'], 1300);
+  assert.equal(used(phone)['2026-11'], 1300);
+  sync(pc, server, 4000); sync(phone, server, 5000); sync(pc, server, 6000);   // 몇 번을 맞춰도
+  assert.equal(used(pc)['2026-11'], 1300);
+  phone.setItem(U, J({ '2026-11': used(phone)['2026-11'] + 200 }));           // 폰에서 200자 더
+  sync(phone, server, 7000); sync(pc, server, 8000);
+  assert.equal(used(pc)['2026-11'], 1500);
+  assert.equal(used(phone)['2026-11'], 1500);
+});
+check('이야기 · 말하기 설정 · 요즘 일본어도 다른 기기로 간다', () => {
+  const server = {};
+  const pc = mem({ [EXTRA_WHOLE.storyPrefs]: J({ rate: 0.8 }), [EXTRA_WHOLE.speakPrefs]: J({ gap: 3 }), [EXTRA_WHOLE.trends]: J({ at: 5, items: [{ jp: 'エモい' }] }) });
+  sync(pc, server, 1000);
+  const phone = mem();
+  const changed = sync(phone, server, 2000);
+  assert.deepEqual(JSON.parse(phone.getItem(EXTRA_WHOLE.storyPrefs)), { rate: 0.8 });
+  assert.deepEqual(JSON.parse(phone.getItem(EXTRA_WHOLE.speakPrefs)), { gap: 3 });
+  assert.equal(JSON.parse(phone.getItem(EXTRA_WHOLE.trends)).items[0].jp, 'エモい');
+  assert.ok(changed.includes('trends'));
 });
 console.log(`통과 ${pass} / 실패 0`);

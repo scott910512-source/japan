@@ -83,6 +83,7 @@ export function useAppData() {
     if (names.includes('session')) setSession(loadSession());
     if (names.includes('asks')) setAsks(loadAsks());
     if (names.includes('translations')) setTranslations(loadTranslations());
+    if (names.includes('trends')) setTrends(loadTrends());
   }, []);
 
   // 뺀 영상은 묘비를 남긴다. 남기지 않으면 다음 동기화에 서버에서 다시 내려온다.
