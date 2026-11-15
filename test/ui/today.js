@@ -505,10 +505,12 @@ async function boot(browser, patch = {}, init = null) {
      * 그렇게 깨졌고, 이 파일의 나머지 여든몇 개도 같이 사라졌다.
      *
      * 판정 줄이 안 뜨면 카드를 한 번 더 누른다. 세 번 해도 안 뜨면 그때 나간다. */
-    for (let i = 0; i < 120; i++) {
+    /* 새로 배우기는 전부 「알아요」가 될 때까지 돈다(회독 상한이 없다) — 몰라요 · 애매해요를 끝없이 섞으면 안 끝난다.
+       처음 스무 번만 섞어 누르고(판정 셋이 다 찍힌다) 그 뒤로는 「알아요」만 눌러 끝낸다. */
+    for (let i = 0; i < 260; i++) {
       if (await p4.locator('.finish').count()) break;
       if (await p4.locator('.studycard').count() === 0) break;
-      const label = i % 4 === 0 ? '몰라요' : (i % 4 === 1 ? '애매해요' : '알아요');
+      const label = i >= 20 ? '알아요' : i % 4 === 0 ? '몰라요' : (i % 4 === 1 ? '애매해요' : '알아요');
       const btn = p4.locator('.judgerow button', { hasText: label });
       let ready = false;
       for (let t = 0; t < 3 && !ready; t += 1) {

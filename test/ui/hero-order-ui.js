@@ -133,8 +133,17 @@ const cta = async (page) => ({ step: await page.locator('.bigcta').getAttribute(
     }
     ok('새 단어 판을 끝까지 마쳤다', await page.locator('.finish').count() === 1, `${g}걸음`);
     const next = page.locator('.fin-next');
-    ok('★ 완주 화면이 「다음: 쭉 퀴즈」를 내민다(문장 퀘스트는 건너뛴 날) ★', await next.count() === 1 && (await next.innerText()).includes('쭉 퀴즈'), (await page.locator('.finish').innerText()).replace(/\s+/g, ' ').slice(-90));
+    /* 새로 배우기를 끝까지 외우면 먼저 배운 단어 테스트다 — 테스트를 마치면 그다음 퀘스트(쭉 퀴즈)를 내민다 */
+    ok('★ 완주 화면이 「다음: 배운 단어 테스트」를 내민다 ★', await next.count() === 1 && (await next.innerText()).includes('배운 단어 테스트'), (await page.locator('.finish').innerText()).replace(/\s+/g, ' ').slice(-90));
     await next.click();
+    await page.waitForTimeout(1200);
+    for (let k = 0; k < 40 && !(await page.locator('.quizscore').count()); k += 1) {
+      if (await page.locator('.qoptions .qopt:not([disabled])').count()) { await page.locator('.qoptions .qopt').first().click(); await page.waitForTimeout(260); }
+      const nx = page.locator('.qnext .submit-btn');
+      if (await nx.count()) { await nx.click(); await page.waitForTimeout(220); } else await page.waitForTimeout(700);
+    }
+    ok('★ 테스트 결과가 「다음: 쭉 퀴즈」를 내민다(문장 퀘스트는 건너뛴 날) ★', (await page.locator('.flow-next').innerText().catch(() => '')).includes('쭉 퀴즈'), await page.locator('.flow-next').innerText().catch(() => ''));
+    await page.locator('.flow-next').click();
     await page.waitForTimeout(1200);
     ok('★ 누르면 쭉 퀴즈 첫 문제가 바로 나온다 ★', await page.locator('.st-run').count() === 1);
     await page.locator('.subscreen.open .sub-header:not(.inline) .sub-back').click();

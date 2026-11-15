@@ -14,13 +14,22 @@
 .sh-undo:disabled { color: var(--sumi); cursor: default; }
 .sh-bar { height: 6px; border-radius: 4px; background: var(--surface-2); margin: 10px 0 6px; overflow: hidden; }
 .sh-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--kon), var(--kon-deep)); transition: width .3s ease; }
-.sh-sub { text-align: center; font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+.sh-sub { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; text-align: center; font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+/* 소리 켬 · 눈으로만 */
+.soundtoggle { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 10px; border-radius: 100px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink-soft); font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.soundtoggle svg { width: 15px; height: 15px; flex: none; }
+.soundtoggle.on { color: var(--kon); border-color: var(--kon); background: var(--kon-soft); }
+.soundtoggle.off { color: var(--ink); }
+.soundtoggle.compact { min-height: 36px; padding: 0 9px; }
+@media (max-width: 380px) { .soundtoggle.compact span { display: none; } }
 .sh-sub .sep { opacity: .4; margin: 0 6px; }
 
 
 .studycard {
   position: relative; flex: 1 1 auto; min-height: 260px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 10px; padding: 26px 18px 22px; cursor: pointer;
+  /* 위쪽은 단계 표시와 듣기 단추(.sc-top, 12px + 44px)의 자리다 — 26px만 비워 두면 글이 긴 카드(문장)에서
+     첫 줄이 단계 표시와 듣기 단추 밑으로 들어가 앞뒤 글자가 가려졌다 */
+  align-items: center; justify-content: center; gap: 10px; padding: 62px 18px 22px; cursor: pointer;
   background: var(--surface); border: 1px solid var(--line); border-radius: 22px; margin-bottom: 14px;
   box-shadow: 0 14px 34px -18px var(--shadow);
   backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);

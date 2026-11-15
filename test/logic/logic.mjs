@@ -230,6 +230,28 @@ group('암기 · 세션 진행');
   let s2 = { queue: [], roundIds: ['x'], round: 3, reinserted: [], done: 0 };
   const carry = nextRoundOf(s2, { x: { ...emptyState(), box: BOX.UNKNOWN, lastSeen: '2026-01-01' } });
   ok('3회독을 넘기면 내일로 넘김', carry.kind === 'done' && carry.reason === 'carryover');
+  /* ★ 새로 배우기는 회독 상한이 없다 — 전부 「알아요」가 될 때까지 돈다 ★ */
+  const more = nextRoundOf(s2, { x: { ...emptyState(), box: BOX.UNKNOWN, lastSeen: '2026-01-01' } }, Infinity);
+  ok('★ 상한을 없애면 3회독 뒤에도 다음 회독이 열린다(몰라요가 남았으면) ★', more.kind === 'next' && more.session.round === 4 && more.session.queue.join() === 'x');
+  {
+    /* 열 장 중 셋을 다섯 번째 회독까지 몰라요로 누르다가 그 뒤로 알아요 — 끝은 언제나 「다 외움」이고 넘긴 것이 없다 */
+    const ids = Array.from({ length: 10 }, (_, i) => `f${i}`);
+    let ss = { queue: [...ids], roundIds: [...ids], round: 1, reinserted: [], done: 0 };
+    let pp = {}; let end = null;
+    for (let guard = 0; guard < 400 && !end; guard++) {
+      if (ss.queue.length === 0) {
+        const nx = nextRoundOf(ss, pp, Infinity);
+        if (nx.kind === 'done') { end = nx; break; }
+        ss = nx.session; continue;
+      }
+      const id = ss.queue[0];
+      const hard = ['f1', 'f4', 'f7'].includes(id) && ss.round < 6;
+      const res = advanceSession(ss, pp, id, hard ? VERDICT.UNKNOWN : VERDICT.KNOWN);
+      ss = res.session; pp = res.progress;
+    }
+    ok('★ 끝은 「다 외움」이다(내일로 넘긴 것이 없다) ★', end?.reason === 'clear' && !end.carried, JSON.stringify(end));
+    ok('몰라요가 남은 동안은 회독이 이어진다(여섯 번째 회독까지)', ss.round >= 6, `${ss.round}회독`);
+  }
 
   ok('큐가 남아 있으면 계속', nextRoundOf({ queue: ['z'], roundIds: ['z'], round: 1 }, {}).kind === 'continue');
 }

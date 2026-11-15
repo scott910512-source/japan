@@ -16,6 +16,7 @@ import { kanaToHangul } from '../lib/hangul.js';
 import { STEP, STEP_HINT, STEP_LABEL, hidesFront, needsSound, settingsForStep, stepFor } from '../lib/steps.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
+import { stepOfDeck } from '../lib/dayflow.js';
 import { normalizeGoals } from '../lib/daily.js';
 import {
   VERDICT, advanceSession, buildDailySession, buildRound1, isWeak, nextRoundOf,
@@ -253,11 +254,13 @@ export default function Study({
     setLocked(true);
 
     // 답을 고른 순간의 발음 확인. 아는 줄 알았는데 소리가 다른 경우를 여기서 잡는다.
-    if (settings.speakOnJudge) {
+    /* 눈으로만 푸는 중(소리 끔)이면 이것도 안 읽는다 — 듣기 단추를 눌렀을 때만 소리가 난다 */
+    if (settings.speakOnJudge && settings.autoTTS !== false) {
       speakCurrent();
       judgeSpokeAt.current = Date.now();
     }
 
+    judgedIds.current.add(word.id);
     history.current.push({
       cardId: word.id,
       prevReview: review[word.id],
@@ -274,7 +277,9 @@ export default function Study({
     onReviewChange(result.progress, verdict, word.id);
     tally.current[verdict] = (tally.current[verdict] || 0) + 1;
 
-    const next = nextRoundOf(result.session, result.progress);
+    /* ★ 새로 배우기는 전부 「알아요」가 될 때까지 돈다 ★ 다른 판은 3회독까지만 돌고 남은 것을 내일로 넘기는데,
+       처음 배우는 낱말은 「몰라요」인 채로 넘어가면 배운 것이 아니다. 끝까지 외운 뒤에 테스트로 이어진다(App의 배운 단어 테스트). */
+    const next = nextRoundOf(result.session, result.progress, untilClear ? Infinity : undefined);
     if (next.kind === 'continue') {
       onSessionChange(result.session);
     } else if (next.kind === 'next') {
@@ -282,7 +287,7 @@ export default function Study({
       onToast(`${next.session.round}회독 시작 — 남은 ${next.session.queue.length}개`);
     } else {
       onSessionChange(null);
-      onFinished?.(deck.id);
+      onFinished?.(deck.id, { reason: next.reason, ids: [...judgedIds.current] });
       setFinished({
         done: result.session.done,
         reason: next.reason,
@@ -327,6 +332,9 @@ export default function Study({
    * 카드가 판정돼 버린다. Esc는 창만 닫는다. */
   /* 끝 화면에서도 Enter로 넘어간다 — 가장 큰 단추(다음 단계 · 10개 더 · 오늘로)와 같은 일을 한다.
      마지막 카드를 Enter로 판정한 손이 그대로 한 번 더 눌러 끝 화면을 못 보고 지나가지 않게, 뜨고 나서 잠깐은 안 받는다 */
+  /* 이 판에서 판정한 카드들 — 끝나면 이것들로 테스트를 낸다(새로 배우기) */
+  const judgedIds = useRef(new Set());
+  const untilClear = stepOfDeck(deck?.id) === 'fresh';
   const finishShown = useRef(0);
   useEffect(() => { if (finished) finishShown.current = Date.now(); }, [finished]);
   const finishEnter = () => {
@@ -434,6 +442,9 @@ export default function Study({
         onClose={onClose}
         onUndo={history.current.length ? undo : null}
         hasKeyboard={hasKeyboard}
+        sound={settings.autoTTS !== false}
+        onSound={onSettingsChange}
+        onToast={onToast}
       />
 
       {/* 단어인지 문장인지를 표시에 남긴다. 화면은 이미 글자 크기로 구별하는데

@@ -453,6 +453,24 @@ export default function App() {
       return regions === p.regions ? p : { ...p, regions };
     });
   }, [setProgress, today]);
+  /* ★ 배운 단어 테스트 ★ 새로 배우기를 전부 「알아요」로 끝내면 방금 외운 낱말로 바로 테스트를 낸다.
+     외우는 판은 내가 「알아요」라고 누른 것이고, 테스트는 그것을 문제로 확인하는 자리다. 테스트를 마치면 다음 퀘스트로 이어진다.
+     고르기로만 내고 방향은 섞는다(한국어 → 일본어가 셋 중 둘). 기록은 시험과 같다(약점 장부에만 쌓이고 복습 간격은 그대로). */
+  const freshTestOn = useRef(false);
+  const [freshTestMode, setFreshTestMode] = useState(false);
+  const [freshJust, setFreshJust] = useState(null);   // 방금 끝까지 외운 낱말들 { ids }
+  useEffect(() => { if (sub !== 'quiz') { freshTestOn.current = false; setFreshTestMode(false); } }, [sub]);
+  const startFreshTest = useCallback((ids) => {
+    const cards = (ids || []).map((id) => byId.get(id)).filter((c) => c && c.kind !== 'sentence');
+    if (!cards.length) { showToast('테스트에 낼 낱말이 없어요'); return; }
+    setDeck(null);
+    setQuizSet(cards);
+    weakQuizOn.current = false; setWeakQuizMode(false);
+    randomOn.current = false; setRandomMode(false);
+    freshTestOn.current = true; setFreshTestMode(true);
+    setActiveTab('me');
+    openSub('quiz');
+  }, [byId, showToast, setDeck, setQuizSet, setActiveTab, openSub]);
   const onRandomDone = useCallback(() => {
     setProgress((p) => ({ ...p, quests: noteQuest(p.quests, 'random', 1, today) }));
   }, [setProgress, today]);
@@ -550,7 +568,7 @@ export default function App() {
      쭉 퀴즈로 이어지던 길이 끊겼다. 어느 단계에서 넘어왔는지 적어 두고, 판이 끝나면 그다음 단계를 내민다. */
   const [wrongFrom, setWrongFrom] = useState(null);
   const startQuizWrong = useCallback((ids) => {
-    setWrongFrom(weakQuizOn.current ? 'weakquiz' : randomOn.current ? 'random' : null);
+    setWrongFrom(weakQuizOn.current ? 'weakquiz' : randomOn.current ? 'random' : freshTestOn.current ? 'fresh' : null);
     startQuizWrongDeck(ids);
   }, [startQuizWrongDeck]);
   const deckStep = (id) => (String(id || '').startsWith('quizwrong-') ? wrongFrom : stepOfDeck(id));
@@ -674,16 +692,24 @@ export default function App() {
                 prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
               ))}
               onReviewChange={applyReview}
-              onFinished={(id) => markTried(deckStep(id))}
+              onFinished={(id, info) => {
+                markTried(deckStep(id));
+                /* 새로 배우기를 끝까지 외웠으면 그 낱말들로 테스트를 낸다(틀린 단어를 카드로 다시 외운 판은 아니다) */
+                setFreshJust(stepOfDeck(id) === 'fresh' && info?.reason === 'clear' && info.ids?.length ? { ids: info.ids } : null);
+              }}
               onSessionChange={setSession}
               onSettingsChange={patchSettings}
               onBookmark={toggleBookmark}
               onToast={showToast}
               /* 하루 흐름의 판(복습 · 새 단어)이면 그 흐름의 다음 단계를, 아니면 덱이 정한 다음을 */
-              flowNext={deck.id === 'quest:sentence' ? { to: 'practice', label: '문장 만들기 연습', go: () => startSentencePractice() } : deckStep(deck.id) ? flowAfter(deckStep(deck.id)) : undefined}
+              flowNext={deck.id === 'quest:sentence' ? { to: 'practice', label: '문장 만들기 연습', go: () => startSentencePractice() }
+                : stepOfDeck(deck.id) === 'fresh' && freshJust ? { to: 'freshtest', label: `배운 단어 테스트 · ${freshJust.ids.length}문제`, go: () => startFreshTest(freshJust.ids) }
+                : deckStep(deck.id) ? flowAfter(deckStep(deck.id)) : undefined}
               onMore={stepOfDeck(deck.id) === 'fresh' ? () => learnMoreAndStart(MORE_STEP) : null}
               onNext={deck.id === 'quest:sentence'
                 ? () => startSentencePractice()
+                : stepOfDeck(deck.id) === 'fresh' && freshJust
+                ? () => startFreshTest(freshJust.ids)
                 : deckStep(deck.id)
                 ? (flowAfter(deckStep(deck.id))?.go || null)
                 : (deck.next ? () => {
@@ -977,6 +1003,8 @@ export default function App() {
                 randomNext={flowAfter('random')}
                 randomOn={randomMode}
                 onRandomDone={onRandomDone}
+                freshTestOn={freshTestMode}
+                freshNext={flowAfter('fresh')}
                 regionExam={regionExam}
                 onRegionDone={onRegionDone}
                 n3Next={flowAfter('n3')}

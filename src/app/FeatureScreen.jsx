@@ -56,6 +56,8 @@ export default function FeatureScreen({
   randomNext = null,
   /* 하루 흐름 — 오늘 랜덤 테스트로 들어왔나 · 끝났다고 적기 · 쭉 퀴즈 다음 단계 */
   randomOn = false,
+  freshTestOn = false,
+  freshNext = null,
   onRandomDone = null,
   /* 지역 승급시험 — { id, label, pass } 이면 단어 시험을 그 낱말들로 바로 시작한다 */
   regionExam = null,
@@ -161,7 +163,7 @@ export default function FeatureScreen({
             )}
             {sub === 'quiz' && (
               <Quiz
-                key={regionExam ? 'region' : randomOn ? 'random' : weakQuizOn ? 'weak' : 'quiz'}
+                key={regionExam ? 'region' : randomOn ? 'random' : freshTestOn ? 'fresh' : weakQuizOn ? 'weak' : 'quiz'}
                 onAttempt={onAttempt}
                 mistakes={progress.mistakes}
                 words={words}
@@ -182,9 +184,9 @@ export default function FeatureScreen({
                 weak={weakQuizOn ? weakQuiz : null}
                 onExit={onExit}
                 onHome={onHome}
-                onNextQuest={weakQuizOn ? onNextQuest : randomOn && !regionExam ? (randomNext?.go || null) : null}
-                nextLabel={weakQuizOn ? nextQuestLabel : (randomNext?.label || '')}
-                flow={regionExam ? { kind: 'region', label: regionExam.label, pass: regionExam.pass } : randomOn ? { kind: 'random' } : null}
+                onNextQuest={weakQuizOn ? onNextQuest : randomOn && !regionExam ? (randomNext?.go || null) : freshTestOn && !regionExam ? (freshNext?.go || null) : null}
+                nextLabel={weakQuizOn ? nextQuestLabel : freshTestOn ? (freshNext?.label || '') : (randomNext?.label || '')}
+                flow={regionExam ? { kind: 'region', label: regionExam.label, pass: regionExam.pass } : randomOn ? { kind: 'random' } : freshTestOn ? { kind: 'fresh' } : null}
                 onComplete={regionExam ? onRegionDone : randomOn ? onRandomDone : null}
               />
             )}
@@ -230,6 +232,7 @@ export default function FeatureScreen({
             {sub === 'drill' && <DrillHub settings={settings} onOpen={onOpenDrill} />}
             {sub === 'stream' && (
               <StreamQuiz
+                onSettingsChange={patchSettings}
                 onAttempt={onAttempt}
                 words={words}
                 review={review}

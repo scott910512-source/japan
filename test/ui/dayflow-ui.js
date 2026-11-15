@@ -156,18 +156,27 @@ async function finishDeck(page) {
   ok('완주 화면이 뜬다', await page.locator('.finish').count() === 1, `${g}걸음`);
   if (await page.locator('.finish').count()) {
     ok('★ 「10개 더 배우기」가 있다 ★', await page.locator('.fin-more').count() === 1);
-    /* 이 검사는 복습 미션을 건너뛰고 왔다 — 뒤쪽 단계를 마쳤으니 건너뛴 복습 미션으로 돌아간다. 랜덤 테스트는 하루의 마지막이다 */
-    ok('★ 「다음: 복습 미션」이 있다(건너뛴 단계가 랜덤 테스트보다 먼저 — N3 코스로 새지 않는다) ★', await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('복습 미션'), (await page.locator('.fin-next').innerText().catch(() => '')));
+    /* ★ 새로 배우기를 끝까지 외우면 방금 외운 낱말로 테스트를 낸다 ★ 테스트를 마친 뒤에 다음 퀘스트로 간다 */
+    ok('★ 첫째 단추는 「다음: 배운 단어 테스트 · 20문제」다 ★', await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('배운 단어 테스트') && (await page.locator('.fin-next').innerText()).includes('20문제'), (await page.locator('.fin-next').innerText().catch(() => '')));
     /* ★ 「10개 더 배우기」를 누르면 새 판이 열리고, 그 판을 끝내면 또 같은 두 버튼이 뜬다 ★ */
     await page.locator('.fin-more').click();
     await page.waitForTimeout(1200);
     ok('★ 10개 더: 완주 화면이 내려가고 새 판이 열린다 ★', await page.locator('.finish').count() === 0 && await page.locator('.study').count() >= 1);
     const g2 = await finishDeck(page);
     ok('더 배운 판도 끝나면 완주 화면', await page.locator('.finish').count() === 1, `${g2}걸음`);
-    ok('★ 끝나면 또 「10개 더」와 「다음: 복습 미션」 ★', await page.locator('.fin-more').count() === 1 && await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('복습 미션'));
+    /* 테스트를 미루고 열 개를 더 배웠으니 테스트는 이 자리에서 배운 서른 개를 다 묻는다 */
+    ok('★ 끝나면 또 「10개 더」와 「다음: 배운 단어 테스트」(이 자리에서 배운 서른 개) ★', await page.locator('.fin-more').count() === 1 && await page.locator('.fin-next').count() === 1 && (await page.locator('.fin-next').innerText()).includes('배운 단어 테스트 · 30문제'), await page.locator('.fin-next').innerText().catch(() => ''));
+    await page.locator('.fin-next').click();
+    await page.waitForTimeout(1200);
+    ok('★ 누르면 설정을 안 묻고 바로 테스트가 열린다(서른 문제 · 고르기) ★', await page.locator('.qoptions').count() === 1 && /\/\s*30/.test((await page.locator('.quizhead .sh-title').innerText())), await page.locator('.quizhead .sh-title').innerText().catch(() => ''));
+    await finishQuiz(page, 120);
+    ok('★ 끝나면 배운 단어 테스트 결과가 뜬다 ★', await page.locator('.wk-result[data-flow="fresh"]').count() === 1 && (await page.locator('.wk-result').innerText()).includes('배운 단어 테스트를 마쳤어요'));
+    /* 이 검사는 복습 미션을 건너뛰고 왔다 — 뒤쪽 단계를 마쳤으니 건너뛴 복습 미션으로 돌아간다. 랜덤 테스트는 하루의 마지막이다 */
+    ok('★ 테스트 뒤에 「다음: 복습 미션」이 있다(건너뛴 단계가 랜덤 테스트보다 먼저 — N3 코스로 새지 않는다) ★', (await page.locator('.flow-next').innerText().catch(() => '')).includes('복습 미션'), await page.locator('.flow-next').innerText().catch(() => ''));
     /* 랜덤 테스트는 오늘 화면의 줄에서 연다(복습 미션까지 돌면 검사가 너무 길어진다) */
-    await page.locator('.finish button', { hasText: '오늘로' }).click();
+    await page.locator('.flow-done').click();
     await page.waitForTimeout(800);
+    await goTab(page, '오늘');
     await page.locator('.tdq-row', { hasText: '오늘 랜덤 테스트' }).click();
     await page.waitForTimeout(1200);
 

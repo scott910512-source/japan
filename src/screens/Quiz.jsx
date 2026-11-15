@@ -8,6 +8,7 @@ import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
 import WordMemo from '../components/WordMemo.jsx';
 import { useQuizHotkeys, useHasKeyboard, shortcutEvent } from '../lib/useHotkeys.js';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
+import SoundToggle from '../components/SoundToggle.jsx';
 import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
 import {
   QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf, otherWordNote,
@@ -120,7 +121,7 @@ export default function Quiz({
     const idSet = new Set(ids);
     const subset = words.filter((w) => idSet.has(w.id));
     if (!subset.length) { onToast('다시 풀 낱말이 없어요'); return; }
-    const over = flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : weak ? { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX } : null;
+    const over = flow ? { type: flow.kind === 'fresh' ? QUIZ_TYPE.CHOICE : QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : weak ? { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX } : null;
     const cfg = over ? { ...config, ...over } : config;
     const questions = buildQuiz(subset, { count: subset.length, type: cfg.type, dir: cfg.dir, scope: QUIZ_SCOPE.ALL, review, ledger, mistakes, distractors: optionPool });
     if (!questions.length) { onToast('출제할 단어가 없어요'); return; }
@@ -145,7 +146,8 @@ export default function Quiz({
       return;
     }
     /* 랜덤 테스트는 고르는 것·쓰는 것, 일본어→한국어·한국어→일본어를 다 섞는다(한국어 → 일본어가 셋 중 둘) */
-    start(set, flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX });
+    /* 배운 단어 테스트(fresh)는 방금 외운 낱말이라 고르기로만 낸다 */
+    start(set, flow && flow.kind !== 'fresh' ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weak, flow, set, run]);
 
@@ -160,6 +162,7 @@ export default function Quiz({
     return (
       <QuizRun
         onAttempt={onAttempt}
+        onSound={onChange}
         run={run}
         pool={pool}
         allWords={words}
@@ -267,7 +270,7 @@ export default function Quiz({
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWrong, onRetryQuiz, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onHome, onNextQuest, flow, nextLabel, onComplete }) {
+function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, onRetryWrong, onRetryQuiz, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onHome, onNextQuest, flow, nextLabel, onComplete }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -421,6 +424,9 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
    * 한→일 문제에서 답을 읽어 주는 중이면 그 소리가 끝날 때까지 기다린다. */
   useEffect(() => {
     if (!answered || answered.verdict !== 'correct' || holdForReview || keyboard) return undefined;
+    /* ★ 직접 쓴 답은 알아서 넘기지 않는다 ★ 객관식은 맞은 보기에 표시가 뜨지만, 주관식은 맞혀도 아무 말 없이 0.75초 뒤에
+       다음 문제로 넘어가서 맞았는지조차 알 수 없었다. 맞았다는 표시와 읽는 법 · 예문을 보여 주고 직접 넘기게 한다. */
+    if (q?.type !== QUIZ_TYPE.CHOICE) return undefined;
     const speaking = settings.autoTTS && q?.dir === QUIZ_DIR.KO_JP;
     /* 곤에게 묻는 창이 열려 있으면 저절로 안 넘긴다 — 묻던 문제가 사라지면 안 된다 */
     const timer = setTimeout(() => { if (!sheetOpen()) next(); }, speaking ? AUTO_NEXT_SPEAK_MS : AUTO_NEXT_MS);
@@ -474,6 +480,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
         <div className="qh-row">
           <button className="sh-close" onClick={onQuit} aria-label="시험 그만두기"><IconArrowLeft /></button>
           <div className="sh-title">{index + 1} / {questions.length}</div>
+          {onSound && <SoundToggle compact on={settings.autoTTS !== false} onChange={onSound} onToast={onToast} />}
           <div className="qh-score">{correct}점</div>
         </div>
         <div className="sh-bar"><i style={{ width: `${pct}%` }} /></div>
@@ -626,9 +633,30 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
         </div>
       )}
 
-      {/* 맞힌 문제는 알아서 넘어가므로 버튼을 내지 않는다 — 눌러야 할 게 없어야 빠르다.
-          다만 보기 상세를 펼쳐 둔 때는 직접 넘긴다(읽고 들을 시간을 주려고). */}
-      {answered && (answered.verdict !== 'correct' || holdForReview || keyboard) && (
+      {/* 주관식을 맞혔을 때 — 맞았다는 표시와 그 낱말(표기 · 읽는 법 · 뜻), 예문 */}
+      {answered && q.type !== QUIZ_TYPE.CHOICE && answered.verdict === 'correct' && (
+        <div className="qverdict correct qv-right">
+          <IconCheck /> 맞았어요
+          {word && (
+            <div className="qv-word">
+              <b lang="ja">{word.kanji || word.kana}</b>
+              {word.kana && word.kana !== word.kanji && <span lang="ja">{word.kana}</span>}
+              <span className="qv-mean">{word.mean}</span>
+            </div>
+          )}
+          {word?.example && (
+            <div className="qv-ex">
+              <span lang="ja">{word.example}</span>
+              {word.exampleKana && word.exampleKana !== word.example && <span className="ex-kana" lang="ja">{word.exampleKana}</span>}
+              <span className="ex-ko">{word.exampleKo}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 객관식을 맞힌 문제는 알아서 넘어가므로 버튼을 내지 않는다 — 눌러야 할 게 없어야 빠르다.
+          다만 보기 상세를 펼쳐 둔 때와 주관식은 직접 넘긴다(읽고 들을 시간을 주려고). */}
+      {answered && (answered.verdict !== 'correct' || holdForReview || keyboard || q.type !== QUIZ_TYPE.CHOICE) && (
         <div className="qnext">
           {answered.verdict === 'close' && (
             <button className="ghost-btn" onClick={acceptClose}>맞게 처리하기</button>
@@ -718,8 +746,8 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
             </div>
           ) : (
             <div className="card wk-result" data-flow={flow.kind} data-total={result.total} data-correct={result.correct}>
-              <b>오늘 랜덤 테스트를 마쳤어요</b>
-              <span>{result.total}문제 중 {result.correct}개 맞혔어요. 틀린 건 위 목록에서 바로 다시 외울 수 있어요.</span>
+              <b>{flow.kind === 'fresh' ? '배운 단어 테스트를 마쳤어요' : '오늘 랜덤 테스트를 마쳤어요'}</b>
+              <span>{result.total}문제 중 {result.correct}개 맞혔어요. {flow.kind === 'fresh' && wrongWords.length === 0 ? '방금 외운 낱말을 다 맞혔어요.' : '틀린 건 위 목록에서 바로 다시 외울 수 있어요.'}</span>
             </div>
           )}
           {/* 랜덤 테스트 뒤에 이을 단계(오늘의 N3)가 남았으면 그걸 먼저 내민다 */}
