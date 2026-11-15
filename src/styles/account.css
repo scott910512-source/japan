@@ -220,6 +220,11 @@
 .qverdict svg { width: 17px; height: 17px; vertical-align: -3px; }
 .qverdict b { font-weight: 800; }
 .qverdict.correct { background: var(--kon-soft); color: var(--kon); }
+/* 주관식을 맞혔을 때의 낱말 줄 — 표기 · 읽는 법 · 뜻 */
+.qv-word { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 8px; color: var(--ink); }
+.qv-word b { font-size: 20px; font-weight: 800; }
+.qv-word span { font-size: 14px; font-weight: 600; color: var(--ink-soft); }
+.qv-word .qv-mean { color: var(--ink); }
 .qverdict.close { background: var(--surface-2); color: var(--ink); }
 .qverdict.wrong { background: var(--shu-soft); color: var(--shu); }
 .qv-ex { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; font-weight: 500; color: var(--ink-soft); }

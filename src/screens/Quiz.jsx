@@ -424,6 +424,9 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
    * 한→일 문제에서 답을 읽어 주는 중이면 그 소리가 끝날 때까지 기다린다. */
   useEffect(() => {
     if (!answered || answered.verdict !== 'correct' || holdForReview || keyboard) return undefined;
+    /* ★ 직접 쓴 답은 알아서 넘기지 않는다 ★ 객관식은 맞은 보기에 표시가 뜨지만, 주관식은 맞혀도 아무 말 없이 0.75초 뒤에
+       다음 문제로 넘어가서 맞았는지조차 알 수 없었다. 맞았다는 표시와 읽는 법 · 예문을 보여 주고 직접 넘기게 한다. */
+    if (q?.type !== QUIZ_TYPE.CHOICE) return undefined;
     const speaking = settings.autoTTS && q?.dir === QUIZ_DIR.KO_JP;
     /* 곤에게 묻는 창이 열려 있으면 저절로 안 넘긴다 — 묻던 문제가 사라지면 안 된다 */
     const timer = setTimeout(() => { if (!sheetOpen()) next(); }, speaking ? AUTO_NEXT_SPEAK_MS : AUTO_NEXT_MS);
@@ -630,9 +633,30 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
         </div>
       )}
 
-      {/* 맞힌 문제는 알아서 넘어가므로 버튼을 내지 않는다 — 눌러야 할 게 없어야 빠르다.
-          다만 보기 상세를 펼쳐 둔 때는 직접 넘긴다(읽고 들을 시간을 주려고). */}
-      {answered && (answered.verdict !== 'correct' || holdForReview || keyboard) && (
+      {/* 주관식을 맞혔을 때 — 맞았다는 표시와 그 낱말(표기 · 읽는 법 · 뜻), 예문 */}
+      {answered && q.type !== QUIZ_TYPE.CHOICE && answered.verdict === 'correct' && (
+        <div className="qverdict correct qv-right">
+          <IconCheck /> 맞았어요
+          {word && (
+            <div className="qv-word">
+              <b lang="ja">{word.kanji || word.kana}</b>
+              {word.kana && word.kana !== word.kanji && <span lang="ja">{word.kana}</span>}
+              <span className="qv-mean">{word.mean}</span>
+            </div>
+          )}
+          {word?.example && (
+            <div className="qv-ex">
+              <span lang="ja">{word.example}</span>
+              {word.exampleKana && word.exampleKana !== word.example && <span className="ex-kana" lang="ja">{word.exampleKana}</span>}
+              <span className="ex-ko">{word.exampleKo}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 객관식을 맞힌 문제는 알아서 넘어가므로 버튼을 내지 않는다 — 눌러야 할 게 없어야 빠르다.
+          다만 보기 상세를 펼쳐 둔 때와 주관식은 직접 넘긴다(읽고 들을 시간을 주려고). */}
+      {answered && (answered.verdict !== 'correct' || holdForReview || keyboard || q.type !== QUIZ_TYPE.CHOICE) && (
         <div className="qnext">
           {answered.verdict === 'close' && (
             <button className="ghost-btn" onClick={acceptClose}>맞게 처리하기</button>

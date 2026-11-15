@@ -187,6 +187,8 @@ export default function StreamQuiz({
   /* 맞히면 잠깐 보여 주고 알아서 넘어간다. 보기 상세를 펼쳐 둔 때는 직접 넘긴다. */
   useEffect(() => {
     if (phase !== 'run' || checkpoint || !answered || answered.verdict !== 'correct' || holdForReview || keyboard) return undefined;
+    /* 직접 쓴 답은 알아서 넘기지 않는다 — 맞았다는 표시와 설명을 보고 직접 넘긴다(단어 시험과 같다) */
+    if (cur?.q?.mode === 'typing') return undefined;
     timer.current = setTimeout(() => { if (!sheetOpen()) advance(); }, AUTO_NEXT_MS);   // 곤에게 묻는 창이 열려 있으면 저절로 안 넘긴다
     return () => clearTimeout(timer.current);
   }, [phase, checkpoint, answered, holdForReview, advance, keyboard]);
@@ -407,7 +409,26 @@ export default function StreamQuiz({
         </div>
       )}
 
-      {answered && answered.verdict === 'correct' && (holdForReview || keyboard) && (
+      {/* 주관식을 맞혔을 때 — 맞았다는 표시와 정답(읽는 법), 예문 */}
+      {answered && answered.verdict === 'correct' && isTyping && (
+        <div className="qverdict correct qv-right st-right">
+          <IconCheck /> 맞았어요
+          <div className="qv-word">
+            <b lang={q.promptJp ? 'ko' : 'ja'}>{q.answerText}</b>
+            {q.answerSub && q.answerSub !== q.answerText && <span lang="ja">{q.answerSub}</span>}
+            <span className="qv-mean" lang={q.promptJp ? 'ja' : 'ko'}>{q.prompt}</span>
+          </div>
+          {q.exJp && (
+            <div className="qv-ex">
+              <span lang="ja">{q.exJp}</span>
+              {q.exKana && <span className="ex-kana" lang="ja">{q.exKana}</span>}
+              {q.exKo && <span className="ex-ko">{q.exKo}</span>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {answered && answered.verdict === 'correct' && (holdForReview || keyboard || isTyping) && (
         <div className="qnext">
           <button className="submit-btn st-next" onClick={advance}>다음 문제{hasKeyboard && <kbd className="inline-key">Enter</kbd>}</button>
         </div>
