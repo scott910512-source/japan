@@ -162,6 +162,7 @@ export default function Settings({
         onSync={onSync}
         onSignedOut={onSignedOut}
         onVaultKey={onVaultKey}
+        vaultReady={vaultReady}
         onToast={onToast}
       />
 
@@ -390,7 +391,7 @@ export default function Settings({
       {G('voice') && (
         <VoiceSettings
           settings={settings} onChange={onChange} onToast={onToast}
-          session={session} remoteKeyEnvelope={remoteKeyEnvelope} vaultReady={vaultReady}
+          session={session} remoteKeyEnvelope={remoteKeyEnvelope} vaultReady={vaultReady} onVaultKey={onVaultKey}
         />
       )}
       {G('backup') && (

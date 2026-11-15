@@ -142,6 +142,13 @@ console.log('\n[ ★ 영어 오류가 그대로 안 뜬다 ★ ]');
   const net = Object.assign(new Error('Load failed'), { name: 'AuthRetryableFetchError', status: 0 });
   ok('★ Load failed → 한국어 ★', /서버에 닿지 못했어요/.test(readableAuthError(net)) && !/load failed/i.test(readableAuthError(net)), readableAuthError(net));
   ok('Failed to fetch도', /서버에 닿지 못했어요/.test(readableAuthError(new Error('Failed to fetch'))));
+  /* ★ 가입 확인 메일을 못 보내는 서버 — 영어가 그대로 뜨던 것과 「잠시 후」만 뜨던 것 ★ */
+  const mk = (message, code, status = 400) => Object.assign(new Error(message), { code, status });
+  ok('★ 「Email address … is invalid」 → 서버 메일 설정 문제라고 알린다 ★', /메일 설정 문제/.test(readableAuthError(mk('Email address "asd@naver.com" is invalid', 'email_address_invalid'))));
+  ok('★ 「not authorized」도 같다 ★', /메일 설정 문제/.test(readableAuthError(mk('Email address "a@b.com" cannot be used as it is not authorized', 'email_address_not_authorized'))));
+  ok('★ 메일 발송 한도 → 한 시간 뒤에, 이메일을 바꿔도 같다고 알린다 ★', /한 시간/.test(readableAuthError(mk('email rate limit exceeded', 'over_email_send_rate_limit', 429))) && /이메일을 바꿔도 같아요/.test(readableAuthError(mk('email rate limit exceeded', 'over_email_send_rate_limit', 429))));
+  ok('다른 요청 한도는 전처럼 「잠시 후」', readableAuthError(mk('Request rate limit reached', 'over_request_rate_limit', 429)) === '잠시 후 다시 시도해 주세요');
+  ok('틀린 비밀번호는 그대로', readableAuthError(mk('Invalid login credentials', 'invalid_credentials')) === '이메일이나 비밀번호가 맞지 않아요');
   ok('키 거절은 서버가 받지 않는다고', /서버가 요청을 받지 않아요/.test(readableAuthError({ status: 401, message: 'Invalid API key' })));
   ok('5xx는 서버가 바쁘다고', /서버가 바쁜/.test(readableAuthError({ status: 502, message: 'Bad Gateway' })));
   /* 전에 있던 안내는 그대로 */
@@ -149,7 +156,7 @@ console.log('\n[ ★ 영어 오류가 그대로 안 뜬다 ★ ]');
   ok('이미 가입', readableAuthError(new Error('User already registered')) === '이미 가입된 이메일이에요. 로그인해 주세요');
   ok('6자 미만', readableAuthError(new Error('Password should be at least 6 characters')) === '비밀번호는 6자 이상이어야 해요');
   ok('메일 인증 전', readableAuthError(new Error('Email not confirmed')) === '메일함에서 인증 링크를 먼저 눌러 주세요');
-  ok('횟수 제한', readableAuthError(new Error('email rate limit exceeded')) === '잠시 후 다시 시도해 주세요');
+  ok('횟수 제한(메일 한도는 한 시간 뒤라고 알린다)', /한 시간/.test(readableAuthError(new Error('email rate limit exceeded'))) && readableAuthError(new Error('too many requests')) === '잠시 후 다시 시도해 주세요');
   ok('빈 값은 기본 안내', readableAuthError(undefined) === '잠시 후 다시 시도해 주세요' && readableAuthError('') === '잠시 후 다시 시도해 주세요');
 }
 
