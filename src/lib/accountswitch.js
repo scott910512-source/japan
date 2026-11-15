@@ -42,6 +42,7 @@ export const ACCOUNT_DATA_KEYS = [
   'jp_manabu_story_removed_v1',
   'jp_manabu_story_pos_v1',
   'jp_quiz_keep_v1',
+  'jp_manabu_extra_meta_v1',
 ];
 const SETTINGS_KEY = 'jp_manabu_settings_v1';
 /* 다시 불러온 뒤 이전 계정이 보던 화면(풀던 시험 등)으로 돌아가지 않게 지운다 — 기록이 아니라 되돌릴 것은 없다 */

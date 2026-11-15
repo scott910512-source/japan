@@ -42,9 +42,10 @@ console.log('\n[ 바꾼 시각 찍기 ]');
 {
   const s0 = { ...DEF };
   ok('바뀐 게 없으면 받은 그대로', stampSettings(s0, s0, 9) === s0 && stampSettings(s0, { ...s0 }, 9).settingsAt === undefined);
-  const s1 = stampSettings(s0, { ...s0, quizCount: 10, speechRate: 0.8 }, 700);
+  const s1 = stampSettings(s0, { ...s0, quizCount: 10, deviceVoiceURI: 'v1' }, 700);
   ok('동기화하는 칸이 바뀌면 그 칸에만 시각을 찍는다', s1.settingsAt.quizCount === 700 && Object.keys(s1.settingsAt).length === 1);
-  ok('기기마다 다른 설정(음성 속도 · 키)은 안 찍는다', stampSettings(s0, { ...s0, speechRate: 0.8, geminiKey: 'x' }, 700).settingsAt === undefined);
+  ok('기기마다 다른 설정(기기 목소리 · 키)은 안 찍는다', stampSettings(s0, { ...s0, deviceVoiceURI: 'v2', geminiKey: 'x' }, 700).settingsAt === undefined);
+  ok('음성 속도 · 테마도 계정 설정으로 찍는다', stampSettings(s0, { ...s0, speechRate: 0.8, theme: 'dark' }, 710).settingsAt.speechRate === 710);
   ok('꾸러미(목표) 안이 바뀌어도 찍는다', stampSettings(s0, { ...s0, goals: { ...s0.goals, fresh: 5 } }, 800).settingsAt.goals === 800);
   ok('올리는 칸에 시각이 들어 있다', pickSyncedSettings(s1).settingsAt.quizCount === 700);
 }

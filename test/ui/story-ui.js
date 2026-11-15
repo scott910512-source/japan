@@ -315,7 +315,8 @@ URL: https://www.youtube.com/watch?v=abcdef12345
     const rows2 = (await p2.locator('.sl-item:not(.builtin)').allInnerTexts()).map((t) => t.replace(/\s+/g, ' '));
     ok('★ 파일을 안 불러와도 계정에 있던 이야기가 뜬다 ★', rows2.length === 1 && rows2[0].includes('아침 이야기') && rows2[0].includes('해석 있음'), rows2.join(' | '));
     ok('★ 다른 기기에서 지운 이야기는 안 뜬다 ★', await p2.locator('.sl-item[data-story="yt-abcdef12345"]').count() === 0);
-    ok('듣던 자리는 기기마다 따로다(여기서는 처음부터)', await p2.locator('.sl-continue').count() === 0 && await p2.locator('.sl-first').count() === 1);
+    /* 듣던 자리도 계정에 실려 온다(lib/devicesync.js) — 다른 기기에서 이어 듣기가 뜬다 */
+    ok('★ 듣던 자리도 다른 기기로 이어진다 ★', await p2.locator('.sl-continue').count() === 1, JSON.stringify(await p2.evaluate(() => localStorage.getItem('jp_manabu_story_pos_v1'))));
     await p2.locator('.sl-first').click();
     await p2.waitForFunction(() => Number(document.querySelector('.sl-run')?.dataset.at) >= 1, null, { timeout: 20000 });
     ok('받은 이야기를 바로 들을 수 있다', (await p2.evaluate(() => window._spoken[0]?.text)) === JP[0]);
