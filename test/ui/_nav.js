@@ -152,6 +152,12 @@ export async function openMore(page, group = 'study') {
     if (await back.count()) { await back.click(); await page.waitForTimeout(400); }
   }
   if (!(await page.locator('.moregroup:visible').count())) await openSettings(page);
+  /* 계정과 동기화는 묶음이 아니라 설정 첫 화면 맨 아래에 있다 — 그 자리로 내려간다 */
+  if (group === 'account') {
+    const acct = page.locator('.set-account:visible').first();
+    if (await acct.count()) { await acct.scrollIntoViewIfNeeded(); await page.waitForTimeout(300); return true; }
+    return false;
+  }
   const row = page.locator('.moregroup:visible', { hasText: label });
   if (await row.count()) {
     await row.first().click();
