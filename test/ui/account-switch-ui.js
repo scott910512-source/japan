@@ -28,7 +28,7 @@ const today = new Date().toISOString().slice(0, 10);
 const A_REVIEW = Object.fromEntries(Array.from({ length: 32 }, (_, i) => [`n5-${i + 1}`, { box: 3, streak: 2, lastSeen: today, due: today, level: 1 }]));
 
 (async () => {
-  const rows = { [A.id]: { user_id: A.id, review: A_REVIEW, progress: { syncUser: A.id }, settings: {}, stats: {}, custom_words: [], streak: { count: 9, lastDate: today }, memos: {}, updated_at: new Date().toISOString() } };
+  const rows = { [A.id]: { user_id: A.id, review: A_REVIEW, progress: { syncUser: A.id }, settings: { onboarded: true, canReadKana: true }, stats: {}, custom_words: [], streak: { count: 9, lastDate: today }, memos: {}, updated_at: new Date().toISOString() } };
   let current = A; const posts = [];
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -40,6 +40,12 @@ const A_REVIEW = Object.fromEntries(Array.from({ length: 32 }, (_, i) => [`n5-${
       const u = [A, B].find((x) => x.email === email);
       if (!u || PW[email] !== password) return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'invalid_credentials', msg: 'Invalid login credentials' }) });
       current = u;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mkSession(u)) });
+    }
+    if (url.includes('/auth/v1/signup')) {
+      /* 메일 확인을 끈 서버 — 가입하면 바로 로그인된다 */
+      const { email, password } = req.postDataJSON();
+      const u = mkUser('cccccccc-0000-0000-0000-00000000000c', email); PW[email] = password; current = u;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mkSession(u)) });
     }
     if (url.includes('/auth/v1/logout')) return route.fulfill({ status: 204, body: '' });
@@ -104,6 +110,11 @@ const A_REVIEW = Object.fromEntries(Array.from({ length: 32 }, (_, i) => [`n5-${
   await logout();
   ok('로그인 화면이 뜬다', await page.locator('.gate').count() === 1);
   await login(B.email);
+  /* 새 계정은 처음 안내(학습 목적 · 가나 읽기)부터 — 이전 계정의 답을 그대로 쓰지 않는다 */
+  await page.locator('.onboarding:not(.done) .ob-skip').first().waitFor({ timeout: 8000 }).catch(() => {});
+  ok('★ 새 계정은 처음 안내가 뜬다 ★', await page.locator('.onboarding:not(.done) .ob-skip').count() >= 1);
+  await page.locator('.onboarding:not(.done) .ob-skip').first().click().catch(() => {});
+  await page.waitForTimeout(800);
   const b0 = await local();
   ok('★ 새 계정은 빈 기록으로 시작한다(기존 계정의 복습 · 연속일이 안 보인다) ★', b0.review === 0 && b0.streak === 0, JSON.stringify(b0));
   ok('이 기기의 기록이 새 계정과 맞춰졌다', b0.syncUser === B.id);
@@ -121,6 +132,9 @@ const A_REVIEW = Object.fromEntries(Array.from({ length: 32 }, (_, i) => [`n5-${
   console.log('\n[ 기존 계정으로 돌아오면 ]');
   await logout();
   await login(A.email);
+  await page.waitForTimeout(1500);
+  const backSet = await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}'); return { onboarded: s.onboarded, canReadKana: s.canReadKana }; });
+  ok('★ 기존 계정으로 돌아오면 처음 안내가 안 뜬다(계정에 답이 있다) ★', await page.locator('.onboarding:not(.done) .ob-skip').count() === 0 && backSet.onboarded === true, JSON.stringify({ backSet, btn: await page.locator('.onboarding:not(.done) .ob-skip').allInnerTexts() }));
   const a1 = await local();
   ok('★ 기존 계정의 기록이 그대로 돌아온다(32개 · 9일째) ★', a1.review === 32 && a1.streak === 9 && a1.syncUser === A.id, JSON.stringify(a1));
   ok('★ 새 계정에서 공부한 것은 섞이지 않는다 ★', !(await page.evaluate(() => Boolean(JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}')['n4-777']))));
@@ -128,6 +142,26 @@ const A_REVIEW = Object.fromEntries(Array.from({ length: 32 }, (_, i) => [`n5-${
   ok('★ 기존 계정의 API 키가 돌아온다 ★', a1.key === 'AIza-KEY-OF-A');
   ok('되살렸다고 알린다', (await page.evaluate(() => window._toasts)).some((t) => t.includes('되살렸어요')), JSON.stringify(await page.evaluate(() => window._toasts)));
   ok('가로로 넘치지 않는다', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+
+  console.log('\n[ 새 계정을 가입하면(메일 확인 없이 바로 로그인) ]');
+  await logout();
+  await page.locator('.gate').waitFor({ timeout: 20000 });
+  await page.locator('.acct-links button', { hasText: '가입하기' }).first().click();
+  await page.locator('input[type="email"]').first().fill('fresh@example.com');
+  await page.locator('input[type="password"]').first().fill('pass-c-1234');
+  await page.locator('.submit-btn', { hasText: '가입' }).first().click();
+  await page.waitForTimeout(800);
+  await page.waitForLoadState('domcontentloaded');
+  await page.locator('.tabbar').waitFor({ state: 'visible', timeout: 30000 });
+  await page.waitForTimeout(2500);
+  await page.locator('.onboarding:not(.done) .ob-skip').first().waitFor({ timeout: 8000 }).catch(() => {});
+  ok('★ 가입한 새 계정도 처음 안내가 뜬다 ★', await page.locator('.onboarding:not(.done) .ob-skip').count() >= 1);
+  await page.locator('.onboarding:not(.done) .ob-skip').first().click().catch(() => {});
+  await page.waitForTimeout(800);
+  const c0 = await local();
+  ok('★ 가입한 새 계정도 빈 기록으로 시작한다 ★', c0.review === 0 && c0.streak === 0 && c0.key === '', JSON.stringify(c0));
+  const C = 'cccccccc-0000-0000-0000-00000000000c';
+  ok('★ 가입한 계정의 클라우드에도 기존 기록 · 키가 안 올라갔다 ★', rows[C] && Object.keys(rows[C].review || {}).length === 0 && !rows[C].gtts_key_enc, JSON.stringify({ review: Object.keys(rows[C]?.review || {}).length, key: Boolean(rows[C]?.gtts_key_enc) }));
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();

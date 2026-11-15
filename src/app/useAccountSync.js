@@ -5,7 +5,7 @@ import { rememberEmail } from '../lib/idfind.js';
 import { syncNow, pushKeyEnvelope } from '../lib/sync.js';
 import { applySyncedSettings, mergeReview, mergeProgress, mergeStats, mergeStreak, mergeCustomWords, mergeMemos, mergeGone } from '../lib/merge.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from '../lib/crypto.js';
-import { looksPacked, reconcileKeys, unpackKeys } from '../lib/keyvault.js';
+import { looksPacked, reconcileKeys, unpackKeys, VAULT_KEYS } from '../lib/keyvault.js';
 import { AUTH_READY_TIMEOUT, sessionFrom } from '../lib/authboot.js';
 import { isSwitching, switchAccountStorage, switchedFrom } from '../lib/accountswitch.js';
 
@@ -180,15 +180,15 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
   /* ★ 이 기기에서 방금 지운 키 ★ 있던 키가 빈 칸이 되면 「지웠다」로 적는다. 처음부터 비어 있던 기기(새 기기)와 가려야
      한다 — 새 기기는 계정에서 가져와야 하고, 지운 기기는 가져오면 안 된다(그리고 계정에서도 빼야 한다). */
   const keyCleared = useRef({});
-  const keySeen = useRef({ gttsKey: settings.gttsKey || '', geminiKey: settings.geminiKey || '' });
+  const keySeen = useRef({ gttsKey: settings.gttsKey || '', geminiKey: settings.geminiKey || '', claudeKey: settings.claudeKey || '' });
   useEffect(() => {
-    for (const k of ['gttsKey', 'geminiKey']) {
+    for (const k of VAULT_KEYS) {
       const now = settings[k] || '';
       if (keySeen.current[k] && !now) keyCleared.current = { ...keyCleared.current, [k]: true };
       else if (now) keyCleared.current = { ...keyCleared.current, [k]: false };
       keySeen.current[k] = now;
     }
-  }, [settings.gttsKey, settings.geminiKey]);
+  }, [settings.gttsKey, settings.geminiKey, settings.claudeKey]);
 
   useEffect(() => {
     if (!authSession?.user || !vaultKey) return;
@@ -198,7 +198,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     /* 업데이트 전 버전이 새 봉투를 열어 묶음 글자를 음성 키 칸에 통째로 넣었으면 풀어서 제자리에 둔다 */
     if (looksPacked(settings.gttsKey)) {
       const fixed = unpackKeys(settings.gttsKey);
-      patchSettings({ gttsKey: fixed.gttsKey, ...(settings.geminiKey ? {} : { geminiKey: fixed.geminiKey }) });
+      patchSettings({ gttsKey: fixed.gttsKey, ...(settings.geminiKey ? {} : { geminiKey: fixed.geminiKey }), ...(settings.claudeKey || !fixed.claudeKey ? {} : { claudeKey: fixed.claudeKey }) });
       return;
     }
     let live = true;
@@ -206,16 +206,17 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
       const plain = remoteKeyEnvelope ? await decryptWithVaultKey(remoteKeyEnvelope, vaultKey) : null;
       if (!live) return;
       const stored = unpackKeys(plain);
-      const hasLocal = Boolean(settings.gttsKey || settings.geminiKey);
+      const hasLocal = Boolean(settings.gttsKey || settings.geminiKey || settings.claudeKey);
       if (remoteKeyEnvelope && !stored && !hasLocal) {
         // 비밀번호를 바꿨으면 예전 봉투는 못 연다
         showToast('계정에 보관된 API 키를 열지 못했어요. 키를 다시 넣어 주세요');
         return;
       }
-      const { pull, push, clear } = reconcileKeys({ gttsKey: settings.gttsKey, geminiKey: settings.geminiKey }, stored, keyCleared.current);
+      const { pull, push, clear } = reconcileKeys({ gttsKey: settings.gttsKey, geminiKey: settings.geminiKey, claudeKey: settings.claudeKey }, stored, keyCleared.current);
       if (Object.keys(pull).length) {
         patchSettings(pull);
-        showToast(pull.geminiKey && pull.gttsKey ? 'API 키를 계정에서 가져왔어요' : pull.geminiKey ? 'AI 키를 계정에서 가져왔어요' : '음성 키를 계정에서 가져왔어요');
+        const n = Object.keys(pull).length;
+        showToast(n > 1 ? 'API 키를 계정에서 가져왔어요' : pull.gttsKey ? '음성 키를 계정에서 가져왔어요' : 'AI 키를 계정에서 가져왔어요');
       }
       if (push) {
         try { await saveRemoteKey(await encryptWithVaultKey(push, vaultKey)); } catch { /* 다음 동기화에서 다시 시도한다 */ }
@@ -226,7 +227,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     })();
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authSession, vaultKey, settings.gttsKey, settings.geminiKey, remoteKeyEnvelope, progress.syncUser]);
+  }, [authSession, vaultKey, settings.gttsKey, settings.geminiKey, settings.claudeKey, remoteKeyEnvelope, progress.syncUser]);
 
   /* 공부한 걸 자동으로 올린다.
    * 로그인할 때와 버튼을 누를 때만 올리면, 메모를 적고 다른 기기를 열었을 때 없다.

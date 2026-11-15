@@ -62,4 +62,15 @@ check('새 기기(처음부터 비어 있던 칸)는 여전히 계정에서 가�
   const r = reconcileKeys({}, stored, {});
   assert.deepEqual(r.pull, { gttsKey: 'T', geminiKey: 'G' }); assert.equal(r.push, null); assert.equal(r.clear, false);
 });
+check('★ Claude 키도 계정에 올라가고 다른 기기에서 가져온다 ★', () => {
+  const r = reconcileKeys({ claudeKey: 'sk-ant-C' }, null, {});
+  assert.ok(r.push && unpackKeys(r.push).claudeKey === 'sk-ant-C');                   // 컴퓨터: Claude 키만 있어도 올린다
+  const other = reconcileKeys({}, unpackKeys(r.push), {});
+  assert.deepEqual(other.pull, { claudeKey: 'sk-ant-C' }); assert.equal(other.push, null); // 다른 기기: 가져오기만
+  const both = reconcileKeys({ gttsKey: 'T' }, unpackKeys(r.push), {});
+  assert.deepEqual(unpackKeys(both.push), { gttsKey: 'T', geminiKey: '', claudeKey: 'sk-ant-C' }); // 음성 키를 더해도 Claude 키가 안 빠진다
+  const gone = reconcileKeys({}, unpackKeys(both.push), { claudeKey: true });
+  assert.deepEqual(unpackKeys(gone.push), { gttsKey: 'T', geminiKey: '' });              // 지운 Claude 키는 계정에서도 뺀다
+  assert.equal(packKeys({ gttsKey: 'T', geminiKey: 'G' }), JSON.stringify({ v: 2, gttsKey: 'T', geminiKey: 'G' })); // 이미 올라간 봉투와 같은 글자
+});
 console.log(`통과 ${pass} / 실패 0`);

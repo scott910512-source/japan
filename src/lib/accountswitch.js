@@ -58,14 +58,16 @@ export function switchedFrom(localProgress, userId) {
   return prev && userId && prev !== userId ? prev : null;
 }
 
-/* 다른 계정으로 넘어온 기기의 기본 설정: 이 기기의 설정은 두되, API 키는 빼고, 칸마다 바꾼 시각을 지운다
-   (시각이 남아 있으면 이전 계정이 고른 학습 설정이 「더 나중에 바꾼 것」이 되어 새 계정의 설정을 덮는다) */
+/* 다른 계정으로 넘어온 기기의 기본 설정: 그 사람의 것(계정으로 올라가는 학습 설정 · 처음 안내 답 · API 키)은 빼고,
+   기기에 딸린 것(테마 · 음성 속도 · 화면)만 둔다. 빠진 칸은 기본값으로 시작하고 — 그 계정의 클라우드에 설정이 있으면
+   첫 동기화가 내려 준다. 처음 만든 계정이면 처음 안내(학습 목적 · 가나 읽기 …)가 다시 뜬다.
+   전에는 이전 계정의 설정을 그대로 두어서 새 계정인데 처음 안내가 안 떴고, 이전 계정의 목표 · 레벨이 새 계정에 올라갔다. */
+const MARKERS = ['goalsV', 'quizDirV', 'settingsAt'];
 export function settingsForNewAccount(raw) {
   let s;
   try { s = JSON.parse(raw || '{}') || {}; } catch { s = {}; }
   const out = { ...s };
-  for (const k of SECRET) delete out[k];
-  delete out.settingsAt;
+  for (const k of [...SECRET, ...MARKERS, ...Object.keys(pickSyncedSettings(s))]) delete out[k];
   return out;
 }
 

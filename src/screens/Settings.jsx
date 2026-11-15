@@ -1,5 +1,5 @@
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconDownload, IconRewind, IconList, IconMap, IconChevron } from '../components/Icons.jsx';
 import { DEFAULT_SETTINGS } from '../lib/storage.js';
 import { GOAL_CHOICES, todayKey } from '../lib/review.js';
@@ -29,13 +29,14 @@ const LANE_GOALS = [
   { key: 'weak', label: '약점', note: '세 번 넘게 틀린 것 — 열 번 넘으면 한 판에 두 번 나와요' },
 ];
 
-/* ★ 더보기는 고를 것 여섯 줄 ★
+/* ★ 더보기는 고를 것 다섯 줄 + 맨 아래 계정 ★
+   계정과 동기화는 묶음 안에 두지 않는다 — 로그아웃 · 지금 동기화가 한 번 더 들어가야 보여서 숨어 있었다.
+   설정 첫 화면 맨 아래에 바로 둔다.
    긴 한 화면을 내려가며 찾던 것을, 이름을 보고 들어가는 목록으로 바꾼다.
    sub에 무엇이 들어 있는지 적는다 — 이름만으로는 어디에 뭐가 있는지 모른다. */
 const MORE_GROUPS = [
   { id: 'study', label: '학습 설정', sub: '학습 목적 · 하루 분량 · 문장 범위 · 메뉴 · 표시 방식' },
   { id: 'voice', label: '음성', sub: '목소리 · 속도 · 자동 읽기 · 소리 테스트' },
-  { id: 'account', label: '계정과 동기화', sub: '로그인 · 기기 간 동기화 상태' },
   { id: 'backup', label: '기록 백업', sub: '내려받기 · 복원 · 무엇이 들어가나' },
   { id: 'tools', label: '학습 도구', sub: '내 단어장 · 번역기 · 영상 AI 연결' },
   { id: 'about', label: '앱 정보', sub: '버전 · 최신 버전 받기 · 초기화' },
@@ -60,6 +61,12 @@ export default function Settings({
   const [showLanes, setShowLanes] = useState(false);
   // 어느 묶음을 보고 있나. null이면 고르는 목록.
   const [group, setGroup] = useState(() => (MORE_GROUPS.some((x) => x.id === initialGroup) ? initialGroup : null));
+  /* 계정 칸은 첫 화면 맨 아래 — 계정으로 바로 오라고 했으면(initialGroup 'account') 그 자리까지 내려 준다 */
+  const accountRef = useRef(null);
+  useEffect(() => {
+    if (initialGroup === 'account' && !group) accountRef.current?.scrollIntoView?.({ block: 'start' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialGroup]);
   const menus = settings.menus || DEFAULT_SETTINGS.menus;
   const enabledCount = Object.values(menus).filter(Boolean).length;
 
@@ -139,6 +146,20 @@ export default function Settings({
               <span>{storeError} 「기록 백업」에서 백업해 두고 저장 공간을 비워 주세요.</span>
             </div>
           )}
+          {/* ★ 계정과 동기화는 첫 화면 맨 아래에 바로 ★ 묶음 안에 있어서 로그아웃을 찾기 어려웠다 */}
+          <div ref={accountRef} className="set-account">
+            <div className="section-label">계정과 동기화</div>
+            <Account
+              session={session}
+              syncState={syncState}
+              onSync={onSync}
+              onFlush={onFlush}
+              onSignedOut={onSignedOut}
+              onVaultKey={onVaultKey}
+              vaultReady={vaultReady}
+              onToast={onToast}
+            />
+          </div>
         </>
       )}
 
@@ -154,26 +175,6 @@ export default function Settings({
         </>
       )}
 
-      {G('account') && (<>
-      <div className="section-label">계정</div>
-      <Account
-        session={session}
-        syncState={syncState}
-        onSync={onSync}
-        onFlush={onFlush}
-        onSignedOut={onSignedOut}
-        onVaultKey={onVaultKey}
-        vaultReady={vaultReady}
-        onToast={onToast}
-      />
-
-      {/* 학습 탭과 같은 묶음으로 보여 준다 — 거기선 셋으로 갈라 놓고 여기선
-          한 줄로 늘어놓으면 어느 칸이 어디 것인지 다시 찾아야 한다. */}
-      {/* ★ 하는 만큼만 말한다 ★
-          온보딩은 「남은 기간에 맞춰 학습량과 우선순위를 잡아 드려요」라고
-          적어 두고 아무것도 안 했다. 이제 정말로 배정 차례를 바꾸고,
-          목적마다 무엇이 달라지는지 그 자리에 적는다. */}
-      </>)}
       {G('study') && (<>
       <div className="section-label">목표 레벨</div>
       <div className="card">

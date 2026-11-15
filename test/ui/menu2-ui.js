@@ -71,14 +71,22 @@ async function boot(browser) {
   ok('★ 내 학습에는 설정·계정·백업 줄이 없다(탭으로 나갔다) ★',
     await page.locator('.me-settings, .me-account, .me-backup').count() === 0);
   await goTab(page, '설정');
-  ok('★ 설정 탭이 활성이고 여섯 묶음 목록 ★', await page.locator('.tabbar .tab.active[data-tab="settings"]').count() === 1 && await page.locator('.moregroup').count() === 6,
+  ok('★ 설정 탭이 활성이고 다섯 묶음 목록 ★', await page.locator('.tabbar .tab.active[data-tab="settings"]').count() === 1 && await page.locator('.moregroup').count() === 5,
     `${await page.locator('.moregroup').count()}개`);
-  await page.locator('.moregroup', { hasText: '계정과 동기화' }).click();
+  /* ★ 계정과 동기화는 묶음이 아니라 첫 화면 맨 아래에 바로 — 로그아웃이 숨어 있었다 ★ */
+  ok('★ 계정과 동기화는 묶음 목록에 없다 ★', await page.locator('.moregroup', { hasText: '계정과 동기화' }).count() === 0);
+  const acct = await page.evaluate(() => {
+    const a = document.querySelector('.set-account'); const groups = [...document.querySelectorAll('.moregroup')];
+    if (!a || !groups.length) return null;
+    return { below: a.getBoundingClientRect().top > groups[groups.length - 1].getBoundingClientRect().bottom, text: a.innerText.replace(/\s+/g, ' ') };
+  });
+  ok('★ 첫 화면 맨 아래(묶음 목록 아래)에 계정 칸이 바로 있다 ★', Boolean(acct?.below) && acct.text.includes('계정과 동기화'), acct?.text.slice(0, 60));
+  await page.locator('.moregroup', { hasText: '음성' }).click();
   await page.waitForTimeout(500);
-  ok('계정 묶음이 열린다', await page.locator('.moreback').count() === 1);
+  ok('묶음을 열면 계정 칸은 안 보인다', await page.locator('.moreback').count() === 1 && await page.locator('.set-account').count() === 0);
   await goTab(page, '학습');
   await goTab(page, '설정');
-  ok('★ 탭을 다시 열면 묶음 목록으로 돌아온다 ★', await page.locator('.moregroup').count() === 6);
+  ok('★ 탭을 다시 열면 묶음 목록으로 돌아온다 ★', await page.locator('.moregroup').count() === 5 && await page.locator('.set-account').count() === 1);
 
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | ') || '깨끗');
   await browser.close();
