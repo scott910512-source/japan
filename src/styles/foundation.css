@@ -341,6 +341,18 @@ button, input, select { font-family: inherit; }
 }
 .search-input::placeholder { color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); opacity: 1; }
 .search-input:focus { outline: none; border-color: var(--kon); }
+/* ★ 브라우저가 저장된 이메일 · 비밀번호를 채우면 칸이 연한 하늘색이 되는데, 글자는 앱의 밝은 글자색 그대로라
+   하얀 바탕에 하얀 글자가 되어 안 보였다(로그인 화면). 채워진 칸도 앱의 칸 색과 글자색으로 칠한다. */
+.search-input:-webkit-autofill,
+.search-input:-webkit-autofill:hover,
+.search-input:-webkit-autofill:focus,
+.search-input:autofill {
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+  box-shadow: 0 0 0 1000px var(--surface) inset;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
 .manage-group-label { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin: 16px 0 8px; }
 .manage-row { display: flex; align-items: center; gap: 10px; padding: 11px 4px; border-bottom: 1px solid var(--line); }
 .manage-row:last-child { border-bottom: none; }

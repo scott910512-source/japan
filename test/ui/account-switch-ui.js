@@ -42,6 +42,12 @@ const A_REVIEW = Object.fromEntries(Array.from({ length: 32 }, (_, i) => [`n5-${
       current = u;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mkSession(u)) });
     }
+    if (url.includes('/auth/v1/signup')) {
+      /* 메일 확인을 끈 서버 — 가입하면 바로 로그인된다 */
+      const { email, password } = req.postDataJSON();
+      const u = mkUser('cccccccc-0000-0000-0000-00000000000c', email); PW[email] = password; current = u;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mkSession(u)) });
+    }
     if (url.includes('/auth/v1/logout')) return route.fulfill({ status: 204, body: '' });
     if (url.includes('/auth/v1/user')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(current) });
     if (url.includes('/auth/v1/')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mkSession(current)) });
@@ -128,6 +134,22 @@ const A_REVIEW = Object.fromEntries(Array.from({ length: 32 }, (_, i) => [`n5-${
   ok('★ 기존 계정의 API 키가 돌아온다 ★', a1.key === 'AIza-KEY-OF-A');
   ok('되살렸다고 알린다', (await page.evaluate(() => window._toasts)).some((t) => t.includes('되살렸어요')), JSON.stringify(await page.evaluate(() => window._toasts)));
   ok('가로로 넘치지 않는다', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+
+  console.log('\n[ 새 계정을 가입하면(메일 확인 없이 바로 로그인) ]');
+  await logout();
+  await page.locator('.gate').waitFor({ timeout: 20000 });
+  await page.locator('.acct-links button', { hasText: '가입하기' }).first().click();
+  await page.locator('input[type="email"]').first().fill('fresh@example.com');
+  await page.locator('input[type="password"]').first().fill('pass-c-1234');
+  await page.locator('.submit-btn', { hasText: '가입' }).first().click();
+  await page.waitForTimeout(800);
+  await page.waitForLoadState('domcontentloaded');
+  await page.locator('.tabbar').waitFor({ state: 'visible', timeout: 30000 });
+  await page.waitForTimeout(2500);
+  const c0 = await local();
+  ok('★ 가입한 새 계정도 빈 기록으로 시작한다 ★', c0.review === 0 && c0.streak === 0 && c0.key === '', JSON.stringify(c0));
+  const C = 'cccccccc-0000-0000-0000-00000000000c';
+  ok('★ 가입한 계정의 클라우드에도 기존 기록 · 키가 안 올라갔다 ★', rows[C] && Object.keys(rows[C].review || {}).length === 0 && !rows[C].gtts_key_enc, JSON.stringify({ review: Object.keys(rows[C]?.review || {}).length, key: Boolean(rows[C]?.gtts_key_enc) }));
 
   ok('JS 에러 없음', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();
