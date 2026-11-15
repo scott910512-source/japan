@@ -1,10 +1,11 @@
 import { IconArrowLeft } from '../../components/Icons.jsx';
+import SoundToggle from '../../components/SoundToggle.jsx';
 
 /* 회독 화면의 머리 — 닫기 · 몇 장째 · 되돌리기 · 진행 막대 · 남은 수와 회독.
    Study.jsx(700줄)에서 떼어 냈다. 동작은 그대로다. */
 const ROUND_LABEL = (round) => (round === 1 ? '1회독 (전체)' : `${round}회독 (틀린 것만 복습)`);
 
-export default function StudyHeader({ session, deck, onClose, onUndo, hasKeyboard }) {
+export default function StudyHeader({ session, deck, onClose, onUndo, hasKeyboard, sound = true, onSound, onToast }) {
   const pct = session.total ? Math.min(100, Math.round((session.done / session.total) * 100)) : 0;
   return (
     <div className="studyhead">
@@ -17,7 +18,9 @@ export default function StudyHeader({ session, deck, onClose, onUndo, hasKeyboar
       </div>
       <div className="sh-bar"><i style={{ width: `${pct}%` }} /></div>
       <div className="sh-sub">
-        남은 {session.queue.length}개 <span className="sep">|</span> {ROUND_LABEL(session.round)}
+        <span className="sh-left">남은 {session.queue.length}개 <span className="sep">|</span> {ROUND_LABEL(session.round)}</span>
+        {/* 소리를 낼 수 없는 자리에서는 눈으로만 — 듣기 단추를 눌러야만 소리가 난다 */}
+        {onSound && <SoundToggle on={sound} onChange={onSound} onToast={onToast} />}
       </div>
     </div>
   );

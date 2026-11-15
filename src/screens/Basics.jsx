@@ -125,7 +125,7 @@ function KanaQuiz({ row, settings, onBack, onToast }) {
     if (picked) return;
     setPicked(opt);
     if (opt === current.ko) setCorrect((c) => c + 1);
-    speakJapanese(current.kana, settings.speechRate);
+    if (settings.autoTTS !== false) speakJapanese(current.kana, settings.speechRate);
     after(() => { setPicked(null); setIndex((i) => i + 1); }, 800);
   };
 

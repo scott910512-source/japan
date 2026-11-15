@@ -230,6 +230,7 @@ export default function FeatureScreen({
             {sub === 'drill' && <DrillHub settings={settings} onOpen={onOpenDrill} />}
             {sub === 'stream' && (
               <StreamQuiz
+                onSettingsChange={patchSettings}
                 onAttempt={onAttempt}
                 words={words}
                 review={review}

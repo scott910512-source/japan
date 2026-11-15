@@ -8,6 +8,7 @@ import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
 import WordMemo from '../components/WordMemo.jsx';
 import { useQuizHotkeys, useHasKeyboard, shortcutEvent } from '../lib/useHotkeys.js';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
+import SoundToggle from '../components/SoundToggle.jsx';
 import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
 import {
   QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf, otherWordNote,
@@ -160,6 +161,7 @@ export default function Quiz({
     return (
       <QuizRun
         onAttempt={onAttempt}
+        onSound={onChange}
         run={run}
         pool={pool}
         allWords={words}
@@ -267,7 +269,7 @@ export default function Quiz({
 
 /* ── 문제 풀기 ── */
 
-function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWrong, onRetryQuiz, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onHome, onNextQuest, flow, nextLabel, onComplete }) {
+function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, onRetryWrong, onRetryQuiz, onToast, onActivity, onWeakness, onAttempt, weak, onExit, onHome, onNextQuest, flow, nextLabel, onComplete }) {
   const { questions, answers, index } = run;
   const q = questions[index];
   const done = index >= questions.length;
@@ -474,6 +476,7 @@ function QuizRun({ run, pool, allWords = [], settings, onRun, onQuit, onRetryWro
         <div className="qh-row">
           <button className="sh-close" onClick={onQuit} aria-label="시험 그만두기"><IconArrowLeft /></button>
           <div className="sh-title">{index + 1} / {questions.length}</div>
+          {onSound && <SoundToggle compact on={settings.autoTTS !== false} onChange={onSound} onToast={onToast} />}
           <div className="qh-score">{correct}점</div>
         </div>
         <div className="sh-bar"><i style={{ width: `${pct}%` }} /></div>

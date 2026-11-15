@@ -35,6 +35,13 @@ export const IconSpeaker = (p) => (
     <path d="M17 9a3 3 0 0 1 0 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
   </svg>
 );
+/* 소리 끔 — 스피커에 빗금 */
+export const IconSpeakerOff = (p) => (
+  <svg {...base} {...p}>
+    <path d="M4 9v6h4l5 4V5L8 9H4Z" fill="currentColor" opacity=".55"/>
+    <path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg>
+);
 export const IconCheck = (p) => (
   <svg {...base} {...p}><path d="M4 12l5 5L20 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 );

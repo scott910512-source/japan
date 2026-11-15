@@ -46,7 +46,8 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
     }
     if (next.length === chunks.length) {
       setSolved(true);
-      speakJapanese(readingText(item.kana, item.jp), settings.speechRate);
+      /* 눈으로만 푸는 중(소리 끔)이면 완성한 문장을 알아서 읽지 않는다 — 듣기 단추로 듣는다 */
+      if (settings.autoTTS !== false) speakJapanese(readingText(item.kana, item.jp), settings.speechRate);
       onSolved?.(tries === 0);
       onAttempt?.({ ok: true, chosen: next.map((p) => p.text).join('') });
     }

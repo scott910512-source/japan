@@ -253,7 +253,8 @@ export default function Study({
     setLocked(true);
 
     // 답을 고른 순간의 발음 확인. 아는 줄 알았는데 소리가 다른 경우를 여기서 잡는다.
-    if (settings.speakOnJudge) {
+    /* 눈으로만 푸는 중(소리 끔)이면 이것도 안 읽는다 — 듣기 단추를 눌렀을 때만 소리가 난다 */
+    if (settings.speakOnJudge && settings.autoTTS !== false) {
       speakCurrent();
       judgeSpokeAt.current = Date.now();
     }
@@ -434,6 +435,9 @@ export default function Study({
         onClose={onClose}
         onUndo={history.current.length ? undo : null}
         hasKeyboard={hasKeyboard}
+        sound={settings.autoTTS !== false}
+        onSound={onSettingsChange}
+        onToast={onToast}
       />
 
       {/* 단어인지 문장인지를 표시에 남긴다. 화면은 이미 글자 크기로 구별하는데

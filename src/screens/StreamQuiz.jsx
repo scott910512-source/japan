@@ -11,6 +11,7 @@ import { markBusy } from '../lib/busy.js';
 import { goalOf, n3Included } from '../lib/goal.js';
 import { useQuizHotkeys, shortcutEvent } from '../lib/useHotkeys.js';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
+import SoundToggle from '../components/SoundToggle.jsx';
 import {
   KIND, KIND_LABEL, MIN_POOL, buildPool, judge, newSession, pickNext, poolCounts, questionFor,
   record, shouldRecord, summarize, verdictFor,
@@ -39,6 +40,8 @@ export default function StreamQuiz({
   next = null, questDone = false, seenToday = null, onHome = null,
   /* 퀘스트 줄 · 하루 흐름으로 들어왔다 — 설정 화면(한 번에 몇 문제)을 건너뛰고 바로 첫 문제를 낸다 */
   autoStart = false,
+  /* 소리 켬 · 눈으로만을 시험 안에서 바꾼다(설정의 자동 음성) */
+  onSettingsChange = null,
 }) {
   const goal = goalOf(settings);
   const [n3, setN3] = useState(null);
@@ -331,6 +334,7 @@ export default function StreamQuiz({
         <span className={`st-streak${session.streak >= 3 ? ' hot' : ''}`} aria-label="연속 정답">
           <IconFlame />{session.streak}
         </span>
+        {onSettingsChange && <SoundToggle compact on={settings?.autoTTS !== false} onChange={onSettingsChange} onToast={onToast} />}
         <button className="ghost-btn st-stop" onClick={() => setPhase('sum')}>그만하기</button>
       </div>
 
