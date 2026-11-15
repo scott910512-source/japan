@@ -31,7 +31,7 @@ const only = process.argv.includes('--logic') ? 'logic' : process.argv.includes(
 const shardArg = process.argv.find((arg) => arg.startsWith('--shard='));
 const shard = shardArg ? /^--shard=(\d+)\/(\d+)$/.exec(shardArg) : null;
 if (shardArg && (!shard || Number(shard[2]) < 1 || Number(shard[1]) >= Number(shard[2]))) {
-  throw new Error('Invalid shard; use --shard=0/4 through --shard=3/4');
+  throw new Error('Invalid shard; use --shard=0/12 through --shard=11/12');
 }
 
 const list = (dir, ext) => (existsSync(join(HERE, dir))
@@ -68,6 +68,7 @@ function uiForShard(files) {
 /* 검사 하나를 돌리고 "통과 N / 실패 M"을 읽어 온다.
    출력은 그대로 흘려보낸다 — 실패했을 때 어느 줄이 깨졌는지 봐야 한다. */
 function runOne(cmd, args, label) {
+  const started = Date.now();
   const r = spawnSync(cmd, args, {
     cwd: ROOT,
     encoding: 'utf8',
@@ -92,7 +93,8 @@ function runOne(cmd, args, label) {
      죽은 것이면 그 아래에 이유가 적혀 있다. */
   const timedOut = r.error?.code === 'ETIMEDOUT' || (!m && r.signal === 'SIGTERM');
   const failed = Math.max(m ? Number(m[2]) : 1, crashed ? 1 : 0);
-  console.log(`\n── ${label}`);
+  const seconds = Math.round((Date.now() - started) / 1000);
+  console.log(`\n── ${label} (${seconds}s)`);
   if (failed > 0 || crashed) {
     const tail = out.trim().split('\n').slice(-25).join('\n');
     process.stdout.write(tail);
@@ -110,7 +112,7 @@ function runOne(cmd, args, label) {
   } else {
     console.log(`   통과 ${passed}`);
   }
-  return { label, passed, failed, crashed, timedOut };
+  return { label, passed, failed, crashed, timedOut, seconds };
 }
 
 /* preview 서버가 뜰 때까지 기다린다. 바로 붙으면 아직 안 올라와 있어서
@@ -161,6 +163,11 @@ const passed = results.reduce((n, r) => n + r.passed, 0);
 const failed = results.reduce((n, r) => n + r.failed, 0);
 const broken = results.filter((r) => r.failed > 0 || r.crashed);
 
+/* ★ 화면 검사마다 걸린 시간 — 마지막 줄에 한 줄로 ★ 나눠 돌리는 검사기(shard)끼리 시간을 고르게 맞추려면
+   위 UI_SECONDS를 실제 시간으로 고쳐야 한다. 로그 끝 몇 줄만 읽어도 얻게 맨 끝에 찍는다. */
+const uiTimes = Object.fromEntries(results.filter((r) => r.label.startsWith('ui/')).map((r) => [r.label.slice(3), r.seconds]));
+const printTimes = () => { if (Object.keys(uiTimes).length) console.log(`UI_TIMES ${JSON.stringify(uiTimes)}`); };
+
 console.log(`\n${'─'.repeat(46)}`);
 console.log(`검사 ${results.length}묶음 · 통과 ${passed} · 실패 ${failed}`);
 if (broken.length) {
@@ -171,6 +178,8 @@ if (broken.length) {
   }).join(', ');
   console.log(`\n깨진 곳: ${list}`);
   if (process.env.GITHUB_ACTIONS) console.log(`::error title=깨진 곳::${list}`);
+  printTimes();
   process.exit(1);
 }
 console.log('전부 통과');
+printTimes();
