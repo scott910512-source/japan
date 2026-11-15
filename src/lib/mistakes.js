@@ -1,10 +1,20 @@
 import { addDays, todayKey } from './review.js';
 import { narrowAscii, normalizeJp, stripPunct } from './jptext.js';
+import { meaningsOf, meaningMatches, normalizeAnswer } from './quiz.js';
 
+/* 오답 다시 풀기의 채점. 일본어 답은 표기 그대로 견주고, 한국어 뜻 답은 퀴즈와 같은 기준이다 —
+   정답 글자에 뜻이 여러 개(「외우다; 기억하다」)면 하나만 맞아도 되고, 끝맺음만 다른 것(유명해요)도 맞다.
+   전에는 정답 글자와 통째로 같아야만 맞아서, 퀴즈에서 맞았을 답이 재시험에서 틀렸다. */
+const isJp = (s) => /[\u3040-\u30ff\u4e00-\u9fff]/.test(String(s));
 export function judgeMistake(row, value) {
-  const norm = (s) => /[\u3040-\u30ff\u4e00-\u9fff]/.test(String(s))
-    ? normalizeJp(s) : narrowAscii(stripPunct(s)).replace(/[·\s]/g, '').toLowerCase();
-  return [row.correct, ...(row.accepted || [])].filter(Boolean).some((answer) => norm(answer) === norm(value));
+  const answers = [row.correct, ...(row.accepted || [])].filter(Boolean).map(String);
+  const norm = (s) => (isJp(s) ? normalizeJp(s) : narrowAscii(stripPunct(s)).replace(/[·\s]/g, '').toLowerCase());
+  if (answers.some((answer) => norm(answer) === norm(value))) return true;
+  /* 고르는 문제는 고른 글자 그대로만 — 보기 글자를 넓혀 보면 다른 보기가 맞을 수 있다 */
+  if (Array.isArray(row.options) && row.options.length) return false;
+  if (isJp(value)) return false;
+  const meanings = answers.filter((a) => !isJp(a)).flatMap((a) => meaningsOf({ mean: a })).map(normalizeAnswer);
+  return meanings.length > 0 && meaningMatches(meanings, value);
 }
 
 // A wrong answer survives leaving the quiz and syncing. Recovery needs correct

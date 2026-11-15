@@ -39,6 +39,28 @@ export function normalizeAnswer(text) {
 
 export { normalizeJp };
 
+/* ★ 뜻 답을 너무 좁게 보지 않는다 ★
+ *   「외우다/기억하다」처럼 뜻을 여러 개 같이 쓰면 하나하나가 다 맞을 때 정답이다(전에는 통째로 견줘서 틀렸다).
+ *   「유명하다 · 유명해요 · 유명한」처럼 끝맺음만 다른 것은 같은 뜻으로 본다. 줄기가 두 글자 이상일 때만 —
+ *   「있다」와 「있」처럼 줄기가 한 글자면 끝을 떼지 않는다. 부정(-지 않다)은 줄기가 달라서 여전히 틀린다. */
+const KO_TAIL = /(합니다|했어요|해요|하다|하는|한|함|입니다|이에요|예요|이다|어요|아요|요|다)$/;
+export function koStem(text) {
+  const t = String(text || '').replace(KO_TAIL, '');
+  return t.length >= 2 ? t : String(text || '');
+}
+function oneMeaningMatches(accepted, mine) {
+  if (!mine) return false;
+  if (accepted.includes(mine)) return true;
+  const st = koStem(mine);
+  return accepted.some((a) => koStem(a) === st);
+}
+/* 뜻 답(raw, 사용자가 친 그대로)이 받아 주는 뜻(이미 normalizeAnswer한 목록) 중 하나와 맞나 */
+export function meaningMatches(accepted, raw) {
+  if (oneMeaningMatches(accepted, normalizeAnswer(raw))) return true;
+  const parts = String(raw || '').split(/[/,;、，·]/).map(normalizeAnswer).filter(Boolean);
+  return parts.length > 1 && parts.every((p) => oneMeaningMatches(accepted, p));
+}
+
 // 한 글자 차이는 오타일 때가 많다. 바로 오답 처리하지 않고 사용자가 정하게 넘긴다.
 export function editDistance(a, b) {
   if (a === b) return 0;
@@ -129,7 +151,7 @@ export function judgeTyping(word, dir, input) {
   const accepted = meaningsOf(word).map(normalizeAnswer);
   const mine = normalizeAnswer(raw);
   if (!mine) return { verdict: 'wrong' };
-  if (accepted.includes(mine)) return { verdict: 'correct' };
+  if (meaningMatches(accepted, raw)) return { verdict: 'correct' };
 
   for (const a of accepted) {
     if (a.length < 3 || editDistance(a, mine) > 1) continue;
