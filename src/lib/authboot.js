@@ -97,6 +97,17 @@ export function isServerProblem(err) {
 export function readableAuthError(err) {
   const message = typeof err === 'string' ? err : String(err?.message || '');
   const m = message.toLowerCase();
+  const code = String(err?.code || '');
+  /* ★ 가입 확인 메일을 못 보내는 서버 ★ Supabase의 기본 메일 발송은 프로젝트 관리자 주소로만 보내고, 한 시간에 몇 통만 보낸다.
+     그래서 다른 사람이 가입하면 「Email address … is invalid / not authorized」가 영어로 그대로 뜨고, 몇 번 더 누르면
+     「잠시 후 다시 시도」만 떴다 — 이메일을 바꿔도 같다. 사용자 잘못이 아니라는 것을 알려 준다. */
+  if (code === 'email_address_not_authorized' || m.includes('not authorized')
+    || code === 'email_address_invalid' || /email address .* is invalid/.test(m)) {
+    return '지금은 이 이메일로 가입 확인 메일을 보낼 수 없어요. 앱 서버의 메일 설정 문제라 이메일을 바꿔도 같아요. 관리자에게 알려 주세요';
+  }
+  if (code === 'over_email_send_rate_limit' || m.includes('email rate limit')) {
+    return '서버가 한 시간에 보낼 수 있는 메일 수를 넘었어요. 이메일을 바꿔도 같아요. 한 시간쯤 뒤에 다시 해 주세요';
+  }
   if (m.includes('invalid login')) return '이메일이나 비밀번호가 맞지 않아요';
   if (m.includes('already registered')) return '이미 가입된 이메일이에요. 로그인해 주세요';
   if (m.includes('password should be')) return '비밀번호는 6자 이상이어야 해요';
