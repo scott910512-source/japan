@@ -440,7 +440,8 @@ export const DEFAULT_SETTINGS = {
   // 시험 — 회독과 따로 돈다. 마지막에 고른 설정을 기억해 둔다.
   quizCount: 20,
   quizType: 'choice',   // 'choice' | 'typing' | 'mix'
-  quizDir: 'jp-ko',     // 'jp-ko' | 'ko-jp' | 'mix'
+  quizDir: 'mix',       // 'jp-ko' | 'ko-jp' | 'mix' — 섞으면 한국어 → 일본어가 셋 중 둘(quiz.js mixDirAt)
+  quizDirV: 1,          // 시험 방향 기본을 「일본어 → 한국어」에서 「양방향」으로 바꾼 판. 번호가 없는 옛 설정은 한 번 바뀐다
   quizScope: 'all',     // 'all' | 'seen' | 'weak'
 
   /* 하루 목표. 갈래마다 따로 센다 — 복습이 밀렸다고 새로 배우는 걸 뺏지 않는다.
@@ -493,6 +494,12 @@ export function loadSettings() {
   if ((saved.goalsV || 0) < DEFAULT_SETTINGS.goalsV) {
     merged.goals = { ...DEFAULT_SETTINGS.goals };
     merged.goalsV = DEFAULT_SETTINGS.goalsV;
+  }
+  /* 단어 시험의 방향을 한 번 「양방향」으로 맞춘다 — 전에는 기본이 「일본어 → 한국어」라 뜻을 보고 일본어를 떠올리는 문제가
+     안 나왔다. 「한국어 → 일본어」로 직접 골라 둔 사람은 그대로 두고, 그 뒤로 고른 값은 다시 덮어쓰지 않는다. */
+  if ((saved.quizDirV || 0) < DEFAULT_SETTINGS.quizDirV) {
+    if (merged.quizDir === 'jp-ko') merged.quizDir = 'mix';
+    merged.quizDirV = DEFAULT_SETTINGS.quizDirV;
   }
   if (!merged.gttsKey) merged.gttsKey = inheritLegacyTTSKey();
   return merged;

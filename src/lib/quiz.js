@@ -242,6 +242,16 @@ export function scopeWords(words, review = {}, scope = QUIZ_SCOPE.ALL, ledger = 
   return words;
 }
 
+/* ★ 섞어 낼 때는 한국어 → 일본어를 더 많이 낸다(셋 중 둘) ★
+   일본어를 보고 뜻을 고르는 것은 「알아보기」고, 뜻을 보고 일본어를 고르거나 쓰는 것이 「떠올리기」다. 말하려면 떠올려야 한다.
+   전에는 반반이었고 약점 퀴즈는 알아보기만 물었다. 무작위로 하면 한쪽으로 쏠린 시험이 나오니 차례로 정한다:
+   0번은 일본어 → 한국어, 1 · 2번은 한국어 → 일본어, 이렇게 셋씩 되풀이한다.
+   고르기 · 쓰기는 따로 번갈아 내므로(둘씩) 여섯 문제마다 네 가지 조합이 다 나온다. */
+export const KO_JP_EVERY = 3;
+export const mixDirAt = (i) => (i % KO_JP_EVERY === 0 ? QUIZ_DIR.JP_KO : QUIZ_DIR.KO_JP);
+/* 무작위로 하나 고를 때(쭉 퀴즈) 한국어 → 일본어가 나올 몫 */
+export const KO_JP_SHARE = 0.7;
+
 export function buildQuiz(words, {
   count = 20,
   type = QUIZ_TYPE.CHOICE,
@@ -260,9 +270,9 @@ export function buildQuiz(words, {
   const picked = prioritizeMistakes(shuffled(scopeWords(words, review, scope, ledger, mistakes), rng), mistakes, (word) => word.id, count);
 
   return picked.map((word, i) => {
-    // 섞기는 문제마다 번갈아 낸다 — 무작위로 하면 한쪽으로 쏠린 시험이 나온다
+    // 섞기는 문제마다 차례로 낸다 — 무작위로 하면 한쪽으로 쏠린 시험이 나온다
     const t = type === QUIZ_TYPE.MIX ? (i % 2 ? QUIZ_TYPE.TYPING : QUIZ_TYPE.CHOICE) : type;
-    const d = dir === QUIZ_DIR.MIX ? (i % 2 ? QUIZ_DIR.KO_JP : QUIZ_DIR.JP_KO) : dir;
+    const d = dir === QUIZ_DIR.MIX ? mixDirAt(i) : dir;
     return buildQuestion(word, { type: t, dir: d }, pool, rng);
   });
 }

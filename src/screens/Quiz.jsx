@@ -32,7 +32,7 @@ const TYPE_OPTS = [
 const DIR_OPTS = [
   { id: QUIZ_DIR.JP_KO, label: '일본어 → 한국어', sub: '보고 뜻 맞히기' },
   { id: QUIZ_DIR.KO_JP, label: '한국어 → 일본어', sub: '뜻 보고 단어 떠올리기' },
-  { id: QUIZ_DIR.MIX, label: '양방향', sub: '번갈아 출제' },
+  { id: QUIZ_DIR.MIX, label: '양방향', sub: '한국어 → 일본어를 더 많이' },
 ];
 
 const SCOPE_OPTS = [
@@ -61,7 +61,7 @@ export default function Quiz({
   const [config, setConfig] = useState({
     count: settings.quizCount ?? 20,
     type: settings.quizType ?? QUIZ_TYPE.CHOICE,
-    dir: settings.quizDir ?? QUIZ_DIR.JP_KO,
+    dir: settings.quizDir ?? QUIZ_DIR.MIX,
     scope: settings.quizScope ?? QUIZ_SCOPE.ALL,
   });
   const [run, setRun] = useState(null); // { questions, answers, index } — 없으면 설정 화면
@@ -120,7 +120,7 @@ export default function Quiz({
     const idSet = new Set(ids);
     const subset = words.filter((w) => idSet.has(w.id));
     if (!subset.length) { onToast('다시 풀 낱말이 없어요'); return; }
-    const over = flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : weak ? { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO } : null;
+    const over = flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : weak ? { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX } : null;
     const cfg = over ? { ...config, ...over } : config;
     const questions = buildQuiz(subset, { count: subset.length, type: cfg.type, dir: cfg.dir, scope: QUIZ_SCOPE.ALL, review, ledger, mistakes, distractors: optionPool });
     if (!questions.length) { onToast('출제할 단어가 없어요'); return; }
@@ -128,7 +128,8 @@ export default function Quiz({
   };
 
   /* ★ 약점 퀴즈는 설정을 묻지 않고 바로 시작한다 ★
-     퀘스트 한 줄은 한 번 눌러 바로 풀려야 한다. 객관식, 일본어 → 한국어로 정해 두고(약한 낱말을 알아보는 판),
+     퀘스트 한 줄은 한 번 눌러 바로 풀려야 한다. 객관식으로 정해 두고, 방향은 섞되 한국어 → 일본어를 더 많이 낸다
+     (셋 중 둘 — 약한 낱말은 알아보기만 해서는 안 붙는다. 뜻을 보고 떠올려야 한다. 첫 문제는 일본어 → 한국어다).
      설정은 건드리지 않는다(다음 일반 시험은 내가 정한 대로). 그만두면 이 화면의 설정이 아니라 온 곳으로 돌아간다. */
   const autoStarted = useRef(false);
   /* 잇는 퀘스트 시험인가(약점 퀴즈 · 오늘 랜덤 테스트) — lib/quizkeep.js */
@@ -143,8 +144,8 @@ export default function Quiz({
       setRun({ ...kept.run, ...(kept.run.index >= kept.run.questions.length ? { restored: true } : {}) });
       return;
     }
-    /* 랜덤 테스트는 고르는 것·쓰는 것, 일본어→한국어·한국어→일본어를 다 섞는다 */
-    start(set, flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.JP_KO });
+    /* 랜덤 테스트는 고르는 것·쓰는 것, 일본어→한국어·한국어→일본어를 다 섞는다(한국어 → 일본어가 셋 중 둘) */
+    start(set, flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weak, flow, set, run]);
 
