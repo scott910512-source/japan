@@ -121,7 +121,7 @@ export default function Quiz({
     const idSet = new Set(ids);
     const subset = words.filter((w) => idSet.has(w.id));
     if (!subset.length) { onToast('다시 풀 낱말이 없어요'); return; }
-    const over = flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : weak ? { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX } : null;
+    const over = flow ? { type: flow.kind === 'fresh' ? QUIZ_TYPE.CHOICE : QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : weak ? { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX } : null;
     const cfg = over ? { ...config, ...over } : config;
     const questions = buildQuiz(subset, { count: subset.length, type: cfg.type, dir: cfg.dir, scope: QUIZ_SCOPE.ALL, review, ledger, mistakes, distractors: optionPool });
     if (!questions.length) { onToast('출제할 단어가 없어요'); return; }
@@ -146,7 +146,8 @@ export default function Quiz({
       return;
     }
     /* 랜덤 테스트는 고르는 것·쓰는 것, 일본어→한국어·한국어→일본어를 다 섞는다(한국어 → 일본어가 셋 중 둘) */
-    start(set, flow ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX });
+    /* 배운 단어 테스트(fresh)는 방금 외운 낱말이라 고르기로만 낸다 */
+    start(set, flow && flow.kind !== 'fresh' ? { type: QUIZ_TYPE.MIX, dir: QUIZ_DIR.MIX } : { type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weak, flow, set, run]);
 
@@ -721,8 +722,8 @@ function QuizResult({ questions, answers, byId, settings, onQuit, onRetryWrong, 
             </div>
           ) : (
             <div className="card wk-result" data-flow={flow.kind} data-total={result.total} data-correct={result.correct}>
-              <b>오늘 랜덤 테스트를 마쳤어요</b>
-              <span>{result.total}문제 중 {result.correct}개 맞혔어요. 틀린 건 위 목록에서 바로 다시 외울 수 있어요.</span>
+              <b>{flow.kind === 'fresh' ? '배운 단어 테스트를 마쳤어요' : '오늘 랜덤 테스트를 마쳤어요'}</b>
+              <span>{result.total}문제 중 {result.correct}개 맞혔어요. {flow.kind === 'fresh' && wrongWords.length === 0 ? '방금 외운 낱말을 다 맞혔어요.' : '틀린 건 위 목록에서 바로 다시 외울 수 있어요.'}</span>
             </div>
           )}
           {/* 랜덤 테스트 뒤에 이을 단계(오늘의 N3)가 남았으면 그걸 먼저 내민다 */}
