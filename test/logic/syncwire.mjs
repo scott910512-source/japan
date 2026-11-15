@@ -73,7 +73,7 @@ const run = async (handler) => {
   const post = calls.find((c) => c.method === 'POST');
   const sent = JSON.stringify(post.body.settings);
   ok('★ 서버 줄의 키를 평문으로 다시 올리지 않는다 ★', !sent.includes('서버의'), sent);
-  ok('★ 서버 줄의 키가 이 기기 설정으로 내려오지 않는다 ★', !JSON.stringify(merged.settings).includes('서버의') && merged.settings.aiProvider === undefined, JSON.stringify(merged.settings));
+  ok('★ 서버 줄의 키가 이 기기 설정으로 내려오지 않는다 ★', !JSON.stringify(merged.settings).includes('서버의') && !('gttsKey' in merged.settings) && !('claudeKey' in merged.settings), JSON.stringify(merged.settings));
   ok('동기화하는 설정은 그대로 내려온다', merged.settings.goalLevel === 'N4');
 
 }

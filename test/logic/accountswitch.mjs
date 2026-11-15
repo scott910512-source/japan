@@ -21,7 +21,7 @@ const deviceA = () => ({
   jp_manabu_plan_v1: J({ date: '2026-11-15' }),
   jp_manabu_stories_v1: J([{ id: 's1' }]),
   jp_nav_v1: J({ tab: 'me', sub: 'quiz' }),
-  jp_manabu_settings_v1: J({ onboarded: true, goalLevel: 'N3', speechRate: 0.8, gttsKey: 'AIza-A', geminiKey: 'AQ.A', settingsAt: { goalLevel: 100 } }),
+  jp_manabu_settings_v1: J({ onboarded: true, goalLevel: 'N3', speechRate: 0.8, deviceVoiceURI: 'v-A', gttsKey: 'AIza-A', geminiKey: 'AQ.A', settingsAt: { goalLevel: 100 } }),
   jp_manabu_vault_v1: 'vault-of-b',
   jp_manabu_signed_in_v1: '1',
   jp_story_prefs_v1: J({ rate: 0.75 }),
@@ -44,7 +44,7 @@ console.log('\n[ 처음 오는 계정으로 바꾸면 ]');
   ok('보던 화면(풀던 시험)도 지운다', s.getItem('jp_nav_v1') === null);
   const st = JSON.parse(s.getItem('jp_manabu_settings_v1'));
   ok('★ API 키는 빼서 새 계정에 안 올라간다 ★', !st.gttsKey && !st.geminiKey);
-  ok('기기 설정은 그대로(음성 속도)', st.speechRate === 0.8);
+  ok('이 기기에만 있는 목소리 선택은 그대로', st.deviceVoiceURI === 'v-A');
   ok('★ 이전 계정의 학습 설정 · 처음 안내 답은 빼서 새 계정은 처음 안내부터 ★', st.goalLevel === undefined && st.onboarded === undefined);
   ok('★ 칸마다 바꾼 시각은 지운다(새 계정의 설정이 이긴다) ★', st.settingsAt === undefined);
   ok('금고 열쇠 · 로그인 표시 · 기기 취향은 그대로', s.getItem('jp_manabu_vault_v1') === 'vault-of-b' && s.getItem('jp_manabu_signed_in_v1') === '1' && s.getItem('jp_story_prefs_v1') !== null);

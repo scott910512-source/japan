@@ -1,3 +1,4 @@
+import { mergeExtra } from './devicesync.js';
 import { supabase } from './supabase.js';
 
 /* PostgREST 오류를 사람이 읽고 조치할 수 있는 말로 바꾼다.
@@ -141,7 +142,14 @@ export function resetOrder(userId, localProgress, remoteProgress) {
 }
 
 export async function syncNow(userId, localData, { defaults = {} } = {}) {
-  const remote = await fetchRemote(userId);
+  const fetched = await fetchRemote(userId);
+  /* 기기에만 두던 공부 기록(오늘의 계획 · 이어하기 · 물어본 것 …)은 진도 칸에 extra로 실려 오간다 — lib/devicesync.js.
+     진도 칸은 동기화마다 올라가니 따로 칸을 안 만들어도 되고, 영상 칸(자막이 커서 바뀔 때만 올린다)을 괜히 다시 올리지 않는다.
+     합칠 때는 떼어 내서 따로 합친다(화면의 진도 상태에는 안 들어간다). */
+  const remoteExtra = fetched?.progress?.extra;
+  const remote = fetched && fetched.progress?.extra !== undefined
+    ? { ...fetched, progress: (({ extra: _x, ...rest }) => rest)(fetched.progress) }
+    : fetched;
   const order = remote ? resetOrder(userId, localData.progress, remote.progress) : 'merge';
   const settings = mergeSettingsByTime(localData.settings, remote?.settings, defaults);
   const gttsKeyEnc = localData.gttsKeyEnc ?? remote?.gtts_key_enc ?? null;
@@ -184,8 +192,10 @@ export async function syncNow(userId, localData, { defaults = {} } = {}) {
   const { resetAt: _a, resetUser: _u, ...rest } = merged.progress;
   merged.progress = { ...rest, syncUser: userId, ...(resetAt ? { resetAt, resetUser: userId } : {}) };
 
-  const { videoColumnMissing } = await pushMerged(userId, merged, { keepVideos: Boolean(remote) && !remote.videoColumnMissing && sameJson(merged.videos, remote.videos) });
+  const extra = order === 'replace' ? localData.extra : order === 'adopt' ? remoteExtra : mergeExtra(localData.extra, remoteExtra);
+  const wire = extra ? { ...merged, progress: { ...merged.progress, extra } } : merged;
+  const { videoColumnMissing } = await pushMerged(userId, wire, { keepVideos: Boolean(remote) && !remote.videoColumnMissing && sameJson(merged.videos, remote.videos) });
   /* 칸이 없으면 서버엔 영상이 안 올라갔다. 합친 결과를 그대로 돌려주되(이 기기
      것은 살아 있다) 왜 다른 기기에 안 보이는지는 말해 준다. */
-  return { ...merged, videoNote: (videoColumnMissing || remote?.videoColumnMissing) ? VIDEO_COLUMN_HINT : null };
+  return { ...merged, extra, videoNote: (videoColumnMissing || remote?.videoColumnMissing) ? VIDEO_COLUMN_HINT : null };
 }

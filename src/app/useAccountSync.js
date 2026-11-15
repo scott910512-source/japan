@@ -5,13 +5,14 @@ import { rememberEmail } from '../lib/idfind.js';
 import { syncNow, pushKeyEnvelope } from '../lib/sync.js';
 import { applySyncedSettings, mergeReview, mergeProgress, mergeStats, mergeStreak, mergeCustomWords, mergeMemos, mergeGone } from '../lib/merge.js';
 import { encryptWithVaultKey, decryptWithVaultKey } from '../lib/crypto.js';
+import { collectExtra, applyExtra } from '../lib/devicesync.js';
 import { looksPacked, reconcileKeys, unpackKeys, VAULT_KEYS } from '../lib/keyvault.js';
 import { AUTH_READY_TIMEOUT, sessionFrom } from '../lib/authboot.js';
 import { isSwitching, switchAccountStorage, switchedFrom } from '../lib/accountswitch.js';
 
 // 기존 서버 왕복과 병합 규칙을 보존한 계정 어댑터. 학습 화면은 서버에 직접 접근하지 않는다.
 export function useAccountSync({ data, streak, setStreak, showToast }) {
-  const { review, setReview, progress, setProgress, settings, setSettings, stats, setStats, customWords, setCustomWords, memos, setMemos, videoBundle, applyVideoBundle } = data;
+  const { review, setReview, progress, setProgress, settings, setSettings, stats, setStats, customWords, setCustomWords, memos, setMemos, videoBundle, applyVideoBundle, reloadExtra } = data;
   const [authSession, setAuthSession] = useState(null);
   const [syncState, setSyncState] = useState({ busy: false, at: null, error: null });
   const [remoteKeyEnvelope, setRemoteKeyEnvelope] = useState(null);
@@ -122,7 +123,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
     setSyncState((s) => ({ ...s, busy: true }));
     try {
       const merged = await syncNow(authSession.user.id, {
-        review, progress, settings, stats, streak, customWords, memos, videos: videoBundle,
+        review, progress, settings, stats, streak, customWords, memos, videos: videoBundle, extra: collectExtra(),
       }, { defaults: DEFAULT_SETTINGS });
       /* ★ 요청이 오가는 동안 이 기기에서 한 것을 지우지 않는다 ★
          merged는 요청을 보내기 전의 값(위에서 넘긴 것)으로 합친 결과다. 그걸 그대로 덮으면 그 사이에 판정한 카드의
@@ -139,6 +140,9 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
       setCustomWords((cur) => (cur === customWords ? merged.customWords : (moved(), mergeCustomWords(merged.customWords, cur, mergeGone(progressNow.current?.wordsGone, merged.progress?.wordsGone)))));
       setMemos((cur) => (cur === memos ? merged.memos : (moved(), mergeMemos(cur, merged.memos))));
       applyVideoBundle(merged.videos);
+      /* 기기에만 두던 기록(계획 · 이어하기 · 물어본 것 · 번역 …)을 얹고, 화면이 들고 있는 것은 다시 읽는다 */
+      const changed = applyExtra(merged.extra);
+      if (changed.length) reloadExtra?.(changed);
       /* 서버에서 온 설정은 학습 범위만 들어 있다 — 기기별 설정은 덮지 않는다.
          메뉴 목록만은 얹지 않고 합친다. 서버에 저장된 건 새 메뉴가 생기기 전
          것이라, 그냥 얹으면 만든 적도 없는 것처럼 사라진다. */
@@ -160,7 +164,7 @@ export function useAccountSync({ data, streak, setStreak, showToast }) {
       setSyncState((s) => ({ ...s, busy: false, error: err.message }));
       if (!silent) showToast('동기화에 실패했어요');
     }
-  }, [authSession, review, progress, settings, stats, streak, customWords, memos, videoBundle, applyVideoBundle, showToast]);
+  }, [authSession, review, progress, settings, stats, streak, customWords, memos, videoBundle, applyVideoBundle, reloadExtra, showToast]);
 
   runSyncRef.current = runSync;
 

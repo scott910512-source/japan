@@ -76,6 +76,15 @@ export function useAppData() {
     if (b.stories) setStoryStore((cur) => { const next = mergeStoryStore(cur, b.stories); return sameStoryStore(cur, next) ? cur : next; });
   }, []);
 
+  /* 동기화가 저장소에 얹은 기기 기록(lib/devicesync.js)을 화면 상태로 다시 읽는다. 저장소에서 바로 읽는 화면
+     (퀘스트 시험 자리 · 듣던 자리 · 코스 진도)은 다음에 열 때 읽는다 */
+  const reloadExtra = useCallback((names) => {
+    if (names.includes('plan')) setPlan(loadPlan());
+    if (names.includes('session')) setSession(loadSession());
+    if (names.includes('asks')) setAsks(loadAsks());
+    if (names.includes('translations')) setTranslations(loadTranslations());
+  }, []);
+
   // 뺀 영상은 묘비를 남긴다. 남기지 않으면 다음 동기화에 서버에서 다시 내려온다.
   const removeVideo = useCallback((id) => {
     setVideos((prev) => prev.filter((v) => v.id !== id));
@@ -120,6 +129,7 @@ export function useAppData() {
     setTrends,
     videoBundle,
     applyVideoBundle,
+    reloadExtra,
     removeVideo,
     storyStore,
     setStoryStore,
