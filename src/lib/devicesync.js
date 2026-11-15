@@ -16,6 +16,8 @@
  *
  * 이 파일은 저장소(localStorage)만 다룬다. 화면 상태는 applyExtra가 돌려준 이름을 보고 hook이 다시 읽는다. */
 
+import { mergePlan } from './plan.js';
+
 export const EXTRA_META_KEY = 'jp_manabu_extra_meta_v1';
 
 /* 통째로 · 나중 것이 이긴다 */
@@ -128,6 +130,11 @@ export function mergeExtra(local, remote) {
   for (const name of new Set([...Object.keys(local.whole || {}), ...Object.keys(remote.whole || {})])) {
     const l = local.whole?.[name]; const r = remote.whole?.[name];
     whole[name] = !r ? l : !l ? r : ((Number(r.at) || 0) > (Number(l.at) || 0) ? r : l);
+    /* ★ 같은 날 오늘 계획은 통째로 고르지 않고 카드 단위로 합친다 ★ 다른 기기가 막 짠 빈 계획이 시각상 나중이라
+       이겨서, 끝낸 새로 배우기 20/20이 0/20이 됐다(lib/plan.js mergePlan) */
+    if (name === 'plan' && l?.v && r?.v && l.v.date && l.v.date === r.v.date) {
+      whole[name] = { at: Math.max(Number(l.at) || 0, Number(r.at) || 0), v: mergePlan(l.v, r.v) };
+    }
   }
   const lists = {};
   for (const name of new Set([...Object.keys(local.lists || {}), ...Object.keys(remote.lists || {})])) {

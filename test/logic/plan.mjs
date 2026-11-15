@@ -192,6 +192,18 @@ console.log('\n[ ★ 필수 회귀 9 — 기기 두 대를 합쳐도 안 부푼�
   const old = buildPlan(pool(), {}, { goals: GOALS, today: '2026-09-01' });
   ok('오래된 계획은 안 이긴다', mergePlan(base, old).date === T);
   ok('한쪽이 없어도 안 죽는다', mergePlan(null, base) === base && mergePlan(base, null) === base);
+
+  /* ★ 2026-11-15 실사용 버그 — 새로 배우기 20/20이 다른 기기의 빈 계획에 덮여 0/20 ★ */
+  let finished = base;
+  for (const x of base.assigned) finished = markStudied(finished, x.id);
+  const fresh = buildPlan(pool(), {}, { goals: GOALS, today: T });
+  ok('★ 손대지 않은 계획이 끝낸 계획을 덮지 않는다 ★', planStatus(mergePlan(fresh, finished)).done === 20 && planStatus(mergePlan(finished, fresh)).done === 20, `${planStatus(mergePlan(fresh, finished)).done}`);
+  /* 배정이 달라도(다른 기기가 다른 카드를 뽑았어도) 끝낸 카드는 배정과 함께 다 가져온다 */
+  const shifted = { ...fresh, assigned: fresh.assigned.slice(5).concat(fresh.assigned.slice(0, 5).map((x) => ({ ...x, id: `other-${x.id}` }))), done: {} };
+  const both = mergePlan(shifted, finished);
+  ok('★ 배정이 달라도 끝낸 카드가 안 버려진다 ★', planStatus(both).done === 20 && planStatus(both).assigned === 20, `${planStatus(both).done}/${planStatus(both).assigned}`);
+  const wider = { ...fresh, assigned: [...fresh.assigned, ...fresh.assigned.slice(0, 3).map((x) => ({ ...x, id: `more-${x.id}` }))], done: {} };
+  ok('배정이 더 많은 빈 계획이어도 끝낸 것은 그대로', planStatus(mergePlan(wider, finished)).done === 20);
 }
 
 console.log('\n[ 남은 시간·진행률·버튼이 같은 상태에서 나온다 ]');

@@ -106,8 +106,11 @@ async function toChoice(page) {
   for (let i = 0; i < 30 && !held; i++) {
     if (!(await toChoice(page))) break;
     const id = await page.locator('.st-run').getAttribute('data-id');
-    /* 늘 첫 보기만 누르면 정답 자리가 우연히 안 맞는 날 맞히는 경우를 못 만난다 — 보기를 돌려 가며 누른다 */
-    await page.locator('.st-opt').nth(i % (await page.locator('.st-opt').count())).click();
+    /* ★ 정답 보기를 골라 누른다 ★ 낱말 · 문장 문제는 정답 보기의 key가 문제 id다. 돌려 가며 누르면 운이 나쁜 날
+       30번 안에 한 번도 못 맞혀서 가끔 깨졌다(CI에서 실제로). 정답 보기가 안 보이는 문제(N3)는 돌려 가며 누른다 */
+    const right = page.locator(`.st-opt[data-key="${id}"]`);
+    if (await right.count()) await right.first().click();
+    else await page.locator('.st-opt').nth(i % (await page.locator('.st-opt').count())).click();
     await page.waitForTimeout(300);
     if (await page.locator('.st-opt.wrong').count()) {          // 틀렸으면 넘기고 다시
       await page.locator('.st-next').click(); await page.waitForTimeout(400); continue;

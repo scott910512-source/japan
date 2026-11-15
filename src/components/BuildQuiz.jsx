@@ -3,13 +3,19 @@ import { IconSpeaker, IconX } from './Icons.jsx';
 import { readingText, speakJapanese } from '../lib/tts.js';
 import { shuffled } from '../lib/review.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
-import { fitsAt } from '../lib/compose.js';
+import { sameOrder, wrongSlots } from '../lib/compose.js';
 import KeyboardHelp from './KeyboardHelp.jsx';
 
 /* 문장 조립 퀴즈 — 흩어진 조각을 순서대로 눌러 문장을 만든다.
  *
  * 어순과 조사를 몸에 붙이는 게 목적이라, 틀려도 정답을 바로 까지 않고
- * 어디까지 맞았는지만 알려준 뒤 다시 해볼 기회를 준다. */
+ * 어디가 틀렸는지만 알려준 뒤 다시 해볼 기회를 준다.
+ *
+ * ★ 다 놓은 뒤 전체 순서로 채점한다 ★ (2026-11-15 실사용 버그)
+ *   전에는 「방금 놓은 조각이 그 자리에 맞나」만 보고 틀린 조각을 줄에 남긴 채 다음 조각을 받았다. 그래서
+ *   は → 子供料金 → ありますか처럼 마지막 조각만 제자리면 완성으로 쳤다(완료 화면의 타일은 오답, 문장은 정답).
+ *   이제 모든 조각을 놓았을 때 전체 배열을 정답과 견주고, 틀리면 틀린 자리를 빨갛게 칠한다.
+ *   놓은 조각은 중립색이고 초록(완성)은 정답일 때만. 줄의 조각을 누르면 그 조각 하나만 돌아간다. */
 export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt, onNext, onQuit }) {
   // 조각이 겹칠 수 있어(조사 は가 두 번 등) 단추는 자리로 구분한다. 맞는지는 글자로 본다(같은 글자면 어느 것을 집어도 맞다)
   const tiles = useMemo(
@@ -18,13 +24,13 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
   );
 
   const [placed, setPlaced] = useState([]);
-  const [wrongAt, setWrongAt] = useState(-1);
+  const [wrong, setWrong] = useState([]);       // 다 놓았는데 틀렸을 때 틀린 자리들
   const [solved, setSolved] = useState(false);
   const [tries, setTries] = useState(0);
 
   useEffect(() => {
     setPlaced([]);
-    setWrongAt(-1);
+    setWrong([]);
     setSolved(false);
     setTries(0);
   }, [item.id]);
@@ -35,33 +41,35 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
     if (solved) return;
     const next = [...placed, tile];
     setPlaced(next);
-    setWrongAt(-1);
+    setWrong([]);
+    if (next.length < chunks.length) return;      // 다 놓을 때까지는 채점하지 않는다
 
-    // 방금 놓은 조각이 제자리인지 바로 본다 — 끝까지 다 놓고 알려주면 어디서 틀렸는지 모른다
-    if (!fitsAt(chunks, next.length - 1, tile.text)) {
-      setWrongAt(next.length - 1);
+    const texts = next.map((p) => p.text);
+    if (!sameOrder(chunks, texts)) {
+      const bad = wrongSlots(chunks, texts);
+      setWrong(bad);
       setTries((n) => n + 1);
-      onAttempt?.({ ok: false, chosen: next.map((p) => p.text).join(''), expected: chunks[next.length - 1] });
+      /* 오답 노트에는 실제로 놓은 순서 전체를 남긴다(전에는 틀린 순간까지의 일부 — 「は子供料金」) */
+      onAttempt?.({ ok: false, chosen: texts.join(' / '), wrongOrder: texts, firstWrong: bad[0] });
       return;
     }
-    if (next.length === chunks.length) {
-      setSolved(true);
-      /* 눈으로만 푸는 중(소리 끔)이면 완성한 문장을 알아서 읽지 않는다 — 듣기 단추로 듣는다 */
-      if (settings.autoTTS !== false) speakJapanese(readingText(item.kana, item.jp), settings.speechRate);
-      onSolved?.(tries === 0);
-      onAttempt?.({ ok: true, chosen: next.map((p) => p.text).join('') });
-    }
+    setSolved(true);
+    /* 눈으로만 푸는 중(소리 끔)이면 완성한 문장을 알아서 읽지 않는다 — 듣기 단추로 듣는다 */
+    if (settings.autoTTS !== false) speakJapanese(readingText(item.kana, item.jp), settings.speechRate);
+    onSolved?.(tries === 0);
+    onAttempt?.({ ok: true, chosen: texts.join(' / ') });
   };
 
+  /* 줄의 조각을 누르면 그 조각 하나만 풀로 돌아간다(전에는 그 뒤를 전부 지웠다) */
   const takeBack = (position) => {
     if (solved) return;
-    setPlaced(placed.slice(0, position));
-    setWrongAt(-1);
+    setPlaced(placed.filter((_, i) => i !== position));
+    setWrong([]);
   };
 
   const reset = () => {
     setPlaced([]);
-    setWrongAt(-1);
+    setWrong([]);
   };
 
   const scope = useHotkeys({
@@ -77,12 +85,12 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
       <KeyboardHelp kind="build" />
       <div className="build-ask">{item.ko}</div>
 
-      <div className={`build-line${wrongAt >= 0 ? ' shake' : ''}`}>
+      <div className={`build-line${wrong.length ? ' shake' : ''}`}>
         {placed.length === 0 && <span className="build-empty">아래 단어를 순서대로 눌러 보세요</span>}
         {placed.map((tile, i) => (
           <button
             key={tile.id}
-            className={`build-tile placed${wrongAt === i ? ' bad' : ''}${solved ? ' done' : ''}`}
+            className={`build-tile placed${wrong.includes(i) ? ' bad' : ''}${solved ? ' done' : ''}`}
             onClick={() => takeBack(i)}
           >
             {tile.text}
@@ -90,9 +98,9 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
         ))}
       </div>
 
-      {wrongAt >= 0 && !solved && (
+      {wrong.length > 0 && !solved && (
         <div className="build-hint">
-          여기는 아직 아니에요. 조각을 눌러 되돌리고 다시 골라 보세요.
+          {wrong[0] + 1}번째 자리부터 달라요. 빨간 조각을 눌러 되돌리고 다시 놓아 보세요.
         </div>
       )}
 

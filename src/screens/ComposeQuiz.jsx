@@ -130,7 +130,7 @@ function BuildMode({ sentences, review, progress, settings, onVerdicts, onActivi
     <div className="cmp-build" data-id={cur.id}>
       <Score session={run.session} />
       <BuildQuiz key={cur.id} item={{ id: s.id, ko: s.mean, jp: s.kanji, kana: s.kana }} chunks={chunksOf(s.id)}
-        settings={settings} onQuit={onExit} onNext={advance} onSolved={onSolved} onAttempt={(result) => onAttempt?.({ id: `compose:build:${s.id}`, source: 'compose', ref: s.id, kind: '문장 어순', prompt: s.mean, correct: s.kanji, accepted: [s.kanji, s.kana].filter(Boolean), chosen: result.chosen, explanation: result.expected ? `이 자리에 들어갈 조각은 「${result.expected}」예요. 완성 문장: ${s.kanji}` : s.mean, ok: result.ok })} />
+        settings={settings} onQuit={onExit} onNext={advance} onSolved={onSolved} onAttempt={(result) => onAttempt?.({ id: `compose:build:${s.id}`, source: 'compose', ref: s.id, kind: '문장 어순', prompt: s.mean, correct: s.kanji, accepted: [s.kanji, s.kana].filter(Boolean), chosen: result.chosen, ...(result.wrongOrder ? { wrongOrder: result.wrongOrder } : {}), explanation: result.ok ? s.mean : `${(result.firstWrong ?? 0) + 1}번째 자리부터 달라요. 정답 순서: ${chunksOf(s.id).join(' / ')} (${s.kanji})`, ok: result.ok })} />
       {solved && <div className="qnext"><button className="submit-btn cmp-next" onClick={advance}>다음 문장</button></div>}
     </div>
   );

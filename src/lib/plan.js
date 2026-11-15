@@ -234,15 +234,26 @@ export function mergePlan(local, remote) {
   if (!remote) return local;
   if (local.date !== remote.date) return local.date > remote.date ? local : remote;
 
-  /* 배정은 더 많이 담은 쪽을 쓴다 — 한쪽에서 「10개 더」를 눌렀으면 그게 맞다 */
-  const base = remote.assigned.length > local.assigned.length ? remote : local;
-  const ids = new Set(base.assigned.map((x) => x.id));
-  const done = {};
-  for (const [id, v] of Object.entries({ ...remote.done, ...local.done })) {
-    if (v && ids.has(id)) done[id] = true;
+  /* ★ 손대지 않은 계획이 끝낸 계획을 덮지 않는다 ★ (2026-11-15)
+     다른 기기 · 브라우저가 앱을 열면 아무것도 안 한 오늘 계획을 새로 짠다. 전에는 「배정이 더 많은 쪽」을 바탕으로 삼고
+     그 배정에 없는 끝낸 카드는 버려서, 새로 배우기 20/20이 0/20으로 떨어졌다.
+     바탕은 더 많이 끝낸 쪽(같으면 더 많이 담은 쪽 · 이 기기)이고, 다른 쪽에서 끝낸 카드는 배정과 함께 다 가져온다. */
+  const doneOf = (p) => Object.keys(p.done || {}).filter((id) => p.done[id]);
+  const ld = doneOf(local).length; const rd = doneOf(remote).length;
+  const la = local.assigned?.length || 0; const ra = remote.assigned?.length || 0;
+  const base = rd > ld || (rd === ld && ra > la) ? remote : local;
+  const other = base === local ? remote : local;
+  const assigned = [...(base.assigned || [])];
+  const ids = new Set(assigned.map((x) => x.id));
+  const otherDone = new Set(doneOf(other));
+  for (const x of other.assigned || []) {
+    if (otherDone.has(x.id) && !ids.has(x.id)) { assigned.push(x); ids.add(x.id); }
   }
+  const done = {};
+  for (const id of [...doneOf(base), ...otherDone]) if (ids.has(id)) done[id] = true;
   return {
     ...base,
+    assigned,
     reps: Math.max(local.reps || 0, remote.reps || 0),
     extra: Math.max(local.extra || 0, remote.extra || 0),
     done,

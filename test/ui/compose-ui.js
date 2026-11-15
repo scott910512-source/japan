@@ -92,14 +92,25 @@ const tab = (page, id) => page.locator(`.cmp-tabs [data-mode="${id}"]`).click().
     const id = await page.locator('.cmp-build').getAttribute('data-id');
     const chunks = chunksOf(id);
     if (wrongFirst) {
-      /* 일부러 틀린 조각부터 — 첫 칸에 정답이 아닌 조각이 있으면 그걸 누른다 */
-      const tiles = page.locator('.build-pool .build-tile');
-      const n = await tiles.count();
-      for (let i = 0; i < n; i++) {
-        const t = (await tiles.nth(i).innerText()).trim();
-        if (t !== chunks[0].trim()) { await tiles.nth(i).click(); break; }
+      /* ★ 일부러 틀린 순서로 다 놓는다(정답의 거꾸로) ★ — 다 놓은 뒤에만 채점한다(2026-11-15 실사용 버그) */
+      const pick = (c) => page.locator('.build-pool .build-tile').filter({ hasText: new RegExp(`^\\s*${c.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }).first();
+      const rev = [...chunks].reverse();
+      for (let k = 0; k < rev.length; k++) {
+        await pick(rev[k]).click();
+        await page.waitForTimeout(100);
+        if (k === 0 && rev.length > 1) ok('다 놓기 전에는 채점하지 않는다(빨강 · 안내 없음)', await page.locator('.build-tile.bad').count() === 0 && await page.locator('.build-hint').count() === 0);
       }
-      await page.waitForTimeout(150);
+      await page.waitForTimeout(200);
+      ok('★ 틀린 순서로 다 놓으면 완성되지 않는다 ★', await page.locator('.build-done').count() === 0);
+      ok('★ 틀린 자리는 빨갛게, 초록(완성)은 없다 ★', await page.locator('.build-tile.bad').count() >= 1 && await page.locator('.build-tile.placed.done').count() === 0);
+      ok('몇 번째 자리부터 다른지 알려 준다', /번째 자리부터 달라요/.test(await page.locator('.build-hint').innerText().catch(() => '')));
+      const book = await page.evaluate((key) => JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}').mistakes?.[key] || null, `compose:build:${id}`);
+      ok('★ 오답 노트에 놓은 순서 전체가 남는다 ★', book && (book.wrongChosen || book.chosen) === rev.join(' / ') && /정답 순서/.test(book.wrongExplanation || book.explanation || ''), JSON.stringify(book && { c: book.wrongChosen || book.chosen, e: book.wrongExplanation }));
+      /* 줄의 조각 하나를 누르면 그것만 돌아간다 */
+      const placedBefore = await page.locator('.build-line .build-tile').count();
+      await page.locator('.build-line .build-tile').first().click();
+      await page.waitForTimeout(120);
+      ok('줄의 조각을 누르면 그 조각 하나만 돌아간다', await page.locator('.build-line .build-tile').count() === placedBefore - 1 && await page.locator('.build-pool .build-tile').count() === 1);
       await page.locator('.build-reset').click().catch(() => {});
       await page.waitForTimeout(150);
     }
