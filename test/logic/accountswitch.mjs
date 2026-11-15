@@ -47,7 +47,8 @@ console.log('\n[ 처음 오는 계정으로 바꾸면 ]');
   ok('이 기기에만 있는 목소리 선택은 그대로', st.deviceVoiceURI === 'v-A');
   ok('★ 이전 계정의 학습 설정 · 처음 안내 답은 빼서 새 계정은 처음 안내부터 ★', st.goalLevel === undefined && st.onboarded === undefined);
   ok('★ 칸마다 바꾼 시각은 지운다(새 계정의 설정이 이긴다) ★', st.settingsAt === undefined);
-  ok('금고 열쇠 · 로그인 표시 · 기기 취향은 그대로', s.getItem('jp_manabu_vault_v1') === 'vault-of-b' && s.getItem('jp_manabu_signed_in_v1') === '1' && s.getItem('jp_story_prefs_v1') !== null);
+  ok('금고 열쇠 · 로그인 표시는 그대로', s.getItem('jp_manabu_vault_v1') === 'vault-of-b' && s.getItem('jp_manabu_signed_in_v1') === '1');
+  ok('이야기 듣기 설정도 이전 계정 몫으로 보관된다(계정에 실려 다닌다)', s.getItem('jp_story_prefs_v1') === null);
   ok('되살린 것은 없다', r.restored === false);
 
   console.log('\n[ 다시 이전 계정으로 돌아오면 ]');
