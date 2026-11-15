@@ -5,6 +5,7 @@ import { deriveVaultKey } from '../lib/crypto.js';
 import { VIDEO_COLUMN_SQL } from '../lib/sync.js';
 import { isServerProblem, readableAuthError } from '../lib/authboot.js';
 import { findAccount, lastEmail, maskEmail } from '../lib/idfind.js';
+import VaultUnlock from '../components/VaultUnlock.jsx';
 
 const MODES = {
   signin: { title: '로그인', action: '로그인', other: 'signup', otherLabel: '처음이신가요? 가입하기' },
@@ -13,7 +14,7 @@ const MODES = {
   find: { title: '아이디 찾기', action: '가입된 이메일인지 확인', other: 'signin', otherLabel: '로그인으로 돌아가기' },
 };
 
-export default function Account({ session, syncState, onSync, onSignedOut, onToast, onVaultKey, onServerProblem }) {
+export default function Account({ session, syncState, onSync, onSignedOut, onToast, onVaultKey, onServerProblem, vaultReady = true }) {
   // 복사가 막힌 브라우저에서도 글은 그대로 보이니 길게 눌러 복사하면 된다
   const copySql = async () => {
     try {
@@ -85,6 +86,9 @@ export default function Account({ session, syncState, onSync, onSignedOut, onToa
             로그아웃
           </button>
         </div>
+
+        {/* API 키가 안 넘어오는 기기 — 비밀번호를 한 번 넣어 키 보관을 켠다 */}
+        {!vaultReady && <VaultUnlock session={session} onVaultKey={onVaultKey} onToast={onToast} compact />}
 
         <div className="set-note">
           다른 기기에서도 같은 계정으로 로그인하면 진도가 이어져요.

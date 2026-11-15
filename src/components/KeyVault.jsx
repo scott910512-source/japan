@@ -2,7 +2,9 @@
  *
  * 잠그고 푸는 건 로그인할 때 만든 금고 열쇠로 앱이 알아서 한다.
  * 사용자가 누를 게 있으면 안 누른다 — 그래서 여기는 상태만 보여준다. */
-export default function KeyVault({ session, localKey, remoteEnvelope, vaultReady }) {
+import VaultUnlock from './VaultUnlock.jsx';
+
+export default function KeyVault({ session, localKey, remoteEnvelope, vaultReady, onVaultKey, onToast }) {
   if (!session) {
     return (
       <div className="set-note" style={{ marginTop: 12 }}>
@@ -11,10 +13,12 @@ export default function KeyVault({ session, localKey, remoteEnvelope, vaultReady
     );
   }
 
-  let state;
+  /* 로그인은 돼 있는데 금고 열쇠가 없는 기기 — 비밀번호를 한 번 넣어 켠다(VaultUnlock) */
   if (!vaultReady) {
-    state = { cls: '', text: '이 기기에서 한 번 로그인하면 계정 보관이 켜져요' };
-  } else if (remoteEnvelope && localKey) {
+    return <div className="vault"><VaultUnlock session={session} onVaultKey={onVaultKey} onToast={onToast} /></div>;
+  }
+  let state;
+  if (remoteEnvelope && localKey) {
     state = { cls: 'ok', text: '계정에 암호화해서 보관 중' };
   } else if (remoteEnvelope) {
     state = { cls: 'ok', text: '계정에 보관된 키를 가져오는 중…' };

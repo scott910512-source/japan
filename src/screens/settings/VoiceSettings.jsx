@@ -23,7 +23,7 @@ const STATUS_TEXT = {
   unknown: '음성 상태를 확인하는 중',
 };
 
-export default function VoiceSettings({ settings, onChange, onToast, session, remoteKeyEnvelope, vaultReady }) {
+export default function VoiceSettings({ settings, onChange, onToast, session, remoteKeyEnvelope, vaultReady, onVaultKey }) {
   const [keyDraft, setKeyDraft] = useState(settings.gttsKey || '');
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -211,6 +211,8 @@ export default function VoiceSettings({ settings, onChange, onToast, session, re
           localKey={settings.gttsKey}
           remoteEnvelope={remoteKeyEnvelope}
           vaultReady={vaultReady}
+          onVaultKey={onVaultKey}
+          onToast={onToast}
         />
 
         <div className="set-note">

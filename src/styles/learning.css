@@ -383,6 +383,15 @@
 }
 .vault-state b { color: var(--kon); font-weight: 800; }
 .vault-form { margin-top: 12px; }
+/* 로그인은 돼 있는데 키 보관이 꺼진 기기 — 비밀번호 한 번으로 켠다 */
+.vault-unlock { display: grid; gap: 6px; padding: 12px; border-radius: 12px; border: 1.5px solid var(--kon); background: var(--kon-soft); }
+.vault-unlock.compact { margin-top: 12px; }
+.vault-unlock b { font-size: 13.5px; color: var(--ink); }
+.vault-unlock span { font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
+.vu-row { display: flex; gap: 8px; margin-top: 4px; }
+.vu-row .search-input { flex: 1 1 auto; min-width: 0; margin: 0; }
+.vu-go { flex: none; width: auto; padding: 0 16px; }
+.vu-err { font-size: 12.5px; font-weight: 700; color: var(--shu); }
 
 .voicegrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
 .voicecell {
