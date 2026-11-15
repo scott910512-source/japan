@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { activeMistakes, judgeMistake, mergeMistakes, prioritizeMistakes, recordMistake } from '../../src/lib/mistakes.js';
-import { buildQuiz, QUIZ_SCOPE, scopeWords } from '../../src/lib/quiz.js';
+import { buildQuiz, QUIZ_SCOPE, scopeWords, judgeTyping, QUIZ_DIR } from '../../src/lib/quiz.js';
 let pass = 0;
 function check(label, run) { run(); pass++; console.log('✓', label); }
 const attempt = { id: 'word:w1:jp-ko', ref: 'w1', source: 'word', kind: '뜻', prompt: '涙', chosen: '물', correct: '눈물', explanation: '氵 + 戻', options: ['물', '눈물'], ok: false };
@@ -50,5 +50,25 @@ check('a correct practice today lets older pending errors appear next', () => {
   const another = recordMistake(wrong, { ...attempt, id: 'other', ref: 'w2' }, '2026-11-01', 150);
   const next = recordMistake(another, { ...attempt, ok: true }, '2026-11-01', 200);
   assert.equal(activeMistakes(next, '2026-11-01')[0].id, 'other');
+});
+check('★ 직접 입력 뜻 답: 여러 뜻을 같이 쓰거나 끝맺음만 다르면 맞다 ★', () => {
+  const v = (mean, a) => judgeTyping({ kanji: 'X', kana: 'x', mean }, QUIZ_DIR.JP_KO, a).verdict;
+  assert.equal(v('유명하다', '유명하다'), 'correct');
+  assert.equal(v('유명하다', '유명해요'), 'correct');
+  assert.equal(v('유명하다', '유명한'), 'correct');
+  assert.equal(v('돌려주다', '돌려 주다'), 'correct');
+  assert.equal(v('외우다;기억하다', '외우다/기억하다'), 'correct');
+  assert.equal(v('외우다;기억하다', '기억하다'), 'correct');
+  assert.equal(v('외우다;기억하다', '외우다, 잊다'), 'wrong');        // 같이 쓴 뜻 중 하나라도 틀리면 틀린다
+  assert.equal(v('유명하다', '유명하지 않다'), 'wrong');               // 부정은 끝맺음이 아니다
+  assert.equal(v('있다', '없다'), 'wrong');
+});
+check('★ 오답 다시 풀기(직접 입력)도 같은 기준 ★', () => {
+  assert.equal(judgeMistake({ correct: '외우다; 기억하다' }, '외우다/기억하다'), true);
+  assert.equal(judgeMistake({ correct: '외우다; 기억하다' }, '기억하다'), true);
+  assert.equal(judgeMistake({ correct: '유명하다' }, '유명해요'), true);
+  assert.equal(judgeMistake({ correct: '돌려주다' }, '돌려주다'), true);
+  assert.equal(judgeMistake({ correct: '유명하다' }, '조용하다'), false);
+  assert.equal(judgeMistake({ correct: '유명하다', options: ['유명하다', '조용하다'] }, '유명해요'), false); // 고르는 문제는 고른 글자 그대로
 });
 console.log(`통과 ${pass} / 실패 0`);
