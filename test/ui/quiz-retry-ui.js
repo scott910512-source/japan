@@ -28,7 +28,7 @@ const seeded = Object.fromEntries(words.map((w) => [w.id, { ...applyVerdict(unde
     localStorage.setItem('jp_optrev_open', '0');
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(review));
     const cur = JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}');
-    Object.assign(cur, { onboarded: true, canReadKana: true, autoTTS: false, quizCount: 5, quizType: 'choice', quizDir: 'jp-ko', levels: ['N5'] });
+    Object.assign(cur, { onboarded: true, canReadKana: true, autoTTS: false, quizCount: 5, quizType: 'choice', quizDir: 'jp-ko', quizDirV: 1, levels: ['N5'] });
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify(cur));
   }, { review: seeded });
   await page.waitForTimeout(900);

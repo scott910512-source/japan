@@ -335,7 +335,12 @@ group('시험 · 출제');
   ok('요청한 수만큼 출제', quiz.length === 20);
   ok('같은 단어를 두 번 안 냄', new Set(quiz.map((x) => x.wordId)).size === 20);
   ok('섞기는 객관식·주관식을 번갈아', quiz.filter((x) => x.type === QUIZ_TYPE.CHOICE).length === 10);
-  ok('섞기는 방향도 번갈아', quiz.filter((x) => x.dir === QUIZ_DIR.JP_KO).length === 10);
+  /* 스무 문제: 0 · 3 · 6 … 18번(일곱 문제)만 일본어 → 한국어, 나머지 열셋은 한국어 → 일본어 */
+  ok('★ 섞기는 한국어 → 일본어를 더 많이 낸다(셋 중 둘) ★', quiz.filter((x) => x.dir === QUIZ_DIR.KO_JP).length === 13 && quiz.filter((x) => x.dir === QUIZ_DIR.JP_KO).length === 7);
+  ok('첫 문제는 일본어 → 한국어, 그다음 둘은 한국어 → 일본어', quiz[0].dir === QUIZ_DIR.JP_KO && quiz[1].dir === QUIZ_DIR.KO_JP && quiz[2].dir === QUIZ_DIR.KO_JP && quiz[3].dir === QUIZ_DIR.JP_KO);
+  ok('★ 한국어 → 일본어를 고르기로도 쓰기로도 낸다(한쪽으로만 묶이지 않는다) ★', quiz.some((x) => x.dir === QUIZ_DIR.KO_JP && x.type === QUIZ_TYPE.CHOICE) && quiz.some((x) => x.dir === QUIZ_DIR.KO_JP && x.type === QUIZ_TYPE.TYPING) && quiz.some((x) => x.dir === QUIZ_DIR.JP_KO && x.type === QUIZ_TYPE.TYPING));
+  const weakLike = buildQuiz(ALL_WORDS, { count: 30, type: QUIZ_TYPE.CHOICE, dir: QUIZ_DIR.MIX, rng });
+  ok('약점 퀴즈(객관식 · 섞기) 서른 문제 중 스무 문제가 한국어 → 일본어', weakLike.filter((x) => x.dir === QUIZ_DIR.KO_JP).length === 20 && weakLike.every((x) => x.type === QUIZ_TYPE.CHOICE));
   ok('문제 id가 겹치지 않음', new Set(quiz.map((x) => x.id)).size === 20);
 
   ok('단어보다 많이 요청해도 안전', buildQuiz(ALL_WORDS.slice(0, 3), { count: 20, rng }).length === 3);

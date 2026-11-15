@@ -1,6 +1,6 @@
 import { BOX, VERDICT, daysBetween, stateOf, todayKey } from './review.js';
 import { weakEntry, weakScore } from './weak.js';
-import { QUIZ_DIR, QUIZ_TYPE, buildQuestion, judgeTyping } from './quiz.js';
+import { QUIZ_DIR, QUIZ_TYPE, KO_JP_SHARE, buildQuestion, judgeTyping } from './quiz.js';
 import { n3Included, withinGoal } from './goal.js';
 import { wordInfo, sentenceInfo } from './optionInfo.js';
 
@@ -147,7 +147,8 @@ function wordQuestion(item, ctx, rng) {
   if (!word) return null;
   /* 약한 낱말은 보기가 있는 쪽으로, 익숙한 낱말은 직접 쓰게도 한다 */
   const typing = item.d < 2 && rng() < 0.4;
-  const dir = rng() < 0.5 ? QUIZ_DIR.JP_KO : QUIZ_DIR.KO_JP;
+  /* 뜻을 보고 일본어를 떠올리는 쪽을 더 많이 낸다(quiz.js KO_JP_SHARE) */
+  const dir = rng() < KO_JP_SHARE ? QUIZ_DIR.KO_JP : QUIZ_DIR.JP_KO;
   const q = buildQuestion(word, { type: typing ? QUIZ_TYPE.TYPING : QUIZ_TYPE.CHOICE, dir }, ctx.wordPool, rng);
   const jpFirst = dir === QUIZ_DIR.JP_KO;
   return {
@@ -176,7 +177,7 @@ function wordQuestion(item, ctx, rng) {
 function sentenceQuestion(item, ctx, rng) {
   const s = ctx.sentenceById.get(item.id);
   if (!s) return null;
-  const jpFirst = rng() < 0.5;
+  const jpFirst = rng() >= KO_JP_SHARE;   // 문장도 뜻을 보고 일본어 문장을 고르는 쪽을 더 많이
   const text = (x) => (jpFirst ? x.mean : x.kanji);
   const others = [];
   for (const o of shuffle(ctx.sentencePool, rng)) {

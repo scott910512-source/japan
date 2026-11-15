@@ -84,7 +84,7 @@ async function startWordQuiz(page) {
 
   console.log('\n[ 단어 시험(직접 입력) — 문제 글자를 그대로 친 경우 ]');
   {
-    const page = await boot(browser, { settings: { quizType: 'typing', quizDir: 'jp-ko' } });
+    const page = await boot(browser, { settings: { quizType: 'typing', quizDir: 'jp-ko', quizDirV: 1 } });
     page.on('pageerror', (e) => errors.push(e.message));
     await startWordQuiz(page);
     ok('직접 입력 문제다', await page.locator('.qtyping input').count() === 1);

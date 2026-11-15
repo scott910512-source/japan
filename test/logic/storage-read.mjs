@@ -39,6 +39,14 @@ mem.set(KEYS.settings, JSON.stringify({ dailyGoal: 15 }));
 ok('옛 숫자 하나(dailyGoal)도 새 수량으로', loadSettings().goals.review === 30);
 mem.delete(KEYS.settings);
 ok('설정이 없으면 기본값이 새 수량', loadSettings().goals.review === 30 && loadSettings().goalsV === 3);
+ok('★ 시험 방향의 기본은 양방향이다 ★', loadSettings().quizDir === 'mix' && loadSettings().quizDirV === 1);
+mem.set(KEYS.settings, JSON.stringify({ quizDir: 'jp-ko' }));
+ok('★ 옛 설정의 「일본어 → 한국어」는 한 번 양방향으로 바뀐다 ★', loadSettings().quizDir === 'mix' && loadSettings().quizDirV === 1);
+mem.set(KEYS.settings, JSON.stringify({ quizDir: 'ko-jp' }));
+ok('「한국어 → 일본어」로 골라 둔 사람은 그대로다', loadSettings().quizDir === 'ko-jp');
+mem.set(KEYS.settings, JSON.stringify({ quizDir: 'jp-ko', quizDirV: 1 }));
+ok('★ 바뀐 뒤에 다시 고른 「일본어 → 한국어」는 지킨다 ★', loadSettings().quizDir === 'jp-ko');
+mem.delete(KEYS.settings);
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

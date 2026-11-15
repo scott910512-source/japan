@@ -160,6 +160,18 @@ console.log('\n[ 문제 만들기·채점 ]');
   const weakQs = Array.from({ length: 60 }, (_, i) => questionFor({ id: 'n5-3', kind: KIND.WORD, d: 8 }, ctx(i + 1)));
   ok('★ 약한 단어는 늘 보기가 있는 문제다 ★', weakQs.every((q) => q.mode === 'choice'));
 
+  /* ★ 뜻을 보고 일본어를 떠올리는 쪽을 더 많이 낸다(열에 일곱쯤) ★ 전에는 반반이었다 */
+  {
+    /* 난수를 문제마다 새로 만들면 첫 값이 한쪽으로 쏠린다 — 하나를 이어서 쓴다(앱도 그렇게 쓴다) */
+    const one = ctx(77);
+    const many = Array.from({ length: 400 }, () => questionFor({ id: 'n5-3', kind: KIND.WORD, d: 0 }, one));
+    const koJp = many.filter((q) => q && !q.promptJp).length / many.length;
+    ok('★ 낱말 문제: 한국어 → 일본어가 60~80% ★', koJp > 0.6 && koJp < 0.8, koJp.toFixed(2));
+    ok('한국어 → 일본어를 고르기로도 쓰기로도 낸다', many.some((q) => !q.promptJp && q.mode === 'choice') && many.some((q) => !q.promptJp && q.mode === 'typing'));
+    const sm = Array.from({ length: 400 }, () => questionFor({ id: 's-2', kind: KIND.SENTENCE, d: 3 }, one)).filter(Boolean);
+    const sKoJp = sm.filter((q) => !q.promptJp).length / sm.length;
+    ok('★ 문장 문제: 뜻을 보고 일본어 문장을 고르는 쪽이 60~80% ★', sKoJp > 0.6 && sKoJp < 0.8, sKoJp.toFixed(2));
+  }
   const sq = questionFor({ id: 's-2', kind: KIND.SENTENCE, d: 3 }, ctx(9));
   ok('문장: 보기 넷, 정답이 안에, 겹치지 않는다', sq.options.length === 4 && sq.options.some((o) => o.key === 's-2') && new Set(sq.options.map((o) => o.label)).size === 4);
   ok('문장: 정답 글자가 보기 안에 있다', sq.options.find((o) => o.key === sq.correct).label === sq.answerText);
