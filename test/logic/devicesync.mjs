@@ -131,4 +131,20 @@ check('이야기 · 말하기 설정 · 요즘 일본어도 다른 기기로 간
   assert.equal(JSON.parse(phone.getItem(EXTRA_WHOLE.trends)).items[0].jp, 'エモい');
   assert.ok(changed.includes('trends'));
 });
+check('★ PC에서 새로 배우기 20/20 → 다른 브라우저가 빈 오늘 계획 → PC가 다시 맞춰도 20/20 ★', () => {
+  const server = {};
+  const ids = Array.from({ length: 20 }, (_, i) => ({ id: `w${i}` }));
+  const done = Object.fromEntries(ids.map((x) => [x.id, true]));
+  const pc = mem({ [P]: J({ date: '2026-11-15', assigned: ids, done }) });
+  sync(pc, server, 1000);
+  const other = mem({ [P]: J({ date: '2026-11-15', assigned: ids, done: {} }) });   // 막 짠 빈 계획 · 시각상 나중
+  sync(other, server, 5000);
+  sync(pc, server, 6000);
+  assert.equal(Object.keys(JSON.parse(pc.getItem(P)).done).length, 20);
+  assert.equal(Object.keys(JSON.parse(other.getItem(P)).done).length, 20);       // 다른 기기도 20/20을 받는다
+  /* 날짜가 다르면 새 날 계획이 이긴다 */
+  const tomorrow = mem({ [P]: J({ date: '2026-11-16', assigned: ids, done: {} }) });
+  sync(tomorrow, server, 7000);
+  assert.equal(server.extra.whole.plan.v.date, '2026-11-16');
+});
 console.log(`통과 ${pass} / 실패 0`);

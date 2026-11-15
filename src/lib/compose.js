@@ -76,6 +76,12 @@ export function judgeWrite(sentence, input) {
  * 둘 중 어느 ですか를 집었느냐에 따라 맞는 답을 틀렸다고 한다 — 학습자에게는 똑같은 조각이다. */
 export const fitsAt = (chunks, position, text) => String(chunks?.[position] ?? '').trim() === String(text ?? '').trim();
 
+/* 조립: 다 놓은 순서가 정답 순서와 같은가. 개수가 다르면(일부만 · 넘치게) 아니다. 같은 글자 조각은 어느 것이든 같다 */
+export const sameOrder = (chunks, texts) => Array.isArray(chunks) && Array.isArray(texts)
+  && chunks.length === texts.length && chunks.every((c, i) => fitsAt(chunks, i, texts[i]));
+/* 틀린 자리들(0부터) — 다 놓았을 때 빨갛게 칠할 곳 */
+export const wrongSlots = (chunks, texts) => (texts || []).map((t, i) => (fitsAt(chunks, i, t) ? -1 : i)).filter((i) => i >= 0);
+
 export const buildVerdict = (firstTry) => (firstTry ? VERDICT.KNOWN : VERDICT.VAGUE);
 export const writeVerdict = (ok) => (ok ? VERDICT.KNOWN : VERDICT.UNKNOWN);
 

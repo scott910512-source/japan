@@ -5,7 +5,7 @@
  *   · 복습 판정: 조립은 한 번에=알아요/고쳐서=애매해요, 쓰기는 맞음=알아요/틀림=몰라요
  *   · 빈칸 자료는 답이 하나다
  *   · AI 첨삭: 답을 안전하게 읽는다(펜스·군더더기·빠진 칸), 키가 없으면 부르지 않는다 */
-import { fitsAt, composePool, judgeWrite, buildVerdict, writeVerdict, clozeItems, clozePool, COMPOSE_MODES, COMPOSE_MODE,
+import { fitsAt, sameOrder, wrongSlots, composePool, judgeWrite, buildVerdict, writeVerdict, clozeItems, clozePool, COMPOSE_MODES, COMPOSE_MODE,
   newSession, pickNext, record } from '../../src/lib/compose.js';
 import { parseCorrection, shapeCorrection, userText, hasAiKey, correctSentence, SYSTEM, MAX_SENTENCE_CHARS } from '../../src/lib/composeAi.js';
 import { applyVerdict, VERDICT, addDays, todayKey, BOX } from '../../src/lib/review.js';
@@ -129,6 +129,14 @@ console.log('\n[ AI 첨삭: 부르기 전 ]');
   ok('시험 문장에 같은 조각이 두 번 있다', c.filter((x) => x === 'ですか').length === 2, c.join(' '));
   ok('★ 같은 글자 조각은 어느 자리에 놓아도 맞다 ★', fitsAt(c, 5, 'ですか') && fitsAt(c, 7, 'ですか'));
   ok('다른 조각은 여전히 틀리다', !fitsAt(c, 5, '左') && !fitsAt(c, 6, 'ですか'));
+  /* ★ 2026-11-15 실사용 버그 — 子供料金 문제에서 は → 子供料金 → ありますか가 완성으로 쳐졌다 ★ */
+  const k = ['子供料金', 'は', 'ありますか'];
+  const perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]].map((o) => o.map((i) => k[i]));
+  ok('★ 여섯 순서 중 정답 하나만 완성 ★', perms.filter((t) => sameOrder(k, t)).length === 1 && sameOrder(k, ['子供料金', 'は', 'ありますか']));
+  ok('★ は → 子供料金 → ありますか는 완성이 아니다 ★', !sameOrder(k, ['は', '子供料金', 'ありますか']));
+  ok('일부만 · 넘치게 놓은 것은 아니다', !sameOrder(k, ['子供料金', 'は']) && !sameOrder(k, [...k, 'は']));
+  ok('같은 글자 조각은 어느 것이든 같다', sameOrder(c, [...c]));
+  ok('틀린 자리를 짚는다', JSON.stringify(wrongSlots(k, ['は', '子供料金', 'ありますか'])) === '[0,1]');
   ok('범위를 벗어난 자리는 틀리다', !fitsAt(c, 8, 'ですか') && !fitsAt(null, 0, 'ですか'));
 }
 
