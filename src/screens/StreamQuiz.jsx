@@ -368,7 +368,7 @@ export default function StreamQuiz({
               <OptWrap key={`${o.key}-${i}`} row={rowOf(optRows, i)} label={`${o.label} ${o.sub || ''}`} show={Boolean(answered)}
                 rate={settings?.speechRate} id={`st:${q.id}:${i}`}>
               {(aside) => (
-              <button className={cls} disabled={Boolean(answered)} onClick={() => answer(o.key)}>
+              <button className={cls} data-key={o.key} disabled={Boolean(answered)} onClick={() => answer(o.key)}>
                 <span className="qo-num">{hasKeyboard ? <kbd>{i + 1}</kbd> : i + 1}</span>
                 <span className="qo-body">
                   <b lang={q.promptJp ? 'ko' : 'ja'}>{o.label}</b>
