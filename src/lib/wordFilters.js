@@ -17,3 +17,21 @@ export function filterByLevel(words, levels) {
   return words.filter((w) => set.has(w.level) || (!w.level && set.has('N5')));
 }
 
+
+/* ★ 새 낱말이 모자라면 다음 레벨까지 ★ (2026-11-16)
+ * 고른 레벨에 한 번도 안 본 낱말이 min개보다 적으면 다음 레벨(N5 → N4 → N3)을 하나씩 더해 돌려준다.
+ * 레벨을 안 골랐으면(전체) 그대로. 고른 레벨은 빼지 않는다 — 더하기만 한다. */
+const LEVEL_ORDER = ['N5', 'N4', 'N3'];
+export function levelsForFresh(words, levels, review = {}, min = 20, seenElsewhere = null) {
+  if (!levels?.length) return levels;
+  const out = [...levels];
+  const unseen = (lv) => filterByLevel(words, lv).filter((w) => !review?.[w.id]?.lastSeen && !seenElsewhere?.[w.id]).length;
+  let count = unseen(out);
+  for (const lv of LEVEL_ORDER) {
+    if (count >= min) break;
+    if (out.includes(lv)) continue;
+    out.push(lv);
+    count = unseen(out);
+  }
+  return out;
+}

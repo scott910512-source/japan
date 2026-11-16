@@ -17,6 +17,16 @@ import { N3_WORDS_J } from './words-n3j.js';
 import { KIJU_WORDS } from './words-kiju.js';
 /* 삿포로 여행 목록(data/sapporo.js) 70개 중 단어장에 없던 20개 */
 import { SAPPORO_WORDS } from './words-sapporo.js';
+/* 표준 N5 · N4 목록과 대조해 없던 것 — N5 162개 · N4 184개 (2026-11-16) */
+import { N5_WORDS_B } from './words-n5b.js';
+import { N4_WORDS_C } from './words-n4c.js';
+/* 일상대화 낱말 · 정해진 인사 · 맞장구 415개 — tags 첫 칸이 '회화'(새로 배우기에 고르게 섞인다, lib/cards.js mixFresh) */
+import { DAILY_WORDS } from './words-daily.js';
+/* N4 · N3 문법 포인트 246개 — 낱말 칸에 카드로 싣는다(grammar: true). 새로 배우기에 하루 두 개씩 섞인다.
+   자료의 kana는 서로 겹치지 않게 「・용법」 꼬리를 단 것이 있다(そうだ・ようす 등) — 읽기 · 소리 · 답으로 쓰는 칸이라
+   꼬리는 떼어 싣는다. 겹쳐도 괜찮다 — 단어장은 표기(kanji)로 하나를 가린다. */
+import { GRAMMAR_POINTS } from './grammar-points.js';
+const GRAMMAR_CARDS = GRAMMAR_POINTS.map((g) => ({ ...g, kana: String(g.kana).split('・')[0] }));
 
 /* 기본 수록 단어를 한 곳으로 모은다.
  *
@@ -62,10 +72,12 @@ function mergeUnique(...lists) {
 
 export const ALL_WORDS = mergeUnique(
   DEFAULT_WORDS,
-  N5_WORDS,
-  N4_WORDS, N4_WORDS_B,
+  N5_WORDS, N5_WORDS_B,
+  N4_WORDS, N4_WORDS_B, N4_WORDS_C,
   N3_WORDS, N3_WORDS_B, N3_WORDS_C, N3_WORDS_D, N3_WORDS_E,
   N3_WORDS_F, N3_WORDS_G, N3_WORDS_H, N3_WORDS_I, N3_WORDS_J,
   KIJU_WORDS,
   SAPPORO_WORDS,
+  DAILY_WORDS,
+  GRAMMAR_CARDS,
 );

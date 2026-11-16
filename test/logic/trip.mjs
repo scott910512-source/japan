@@ -13,6 +13,7 @@
  *
  * 그리고 낱말만 있으면 안 된다. 空港을 알아도 「JRの乗り場はどこですか」가
  * 안 나오면 공항에서 못 움직인다. */
+import { SAPPORO_WORDS } from '../../src/data/words-sapporo.js';
 import { ALL_WORDS } from '../../src/data/allWords.js';
 import { SAPPORO_GROUPS, SAPPORO_LIST } from '../../src/data/sapporo.js';
 import { SAPPORO_SITUATION } from '../../src/data/situations-sapporo.js';
@@ -128,9 +129,11 @@ console.log('\n[ ★ JLPT 어휘 수를 안 건드린다 ★ ]');
      그 숫자가 무슨 뜻인지 알 수 없게 된다. */
   const byLevel = {};
   for (const w of ALL_WORDS) byLevel[w.level] = (byLevel[w.level] || 0) + 1;
-  ok('★ N5는 534개 그대로 ★', byLevel.N5 === 534, `${byLevel.N5}개`);
-  ok('N4도 그대로', byLevel.N4 === 613, `${byLevel.N4}개`);
-  ok('N3도 그대로', byLevel.N3 === 1607, `${byLevel.N3}개`);
+  /* 낱말을 더하면 레벨 수는 늘어난다(2026-11-16 N5 · N4 보충, 일상회화, 문법 카드). 지킬 것은 숫자가 아니라
+     「급수 없는 여행 낱말이 어느 레벨에도 안 섞인다」다 */
+  const noLevel = new Set(SAPPORO_WORDS.filter((w) => !['N5', 'N4', 'N3', 'N2', 'N1'].includes(w.level)).map((w) => w.kanji));
+  ok('★ 급수 없는 여행 낱말은 N5로 메워지지 않는다 ★', ALL_WORDS.filter((w) => noLevel.has(w.kanji)).every((w) => !['N5', 'N4', 'N3'].includes(w.level)), `${noLevel.size}개`);
+  ok('레벨 수가 줄지 않았다(예전 534 · 613 · 1607 이상)', byLevel.N5 >= 534 && byLevel.N4 >= 613 && byLevel.N3 >= 1607, `${byLevel.N5} · ${byLevel.N4} · ${byLevel.N3}`);
   ok('급수 밖이 따로 세어진다', byLevel[NO_JLPT] === 8, `${byLevel[NO_JLPT]}개`);
   ok('급수는 다섯 + 급수밖뿐', Object.keys(byLevel).sort().join(',') === ['N3', 'N4', 'N5', NO_JLPT].sort().join(','),
     Object.keys(byLevel).join(','));

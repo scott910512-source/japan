@@ -100,7 +100,8 @@ export function isConfirmedWord(st) {
 function seenWord(st) { return Boolean(st && st.lastSeen && !st.selfKnown); }
 
 function levelWords(words, level) {
-  return words.filter((w) => String(w.level).toUpperCase() === level);
+  /* 문법 카드(grammar: true)는 낱말 칸에 들어 있지만 「확인한 단어」로 세지 않는다 */
+  return words.filter((w) => String(w.level).toUpperCase() === level && !w.grammar);
 }
 
 /* 항목 하나를 센다. null이면 아직 못 센다(N3 코스 자료를 불러오는 중). */

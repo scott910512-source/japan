@@ -56,7 +56,8 @@ console.log('\n[ 차례가 실제로 바뀐다 ]');
 console.log('\n[ 계획에 반영된다 ]');
 {
   const pool = [
-    ...Array.from({ length: 10 }, (_, i) => ({ id: `w${i}`, kind: 'word' })),
+    /* 새 낱말은 하루 최소 20개(FRESH_MIN)라 낱말을 넉넉히 둔다 */
+    ...Array.from({ length: 30 }, (_, i) => ({ id: `w${i}`, kind: 'word' })),
     ...Array.from({ length: 10 }, (_, i) => ({ id: `s${i}`, kind: 'sentence' })),
   ];
   const cardOf = (id) => ({ id, place: id.startsWith('s') ? '이동 · 버스' : '' });
@@ -71,7 +72,8 @@ console.log('\n[ 계획에 반영된다 ]');
   ok('배정 개수는 목적과 무관', planStatus(buildPlan(pool, {}, opt('jlpt'))).assigned
     === planStatus(buildPlan(pool, {}, opt('talk'))).assigned);
   /* 목적을 안 주면 예전처럼 자료 차례대로 — 옛 동작을 안 깬다 */
-  ok('목적이 없어도 돈다', buildPlan(pool, {}, { goals: { fresh: 6, review: 0, weak: 0 }, today: '2026-09-05' }).assigned.length === 6);
+  ok('목적이 없어도 돈다', buildPlan(pool, {}, { goals: { fresh: 6, review: 0, weak: 0 }, today: '2026-09-05' }).assigned.length === 20);
+  ok('★ 목표를 작게(6) 골라도 새 낱말은 최소 20개 ★', buildPlan(pool, {}, opt('jlpt')).assigned.filter((x) => x.bucket === 'fresh' && x.kind === 'word').length === 20);
 }
 
 console.log('\n[ 회화는 방향을 뒤집는다 ]');

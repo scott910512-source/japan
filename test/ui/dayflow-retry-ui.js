@@ -183,16 +183,17 @@ async function finishDeck(page) {
     await p4.locator('.tdq-row', { hasText: '새로 배우기' }).click();
     await p4.waitForTimeout(1200);
     const g = await finishDeck(p4);
-    ok('새로 배우기 다섯 장을 마친다', await p4.locator('.finish').count() === 1 && await p4.locator('.fin-more').count() === 1, `${g}걸음`);
+    /* 목표는 5지만 새 낱말은 하루 최소 20개(FRESH_MIN, 2026-11-16) — 몫은 20이다 */
+    ok('새로 배우기 스무 장을 마친다', await p4.locator('.finish').count() === 1 && await p4.locator('.fin-more').count() === 1, `${g}걸음`);
     const sealed = await p4.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}').quests || {});
-    ok('★ 마친 순간의 몫(5)을 적어 둔다 ★', sealed.sealFresh === 5, JSON.stringify(sealed));
+    ok('★ 마친 순간의 몫(20)을 적어 둔다 ★', sealed.sealFresh === 20, JSON.stringify(sealed));
     await p4.locator('.fin-more').click();
     await p4.waitForTimeout(1200);
     ok('10개 더 — 새 판이 열린다', await p4.locator('.finish').count() === 0 && await p4.locator('.study').count() >= 1);
     await goTab(p4, '오늘');
     await p4.waitForTimeout(600);
     const fr = await rowText(p4, '새로 배우기');
-    ok('★ 더 배우는 중에도 새로 배우기 줄은 5 / 5 마쳤어요다(5 / 15로 안 돌아간다) ★', fr.includes('마쳤어요') && /5\s*\/\s*5/.test(fr), fr);
+    ok('★ 더 배우는 중에도 새로 배우기 줄은 20 / 20 마쳤어요다(20 / 30으로 안 돌아간다) ★', fr.includes('마쳤어요') && /20\s*\/\s*20/.test(fr), fr);
     ok('더 붙은 것은 덤으로 적는다', /더 배운 것\s*\d+\s*\/\s*10/.test(fr), fr);
     const score = (await p4.locator('.tdq-score').innerText()).replace(/\s/g, '');
     const rows = await p4.locator('.tdq-row').count();

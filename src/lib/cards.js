@@ -114,6 +114,33 @@ export function dailyPool(words, sentences, {
   ];
 }
 
+/* ★ 새로 배우기에 문법 · 회화 표현을 고르게 섞는다 ★ (2026-11-16)
+ *
+ * 새 낱말은 pool 차례대로 뽑힌다(classifyDaily는 순서를 안 섞는다). 문법 카드(grammar: true)와
+ * 회화 표현(tags에 '회화')을 그냥 자료에 넣으면 단어 수천 개 뒤에 있어서 몇 달 뒤에야 나온다.
+ * 그래서 아직 안 본 낱말만 골라 한 판(20칸)마다 문법은 2칸(10번째 · 20번째), 회화는 네 칸에 하나꼴로 끼운다.
+ * 이미 본 것(복습 · 약점)의 차례는 상관없다 — 그쪽은 복습일 · 약점 점수로 따로 줄을 세운다.
+ * 한쪽이 떨어지면 나머지로 채운다. 각 무리 안에서는 원래 차례(기출 먼저 · 자료 차례)를 지킨다. */
+export const MIX_EVERY = 20;
+export function mixFresh(pool, byId, review = {}) {
+  const isNew = (c) => c.kind === 'word' && !review?.[c.id]?.lastSeen;
+  const fresh = pool.filter(isNew);
+  if (!fresh.length) return pool;
+  const kindOf = (c) => { const w = byId.get(c.id); return w?.grammar ? 'g' : (w?.tags || []).includes('회화') ? 'c' : 'w'; };
+  const q = { g: [], c: [], w: [] };
+  for (const c of fresh) q[kindOf(c)].push(c);
+  if (!q.g.length && !q.c.length) return pool;
+  const out = [];
+  for (let i = 0; out.length < fresh.length; i++) {
+    const slot = i % MIX_EVERY;
+    const want = (slot === 9 || slot === 19) ? 'g' : (slot % 4 === 2 ? 'c' : 'w');
+    const order = want === 'g' ? ['g', 'w', 'c'] : want === 'c' ? ['c', 'w', 'g'] : ['w', 'c', 'g'];
+    const from = order.find((k) => q[k].length);
+    out.push(q[from].shift());
+  }
+  return [...out, ...pool.filter((c) => !isNew(c))];
+}
+
 /* 큐(id 목록)를 실제 카드로 바꾼다. 없는 id는 조용히 버린다 —
  * 자료가 바뀌어 사라진 카드가 큐에 남아 있으면 화면이 빈 카드를 그린다. */
 /* extra: 단어장에도 상황 문장에도 없는 카드 — 지금은 JLPT 문장 듣기의 예문

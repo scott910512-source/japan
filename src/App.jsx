@@ -3,7 +3,8 @@ import FeatureScreen from './app/FeatureScreen.jsx';
 import HunterAppHeader from './components/HunterAppHeader.jsx';
 import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
-import { filterByLevel } from './lib/wordFilters.js';
+import { filterByLevel, levelsForFresh } from './lib/wordFilters.js';
+import { FRESH_MIN } from './lib/daily.js';
 import { useAccountSync } from './app/useAccountSync.js';
 import { useAppNavigation } from './app/useAppNavigation.js';
 import { useAppBoot } from './app/useAppBoot.js';
@@ -20,7 +21,7 @@ import Onboarding from './components/Onboarding.jsx';
 import Today from './screens/Today.jsx';
 import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
-import { dailyPool } from './lib/cards.js';
+import { dailyPool, mixFresh } from './lib/cards.js';
 import { kijuIndex } from './lib/kiju.js';
 import { hasSignedInOnce, isGuest, setGuest } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
@@ -227,15 +228,26 @@ export default function App() {
      자료 차례가 아니라 「실제로 나온 적 있는가」가 새 단어의 순서를 정한다.
      레벨 필터는 그대로다. 고르지 않은 레벨의 기출까지 끌어오지는 않는다. */
   const kijuFirst = useMemo(() => new Set(kijuIndex(words).keys()), [words]);
-  const todayPool = useMemo(
-    () => dailyPool(filterByLevel(words, settings.levels), sentenceCards, {
+  /* 고른 레벨에 새 낱말이 스무 개도 안 남았으면 다음 레벨까지 — 새로 배우기가 비거나 매일 같은 것만 돌지 않게 */
+  const planLevels = useMemo(() => levelsForFresh(words, settings.levels, review, FRESH_MIN, progress.weak), [words, settings.levels, review, progress.weak]);
+  const todayPool = useMemo(() => {
+    const base = dailyPool(filterByLevel(words, settings.levels), sentenceCards, {
       levels: settings.levels,
       seen: seenIds,
       includeUnleveled: settings.sentenceScope !== 'level',
       first: kijuFirst,
-    }),
-    [words, settings.levels, sentenceCards, seenIds, settings.sentenceScope, kijuFirst],
-  );
+    });
+    /* 더한 레벨은 고른 레벨 뒤에 붙인다 — 남은 쉬운 낱말이 먼저, 모자란 만큼만 다음 레벨에서(문장은 안 더한다) */
+    const extra = (planLevels || []).filter((lv) => !(settings.levels || []).includes(lv));
+    const have = new Set(base.map((c) => c.id));
+    const more = extra.length
+      ? dailyPool(filterByLevel(words, extra), [], { levels: extra, seen: seenIds, first: kijuFirst }).filter((c) => !have.has(c.id))
+      : [];
+    more.forEach((c) => have.add(c.id));
+    /* 문법 카드는 레벨 설정과 상관없이 넣는다(N4 → N3 차례) — N3를 준비하는 사람이 문법을 레벨 필터 때문에 못 만나지 않게 */
+    const grammar = words.filter((w) => w.grammar && !have.has(w.id)).map((w) => ({ id: w.id, kind: 'word' }));
+    return mixFresh([...base, ...more, ...grammar], byId, review);
+  }, [words, settings.levels, planLevels, sentenceCards, seenIds, settings.sentenceScope, kijuFirst, byId, review]);
 
   /* 날짜가 바뀌면 계획을 새로 짠다. 같은 날이면 있던 것을 그대로 쓴다 —
      여기서 다시 짜면 오늘 끝낸 게 사라진다.
@@ -821,6 +833,8 @@ export default function App() {
 
           <Log
             words={words}
+            weakLedger={progress.weak}
+            kijuFirst={kijuFirst}
             review={review}
             stat={wordStat}
             rounds={rounds}

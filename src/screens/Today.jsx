@@ -70,7 +70,9 @@ export default function Today({
 
   /* 복습할 카드가 없는 날은 새 카드만 배정돼서 고른 양보다 적다. 말없이 적게 주면 약속을 어긴 것 같아서 이유를 적는다. */
   const chosen = goalTotal(settings?.goals);
-  const freshOnly = (planNow?.assigned || 0) > 0 && back.assigned === 0 && chosen > (planNow?.assigned || 0);
+  /* 복습할 카드가 아직 없는 날(첫날) — 새 카드만으로 시작한다. 새 카드는 하루 최소 20장이라(FRESH_MIN)
+     고른 분량보다 많을 수도 있어서, 분량과 견주지 않는다 */
+  const freshOnly = (planNow?.assigned || 0) > 0 && back.assigned === 0;
   /* 머리 밑 N3 줄 — 코스를 안 열었어도 배운 단어 수는 안다. 「시작 전」에서 안 움직이면 진전이 안 보인다 */
   const learnedWords = Object.values(review || {}).filter((st) => st && st.lastSeen).length;
   /* 줄 이름은 내가 고른 목표(N5·N4·N3). 준비도 %는 N3 코스가 계산하는 것이라 목표가 N3 이상일 때만 쓴다 */
@@ -203,7 +205,7 @@ export default function Today({
       )}
 
       {!allDone && freshOnly && !resuming && (
-        <p className="td-firstnote">오늘은 복습할 카드가 없어서 새 카드 {planNow.assigned}장으로 시작해요. 복습이 생기면 고른 {chosen}장까지 채워져요.</p>
+        <p className="td-firstnote">오늘은 복습할 카드가 없어서 새 카드 {planNow.assigned}장으로 시작해요. 복습이 생기면 고른 분량({chosen}장)만큼 복습도 같이 나와요.</p>
       )}
 
       {/* ★ 계획을 다 하면 거기서 끝이다 ★ 더 하고 싶으면 명시적으로 늘린다. */}
