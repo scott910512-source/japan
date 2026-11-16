@@ -392,6 +392,8 @@ async function boot(browser, patch = {}, init = null) {
      * 끝냈다 — 「1회독」도 '회독'을 포함하니 통과했을 뿐, 회독이 넘어간 적은
      * 없었다. 진짜로 넘어갈 때까지 돌리고, 넘어간 것을 확인한다. */
     let midRound = '';
+    /* 판이 뜨기 전에 세기 시작하면 「판이 먼저 끝났음」으로 깨진다(가끔) — 카드가 뜰 때까지 기다린다 */
+    await p3.locator('.studycard').waitFor({ timeout: 10000 }).catch(() => {});
     /* 새 낱말이 하루 최소 20개라(FRESH_MIN) 한 회독이 길어졌다 — 넉넉히 돈다 */
     for (let i = 0; i < 60; i++) {
       if (await p3.locator('.studycard').count() === 0) break;
