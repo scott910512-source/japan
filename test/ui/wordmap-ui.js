@@ -2,12 +2,15 @@
  *   · 모든 낱말이 한 칸씩, 기억 상태 색으로(안 봄 · 처음 봄 · 약점 · 확인 1~3 · 외움)
  *   · 레벨 탭으로 걸러 보고, 칸을 누르면 그 낱말이 뜬다
  *   · 오늘 계획의 새로 배우기는 한 번도 안 본 낱말 최소 20개 — 고른 레벨에 모자라면 다음 레벨에서 */
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { ALL_WORDS } from '../../src/data/allWords.js';
 import { goTab } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
-const CHROME = process.env.CHROMIUM || '/opt/pw-browsers/chromium';
+/* CI에는 이 경로가 없다 — 있을 때만 쓰고, 없으면 playwright가 받아 둔 브라우저를 쓴다(다른 검사와 같다) */
+const LOCAL_CHROME = '/opt/pw-browsers/chromium';
+const CHROME = process.env.CHROMIUM || (existsSync(LOCAL_CHROME) ? LOCAL_CHROME : undefined);
 let pass = 0, fail = 0;
 const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefined ? '— ' + e : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? '— ' + e : ''); } };
 
