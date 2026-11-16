@@ -527,7 +527,7 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
       )}
 
       {q.type === QUIZ_TYPE.CHOICE ? (
-        <div className="qoptions">
+        <div className="qoptions" data-q={q.wordId}>
           {q.options.map((o, i) => {
             const isAnswer = o.wordId === q.wordId;
             const isMine = answered?.value === o.wordId;
@@ -541,7 +541,7 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
               <OptWrap key={o.wordId} row={rowOf(optRows, i)} label={`${o.label} ${o.sub || ''}`} show={Boolean(answered)}
                 rate={settings.speechRate} id={`qz:${q.id}:${i}`}>
               {(aside) => (
-              <button className={cls} disabled={Boolean(answered)}
+              <button className={cls} data-key={o.wordId} disabled={Boolean(answered)}
                 onClick={() => answerChoice(o)}>
                 <span className="qo-num">{hasKeyboard ? <kbd>{i + 1}</kbd> : i + 1}</span>
                 <span className="qo-body">

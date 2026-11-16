@@ -49,10 +49,11 @@ const seeded = Object.fromEntries(words.map((w) => [w.id, { ...applyVerdict(unde
   /* 일부러 틀린다 — 정답 표시가 없는 보기를 골라 오답이 되게 */
   for (let i = 0; i < 5; i++) {
     if (!(await page.locator('.qoptions').count())) break;
-    const wrongOpt = page.locator('.qopt:not(.correct)');
-    const opts = page.locator('.qopt');
-    // 어느 보기가 정답인지 모르니 1번을 누르고, 정답이었으면 다음 문제로 저절로 넘어간다
-    await opts.first().click();
+    /* ★ 틀린 보기를 골라 누른다 ★ 1번만 누르면 운이 좋은 날 다섯 문제를 다 맞혀서 검사가 멈췄다(CI에서 실제로).
+       보기 단추의 data-key(낱말 id)가 문제 낱말(data-q)과 다른 것을 누른다 */
+    const qid = await page.locator('.qoptions').getAttribute('data-q');
+    const wrongOpt = page.locator(`.qopt:not([data-key="${qid}"])`);
+    await (await wrongOpt.count() ? wrongOpt.first() : page.locator('.qopt').first()).click();
     await page.waitForTimeout(500);
     const nb = page.locator('.qnext button, .qnext .submit-btn');
     if (await nb.count()) await nb.first().click();
@@ -61,7 +62,7 @@ const seeded = Object.fromEntries(words.map((w) => [w.id, { ...applyVerdict(unde
   }
   await page.waitForTimeout(800);
   const hasWrong = await page.locator('.quiz-retry').count();
-  if (!hasWrong) { console.log('  (이번 판은 다 맞혀서 다시 풀기가 안 보인다 — 건너뜀)'); await browser.close(); process.exit(0); }
+  if (!hasWrong) { ok('일부러 틀렸으니 「다시 풀기」가 있어야 한다', false); await browser.close(); console.log(`\n통과 ${pass} / 실패 ${fail}`); process.exit(1); }
   const n = Number((await page.locator('.quiz-retry .bs-s').innerText()).replace(/\D/g, ''));
   ok('★ 결과에 「틀린 단어 다시 퀴즈 풀기」가 있다 ★', (await page.locator('.quiz-retry').innerText()).includes('다시 퀴즈 풀기'));
   ok('카드로 외우기도 남아 있다', (await page.locator('.quiz-retry-cards').innerText()).includes('카드로 외우기'));
