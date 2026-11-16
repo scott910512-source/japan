@@ -1,3 +1,4 @@
+import WordHeatmap from '../components/WordHeatmap.jsx';
 import { useMemo, useState } from 'react';
 import { IconFlame, IconChevron } from '../components/Icons.jsx';
 import { addDays, isMastered, stateOf, MASTERY_RULE } from '../lib/review.js';
@@ -50,6 +51,7 @@ function monthGrid(year, month) {
 const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', reading: '독해', listening: '청해' };
 
 export default function Log({
+  words = [], weakLedger = null, kijuFirst = null,
   review, stats, streak, grammarLeft, stat, rounds,
   n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenQuiz, onOpenWrong, wrongCount = 0, onOpenWeak, weakGrammar = 0, reviewLeft = 0,
 }) {
@@ -291,6 +293,10 @@ export default function Log({
       {/* 이름을 「기억 수준」으로 바꿨다. 같은 화면에 있는 「판정 횟수」와
           다른 종류의 숫자임이 이름에서 드러나야 한다 — 하나는 몇 번 했나,
           하나는 얼마나 남아 있나다. */}
+      {/* ★ 전체 단어 지도 ★ 모든 낱말을 한 칸씩 — 어디까지 왔고 어디가 비었는지 한눈에(lib/wordmap.js) */}
+      <div className="section-label">전체 단어 지도</div>
+      <WordHeatmap words={words} review={review} ledger={weakLedger} first={kijuFirst} />
+
       <div className="section-label">기억 수준</div>
       <div className="card roundstat">
         {ROUND_ROWS.filter(({ id }) => id !== 'fresh').map(({ id, label }) => {

@@ -16,7 +16,7 @@
  * 둘은 다른 숫자이고, 다른 이름으로 불려야 한다. */
 
 import { todayKey } from './review.js';
-import { classifyDaily, normalizeGoals, estimateMinutes, takeForPlan } from './daily.js';
+import { classifyDaily, normalizeGoals, estimateMinutes, takeForPlan, FRESH_MIN } from './daily.js';
 import { freshSentenceMax, orderByPurpose, purposeOf } from './purpose.js';
 
 export const PLAN_VERSION = 1;
@@ -32,7 +32,9 @@ export const MORE_STEP = 10;
 export function buildPlan(pool, review, {
   goals, today = todayKey(), purpose, cardOf, ledger = null,
 } = {}) {
-  const want = normalizeGoals(goals);
+  /* 새 낱말은 하루 최소 FRESH_MIN개(lib/daily.js) — 목표를 작게 골랐어도 */
+  const norm = normalizeGoals(goals);
+  const want = { ...norm, fresh: Math.max(norm.fresh, FRESH_MIN) };
   /* 무엇을 먼저 배정할지는 학습 목적이 정한다. 거르지 않고 차례만 바꾼다 —
      목적은 취향이지 자격이 아니라, 「여행」을 골랐다고 시험 단어를 영영
      못 보게 되면 안 된다. */

@@ -109,7 +109,9 @@ console.log('\n[ 약점은 카드 수와 연습 횟수를 가른다 ]');
     `카드 ${s.assigned} / 연습 ${p.reps}`);
   ok('배정된 카드는 겹치지 않는다',
     new Set(p.assigned.map((x) => x.id)).size === s.assigned, `${s.assigned}`);
-  ok('연습 횟수가 몫을 안 넘는다', p.reps <= 10, `${p.reps}`);
+  /* 새 낱말은 하루 최소 20개(FRESH_MIN)라 fresh 0을 골라도 20개가 따로 붙는다 — 약점 몫(10)만 본다 */
+  const freshN = p.assigned.filter((x) => x.bucket === 'fresh').length;
+  ok('연습 횟수가 몫을 안 넘는다', p.reps - freshN <= 10, `${p.reps} - 새 ${freshN}`);
   ok('둘 다 끝내면 완료', planStatus(markAll(p)).finished);
   /* 완료는 카드로 센다 — 두 번 만났다고 2가 오르면 20 배정에 22 완료가 된다 */
   ok('두 번 만나도 완료는 한 번', planStatus(markAll(p)).done === s.assigned);

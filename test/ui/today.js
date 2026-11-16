@@ -392,7 +392,8 @@ async function boot(browser, patch = {}, init = null) {
      * 끝냈다 — 「1회독」도 '회독'을 포함하니 통과했을 뿐, 회독이 넘어간 적은
      * 없었다. 진짜로 넘어갈 때까지 돌리고, 넘어간 것을 확인한다. */
     let midRound = '';
-    for (let i = 0; i < 20; i++) {
+    /* 새 낱말이 하루 최소 20개라(FRESH_MIN) 한 회독이 길어졌다 — 넉넉히 돈다 */
+    for (let i = 0; i < 60; i++) {
       if (await p3.locator('.studycard').count() === 0) break;
       midRound = (await p3.locator('.sh-sub').textContent().catch(() => '')) || '';
       if (/2회독/.test(midRound)) break;          // 넘어갔고 아직 판 안에 있다

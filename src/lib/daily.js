@@ -43,6 +43,12 @@ export const DEFAULT_GOALS = { fresh: 20, review: 30, weak: 3 };
  * 위의 「스무 장」 이야기는 처음 설계 때의 것이다 — 지금은 하루 흐름이
  * 복습 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기 → 랜덤 테스트로 이어져서 양이 달라졌다. */
 export const GOALS_VERSION = 3;
+
+/* ★ 새로 배우기는 하루 최소 스무 낱말 ★ (2026-11-16)
+ * 하루 흐름(복습 · 약점 퀴즈 · 쭉 퀴즈 · 랜덤 테스트)이 다 본 낱말을 도는데 새 낱말이 적으면, 매일 같은 것만 만나는
+ * 느낌이 된다. 목표를 작게 골랐어도 새 낱말은 이만큼은 담는다(고른 레벨에 남은 새 낱말이 모자라면 다음 레벨에서 —
+ * lib/cards.js levelsForFresh). */
+export const FRESH_MIN = 20;
 export const LANES = ['review', 'weak', 'fresh'];
 
 /* 몰라요·애매해요가 이만큼 쌓이면 약점으로 본다. 회독 쪽 기준과 같은 값이다. */
@@ -173,7 +179,14 @@ export function classifyDaily(pool, review, today = todayKey(), ledger = null) {
        조용히 새어 나간다. 통째로 빼 뒀더니 180일 재확인이 영영 안 왔다.
        복습일이 안 됐을 때만 뺀다. */
     if (isDoneEnough(st) && !isDue(st, today)) continue;
-    if (!st.lastSeen) { fresh.push(item(id, kind, 'fresh')); continue; }
+    /* ★ 새로 배우기는 「한 번도 만난 적 없는」 것만 ★ 회독 기록이 없어도 시험 · 듣기에서 만나 장부에 적힌 낱말은
+       새 낱말이 아니다(그건 이미 본 것이다) — 틀린 게 쌓였으면 약점으로, 아니면 이번엔 건너뛴다 */
+    if (!st.lastSeen) {
+      const rec = ledger ? ledger[id] : null;
+      if (!rec) { fresh.push(item(id, kind, 'fresh')); continue; }
+      if (errorSignals(st, weakEntry(ledger, id)) >= WEAK_THRESHOLD) weak.push(item(id, kind, 'weak'));
+      continue;
+    }
     /* ★ 시험에서 틀린 것도 오늘의 약점이다 ★
        여태 이 줄은 회독 기록만 봤다. 그런데 시험과 듣기는 회독에 아무것도
        안 쓴다 — 그래서 시험에서 열 번 틀린 낱말이 오늘 학습의 약점 갈래에
