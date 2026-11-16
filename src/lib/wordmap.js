@@ -35,11 +35,12 @@ export function cellState(st, rec) {
   return 'seen';
 }
 
-const levelOf = (w) => (MAP_LEVELS.includes(String(w.level).toUpperCase()) ? String(w.level).toUpperCase() : '기타');
+/* 문법 카드(grammar: true)는 레벨 묶음이 아니라 「문법」 묶음으로 따로 */
+const levelOf = (w) => (w.grammar ? '문법' : MAP_LEVELS.includes(String(w.level).toUpperCase()) ? String(w.level).toUpperCase() : '기타');
 
 /* 레벨별 묶음: [{ level, cells: [{ id, jp, kana, mean, state }], counts: { 상태: 개수 } }] */
 export function buildWordMap(words = [], review = {}, ledger = null, { first = null } = {}) {
-  const groups = new Map([...MAP_LEVELS, '기타'].map((lv) => [lv, []]));
+  const groups = new Map([...MAP_LEVELS, '문법', '기타'].map((lv) => [lv, []]));
   words.forEach((w, i) => {
     if (!w?.id) return;
     const rec = ledger?.[w.id] ? weakEntry(ledger, w.id) : null;
