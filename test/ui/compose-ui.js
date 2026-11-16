@@ -125,6 +125,19 @@ const tab = (page, id) => page.locator(`.cmp-tabs [data-mode="${id}"]`).click().
     await page.waitForTimeout(300);
     return id;
   };
+  /* ★ 조각 번호는 고정 — 하나를 놓아도 남은 조각 번호가 당겨지지 않는다 ★ */
+  {
+    const nums = async () => page.locator('.build-pool .build-tile').evaluateAll((ts) => ts.map((t) => `${t.textContent.trim()}#${t.querySelector('.qo-num')?.dataset.number}`));
+    const all = await nums();
+    await page.locator('.build-pool .build-tile').nth(1).click();
+    await page.waitForTimeout(120);
+    const after = await nums();
+    ok('★ 하나를 놓아도 남은 조각의 번호가 그대로 ★', after.length === all.length - 1 && after.every((x) => all.includes(x)), `${all.join(',')} → ${after.join(',')}`);
+    ok('놓은 조각 자리는 빈칸으로 남는다', await page.locator('.build-pool .build-slot').count() === 1);
+    ok('★ 조각 글꼴은 앱의 일본어 글꼴 ★', /Noto Sans JP/.test(await page.locator('.build-pool .build-tile').first().evaluate((el) => getComputedStyle(el).fontFamily)));
+    await page.locator('.build-reset').click();
+    await page.waitForTimeout(120);
+  }
   const before = await reviewOf(page);
   const id1 = await solve(false);
   ok('조립이 끝나면 다음 문장 버튼', await page.locator('.cmp-next').count() === 1);
