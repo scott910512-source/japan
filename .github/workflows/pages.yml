@@ -12,24 +12,55 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    # 문서만 바꾼 커밋은 앱이 안 바뀐다 — 검사도 배포도 안 한다
+    paths-ignore: ['**/*.md', 'docs/**']
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read      # 같은 코드가 이미 통과했는지(검사 기록) 읽는다
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
+  # ★ 같은 코드가 이미 통과했으면 다시 검사하지 않는다 ★ (2026-11-15)
+  # 작업 브랜치(claude/**) 푸시가 12대 검사를 다 통과한 뒤 그대로 합치면, main 커밋의 코드(tree)는 그 커밋과 똑같다.
+  # 커밋 id는 달라도(squash) tree가 같으면 같은 코드다 — 그걸 다시 6분 돌릴 이유가 없다.
+  # 그 사이 main이 바뀌어 합친 결과가 달라졌으면 tree가 달라서 그대로 검사를 돈다. 수동 배포(workflow_dispatch)는 늘 검사한다.
+  tested:
+    runs-on: ubuntu-latest
+    outputs:
+      same: ${{ steps.find.outputs.same }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          same=no
+          if [ "${{ github.event_name }}" = "push" ]; then
+            tree=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq .commit.tree.sha)
+            # 「검사」 워크플로가 브랜치 푸시로 돌아 성공한 기록 중 같은 tree — PR 쪽은 건너뛰어도 성공으로 찍히니 push만 센다
+            hit=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/test.yml/runs?status=success&event=push&per_page=50" \
+              --jq "[.workflow_runs[] | select(.head_commit.tree_id == \"$tree\")] | length")
+            [ "${hit:-0}" -gt 0 ] && same=yes
+            echo "tree $tree · 같은 코드의 통과 기록 ${hit:-0}건"
+          fi
+          echo "same=$same" >> "$GITHUB_OUTPUT"
+
   # 배포 전 관문. 여기가 깨지면 아래 deploy는 시작도 안 한다.
   test:
+    needs: tested
+    if: needs.tested.outputs.same != 'yes'
     uses: ./.github/workflows/test.yml
 
   deploy:
-    needs: test
+    needs: [tested, test]
+    # 검사가 통과했거나, 같은 코드가 이미 통과해서 건너뛰었을 때만 배포한다
+    if: always() && needs.tested.result == 'success' && (needs.test.result == 'success' || (needs.test.result == 'skipped' && needs.tested.outputs.same == 'yes'))
     runs-on: ubuntu-latest
     environment:
       name: github-pages

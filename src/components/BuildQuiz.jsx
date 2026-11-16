@@ -73,7 +73,8 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
   };
 
   const scope = useHotkeys({
-    ...Object.fromEntries(remaining.slice(0, 9).map((tile, i) => [i + 1, () => put(tile)])),
+    /* 번호는 조각마다 고정이다 — 하나를 놓아도 남은 조각의 번호가 당겨지지 않는다(2번을 놓으면 2번 자리는 비어 있다) */
+    ...Object.fromEntries(tiles.slice(0, 9).map((tile, i) => [i + 1, () => { if (!placed.some((p) => p.id === tile.id)) put(tile); }])),
     Escape: onQuit,
     ArrowLeft: () => { if (placed.length) takeBack(placed.length - 1); },
     Enter: () => { if (solved) onNext?.(); },
@@ -121,13 +122,18 @@ export default function BuildQuiz({ item, chunks, settings, onSolved, onAttempt,
         </div>
       ) : (
         <>
-          {/* 조각이 빠지면 다음 조각이 같은 자리로 당겨진다 — 같은 자리를 빠르게 이어 누르는 것이 정상이라 클릭 틈(tapguard)을 두지 않는다 */}
+          {/* ★ 조각마다 번호와 자리가 고정이다 ★ 놓은 조각은 그 자리를 빈칸(build-slot)으로 남긴다 — 전에는 남은 조각이
+              당겨지면서 번호가 바뀌어(2번을 놓으면 3번이 2번이 됐다) 숫자 키로 풀다가 엉뚱한 조각을 놓았다 */}
           <div className="build-pool" data-rapid>
-            {remaining.map((tile, i) => (
+            {tiles.map((tile, i) => (placed.some((p) => p.id === tile.id) ? (
+              <span key={tile.id} className="build-slot" aria-hidden="true">
+                <span className="qo-num" data-number={i + 1} />{tile.text}
+              </span>
+            ) : (
               <button key={tile.id} className="build-tile" onClick={() => put(tile)}>
                 <span className="qo-num" aria-hidden="true" data-number={i + 1} />{tile.text}
               </button>
-            ))}
+            )))}
           </div>
           {placed.length > 0 && (
             <button className="build-reset" onClick={reset}><IconX /> 처음부터</button>

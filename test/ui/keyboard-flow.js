@@ -109,10 +109,12 @@ try {
   await page.keyboard.press('Space');
   check('Unsolved assembly does not speak its answer', await page.evaluate(() => window.__said.length) === saidBefore);
   for (const text of chunks) {
-    const labels = await page.locator('.build-pool .build-tile').allTextContents();
+    /* 번호는 조각마다 고정이다(놓은 조각 자리는 빈칸) — 조각에 적힌 번호를 읽어 누른다 */
+    const tilesNow = page.locator('.build-pool .build-tile');
+    const labels = await tilesNow.allTextContents();
     const n = labels.findIndex((s) => s.trim() === text);
     assert.ok(n >= 0, `tile ${text}`);
-    await page.keyboard.press(String(n + 1));
+    await page.keyboard.press(await tilesNow.nth(n).locator('.qo-num').getAttribute('data-number'));
   }
   check('Number keys complete sentence assembly', await page.locator('.build-done').count() === 1);
   await page.keyboard.press('Enter');

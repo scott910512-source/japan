@@ -294,8 +294,24 @@
 .build-tile {
   padding: 10px 14px; border-radius: 11px; cursor: pointer;
   background: var(--surface); border: 1px solid var(--line); color: var(--ink);
-  font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
-  font-size: 16px; font-weight: 650; line-height: 1.3;
+  /* ★ 앱에 실어 보내는 일본어 글꼴로 ★ 전에는 -apple-system · Hiragino를 먼저 찾아서, 둘 다 없는 윈도 데스크톱에서는
+     중국어 글꼴로 한자를 그려 모양이 어색하고 흐렸다 */
+  font-family: var(--font-ja);
+  font-size: 18px; font-weight: 600; line-height: 1.35;
+}
+/* 놓은 조각의 빈자리 — 크기는 그대로 두고 안 보이게(번호 · 자리가 당겨지지 않게) */
+.build-slot {
+  padding: 10px 14px; border-radius: 11px; border: 1px dashed var(--line); color: transparent;
+  font-family: var(--font-ja); font-size: 18px; font-weight: 600; line-height: 1.35; user-select: none;
+}
+.build-slot .qo-num { visibility: hidden; }
+/* 데스크톱 — 화면이 넓으면 조각 · 문장을 크게 */
+@media (min-width: 720px) {
+  .build-ask { font-size: 20px; }
+  .build-tile, .build-slot { font-size: 24px; padding: 12px 18px; }
+  .build-line { min-height: 76px; }
+  .build .bd-jp { font-size: 26px; }
+  .build .bd-kana { font-size: 17px; }
 }
 /* 놓은 조각은 중립색 — 초록(완성)은 정답일 때만, 빨강은 다 놓았는데 틀린 자리 */
 .build-tile.placed { background: var(--surface); border-color: var(--ink-3, var(--line)); color: var(--ink); }
