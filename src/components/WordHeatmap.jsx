@@ -5,7 +5,9 @@ import { buildWordMap, totalCounts, MAP_STATES } from '../lib/wordmap.js';
  * 레벨을 고르면 그 레벨만, 칸을 누르면 그 낱말이 아래에 뜬다. 칸이 2천 개가 넘어도 그냥 div라 가볍다. */
 export default function WordHeatmap({ words = [], review = {}, ledger = null, first = null }) {
   const groups = useMemo(() => buildWordMap(words, review, ledger, { first }), [words, review, ledger, first]);
-  const [level, setLevel] = useState('all');
+  /* 처음엔 지금 공부 중인 레벨 하나만 — 전체(2천7백 칸)를 다 펼치면 폰에서 몇 화면을 내려야 한다.
+     공부 중인 레벨 = 아직 안 본 낱말이 남은 첫 레벨(N5 → N4 → N3) */
+  const [level, setLevel] = useState(() => (groups.find((g) => g.counts.new > 0) || groups[0])?.level || 'all');
   const [picked, setPicked] = useState(null);
   const shown = level === 'all' ? groups : groups.filter((g) => g.level === level);
   const counts = totalCounts(shown);
@@ -16,7 +18,7 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
   return (
     <div className="card wmap">
       <div className="wmap-tabs" role="tablist">
-        {[{ id: 'all', label: '전체' }, ...groups.map((g) => ({ id: g.level, label: g.level }))].map((t) => (
+        {[...groups.map((g) => ({ id: g.level, label: g.level })), { id: 'all', label: '전체' }].map((t) => (
           <button key={t.id} role="tab" aria-selected={level === t.id} className={`chip${level === t.id ? ' active' : ''}`}
             onClick={() => { setLevel(t.id); setPicked(null); }}>{t.label}</button>
         ))}

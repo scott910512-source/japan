@@ -50,8 +50,12 @@ console.log('\n[ 전체 단어 지도 ]');
 await goTab(page, '내 학습');
 const map = page.locator('.wmap');
 await map.waitFor({ timeout: 10000 });
+/* 처음엔 지금 공부 중인 레벨 하나 — N5에 안 본 낱말이 5개 남았으니 N5 */
+ok('처음엔 지금 공부 중인 레벨(N5)만 보인다', await page.locator('.wmap-tabs .chip.active').innerText() === 'N5' && await page.locator('.wmap .wmap-grid .wm-cell').count() === n5.length);
+await page.locator('.wmap-tabs .chip', { hasText: '전체' }).click();
+await page.waitForTimeout(200);
 const cells = await page.locator('.wmap .wmap-grid .wm-cell').count();
-ok('★ 모든 낱말이 한 칸씩 ★', cells === ALL_WORDS.length, `${cells} / ${ALL_WORDS.length}`);
+ok('★ 전체를 고르면 모든 낱말이 한 칸씩 ★', cells === ALL_WORDS.length, `${cells} / ${ALL_WORDS.length}`);
 const cnt = (s) => page.locator(`.wmap .wmap-grid .wm-cell.s-${s}`).count();
 ok('본 것 · 외운 것 · 약점이 색으로 갈린다', await cnt('master') > 0 && await cnt('weak') > 0 && await cnt('l2') > 0 && await cnt('new') > 0);
 ok('요약에 만난 수가 맞다', (await page.locator('.wmap-sum').innerText()).includes(`${n5.length - 5} / ${ALL_WORDS.length}`), await page.locator('.wmap-sum').innerText());
