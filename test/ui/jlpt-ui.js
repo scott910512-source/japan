@@ -5,6 +5,9 @@ import { ALL_WORDS } from '../../src/data/allWords.js';
 
 /* N3 단어 수는 자료가 늘면 같이 는다 — 숫자를 못 박지 않고 자료에서 센다 */
 const N3_TOTAL = ALL_WORDS.filter((w) => w.level === 'N3').length;
+/* 낱말을 보충하면 수가 바뀐다(2026-11-16 N5 534 → 717) — 숫자를 박지 않고 자료에서 센다 */
+const N5_TOTAL = ALL_WORDS.filter((w) => w.level === 'N5').length;
+const N5_SETS = Math.ceil(N5_TOTAL / 100);
 const N3_SETS = Math.ceil(N3_TOTAL / 100);
 const N3_LAST = N3_TOTAL - (N3_SETS - 1) * 100;
 
@@ -76,7 +79,7 @@ const ok = (label, cond, extra) => {
     disabled: e.disabled,
   })));
   ok('레벨 5개 표시', levels.length === 5, levels.map((l) => l.badge).join(','));
-  ok('N5 준비됨', levels[0].sub.includes('534개') && levels[0].sub.includes('6세트'), levels[0].sub);
+  ok('N5 준비됨', levels[0].sub.includes(`${N5_TOTAL}개`) && levels[0].sub.includes(`${N5_SETS}세트`), levels[0].sub);
   ok('N3 준비됨', levels[2].sub.includes(`${N3_TOTAL}개`) && levels[2].sub.includes(`${N3_SETS}세트`), levels[2].sub);
   ok('N2 준비 중 + 비활성', levels[3].disabled && levels[3].sub.includes('준비 중'));
   ok('N1 준비 중 + 비활성', levels[4].disabled);
