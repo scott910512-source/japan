@@ -227,11 +227,17 @@ export default function Log({
         )}
         {/* 한 줄에 세는 범위를 맞춘다. 셋 다 단어·문장을 같이 센다. */}
         <div className="ms-head">전체</div>
+        {/* ★ 세 칸 모두 단어만 ★ (2026-11-17 QA B09) 「본 것」에 문장까지 섞어 41, 홈 「본 단어」 40,
+            단어 지도 「만남」 35로 화면마다 달랐다. 단어 수는 summarize(stat) 한 곳에서 — 홈 · 지도와 같은 숫자다.
+            문장은 아래 한 줄로 따로 적는다 */}
         <div className="logweek">
-          <div className="lw-cell"><b>{totalSeen.seen}</b><span>한 번이라도 본 것</span></div>
-          <div className="lw-cell"><b>{totalSeen.done}</b><span>외운 것</span></div>
+          <div className="lw-cell"><b>{stat.seen}</b><span>본 단어</span></div>
+          <div className="lw-cell"><b>{stat.mastered}</b><span>외운 단어</span></div>
           <div className="lw-cell"><b>{stat.total - stat.seen}</b><span>아직 안 본 단어</span></div>
         </div>
+        {totalSeen.seen > stat.seen && (
+          <div className="ms-line">단어 말고 문장 · 문법 카드도 <b>{totalSeen.seen - stat.seen}</b>개 봤어요</div>
+        )}
         <div className="set-note" style={{ marginTop: 8 }}>
           판정 횟수는 카드를 몇 번 만났는지예요. 기억 단계는 복습일의 판정으로만 올라요.
           {grammarLeft > 0 && ' 오늘의 문법은 선택이라 카드 수에 안 들어가요.'}

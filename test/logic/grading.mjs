@@ -128,5 +128,12 @@ ok('조사가 둘이어도 각각 바꾼다', spokenKana('わたしはえきへ�
 ok('읽기와 원문이 안 맞으면 읽기를 그대로 돌려준다', spokenKana('ぜんぜんちがう', '私は学生です。') === 'ぜんぜんちがう');
 ok('원문이 없거나 한자가 없으면 그대로', spokenKana('こんにちは', '') === 'こんにちは' && spokenKana('こんにちは', 'こんにちは') === 'こんにちは');
 
+/* QA B08: 자료에 없는 한국어 뜻은 「맞게 처리하기」를 묻되, 낱말이 아닌 것(ㅋㅋㅋ)은 묻지 않는다 */
+{
+  const kaesu = { id: 'qa-kaesu', kanji: '返す', kana: 'かえす', mean: '돌려주다', level: 'N4' };
+  ok('자료에 없는 한국어 뜻(반납하다)은 맞게 처리할지 묻는다', judgeTyping(kaesu, 'jp-ko', '반납하다').canAccept === true);
+  ok('「ㅋㅋㅋ」는 묻지 않고 그냥 틀림', judgeTyping(kaesu, 'jp-ko', 'ㅋㅋㅋ').verdict === 'wrong' && !judgeTyping(kaesu, 'jp-ko', 'ㅋㅋㅋ').canAccept);
+}
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

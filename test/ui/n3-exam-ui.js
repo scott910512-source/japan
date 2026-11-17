@@ -22,6 +22,8 @@ const ok = (l, c, e) => {
 const FIXED = new Map([...GRAMMAR_QUESTIONS, ...READING_QUESTIONS, ...LISTENING_QUESTIONS, ...EXAM_QUESTIONS].map((q) => [q.id, q.answer]));
 
 /* 실전 모드는 고르면 바로 넘어간다 — 「다음」이 없다 */
+/* 정답이 몇 번째 보기에 있었나(0부터) — 「1번만 누르면 다 맞는」 시험이 아닌지 본다(QA B01) */
+const ANS_AT = [];
 async function solveExam(page, { max = 80, wrongEvery = 0, sec = null, passage = null } = {}) {
   const seen = [];
   for (let i = 0; i < max; i += 1) {
@@ -40,6 +42,7 @@ async function solveExam(page, { max = 80, wrongEvery = 0, sec = null, passage =
     let target = null;
     for (let j = 0; j < n; j += 1) {
       const opt = await opts.nth(j).getAttribute('data-opt');
+      if (opt === ans && n >= 3) ANS_AT.push(j);
       if (wrong ? opt !== ans : opt === ans) { target = opts.nth(j); break; }
     }
     await (target || opts.first()).click();
@@ -130,7 +133,7 @@ const n3of = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp_m
   ok('다 들으면 문제로 갈 수 있다', !(await page.locator('.n3-toq').isDisabled()));
   await page.locator('.n3-toq').click();
   await page.locator('.n3-quiz').waitFor();
-  ok('문제 하나, 보기 셋, 스크립트는 아직 숨김', await page.locator('.n3-quiz .qopt').count() === 3 && await page.locator('.n3-script').count() === 0);
+  ok('문제 하나, 보기 넷(JLPT처럼 4지선다 · QA B10), 스크립트는 아직 숨김', await page.locator('.n3-quiz .qopt').count() === 4 && await page.locator('.n3-script').count() === 0);
   const ans = FIXED.get(await page.locator('.n3-quiz').getAttribute('data-qid'));
   await page.locator(`.n3-quiz .qopt[data-opt="${ans}"]`).click();
   await page.waitForTimeout(400);
@@ -188,6 +191,10 @@ const n3of = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('jp_m
   await page.locator('.n3-examresult').waitFor({ timeout: 10000 });
   const pct = Number(await page.locator('.n3-examresult').getAttribute('data-pct'));
   ok('★ 결과 — 영역별 막대 넷, 전체 정답률 ★', await page.locator('.n3-examresult .n3-bar').count() === 4 && pct > 50 && pct < 100, `${pct}%`);
+  /* ★ 1번만 누르기 ★ 보기를 섞기 전에는 정답이 늘 첫 보기라, 1번만 눌러도 100%였다(QA B01). 이제 4지선다면 25% 언저리 */
+  const firstShare = ANS_AT.length ? ANS_AT.filter((j) => j === 0).length / ANS_AT.length : 1;
+  ok('★ 1번만 누르면 거의 못 맞힌다 — 정답 자리가 섞여 있다 ★', ANS_AT.length >= 30 && firstShare < 0.5 && new Set(ANS_AT).size >= 3,
+    `${ANS_AT.length}문제 중 1번이 정답 ${Math.round(firstShare * 100)}%`);
   ok('틀린 문제 해설이 붙는다', await page.locator('.n3-examresult .n3-wrongcard').count() >= 5);
   await page.locator('.n3-done').click();
   await page.locator('.n3-curriculum').waitFor();

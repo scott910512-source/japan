@@ -8,13 +8,16 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
   const groups = useMemo(() => buildWordMap(words, review, ledger, { first }), [words, review, ledger, first]);
   /* 처음엔 지금 공부 중인 레벨 하나만 — 전체(2천7백 칸)를 다 펼치면 폰에서 몇 화면을 내려야 한다.
      공부 중인 레벨 = 아직 안 본 낱말이 남은 첫 레벨(N5 → N4 → N3) */
-  const [level, setLevel] = useState(() => (groups.find((g) => g.counts.new > 0) || groups[0])?.level || 'all');
+  const [level, setLevel] = useState(() => (groups.find((g) => g.counts.fresh > 0) || groups[0])?.level || 'all');
   const [picked, setPicked] = useState(null);
   const shown = level === 'all' ? groups : groups.filter((g) => g.level === level);
   const counts = totalCounts(shown);
   const total = shown.reduce((n, g) => n + g.cells.length, 0);
-  const touched = total - counts.new;
+  /* 만남 = 한 번이라도 본 낱말(홈 「본 단어」 · 기록 「본 단어」와 같은 셈). 시험에서만 틀린 낱말은 안 센다 */
+  const touched = counts.seen;
   const label = Object.fromEntries(MAP_STATES.map((s) => [s.id, s.label]));
+  /* 범례는 기록 화면 「기억 수준」과 같은 단계 · 같은 이름. 장기복습 · 이미 알아요는 있을 때만 */
+  const legend = MAP_STATES.filter((s) => !['long', 'self'].includes(s.id) || counts[s.id] > 0);
   /* ★ 가장 약한 10개 ★ 지금 보는 묶음(레벨 탭)에서 약점 점수가 높은 순서(lib/weak.js weakRank — 금방 잊은 것 >
      잊은 것 > 몰라요 · 시험 오답 > 애매해요). 「이 10개 반복 학습」으로 바로 한 판 */
   const top = useMemo(() => {
@@ -32,16 +35,18 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
         ))}
       </div>
       <div className="wmap-sum">
-        <b>{touched}</b> / {total}개 만남 · 외움 <b>{counts.master}</b> · 약점 <b>{counts.weak}</b>
+        <b>{touched}</b> / {total}개 만남 · 익숙함 <b>{counts.done + counts.long}</b> · 약점 <b>{counts.weak}</b>
       </div>
       <div className="wmap-legend">
-        {MAP_STATES.map((s) => (
+        {legend.map((s) => (
           <span key={s.id} className="wl-item"><i className={`wm-cell s-${s.id}`} />{s.label} {counts[s.id]}</span>
         ))}
+        {/* 약점은 단계가 아니라 덧칠 — 약점인 칸도 위 단계 개수에 들어 있다 */}
+        <span className="wl-item"><i className="wm-cell s-weak" />약점 {counts.weak}</span>
       </div>
       {shown.map((g) => (
         <div key={g.level} className="wmap-group">
-          {level === 'all' && <div className="wmap-lv">{g.level} <small>{g.cells.length - g.counts.new} / {g.cells.length}</small></div>}
+          {level === 'all' && <div className="wmap-lv">{g.level} <small>{g.counts.seen} / {g.cells.length}</small></div>}
           {/* 칸은 단추가 아니라 작은 점이다(눌러서 보는 건 덤) — 2천 개의 단추를 만들지 않고 줄 하나가 누른 칸을 알아낸다 */}
           <div className="wmap-grid" onClick={(e) => {
             const id = e.target?.dataset?.id;
@@ -50,8 +55,8 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
             setPicked(picked?.id === id ? null : c);
           }}>
             {g.cells.map((c) => (
-              <i key={c.id} data-id={c.id} className={`wm-cell s-${c.state}${picked?.id === c.id ? ' on' : ''}`}
-                title={`${c.jp} · ${c.mean} · ${label[c.state]}`} />
+              <i key={c.id} data-id={c.id} className={`wm-cell s-${c.state}${c.weak ? ' s-weak' : ''}${picked?.id === c.id ? ' on' : ''}`}
+                title={`${c.jp} · ${c.mean} · ${label[c.state]}${c.weak ? ' · 약점' : ''}`} />
             ))}
           </div>
         </div>
@@ -81,6 +86,7 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
           {picked.kana && picked.kana !== picked.jp && <span lang="ja">{picked.kana}</span>}
           <span>{picked.mean}</span>
           <em className={`wm-tag s-${picked.state}`}>{label[picked.state]}</em>
+          {picked.weak && <em className="wm-tag s-weak">약점</em>}
         </div>
       ) : (
         <div className="set-note">칸을 누르면 그 단어가 보여요. 왼쪽 위부터 새로 배우기가 고르는 차례(기출 먼저)예요.</div>

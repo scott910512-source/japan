@@ -46,6 +46,7 @@ function answerOf(qid) {
 }
 
 /* 문제를 끝까지 푼다. wrongAt에 든 번째(0부터)는 일부러 틀린다. */
+const REORDERED = [];
 async function solve(page, { wrongAt = [], max = 40 } = {}) {
   const seen = [];
   const noInfo = [];
@@ -68,8 +69,12 @@ async function solve(page, { wrongAt = [], max = 40 } = {}) {
       const isAns = opt === ans;
       if (wrongAt.includes(seen.length - 1) ? !isAns : isAns) { target = opts.nth(j); break; }
     }
+    const before = await opts.evaluateAll((els) => els.map((e) => e.dataset.opt).join('|'));
     await (target || opts.first()).click();
     await page.waitForTimeout(350);
+    /* 답을 고른 뒤 다시 그려져도 보기 자리가 그대로여야 한다(섞기는 문제마다 한 번) */
+    if (await runner.count() && (await runner.getAttribute('data-qid')) === qid
+      && (await opts.evaluateAll((els) => els.map((e) => e.dataset.opt).join('|'))) !== before) REORDERED.push(qid);
     const next = page.locator('.n3-next');
     if (readingQuestion && await next.count()) ok('채점 후에는 정답 발음을 들을 수 있다', await runner.locator('.n3-answer-spk').count() === 1);
     /* 답을 낸 뒤에는 보기 줄 오른쪽에 읽기 · 뜻 · 듣기가 붙는다(어휘·한자는 🔊까지) */
@@ -246,7 +251,8 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   ok('문법 문제를 다 풀었다', gq.length >= 3 && gq.every((id) => id.startsWith('q:wa-ga')));
   await page.locator('.n3-done').click();
   await page.locator('.n3-recap').waitFor();
-  ok('복습 단계 — 한 줄 정리와 판정', (await page.locator('.n3-recap').innerText()).includes('알아요'));
+  await page.waitForFunction(() => /맞혔어요/.test(document.querySelector('.n3-recap .set-note')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
+  ok('복습 단계 — 한 줄 정리와 판정', (await page.locator('.n3-recap').innerText()).includes('알아요'), (await page.locator('.n3-recap .set-note').innerText()).slice(0, 80));
   await page.locator('.n3-finish-btn').click();
   await page.locator('.n3-today').waitFor();
   const n3b = await n3of(page);
@@ -372,6 +378,7 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   ok('페이지 오류 없음', errors.length === 0, errors.join(' | ').slice(0, 200) || '없음');
   ok('가로 넘침 없음', !(await overflow(page)));
 
+  ok('★ 답을 고른 뒤 보기 자리가 안 바뀐다 ★', REORDERED.length === 0, REORDERED.slice(0, 3).join(', ') || '그대로');
   await browser.close();
   console.log(`\n통과 ${pass} / 실패 ${fail}`);
   process.exit(fail ? 1 : 0);

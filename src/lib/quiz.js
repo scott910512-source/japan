@@ -120,11 +120,21 @@ export function judgeTyping(word, dir, input) {
   if (!raw) return { verdict: 'wrong' };
 
   if (dir === QUIZ_DIR.KO_JP) {
+    /* ★ 로마자로 쳤으면 채점하지 않고 안내만 ★ (QA B11 — 「KAESU」에 「길이가 다르면 다른 낱말」이라는 엉뚱한 해설이 나왔다) */
+    if (/^[A-Za-z\s'-]+$/.test(raw)) return { verdict: 'invalid', why: '일본어(가나 · 한자)로 입력해 주세요. 로마자는 채점하지 않아요.' };
     const accepted = acceptedJp(word);
-    const mine = normalizeJp(raw);
+    let mine = normalizeJp(raw);
     if (!mine) return { verdict: 'wrong' };
+    /* な형용사에 だ · な · です를 붙여 써도 같은 답(QA B08 — 뜻이 「유명하다」로 보여서 有名だ라고 쓰게 된다) */
+    if (word?.type === 'adj-na') mine = mine.replace(/(です|だ|な)$/, '') || mine;
 
-    if (accepted.some((a) => normalizeJp(a) === mine)) return { verdict: 'correct' };
+    if (accepted.some((a) => normalizeJp(a) === mine)) {
+      /* 히라가나 낱말을 가타카나로 쓴 것은 맞게 치되 표기를 알려 준다(QA B12) */
+      const kataOnly = /^[\u30a0-\u30ffー]+$/.test(raw.replace(/(です|だ|な)$/, ''));
+      const hasKata = accepted.some((a) => /[\u30a0-\u30ff]/.test(a));
+      if (kataOnly && !hasKata) return { verdict: 'correct', note: `표기 주의 — 보통 「${word.kana || word.kanji}」처럼 히라가나로 써요` };
+      return { verdict: 'correct' };
+    }
     /* ★ 정중한 접두사 お · ご ★ 「물」을 お水(おみず)라고 쓰는 건 틀린 게 아니다. 낱말 앞에 お · ご를 붙인 것은 같은 낱말로 본다.
        (반대로 おとな의 お를 떼는 것은 받지 않는다 — 접두사가 아니라 낱말의 일부다.) */
     if (/^[おご御]/.test(mine)) {
@@ -161,7 +171,11 @@ export function judgeTyping(word, dir, input) {
     }
     return { verdict: 'close' };
   }
-  return { verdict: 'wrong' };
+  /* 한국어 뜻은 같은 말을 여러 가지로 쓴다(돌려주다 · 반납하다). 자료에 없는 말이면 틀렸다고 단정하지 않고
+     「내 답도 같은 뜻이면 맞게 처리」를 고를 수 있게 한다(QA B08) — 화면이 canAccept를 보고 단추를 낸다 */
+  /* 다만 「ㅋㅋㅋ」 · 「?」처럼 낱말이 아닌 것까지 묻지는 않는다 — 완성된 한글 두 글자 이상일 때만 */
+  const syllables = (mine.match(/[가-힣]/g) || []).length;
+  return syllables >= 2 ? { verdict: 'wrong', canAccept: true } : { verdict: 'wrong' };
 }
 
 /* 옛 이름 — 화면 여러 곳이 문자열 하나를 기대한다 */

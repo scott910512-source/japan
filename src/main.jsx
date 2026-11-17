@@ -8,6 +8,12 @@ import './index.css';
 import { isBusy } from './lib/busy.js';
 import { updateGate, waitingLabel, WHY } from './lib/swgate.js';
 import { installTapGuard } from './lib/tapguard.js';
+import { reloadForNewVersion } from './components/ScreenSlot.jsx';
+
+/* 화면 파일을 미리 받다 실패한 것(배포 뒤 옛 이름)도 한 번 새로 불러온다 — ScreenSlot.jsx 참고 */
+window.addEventListener('vite:preloadError', (event) => {
+  if (reloadForNewVersion(event?.payload || 'Failed to fetch dynamically imported module')) event.preventDefault();
+});
 
 /* 같은 자리를 0.2초 안에 또 누른 것은 한 번으로 본다 — 손이 튀어 두 번 눌린 것이 판정으로 적히지 않게 */
 installTapGuard(window);

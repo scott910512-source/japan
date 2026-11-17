@@ -7,11 +7,30 @@ export function ScreenLoading({ label = '화면을 준비하고 있어요' }) {
   </div>;
 }
 
+/* ★ 새 버전이 나간 뒤 열어 둔 화면에서 옛 화면 파일(청크)이 404 ★ (2026-11-17 QA B04)
+ * 배포하면 파일 이름(해시)이 바뀌어서, 전에 연 탭에서 처음 여는 화면은 옛 이름으로 받으러 가다 실패한다.
+ * 그건 고장이 아니라 「새 버전이 있다」는 뜻이라 한 번 자동으로 새로 불러온다. 같은 탭에서 1분 안에 또 실패하면
+ * (정말로 연결이 안 되는 것) 되풀이하지 않고 아래 「다시 불러오기」를 보여 준다 — 무한 새로고침을 막는다. */
+const CHUNK_FAIL = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk|ChunkLoadError|Unable to preload CSS/i;
+const RELOAD_KEY = 'jp_chunk_reload_at';
+export function reloadForNewVersion(err, { now = Date.now(), storage = globalThis.sessionStorage, reload = () => window.location.reload() } = {}) {
+  if (!CHUNK_FAIL.test(String(err?.message || err || ''))) return false;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+  let last = 0;
+  try { last = Number(storage?.getItem(RELOAD_KEY)) || 0; } catch { /* 저장 못 하면 한 번만 시도 */ }
+  if (last && now - last < 60000) return false;
+  try { storage?.setItem(RELOAD_KEY, String(now)); } catch { /* 무시 */ }
+  reload();
+  return true;
+}
+
 // 업데이트 뒤 이전 청크가 사라져도 빈 화면으로 끝내거나 기록을 지우지 않는다.
 class ScreenErrorBoundary extends Component {
   state = { failed: false };
 
   static getDerivedStateFromError() { return { failed: true }; }
+
+  componentDidCatch(err) { reloadForNewVersion(err); }
 
   render() {
     if (this.state.failed) return <div className="screen-feedback" role="alert">

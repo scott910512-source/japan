@@ -80,11 +80,15 @@ async function boot(browser, autoTTS) {
     const rawId = await run.getAttribute('data-id');
     const qid = `${rawId}|${await page.locator('.st-q .qc-prompt').textContent()}`;
     const kind = await page.locator('.st-q').innerText();
-    const jpPrompt = /뜻을 고르세요/.test(kind);
-    const koPrompt = /일본어로 뭘까요/.test(kind);
+    const jpPrompt = /뜻을 (고르|입력하)세요/.test(kind);
+    const koPrompt = /일본어로 (뭘까요|입력하세요)/.test(kind);
     if (jpPrompt && !jpQs.has(qid)) { jpQs.add(qid); if (await spokenBefore(qid)) sawJp = true; }
     if (koPrompt && !koQs.has(qid)) { koQs.add(qid); if (await spokenBefore(qid)) koLeak = true; else sawKo = true; }
-    if ((await run.getAttribute('data-mode')) === 'typing') { await page.locator('.st-input').fill('ㅋㅋㅋ'); await page.locator('.st-submit').click(); }
+    if ((await run.getAttribute('data-mode')) === 'typing') {
+      await page.locator('.st-input').fill('ㅋㅋㅋ'); await page.locator('.st-submit').click();
+      await page.waitForTimeout(200);
+      if (await page.locator('.st-reject').count()) await page.locator('.st-reject').click();   // 「맞게 처리하기」를 물으면 틀린 걸로
+    }
     else await page.locator('.st-opt').last().click();
     await page.waitForTimeout(600);
     if (await page.locator('.ex-kana').count()) sawKana = true;
