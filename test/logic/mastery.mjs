@@ -15,6 +15,7 @@ import {
   isDoneEnough, isSessionClear, migrateState, intervalOf, MASTER_STREAK, VERDICT,
   addDays, nextReviewLabel, selfKnownLabel, MASTERY_RULE,
 } from '../../src/lib/review.js';
+import { KEEP_DAYS, addDays as addDaysR } from '../../src/lib/review.js';
 import { roundOf, stageOf, roundSummary } from '../../src/lib/rounds.js';
 
 let pass = 0; let fail = 0;
@@ -50,7 +51,7 @@ console.log('\n[ 날짜를 두고 확인하면 오른다 ]');
     day = st.due;                 // 복습일에 맞춰 다시 온다
   }
   ok('네 번 만에 졸업', isMastered(st), log.join(' '));
-  ok('간격이 벌어진다', dueDate(st) === '2026-10-16', dueDate(st));
+  ok('간격이 벌어진다(1 · 3 · 7 · 14일)', dueDate(st) === '2026-09-30', dueDate(st));
   ok('회독 수와 level이 같다', roundOf(st) === MASTER_STREAK);
   ok('단계는 완료', stageOf(st) === 'done');
 }
@@ -134,7 +135,9 @@ console.log('\n[ ★ 필수 회귀 9 — 옛 기록을 손상시키지 않는다
 console.log('\n[ 간격표 ]');
 ok('1회독 하루', intervalOf(1) === 1);
 ok('2회독 사흘', intervalOf(2) === 3);
-ok('4회독 한 달', intervalOf(4) === 30);
+ok('3회독 일주일', intervalOf(3) === 7);
+ok('★ 4회독(외움) 2주 ★', intervalOf(4) === 14);
+ok('5회독 한 달', intervalOf(5) === 30);
 ok('졸업 뒤에도 계속 만난다', intervalOf(9) === 180, `${intervalOf(9)}`);
 
 console.log('\n[ ★ 안내 문구는 실제 복습일에서 만든다 ★ ]');
@@ -181,5 +184,11 @@ console.log('\n[ ★ 완료 규칙을 한자리 반복으로 설명하지 않는
   ok('필요한 횟수를 말한다', MASTERY_RULE.includes(String(MASTER_STREAK)));
 }
 
+/* ★ 맨 위 단계에서 또 맞히면 석 달 뒤 ★ — 같은 30일을 되풀이하지 않는다 */
+{
+  let st = emptyState(); let day = D0;
+  for (let i = 0; i < 6; i++) { st = applyVerdict(st, K, day); if (i < 5) day = st.due; }
+  ok('★ 5단계에서 또 맞히면 석 달 뒤 ★', st.level === 5 && st.due === addDays(day, KEEP_DAYS), `${st.level} ${day} → ${st.due}`);
+}
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

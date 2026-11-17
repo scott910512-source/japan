@@ -21,7 +21,7 @@ import Onboarding from './components/Onboarding.jsx';
 import Today from './screens/Today.jsx';
 import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
-import { dailyPool, mixFresh } from './lib/cards.js';
+import { dailyPool, mixFresh, dedupeSentences } from './lib/cards.js';
 import { kijuIndex } from './lib/kiju.js';
 import { hasSignedInOnce, isGuest, setGuest } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
@@ -225,7 +225,8 @@ export default function App() {
   // 오늘 학습 덱만 daily로 표시한다 — 복습 섞기 + 신규로 세션을 짜라는 뜻.
   /* 오늘의 학습 — 앱이 짜 준 큐 하나로 단어와 문장을 같이 돈다.
      문장은 카드 모양으로 감싸 두면 회독 화면이 그대로 받는다. */
-  const sentenceCards = useMemo(() => content?.sentenceCards || [], [content]);
+  /* 같은 일본어 문장은 하나만(lib/cards.js dedupeSentences) — 이미 공부한 쪽이 남는다 */
+  const sentenceCards = useMemo(() => dedupeSentences(content?.sentenceCards || [], review), [content, review]);
   /* 목적에 따라 차례를 바꿀 때 문장이 어느 상황인지 알아야 한다 —
      「여행」이면 주문·결제·길 찾기·숙소를 먼저 배정한다. */
   const sentById = useMemo(() => new Map(sentenceCards.map((c) => [c.id, c])), [sentenceCards]);
@@ -238,7 +239,11 @@ export default function App() {
   /* 기출부터 배운다 — 열여섯 해 한자읽기에 나온 205개(lib/kiju.js).
      자료 차례가 아니라 「실제로 나온 적 있는가」가 새 단어의 순서를 정한다.
      레벨 필터는 그대로다. 고르지 않은 레벨의 기출까지 끌어오지는 않는다. */
-  const kijuFirst = useMemo(() => new Set(kijuIndex(words).keys()), [words]);
+  /* 기출 다음으로 N3 최신 경향 낱말(tags '최신경향')도 앞으로 — 최근 시험에 자주 나오는 것부터 (2026-11-17) */
+  const kijuFirst = useMemo(() => new Set([
+    ...kijuIndex(words).keys(),
+    ...words.filter((w) => (w.tags || []).includes('최신경향')).map((w) => w.id),
+  ]), [words]);
   /* 고른 레벨에 새 낱말이 스무 개도 안 남았으면 다음 레벨까지 — 새로 배우기가 비거나 매일 같은 것만 돌지 않게 */
   const planLevels = useMemo(() => levelsForFresh(words, settings.levels, review, FRESH_MIN, progress.weak), [words, settings.levels, review, progress.weak]);
   const todayPool = useMemo(() => {
@@ -840,6 +845,11 @@ export default function App() {
 
           <Log
             words={words}
+            /* 단어 지도의 「가장 약한 10개 반복 학습」 — 그 낱말들로 한 판(모를 때까지 다시 나온다) */
+            onStudyIds={(ids) => {
+              const cards = ids.map((id) => byId.get(id)).filter(Boolean);
+              if (cards.length) guardDeck(() => startJlptSet(cards, `약점 TOP ${cards.length}`, 'map:weak-top'), 'map:weak-top');
+            }}
             weakLedger={progress.weak}
             kijuFirst={kijuFirst}
             review={review}

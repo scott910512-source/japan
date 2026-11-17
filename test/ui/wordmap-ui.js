@@ -15,12 +15,18 @@ let pass = 0, fail = 0;
 const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefined ? '— ' + e : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? '— ' + e : ''); } };
 
 const today = new Date().toISOString().slice(0, 10);
-const n5 = ALL_WORDS.filter((w) => w.level === 'N5');
+/* 문법 카드(grammar: true)는 레벨 묶음이 아니라 「문법」 묶음이다 */
+const n5 = ALL_WORDS.filter((w) => w.level === 'N5' && !w.grammar);
 /* N5를 거의 다 본 사람 — 안 본 N5가 5개뿐이다(새로 배우기가 N4로 넘어가야 한다) */
 const review = {};
 n5.slice(0, n5.length - 5).forEach((w, i) => {
   const lv = i % 6;
   review[w.id] = { lastSeen: '2026-11-01', seenAt: 1, level: lv === 5 ? 4 : lv, rounds: 3, wrongCount: i % 17 === 0 ? 5 : 0, vagueCount: 0, due: '2026-12-30' };
+});
+
+/* N5 문법 카드도 이미 본 것으로 — 이 사람은 N5를 거의 다 했다(남은 건 낱말 5개뿐) */
+ALL_WORDS.filter((w) => w.level === 'N5' && w.grammar).forEach((w) => {
+  review[w.id] = { lastSeen: '2026-11-01', seenAt: 1, level: 2, rounds: 3, wrongCount: 0, vagueCount: 0, due: '2026-12-30' };
 });
 
 const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
@@ -61,13 +67,22 @@ const cells = await page.locator('.wmap .wmap-grid .wm-cell').count();
 ok('★ 전체를 고르면 모든 낱말이 한 칸씩 ★', cells === ALL_WORDS.length, `${cells} / ${ALL_WORDS.length}`);
 const cnt = (s) => page.locator(`.wmap .wmap-grid .wm-cell.s-${s}`).count();
 ok('본 것 · 외운 것 · 약점이 색으로 갈린다', await cnt('master') > 0 && await cnt('weak') > 0 && await cnt('l2') > 0 && await cnt('new') > 0);
-ok('요약에 만난 수가 맞다', (await page.locator('.wmap-sum').innerText()).includes(`${n5.length - 5} / ${ALL_WORDS.length}`), await page.locator('.wmap-sum').innerText());
+ok('요약에 만난 수가 맞다', (await page.locator('.wmap-sum').innerText()).includes(`${n5.length - 5 + ALL_WORDS.filter((w) => w.level === 'N5' && w.grammar).length} / ${ALL_WORDS.length}`), await page.locator('.wmap-sum').innerText());
 await page.locator('.wmap-tabs .chip', { hasText: 'N5' }).click();
 await page.waitForTimeout(200);
 ok('레벨 탭으로 걸러 본다', await page.locator('.wmap .wmap-grid .wm-cell').count() === n5.length);
 await page.locator('.wmap .wmap-grid .wm-cell').first().click();
 await page.waitForTimeout(150);
 ok('★ 칸을 누르면 그 낱말이 뜬다 ★', await page.locator('.wmap-pick').count() === 1 && (await page.locator('.wmap-pick b').innerText()).length > 0, await page.locator('.wmap-pick').innerText().catch(() => ''));
+console.log('\n[ 가장 약한 TOP 10 · 반복 학습 ]');
+const topRows = await page.locator('.wmap-top-row').count();
+ok('★ 가장 약한 단어 TOP 10이 보인다 ★', topRows > 0 && topRows <= 10, `${topRows}줄`);
+await page.locator('.wmap-top-row').first().click();
+await page.waitForTimeout(150);
+ok('줄을 누르면 그 낱말이 아래에 뜬다', await page.locator('.wmap-pick').count() === 1);
+await page.locator('.wmap-top-go').click();
+await page.waitForTimeout(1200);
+ok('★ 「반복 학습」을 누르면 그 낱말들로 한 판이 열린다 ★', await page.locator('.studycard, .study.intro').count() >= 1);
 ok('오류 없음', errors.length === 0, errors[0]);
 
 await browser.close();

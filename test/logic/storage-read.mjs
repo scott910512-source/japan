@@ -28,17 +28,25 @@ ok('멀쩡한 값은 그대로 읽는다', loadReview().a?.box === 1);
 mem.set(KEYS.settings, JSON.stringify({ goals: { fresh: 8, review: 9, weak: 3 } }));
 {
   const g = loadSettings().goals;
-  ok('★ 옛 설정은 새 수량으로 맞춰진다 ★', g.review === 30 && g.fresh === 20 && g.weak === 3, JSON.stringify(g));
+  ok('★ 옛 설정은 새 수량으로 맞춰진다 ★', g.review === 50 && g.fresh === 20 && g.weak === 3, JSON.stringify(g));
 }
-mem.set(KEYS.settings, JSON.stringify({ goals: { fresh: 5, review: 12, weak: 2 }, goalsV: 3 }));
+mem.set(KEYS.settings, JSON.stringify({ goals: { fresh: 5, review: 12, weak: 2 }, goalsV: 4 }));
 {
   const g = loadSettings().goals;
   ok('★ 새 번호가 적힌 뒤 직접 바꾼 값은 지킨다 ★', g.review === 12 && g.fresh === 5 && g.weak === 2, JSON.stringify(g));
 }
+/* 판 3 → 4(2026-11-17): 복습만 50까지 한 번 올리고, 새로 · 약점은 그 사람이 고른 값 그대로 */
+mem.set(KEYS.settings, JSON.stringify({ goals: { fresh: 5, review: 12, weak: 2 }, goalsV: 3 }));
+{
+  const g = loadSettings().goals;
+  ok('★ 판 3 설정은 복습만 50으로 ★', g.review === 50 && g.fresh === 5 && g.weak === 2, JSON.stringify(g));
+}
+mem.set(KEYS.settings, JSON.stringify({ goals: { fresh: 5, review: 80, weak: 2 }, goalsV: 3 }));
+ok('복습을 더 크게 골라 뒀으면 그대로', loadSettings().goals.review === 80);
 mem.set(KEYS.settings, JSON.stringify({ dailyGoal: 15 }));
-ok('옛 숫자 하나(dailyGoal)도 새 수량으로', loadSettings().goals.review === 30);
+ok('옛 숫자 하나(dailyGoal)도 새 수량으로', loadSettings().goals.review === 50);
 mem.delete(KEYS.settings);
-ok('설정이 없으면 기본값이 새 수량', loadSettings().goals.review === 30 && loadSettings().goalsV === 3);
+ok('설정이 없으면 기본값이 새 수량', loadSettings().goals.review === 50 && loadSettings().goalsV === 4);
 ok('★ 시험 방향의 기본은 양방향이다 ★', loadSettings().quizDir === 'mix' && loadSettings().quizDirV === 1);
 mem.set(KEYS.settings, JSON.stringify({ quizDir: 'jp-ko' }));
 ok('★ 옛 설정의 「일본어 → 한국어」는 한 번 양방향으로 바뀐다 ★', loadSettings().quizDir === 'mix' && loadSettings().quizDirV === 1);

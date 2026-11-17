@@ -37,7 +37,7 @@ export const STAGES = [
   { id: 'round2', label: '확인 2단계', sub: '다른 날에 두 번 확인했어요' },
   { id: 'round3', label: '확인 3단계', sub: '한 번만 더 확인하면 익숙함이에요' },
   { id: 'done', label: '익숙함', sub: `복습일에 ${MASTER_STREAK}번 확인했어요` },
-  { id: 'long', label: '장기복습', sub: '한 달 · 석 달 · 반년에 한 번씩' },
+  { id: 'long', label: '장기복습', sub: '2주 · 한 달 · 석 달에 한 번씩' },
   /* 앱이 확인한 적은 없다. 「이미 알아요」로 사용자가 직접 뺀 것이라
      검증된 완료와 같은 칸에 세지 않는다. */
   { id: 'self', label: '이미 알아요', sub: '내가 직접 뺀 것 — 앱이 확인한 건 아니에요' },

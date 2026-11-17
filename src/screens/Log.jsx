@@ -51,7 +51,7 @@ function monthGrid(year, month) {
 const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', reading: '독해', listening: '청해' };
 
 export default function Log({
-  words = [], weakLedger = null, kijuFirst = null,
+  words = [], weakLedger = null, kijuFirst = null, onStudyIds = null,
   review, stats, streak, grammarLeft, stat, rounds,
   n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenQuiz, onOpenWrong, wrongCount = 0, onOpenWeak, weakGrammar = 0, reviewLeft = 0,
 }) {
@@ -295,7 +295,7 @@ export default function Log({
           하나는 얼마나 남아 있나다. */}
       {/* ★ 전체 단어 지도 ★ 모든 낱말을 한 칸씩 — 어디까지 왔고 어디가 비었는지 한눈에(lib/wordmap.js) */}
       <div className="section-label">전체 단어 지도</div>
-      <WordHeatmap words={words} review={review} ledger={weakLedger} first={kijuFirst} />
+      <WordHeatmap words={words} review={review} ledger={weakLedger} first={kijuFirst} onStudy={onStudyIds} />
 
       <div className="section-label">기억 수준</div>
       <div className="card roundstat">
@@ -317,7 +317,7 @@ export default function Log({
             규칙은 정책(review.js)이 한 문장으로 만들어 준다. */}
         <div className="set-note" style={{ marginTop: 8 }}>
           {MASTERY_RULE} 단계는 날짜를 나눈 확인이라, 한 판에서 여러 번 본 것과는
-          다릅니다. 익숙해진 뒤에도 한 달 · 석 달 · 반년에 한 번씩 다시 나와요 —
+          다릅니다. 익숙해진 뒤에도 2주 · 한 달 · 석 달에 한 번씩 다시 나와요 —
           그게 장기복습이에요.
         </div>
       </div>
