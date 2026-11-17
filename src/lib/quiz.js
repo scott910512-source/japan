@@ -173,7 +173,9 @@ export function judgeTyping(word, dir, input) {
   }
   /* 한국어 뜻은 같은 말을 여러 가지로 쓴다(돌려주다 · 반납하다). 자료에 없는 말이면 틀렸다고 단정하지 않고
      「내 답도 같은 뜻이면 맞게 처리」를 고를 수 있게 한다(QA B08) — 화면이 canAccept를 보고 단추를 낸다 */
-  return { verdict: 'wrong', canAccept: true };
+  /* 다만 「ㅋㅋㅋ」 · 「?」처럼 낱말이 아닌 것까지 묻지는 않는다 — 완성된 한글 두 글자 이상일 때만 */
+  const syllables = (mine.match(/[가-힣]/g) || []).length;
+  return syllables >= 2 ? { verdict: 'wrong', canAccept: true } : { verdict: 'wrong' };
 }
 
 /* 옛 이름 — 화면 여러 곳이 문자열 하나를 기대한다 */
