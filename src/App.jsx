@@ -3,7 +3,7 @@ import FeatureScreen from './app/FeatureScreen.jsx';
 import HunterAppHeader from './components/HunterAppHeader.jsx';
 import { StudyHub, Log, Study, Settings, Videos, NewPassword, ReviewHub } from './app/screens.js';
 import { DeferredScreen, ScreenLoading, ScreenSlot } from './components/ScreenSlot.jsx';
-import { filterByLevel, levelsForFresh } from './lib/wordFilters.js';
+import { filterByLevel, levelsForFresh, findSameWord } from './lib/wordFilters.js';
 import { FRESH_MIN } from './lib/daily.js';
 import { useAccountSync } from './app/useAccountSync.js';
 import { useAppNavigation } from './app/useAppNavigation.js';
@@ -189,6 +189,17 @@ export default function App() {
     return () => { alive = false; };
   }, []);
   const words = useMemo(() => [...(content?.words || []), ...customWords], [content, customWords]);
+  /* 낱말 담기는 한 군데서 — 이미 단어장에 있으면 다시 담지 않고 그 낱말을 돌려준다({ added: false, existing }).
+     부르는 쪽(AI 검색 · 번역 · 직접 추가)이 「이미 있어요」를 말할 수 있게 */
+  const wordsRef = useRef(words);
+  wordsRef.current = words;
+  const addWord = useCallback((w) => {
+    const existing = findSameWord(wordsRef.current, w) || wordsRef.current.find((x) => x.id === w?.id) || null;
+    if (existing) return { added: false, existing };
+    setCustomWords((prev) => (prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]));
+    wordsRef.current = [...wordsRef.current, w];   // 같은 판에서 바로 또 누르면 이미 있는 것으로
+    return { added: true, existing: null };
+  }, [setCustomWords]);
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
   const byId = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
   /* 오늘 날짜를 화면에 묶는다. 렌더 안에서 todayKey()를 부르기만 하면
@@ -700,9 +711,7 @@ export default function App() {
               onSaveMemo={saveMemo}
               asks={asks}
               onAsks={setAsks}
-              onAddWord={(w) => setCustomWords((prev) => (
-                prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
-              ))}
+              onAddWord={addWord}
               onReviewChange={applyReview}
               onFinished={(id, info) => {
                 markTried(deckStep(id));
@@ -747,9 +756,7 @@ export default function App() {
           settings={settings}
           asks={asks}
           onAsks={setAsks}
-          onAddWord={(w) => setCustomWords((prev) => (
-            prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
-          ))}
+          onAddWord={addWord}
           onToast={showToast}
           placement="top"
         />
@@ -899,9 +906,7 @@ export default function App() {
             active={activeTab === 'videos' && !sub}
             settings={settings}
             words={words}
-            onAddWord={(w) => setCustomWords((prev) => (
-              prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
-            ))}
+            onAddWord={addWord}
             onStartSet={startJlptSet}
             onToast={showToast}
             signedIn={Boolean(authSession?.user)}
@@ -961,6 +966,7 @@ export default function App() {
                   />
               ) : (
               <FeatureScreen
+                addWord={addWord}
                 storyStore={storyStore}
                 setStoryStore={setStoryStore}
                 asks={asks}
@@ -1067,9 +1073,7 @@ export default function App() {
         settings={settings}
         asks={asks}
         onAsks={setAsks}
-        onAddWord={(w) => setCustomWords((prev) => (
-          prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
-        ))}
+        onAddWord={addWord}
         onToast={showToast}
         /* 떠 있는 단추는 두지 않는다 — 아래 버튼과 퀘스트 줄의 오른쪽(진행 숫자 · 화살표)을 가렸다.
            어느 탭에서나 상단의 곤 얼굴이 연다(오늘 화면은 제 머리에, 다른 화면은 상단 바에). 창은 그대로 같은 것이다. */

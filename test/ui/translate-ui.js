@@ -26,7 +26,8 @@ const ANSWER = {
     { jp: 'これいくら？', yomi: 'これいくら？', ko: '이거 얼마임?', safe: '친구', note: '점원에게는 쓰지 마세요' },
     { jp: 'ヤバい', yomi: 'やばい', ko: '대박', safe: '안전', note: '좋을 때도 나쁠 때도' },
   ],
-  words: [{ jp: 'いくら', yomi: 'いくら', ko: '얼마', type: 'noun', level: 'N5' }],
+  /* いくら는 기본 단어장에 있다 — 담으면 「이미 있어요」. 値切る는 없다 — 담긴다 */
+  words: [{ jp: '値切る', yomi: 'ねぎる', ko: '값을 깎다', type: 'noun', level: 'N5' }, { jp: 'いくら', yomi: 'いくら', ko: '얼마', type: 'noun', level: 'N5' }],
 };
 
 const boot = async (page, patch = {}) => {
@@ -155,7 +156,7 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   const t1 = await toast(page);
   ok('단어장에 담김', t1.includes('단어장에 담았어요'), t1);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_custom_words_v1') || '[]'));
-  ok('원래 쓰던 카드 모양으로 담김', saved[0]?.kanji === 'いくら' && saved[0]?.mean === '얼마', JSON.stringify(saved[0]));
+  ok('원래 쓰던 카드 모양으로 담김', saved[0]?.kanji === '値切る' && saved[0]?.mean === '값을 깎다', JSON.stringify(saved[0]));
   ok('레벨·품사가 붙음', saved[0]?.level === 'N5' && saved[0]?.type === 'noun');
 
   // 같은 단어를 또 담아도 안 늘어난다
@@ -163,6 +164,13 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   await page.locator('.tr-keep').first().click();
   await page.waitForTimeout(500);
   ok('같은 단어가 두 번 안 담김', (await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_custom_words_v1') || '[]'))).length === 1);
+  ok('★ 또 담으면 「이미 단어장에 있어요」 ★', (await toast(page)).includes('이미 단어장에 있어요'));
+  /* ★ 기본 단어장에 있는 낱말(いくら)은 담지 않고 이미 있다고 말한다 ★ (2026-11-17) */
+  await page.waitForTimeout(2300);
+  await page.locator('.tr-keep').nth(1).click();
+  const tBase = await toast(page);
+  ok('★ 기본 단어장에 있는 낱말은 「이미 단어장에 있어요(N5 단어)」 ★', tBase.includes('이미 단어장에 있어요') && tBase.includes('N5'), tBase);
+  ok('★ 기본 단어장 낱말은 내 단어에 또 안 생긴다 ★', (await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_custom_words_v1') || '[]'))).length === 1);
 
   // ── 같은 걸 또 물으면 다시 안 부른다 (요금) ──
   const before = (await page.evaluate(() => window._calls)).length;
@@ -238,15 +246,21 @@ const good = { candidates: [{ content: { parts: [{ text: JSON.stringify(ANSWER) 
   ok('어디까지 써도 되는지 붙음', safes2.includes('또래끼리만') && safes2.includes('누구에게나 OK'), safes2.join(' · '));
 
   // 담아서 회독으로 넘길 수 있다
+  /* それな는 이제 기본 단어장(일상회화)에 있다 — 담지 않고 「이미 있어요」. エモい는 없다 — 예문까지 담긴다 */
+  const keptBefore = (await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_custom_words_v1') || '[]'))).length;
   await page.locator('.tr-trendkeep').first().click();
   await page.waitForTimeout(600);
+  ok('★ 기본 단어장에 있는 요즘 말(それな)은 다시 안 담긴다 ★', (await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_custom_words_v1') || '[]'))).length === keptBefore);
+  await page.waitForTimeout(2300);
+  await page.locator('.tr-trendkeep').nth(1).click();
+  await page.waitForTimeout(600);
   const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_custom_words_v1') || '[]'));
-  ok('요즘 말도 단어장에 담김', kept.some((w) => w.kanji === 'それな'), JSON.stringify(kept.map((w) => w.kanji)));
-  /* 예문 없이 「それな」만 남으면 나중에 봐도 어디에 쓸지를 모른다 */
-  const sorena = kept.find((w) => w.kanji === 'それな');
-  ok('담을 때 예문도 같이', sorena?.example === 'それな、まじで寒い。', sorena?.example);
-  ok('예문 읽는 법도', sorena?.exampleKana === 'それな、まじでさむい。', sorena?.exampleKana);
-  ok('예문 뜻도', sorena?.exampleKo === '그니까, 진짜 춥다.', sorena?.exampleKo);
+  ok('요즘 말도 단어장에 담김', kept.some((w) => w.kanji === 'エモい'), JSON.stringify(kept.map((w) => w.kanji)));
+  /* 예문 없이 낱말만 남으면 나중에 봐도 어디에 쓸지를 모른다 */
+  const emoi = kept.find((w) => w.kanji === 'エモい');
+  ok('담을 때 예문도 같이', emoi?.example === 'この景色エモい。', emoi?.example);
+  ok('예문 읽는 법도', emoi?.exampleKana === 'このけしきえもい。', emoi?.exampleKana);
+  ok('예문 뜻도', emoi?.exampleKo === '이 풍경 뭉클하다.', emoi?.exampleKo);
 
   // 언제 받았는지 남는다 — 유행어는 낡는다
   const saved2 = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_trends_v1') || 'null'));
