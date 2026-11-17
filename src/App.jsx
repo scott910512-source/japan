@@ -239,7 +239,11 @@ export default function App() {
   /* 기출부터 배운다 — 열여섯 해 한자읽기에 나온 205개(lib/kiju.js).
      자료 차례가 아니라 「실제로 나온 적 있는가」가 새 단어의 순서를 정한다.
      레벨 필터는 그대로다. 고르지 않은 레벨의 기출까지 끌어오지는 않는다. */
-  const kijuFirst = useMemo(() => new Set(kijuIndex(words).keys()), [words]);
+  /* 기출 다음으로 N3 최신 경향 낱말(tags '최신경향')도 앞으로 — 최근 시험에 자주 나오는 것부터 (2026-11-17) */
+  const kijuFirst = useMemo(() => new Set([
+    ...kijuIndex(words).keys(),
+    ...words.filter((w) => (w.tags || []).includes('최신경향')).map((w) => w.id),
+  ]), [words]);
   /* 고른 레벨에 새 낱말이 스무 개도 안 남았으면 다음 레벨까지 — 새로 배우기가 비거나 매일 같은 것만 돌지 않게 */
   const planLevels = useMemo(() => levelsForFresh(words, settings.levels, review, FRESH_MIN, progress.weak), [words, settings.levels, review, progress.weak]);
   const todayPool = useMemo(() => {

@@ -8,6 +8,7 @@
  *   진도 막대가 판정한 만큼 움직인다 · 375px에서 가로로 안 넘친다 */
 import { DAILY_WORDS } from '../../src/data/words-daily.js';
 import { GRAMMAR_POINTS } from '../../src/data/grammar-points.js';
+import { GRAMMAR_POINTS_N5 } from '../../src/data/grammar-points-n5.js';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab, openListen, openMenu } from './_nav.js';
@@ -177,7 +178,7 @@ const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth > 
   const isKiju = (t) => KIJU_LIST.some((e) => t.includes(e.w) || t.includes(e.k));
   /* 새로 배우기에는 회화 표현(네 칸에 하나)과 문법 카드(열 칸에 하나)가 고르게 섞인다(2026-11-16, lib/cards.js mixFresh).
      「기출이 먼저인가」는 그 둘을 뺀 일반 낱말로 본다 */
-  const mixed = [...DAILY_WORDS.map((w) => w.kanji), ...GRAMMAR_POINTS.map((g) => g.kanji)];
+  const mixed = [...DAILY_WORDS.map((w) => w.kanji), ...GRAMMAR_POINTS.map((g) => g.kanji), ...GRAMMAR_POINTS_N5.map((g) => g.kanji)];
   const plain = seen.filter((t) => !mixed.some((k) => t.includes(k)));
   ok('단어 카드가 몇 장 나왔다', plain.length >= 3, `${seen.length}장 중 일반 낱말 ${plain.length}장`);
   ok('★ 새로 배우는 일반 낱말이 전부 기출 ★', plain.length >= 3 && plain.every(isKiju),

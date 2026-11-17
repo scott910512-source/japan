@@ -22,6 +22,11 @@ import { N5_WORDS_B } from './words-n5b.js';
 import { N4_WORDS_C } from './words-n4c.js';
 /* 일상대화 낱말 · 정해진 인사 · 맞장구 415개 — tags 첫 칸이 '회화'(새로 배우기에 고르게 섞인다, lib/cards.js mixFresh) */
 import { DAILY_WORDS } from './words-daily.js';
+/* 기초(조수사 · 시각 · 날짜 · 큰 수 · 색 · 몸 · 가족 · 의문사) 151개 — 읽기가 불규칙한 것은 note에 (2026-11-17) */
+import { BASIC_WORDS } from './words-basic.js';
+/* N3 최신 경향 299개 — 최근 시험의 문맥규정 · 말바꾸기 · 용법에 자주 나오는 의성어 · 가타카나어 · 복합동사 · 자타동사 ·
+   한자어. tags 첫 칸이 '최신경향' — 새로 배우기에서 기출 다음으로 먼저 나온다(App kijuFirst) */
+import { N3_WORDS_K } from './words-n3k.js';
 /* N4 · N3 문법 포인트 246개 — 낱말 칸에 카드로 싣는다(grammar: true). 새로 배우기에 하루 두 개씩 섞인다.
    자료의 kana는 서로 겹치지 않게 「・용법」 꼬리를 단 것이 있다(そうだ・ようす 등) — 읽기 · 소리 · 답으로 쓰는 칸이라
    꼬리는 떼어 싣는다. 겹쳐도 괜찮다 — 단어장은 표기(kanji)로 하나를 가린다. */
@@ -74,10 +79,10 @@ function mergeUnique(...lists) {
 
 export const ALL_WORDS = mergeUnique(
   DEFAULT_WORDS,
-  N5_WORDS, N5_WORDS_B,
+  N5_WORDS, N5_WORDS_B, BASIC_WORDS,
   N4_WORDS, N4_WORDS_B, N4_WORDS_C,
   N3_WORDS, N3_WORDS_B, N3_WORDS_C, N3_WORDS_D, N3_WORDS_E,
-  N3_WORDS_F, N3_WORDS_G, N3_WORDS_H, N3_WORDS_I, N3_WORDS_J,
+  N3_WORDS_F, N3_WORDS_G, N3_WORDS_H, N3_WORDS_I, N3_WORDS_J, N3_WORDS_K,
   KIJU_WORDS,
   SAPPORO_WORDS,
   DAILY_WORDS,
