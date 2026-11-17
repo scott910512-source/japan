@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { buildWordMap, totalCounts, MAP_STATES } from '../lib/wordmap.js';
+import { weakRank } from '../lib/weak.js';
 
 /* 전체 단어 지도 — 모든 낱말을 작은 칸 하나씩, 기억 상태 색으로(lib/wordmap.js).
  * 레벨을 고르면 그 레벨만, 칸을 누르면 그 낱말이 아래에 뜬다. 칸이 2천 개가 넘어도 그냥 div라 가볍다. */
-export default function WordHeatmap({ words = [], review = {}, ledger = null, first = null }) {
+export default function WordHeatmap({ words = [], review = {}, ledger = null, first = null, onStudy = null }) {
   const groups = useMemo(() => buildWordMap(words, review, ledger, { first }), [words, review, ledger, first]);
   /* 처음엔 지금 공부 중인 레벨 하나만 — 전체(2천7백 칸)를 다 펼치면 폰에서 몇 화면을 내려야 한다.
      공부 중인 레벨 = 아직 안 본 낱말이 남은 첫 레벨(N5 → N4 → N3) */
@@ -14,6 +15,13 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
   const total = shown.reduce((n, g) => n + g.cells.length, 0);
   const touched = total - counts.new;
   const label = Object.fromEntries(MAP_STATES.map((s) => [s.id, s.label]));
+  /* ★ 가장 약한 10개 ★ 지금 보는 묶음(레벨 탭)에서 약점 점수가 높은 순서(lib/weak.js weakRank — 금방 잊은 것 >
+     잊은 것 > 몰라요 · 시험 오답 > 애매해요). 「이 10개 반복 학습」으로 바로 한 판 */
+  const top = useMemo(() => {
+    const ids = shown.flatMap((g) => g.cells.map((c) => c.id));
+    const byId = new Map(shown.flatMap((g) => g.cells.map((c) => [c.id, c])));
+    return weakRank(ids, review, ledger || {}).slice(0, 10).map((r) => byId.get(r.id)).filter(Boolean);
+  }, [shown, review, ledger]);
 
   return (
     <div className="card wmap">
@@ -48,6 +56,25 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
           </div>
         </div>
       ))}
+      {top.length > 0 && (
+        <div className="wmap-top">
+          <div className="wmap-top-head">
+            <b>가장 약한 단어 TOP {top.length}</b>
+            {onStudy && <button type="button" className="chip active wmap-top-go" onClick={() => onStudy(top.map((c) => c.id))}>이 {top.length}개 반복 학습</button>}
+          </div>
+          <ol className="wmap-top-list">
+            {top.map((c) => (
+              <li key={c.id}>
+                <button type="button" className={`wmap-top-row${picked?.id === c.id ? ' on' : ''}`} onClick={() => setPicked(picked?.id === c.id ? null : c)}>
+                  <b lang="ja">{c.jp}</b>
+                  {c.kana && c.kana !== c.jp && <span lang="ja">{c.kana}</span>}
+                  <em>{c.mean}</em>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
       {picked ? (
         <div className="wmap-pick">
           <b lang="ja">{picked.jp}</b>

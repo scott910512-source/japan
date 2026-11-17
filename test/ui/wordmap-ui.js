@@ -74,6 +74,15 @@ ok('레벨 탭으로 걸러 본다', await page.locator('.wmap .wmap-grid .wm-ce
 await page.locator('.wmap .wmap-grid .wm-cell').first().click();
 await page.waitForTimeout(150);
 ok('★ 칸을 누르면 그 낱말이 뜬다 ★', await page.locator('.wmap-pick').count() === 1 && (await page.locator('.wmap-pick b').innerText()).length > 0, await page.locator('.wmap-pick').innerText().catch(() => ''));
+console.log('\n[ 가장 약한 TOP 10 · 반복 학습 ]');
+const topRows = await page.locator('.wmap-top-row').count();
+ok('★ 가장 약한 단어 TOP 10이 보인다 ★', topRows > 0 && topRows <= 10, `${topRows}줄`);
+await page.locator('.wmap-top-row').first().click();
+await page.waitForTimeout(150);
+ok('줄을 누르면 그 낱말이 아래에 뜬다', await page.locator('.wmap-pick').count() === 1);
+await page.locator('.wmap-top-go').click();
+await page.waitForTimeout(1200);
+ok('★ 「반복 학습」을 누르면 그 낱말들로 한 판이 열린다 ★', await page.locator('.studycard, .study.intro').count() >= 1);
 ok('오류 없음', errors.length === 0, errors[0]);
 
 await browser.close();

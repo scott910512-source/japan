@@ -622,3 +622,19 @@
 @media (min-width: 720px) {
   .wmap-grid { grid-template-columns: repeat(auto-fill, minmax(13px, 1fr)); gap: 3px; }
 }
+
+/* 단어 지도 — 가장 약한 TOP 10 */
+.wmap-top { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; background: var(--surface-2); }
+.wmap-top-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.wmap-top-head b { font-size: 14px; }
+.wmap-top-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; counter-reset: wt; }
+.wmap-top-list li { counter-increment: wt; }
+.wmap-top-row {
+  width: 100%; min-height: 40px; display: flex; align-items: baseline; gap: 8px; padding: 8px 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-align: left; cursor: pointer; font-size: 13px;
+}
+.wmap-top-row::before { content: counter(wt); min-width: 18px; font-weight: 800; color: var(--shu); }
+.wmap-top-row b { font-family: var(--font-ja); font-size: 16px; }
+.wmap-top-row span { font-family: var(--font-ja); color: var(--ink-soft); }
+.wmap-top-row em { font-style: normal; color: var(--ink-soft); margin-left: auto; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
+.wmap-top-row.on { outline: 2px solid var(--ink); outline-offset: 1px; }

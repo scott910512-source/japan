@@ -51,7 +51,7 @@ function monthGrid(year, month) {
 const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', reading: '독해', listening: '청해' };
 
 export default function Log({
-  words = [], weakLedger = null, kijuFirst = null,
+  words = [], weakLedger = null, kijuFirst = null, onStudyIds = null,
   review, stats, streak, grammarLeft, stat, rounds,
   n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenQuiz, onOpenWrong, wrongCount = 0, onOpenWeak, weakGrammar = 0, reviewLeft = 0,
 }) {
@@ -295,7 +295,7 @@ export default function Log({
           하나는 얼마나 남아 있나다. */}
       {/* ★ 전체 단어 지도 ★ 모든 낱말을 한 칸씩 — 어디까지 왔고 어디가 비었는지 한눈에(lib/wordmap.js) */}
       <div className="section-label">전체 단어 지도</div>
-      <WordHeatmap words={words} review={review} ledger={weakLedger} first={kijuFirst} />
+      <WordHeatmap words={words} review={review} ledger={weakLedger} first={kijuFirst} onStudy={onStudyIds} />
 
       <div className="section-label">기억 수준</div>
       <div className="card roundstat">
