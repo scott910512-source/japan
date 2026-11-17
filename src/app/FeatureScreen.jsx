@@ -23,6 +23,7 @@ export default function FeatureScreen({
   trends,
   setTrends,
   setCustomWords,
+  addWord,
   startQuizWrongDeck,
   noteActivity,
   noteWeakness,
@@ -121,7 +122,7 @@ export default function FeatureScreen({
               <StoryListen
                 store={storyStore} setStore={setStoryStore} onActivity={noteActivity} onToast={showToast}
                 words={words} settings={settings} asks={asks} onAsks={setAsks}
-                onAddWord={(w) => setCustomWords((prev) => (prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]))}
+                onAddWord={addWord}
               />
             )}
             {sub === 'grammar' && (
@@ -155,9 +156,7 @@ export default function FeatureScreen({
                 onHistory={setTranslations}
                 trends={trends}
                 onTrends={setTrends}
-                onAddWord={(w) => setCustomWords((prev) => (
-                  prev.some((x) => x.id === w.id) ? prev : [...prev, { ...w, addedAt: Date.now() }]
-                ))}
+                onAddWord={addWord}
                 onToast={showToast}
               />
             )}
@@ -312,7 +311,7 @@ export default function FeatureScreen({
               <WordManager
                 words={words}
                 customWords={customWords}
-                onAddWord={(w) => setCustomWords((prev) => [...prev, { ...w, addedAt: Date.now() }])}
+                onAddWord={addWord}
                 /* 지운 시각을 남긴다 — 낱말만 빼면 다른 기기(또는 서버에 올라가 있던 내 것)에서 다음 동기화 때 되살아났다 */
                 onDeleteWord={(id) => {
                   setCustomWords((prev) => prev.filter((w) => w.id !== id));

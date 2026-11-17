@@ -35,3 +35,18 @@ export function levelsForFresh(words, levels, review = {}, min = 20, seenElsewhe
   }
   return out;
 }
+
+/* ★ 이미 단어장에 있는 낱말인가 ★ (2026-11-17)
+ * AI 검색 · 번역 · 직접 추가로 담을 때, 기본 단어장(3천7백여 개)이나 전에 담은 것과 겹치면 다시 담지 않는다.
+ * 전에는 id(custom-ask-…)만 봐서, 기본 단어장에 있는 地下鉄를 담으면 같은 카드가 하나 더 생겼고
+ * 전에 담은 것을 또 눌러도 「담았어요」라고 했다.
+ *   - 한자가 있으면 표기(kanji)로 견준다 — 읽기가 같은 다른 낱말(橋 · 箸)을 같은 것으로 보면 안 된다
+ *   - 가나로만 쓴 것이면 가나로만 쓴 낱말과 견준다(ありがとう). 雨(あめ)와 あめ(사탕)는 다른 낱말일 수 있다 */
+const norm = (s) => String(s ?? '').replace(/[\s〜~]/g, '').trim();
+const hasKanji = (s) => /[一-鿿々]/.test(s);
+export function findSameWord(words = [], { kanji, jp, kana } = {}) {
+  const k = norm(kanji ?? jp);
+  if (!k) return null;
+  if (hasKanji(k)) return words.find((w) => norm(w.kanji) === k) || null;
+  return words.find((w) => norm(w.kanji) === k || (!hasKanji(w.kanji || '') && norm(w.kana) === k)) || null;
+}

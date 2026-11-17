@@ -16,7 +16,12 @@ export default function WordManager({ words, customWords, onAddWord, onDeleteWor
       {tab === 'add' ? (
         <AddWord
           onSubmit={(word) => {
-            onAddWord(word);
+            const r = onAddWord(word);
+            if (r && r.added === false) {
+              const ex = r.existing;
+              onToast(`「${ex?.kanji || word.kanji}」는 이미 단어장에 있어요${ex?.custom ? '(내 단어)' : ex?.level ? `(${ex.level} 단어 · ${ex.mean || ''})` : ''}`);
+              return;
+            }
             onToast(`「${word.mean}」를 추가했어요`);
             setTab('manage');
           }}

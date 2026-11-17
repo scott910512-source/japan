@@ -261,8 +261,12 @@ export default function AskSheet({
                     <button
                       className="ask-add"
                       onClick={() => {
-                        onAddWord(toCard(it, card?.kanji || card?.kana));
-                        onToast?.(`«${it.jp}»를 단어장에 담았어요`);
+                        /* 이미 단어장에 있으면(기본 단어장 · 전에 담은 것) 다시 담지 않고 그렇다고 말한다 */
+                        const r = onAddWord(toCard(it, card?.kanji || card?.kana));
+                        if (r && r.added === false) {
+                          const ex = r.existing;
+                          onToast?.(`«${it.jp}»는 이미 단어장에 있어요${ex?.custom ? '(전에 담은 단어)' : ex?.level ? `(${ex.level} 단어)` : ''}`);
+                        } else onToast?.(`«${it.jp}»를 단어장에 담았어요`);
                       }}
                       aria-label={`${it.jp} 단어장에 담기`}
                     ><IconPlus /></button>

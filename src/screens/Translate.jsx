@@ -122,8 +122,11 @@ export default function Translate({
   };
 
   const keep = (w) => {
-    onAddWord(toCard(w));
-    onToast(`${w.jp} — 단어장에 담았어요`);
+    const r = onAddWord(toCard(w));
+    if (r && r.added === false) {
+      const ex = r.existing;
+      onToast(`${w.jp} — 이미 단어장에 있어요${ex?.custom ? '(전에 담은 단어)' : ex?.level ? `(${ex.level} 단어)` : ''}`);
+    } else onToast(`${w.jp} — 단어장에 담았어요`);
   };
 
   /* 요즘 말은 목록을 코드에 박아 두지 않는다. 적어 두는 순간 낡기 시작하고,
