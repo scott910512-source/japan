@@ -323,7 +323,7 @@ export const N5_WORDS = [
     example: '駅は近いです。', exampleKana: 'えきはちかいです。', exampleKo: '역은 가깝습니다.', tags: ['이동'] },
   { id: 'n5-0160', kanji: '遠い', kana: 'とおい', mean: '멀다', type: 'adj', casual: '멀어요', level: 'N5',
     example: '空港は遠いです。', exampleKana: 'くうこうはとおいです。', exampleKo: '공항은 멉니다.', tags: ['이동', '여행'] },
-  { id: 'n5-0161', kanji: '丸い', kana: 'まるい', mean: '둥글다', type: 'adj-i', casual: '둥글어요', level: 'N5',
+  { id: 'n5-0161', kanji: '丸い', kana: 'まるい', mean: '둥글다', type: 'adj-i', casual: '둥글어요', level: 'N5', alt: ['円い'],
     example: 'この皿は丸いです。', exampleKana: 'このさらはまるいです。', exampleKo: '이 접시는 둥급니다.', tags: ['일상'] },
   { id: 'n5-0162', kanji: '欲しい', kana: 'ほしい', mean: '갖고 싶다', type: 'adj-i', casual: '갖고 싶어요', level: 'N5',
     example: '新しい靴が欲しいです。', exampleKana: 'あたらしいくつがほしいです。', exampleKo: '새 신발을 갖고 싶습니다.', tags: ['쇼핑'] },

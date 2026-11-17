@@ -11,7 +11,7 @@ import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import SoundToggle from '../components/SoundToggle.jsx';
 import { filterByLevel, LEVELS } from '../lib/wordFilters.js';
 import {
-  QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, checkTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf, otherWordNote,
+  QUIZ_TYPE, QUIZ_DIR, QUIZ_SCOPE, buildQuiz, judgeTyping, gradeQuiz, gradeLabel, scopeWords, acceptedJp, meaningsOf, otherWordNote,
 } from '../lib/quiz.js';
 import { WEAK_KIND } from '../lib/weak.js';
 import { readQuizKeep, writeQuizKeep, keepModeOf } from '../lib/quizkeep.js';
@@ -381,10 +381,11 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
     onAttempt?.({ id: `word:${q.wordId}:${q.dir}`, source: 'word', ref: q.wordId, kind: q.dir === QUIZ_DIR.JP_KO ? '단어 뜻' : '단어 표기', prompt: q.prompt, correct: q.answer, accepted: q.dir === QUIZ_DIR.JP_KO ? meaningsOf(word) : acceptedJp(word), chosen: q.options?.find((o) => o.wordId === value)?.label || (value ?? '잘 모르겠어요'), options: q.options?.map((o) => o.label), explanation: [word?.note, word?.example, word?.exampleKo].filter(Boolean).join(' · '), ok: verdict === 'correct' });
   }, [q, word, onWeakness, onAttempt]);
 
-  const record = (verdict, value) => {
+  const record = (verdict, value) => recordX(verdict, value, null);
+  const recordX = (verdict, value, extra) => {
     if (answered) return;
     noteQuiz(verdict, value);
-    onRun({ ...run, answers: { ...answers, [q.id]: { verdict, value } } });
+    onRun({ ...run, answers: { ...answers, [q.id]: { verdict, value, ...(extra || {}) } } });
   };
 
   const answerChoice = (option) => record(option.wordId === q.wordId ? 'correct' : 'wrong', option.wordId);
@@ -397,7 +398,11 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
       const t = typed.trim();
       if (t && (t === word.kanji || t === word.kana)) { onToast?.('이 문제는 뜻을 한국어로 쓰는 칸이에요'); return; }
     }
-    record(checkTyping(word, q.dir, typed), typed);
+    const res = judgeTyping(word, q.dir, typed);
+    if (res.verdict === 'invalid') { onToast?.(res.why); return; }      // 로마자 — 채점하지 않는다
+    /* 사전에 없는 한국어 뜻은 「거의 맞음」처럼 내가 정하게 한다(같은 뜻의 다른 말) */
+    if (res.canAccept) { recordX('close', typed, { synonym: true }); return; }
+    recordX(res.verdict, typed, res.note ? { note: res.note } : null);
   };
 
   /* ★ 잘 모르겠어요 ★ 찍어서 맞히면 모르는 것이 아는 것으로 센다. 모르면 찍지 말고 이걸 눌러 「몰라요」로 남긴다.
@@ -617,7 +622,8 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
           주관식은 보기가 없어서 여기 말고는 설명할 자리가 없다. */}
       {answered && q.type !== QUIZ_TYPE.CHOICE && answered.verdict !== 'correct' && (
         <div className={`qverdict ${answered.verdict}`}>
-          {answered.verdict === 'close' && <>거의 맞았어요 — 정답은 <b>{q.answer}</b></>}
+          {answered.verdict === 'close' && !answered.synonym && <>거의 맞았어요 — 정답은 <b>{q.answer}</b></>}
+          {answered.verdict === 'close' && answered.synonym && <>정답은 <b>{q.answer}</b>예요. 내 답(「{answered.value}」)도 같은 뜻이면 「맞게 처리하기」를 눌러요</>}
           {answered.verdict === 'wrong' && <><IconX /> 정답은 <b>{q.answer}</b>{q.answerSub && q.answerSub !== q.answer && ` (${q.answerSub})`}</>}
           {/* 다른 낱말을 쳤으면 그 낱말의 뜻을 같이 — 「왜 틀렸는지」를 알 수 있게 */}
           {answered.verdict === 'wrong' && q.dir === QUIZ_DIR.KO_JP && otherWordNote(allWords, answered.value, word) && (
@@ -637,6 +643,7 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
       {answered && q.type !== QUIZ_TYPE.CHOICE && answered.verdict === 'correct' && (
         <div className="qverdict correct qv-right">
           <IconCheck /> 맞았어요
+          {answered.note && <div className="qv-note">{answered.note}</div>}
           {word && (
             <div className="qv-word">
               <b lang="ja">{word.kanji || word.kana}</b>

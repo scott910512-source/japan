@@ -557,3 +557,5 @@
 .wordmemo .sc-peek { min-height: 40px; }
 .wordmemo-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, #e69a3a); margin-left: 6px; vertical-align: middle; }
 .wordmemo .memo, .wordmemo .memo-add, .wordmemo .memo.editing { width: 100%; text-align: left; }
+
+.qv-note { font-size: 12px; font-weight: 600; color: var(--shu); margin-top: 4px; }

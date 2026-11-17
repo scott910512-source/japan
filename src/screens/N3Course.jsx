@@ -223,7 +223,8 @@ export default function N3Course({ review, progress, setProgress, applyVerdicts,
       return <KanjiLesson title={view.ids ? `오늘의 한자 · ${l.title}` : lessonTitle(id)} kanjiIds={ids} rate={rate} review={review} onAnswer={onAnswer} onFinish={(r) => finishLesson(view, r)} onQuit={quit} />;
     }
     if (t === 'grammar') {
-      return <GrammarLesson lessonId={id} rate={rate} onAnswer={onAnswer} onFinish={(r) => finishLesson(view, r)} onQuit={quit} />;
+      return <GrammarLesson lessonId={id} rate={rate} onAnswer={onAnswer} onFinish={(r) => finishLesson(view, r)} onQuit={quit}
+        onPartial={(r) => applyResults(r.results, id)} />;
     }
     if (t === 'reading') {
       return <ReadingLesson passageId={id} mode={view.mode || 'study'} rate={rate} onAnswer={onAnswer} onFinish={(r) => finishLesson(view, r)} onQuit={quit} onOpenGrammar={(g) => setView({ kind: 'lesson', id: g, from: 'curriculum' })} />;

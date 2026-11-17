@@ -91,7 +91,10 @@ export function pickNext(pool, session, rng = Math.random) {
   if (!pool.length) return null;
   const blockN = pool.length > RECENT_BLOCK * 2 ? RECENT_BLOCK : 1;
   const block = new Set(session.recent.slice(-blockN));
-  const open = pool.filter((it) => !block.has(it.id));
+  /* ★ 한 판 안에서는 맞힌 것을 다시 내지 않는다 ★ (2026-11-17 QA B07) 전에는 방금 낸 몇 개만 피해서 스무 문제 안에
+     返す가 세 번, 같은 문장 문제가 두 번씩 나왔다. 틀린 것은 다시 나와도 된다(곧 다시 만나야 외운다). 낼 게 바닥나면 예전처럼 */
+  const fresh = pool.filter((it) => !block.has(it.id) && session.recorded?.[it.id] !== true);
+  const open = fresh.length ? fresh : pool.filter((it) => !block.has(it.id));
   const list = open.length ? open : pool;
   const weights = list.map((it) => weightIn(it, session));
   const total = weights.reduce((a, b) => a + b, 0);
@@ -155,7 +158,8 @@ function wordQuestion(item, ctx, rng) {
     id: item.id,
     kind: KIND.WORD,
     mode: typing ? 'typing' : 'choice',
-    tag: `${jpFirst ? '뜻을 고르세요' : '일본어로 뭘까요'}${typing ? ' · 직접 입력' : ''}`,
+    /* 직접 입력이면 「고르세요」가 아니라 「입력하세요」(QA B17) */
+    tag: typing ? (jpFirst ? '뜻을 입력하세요' : '일본어로 입력하세요') : (jpFirst ? '뜻을 고르세요' : '일본어로 뭘까요'),
     prompt: q.prompt,
     sub: q.promptSub,
     promptJp: jpFirst,

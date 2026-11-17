@@ -202,7 +202,11 @@ export default function StreamQuiz({
       return;
     }
     const res = judge(cur.q, input);
+    if (res.verdict === 'invalid') { onToast?.(res.why); return; }      // 로마자 — 채점하지 않는다(QA B11)
     if (res.verdict === 'close') { setAnswered({ value: input, verdict: 'close', ok: null }); return; }
+    /* 사전에 없는 한국어 뜻 — 같은 뜻의 다른 말일 수 있으니 내가 정하게 한다(QA B08) */
+    if (res.canAccept) { setAnswered({ value: input, verdict: 'close', ok: null, synonym: true }); return; }
+    if (res.verdict === 'correct' && res.note) { finalize(true, input, { note: res.note }); return; }
     /* 한→일 직접 쓰기에서 다른 낱말을 쳤으면 그 낱말의 뜻을 같이 알려 준다 */
     const why = res.why || (res.verdict === 'wrong' && !cur.q.promptJp && cur.q.word ? otherWordNote(words, input, cur.q.word) : null);
     finalize(res.verdict === 'correct', input, { why: why || undefined, expected: res.expected });
@@ -401,7 +405,9 @@ export default function StreamQuiz({
 
       {answered?.verdict === 'close' && (
         <div className="qverdict close st-close">
-          거의 맞았어요. 정답은 <b>{q.answerText}</b>{q.answerSub && q.answerSub !== q.answerText ? ` (${q.answerSub})` : ''}
+          {answered.synonym
+            ? <>정답은 <b>{q.answerText}</b>예요. 내 답(「{answered.value}」)도 같은 뜻이면 「맞게 처리하기」를 눌러요</>
+            : <>거의 맞았어요. 정답은 <b>{q.answerText}</b>{q.answerSub && q.answerSub !== q.answerText ? ` (${q.answerSub})` : ''}</>}
           <div className="qnext">
             <button className="ghost-btn st-accept" onClick={() => settleClose(true)}>맞게 처리하기</button>
             <button className="submit-btn st-reject" onClick={() => settleClose(false)}>틀렸어요</button>
@@ -413,6 +419,7 @@ export default function StreamQuiz({
       {answered && answered.verdict === 'correct' && isTyping && (
         <div className="qverdict correct qv-right st-right">
           <IconCheck /> 맞았어요
+          {answered.note && <div className="qv-note">{answered.note}</div>}
           <div className="qv-word">
             <b lang={q.promptJp ? 'ko' : 'ja'}>{q.answerText}</b>
             {q.answerSub && q.answerSub !== q.answerText && <span lang="ja">{q.answerSub}</span>}

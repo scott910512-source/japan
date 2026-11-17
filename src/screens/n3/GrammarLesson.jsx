@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconArrowLeft } from '../../components/Icons.jsx';
 import { grammarById } from '../../data/n3/grammar.js';
 import { grammarQuestionsOf, verdictFor } from '../../lib/n3.js';
@@ -12,25 +12,49 @@ import { conversationTutor } from '../../data/hunterTutors.js';
  * 복습 단계는 방금 틀린 문제와 접속·비교를 한 장으로 다시 본다. */
 const STEPS = ['설명', '예문', '비교', '회화', '문제', '복습'];
 
-export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQuit, mastery }) {
+/* ★ 나갔다 와도 그 단계부터 ★ (2026-11-17 QA B05) 전에는 문제를 다 풀고 「레슨 완료」 대신 「나가기」를 누르면
+   단계도 판정도 사라지고, 다시 들어오면 설명부터였다. 레슨마다 마지막 단계를 기기에 적어 두고(완료하면 지운다),
+   문제를 풀다 나가면 그때까지 푼 판정은 회독 기록에 넣는다(onPartial) */
+const POS_KEY = 'jp_n3_lesson_pos_v1';
+const readPos = (id) => { try { const v = JSON.parse(localStorage.getItem(POS_KEY) || '{}')[id]; return Number.isInteger(v) ? Math.min(4, Math.max(0, v)) : 0; } catch { return 0; } };
+const writePos = (id, step) => {
+  try {
+    const all = JSON.parse(localStorage.getItem(POS_KEY) || '{}');
+    if (step == null) delete all[id]; else all[id] = step;
+    localStorage.setItem(POS_KEY, JSON.stringify(all));
+  } catch { /* 자리를 못 적어도 레슨은 된다 */ }
+};
+
+export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQuit, onPartial, mastery }) {
   const l = grammarById(lessonId);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => readPos(lessonId));
   const [result, setResult] = useState(null);
+  const answered = useRef([]);
+  useEffect(() => { if (step < 5) writePos(lessonId, step); }, [lessonId, step]);
   if (!l) return null;
 
   const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
+  /* 문제를 풀다 나가면 그때까지 푼 것을 넣고 나간다 — 레슨 완료로 치지는 않는다 */
+  const quit = () => {
+    if (!result && answered.current.length) onPartial?.({ results: answered.current });
+    onQuit?.();
+  };
+  const answer = (q, ok, picked) => { answered.current = [...answered.current, { q, ok, picked }]; onAnswer?.(q, ok, picked); };
 
   return (
     <div className="n3-lesson n3-grammar" data-lesson={l.id} data-step={step}>
       <div className="sub-header inline">
-        <button className="sub-back" onClick={onQuit}><IconArrowLeft /> 나가기</button>
+        <button className="sub-back" onClick={quit}><IconArrowLeft /> 나가기</button>
         <div className="sub-title">{l.title}</div>
       </div>
       <div className="n3-steps" role="tablist">
         {STEPS.map((s, i) => (
-          <button key={s} className={`n3-stepdot${i === step ? ' cur' : ''}${i < step ? ' past' : ''}`} onClick={() => (i <= step || result) && setStep(i)} disabled={i > step && !result}>{s}</button>
+          <button key={s} className={`n3-stepdot${i === step ? ' cur' : ''}${i < step ? ' past' : ''}`} onClick={() => (i <= step || result) && setStep(i)} disabled={i > step && !result}
+            title={i > step && !result ? '앞 단계를 마치면 열려요' : undefined}>{i > step && !result ? `🔒 ${s}` : s}</button>
         ))}
       </div>
+      {/* 잠긴 단계가 왜 안 눌리는지(QA B16) */}
+      {step === 0 && !result && <p className="n3-steps-note">설명부터 차례로 열려요 · 나갔다 와도 그 단계부터 이어서 해요</p>}
 
       {step === 0 && (
         <div className="stack">
@@ -94,11 +118,11 @@ export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQu
       )}
 
       {step === 4 && (
-        <QuizRunner onQuit={onQuit}
+        <QuizRunner onQuit={quit}
           questions={grammarQuestionsOf(l.id)}
           rate={rate}
           autoSpeak={false}
-          onAnswer={onAnswer}
+          onAnswer={answer}
           onFinish={(r) => setResult(r)}
           onDone={() => setStep(5)}
           doneLabel="복습으로"
@@ -127,7 +151,7 @@ export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQu
           <div className="set-note">
             {result ? `${result.right} / ${result.total} 맞혔어요 · 판정: ${({ known: '알아요', vague: '애매해요', unknown: '몰라요' })[verdictFor(result.right, result.total)]} — 복습일이 정해졌어요` : ''}
           </div>
-          <button className="submit-btn n3-finish-btn" onClick={() => onFinish?.(result || { right: 0, total: l.quiz.length, results: [] })}>레슨 완료</button>
+          <button className="submit-btn n3-finish-btn" onClick={() => { writePos(lessonId, null); onFinish?.(result || { right: 0, total: l.quiz.length, results: [] }); }}>레슨 완료</button>
         </div>
       )}
     </div>
