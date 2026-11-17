@@ -1,3 +1,4 @@
+import { shuffle } from '../lib/n3.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconSpeaker, IconCheck, IconX, IconArrowLeft } from './Icons.jsx';
 import { speakJapanese } from '../lib/tts.js';
@@ -29,10 +30,15 @@ function Say({ text, kana, rate }) {
   );
 }
 
+const mixOne = (it) => (it && Array.isArray(it.options) ? { ...it, options: shuffle(it.options) } : it);
+const mixAll = (list) => (list || []).map(mixOne);
+
 export default function BlankRun({
   set, items: initial, settings, onDone, onQuit, backLabel = '묶음 목록', wrongNote = null, infoOf = null,
 }) {
-  const [items, setItems] = useState(initial);
+  /* ★ 보기 순서를 섞는다 ★ (2026-11-17 QA) 일상문법 · 부사 자료도 정답이 늘 첫 칸이라 1번만 눌러도 다 맞았다.
+     다시 푸는 판(오답만)도 새로 섞는다. 정답은 자리가 아니라 값(answer)으로 본다 */
+  const [items, setItems] = useState(() => mixAll(initial));
   const [at, setAt] = useState(0);
   const [answers, setAnswers] = useState({});
   const [picked, setPicked] = useState(null);
@@ -129,7 +135,7 @@ export default function BlankRun({
               <button
                 className="submit-btn"
                 onClick={() => {
-                  setItems(retryOf(items, wrong.map((w) => w.id)));
+                  setItems(mixAll(retryOf(items, wrong.map((w) => w.id))));
                   setAt(0); setPicked(null); setDone(false); setRound(round + 1);
                   setAnswers({});
                   sent.current = false;
@@ -167,8 +173,11 @@ export default function BlankRun({
       <div className="av-card">
         <div className="av-jp">
           {head}
-          <span className={`av-blank${picked ? (picked.good ? ' ok' : ' no') : ''}`}>
-            {picked ? picked.opt : '？'}
+          {/* 틀렸으면 빈칸에 정답을 넣어 바른 문장을 보여 주고, 고른 것은 줄을 그어 옆에(QA B18 — 전에는 고른 오답이 채워져
+              「やすいから、おいしくない」처럼 틀린 문장이 남았다) */}
+          {picked && !picked.good && <s className="av-blank no av-mine">{picked.opt}</s>}
+          <span className={`av-blank${picked ? ' ok' : ''}`}>
+            {picked ? item.answer : '？'}
           </span>
           {tail}
         </div>

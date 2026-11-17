@@ -638,3 +638,4 @@
 .wmap-top-row span { font-family: var(--font-ja); color: var(--ink-soft); }
 .wmap-top-row em { font-style: normal; color: var(--ink-soft); margin-left: auto; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
 .wmap-top-row.on { outline: 2px solid var(--ink); outline-offset: 1px; }
+.av-blank.av-mine { margin-right: 4px; opacity: .8; }
