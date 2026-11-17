@@ -246,7 +246,8 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   ok('문법 문제를 다 풀었다', gq.length >= 3 && gq.every((id) => id.startsWith('q:wa-ga')));
   await page.locator('.n3-done').click();
   await page.locator('.n3-recap').waitFor();
-  ok('복습 단계 — 한 줄 정리와 판정', (await page.locator('.n3-recap').innerText()).includes('알아요'));
+  await page.waitForFunction(() => /맞혔어요/.test(document.querySelector('.n3-recap .set-note')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
+  ok('복습 단계 — 한 줄 정리와 판정', (await page.locator('.n3-recap').innerText()).includes('알아요'), (await page.locator('.n3-recap .set-note').innerText()).slice(0, 80));
   await page.locator('.n3-finish-btn').click();
   await page.locator('.n3-today').waitFor();
   const n3b = await n3of(page);

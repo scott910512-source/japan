@@ -356,6 +356,10 @@
 
 /* ── 말해보기 (음성 인식) ── */
 .micwrap { margin-bottom: 10px; }
+/* 회독 카드의 말해보기 둘 — 한 줄에 나란히(QA B14). 결과 칸은 그 버튼 밑에 그대로 열린다 */
+.sc-mics.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+.sc-mics.two .micbtn { min-width: 0; padding: 11px 8px; font-size: 13.5px; line-height: 1.3; }
+.sc-mics.two .micbtn span { min-width: 0; overflow-wrap: anywhere; }
 .micbtn {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 13px 0; border-radius: 14px; cursor: pointer;

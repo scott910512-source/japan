@@ -66,7 +66,7 @@ await page.waitForTimeout(200);
 const cells = await page.locator('.wmap .wmap-grid .wm-cell').count();
 ok('★ 전체를 고르면 모든 낱말이 한 칸씩 ★', cells === ALL_WORDS.length, `${cells} / ${ALL_WORDS.length}`);
 const cnt = (s) => page.locator(`.wmap .wmap-grid .wm-cell.s-${s}`).count();
-ok('본 것 · 외운 것 · 약점이 색으로 갈린다', await cnt('master') > 0 && await cnt('weak') > 0 && await cnt('l2') > 0 && await cnt('new') > 0);
+ok('본 것 · 외운 것 · 약점이 색으로 갈린다', await cnt('done') > 0 && await cnt('weak') > 0 && await cnt('round2') > 0 && await cnt('fresh') > 0);
 ok('요약에 만난 수가 맞다', (await page.locator('.wmap-sum').innerText()).includes(`${n5.length - 5 + ALL_WORDS.filter((w) => w.level === 'N5' && w.grammar).length} / ${ALL_WORDS.length}`), await page.locator('.wmap-sum').innerText());
 await page.locator('.wmap-tabs .chip', { hasText: 'N5' }).click();
 await page.waitForTimeout(200);

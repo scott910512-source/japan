@@ -253,3 +253,7 @@
 .n3-bar.dual .n3-barpct small { font-size: 10px; font-weight: 700; color: var(--ink-soft); }
 .n3-barkey { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
 .n3-notyet { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); }
+
+/* 독해 「뜻 보기」 — 옆의 넓은 버튼에 밀려 글자가 한 자씩 세로로 깨졌다(QA B15). 줄바꿈 없이 제 폭을 지킨다 */
+.btnrow .n3-toggleko { flex: 0 0 auto; min-width: 96px; white-space: nowrap; }
+.btnrow .n3-toggleko + .submit-btn { flex: 1 1 auto; width: auto; min-width: 0; margin-top: 0; }

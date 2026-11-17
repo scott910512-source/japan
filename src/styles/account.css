@@ -343,6 +343,9 @@
   padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(to bottom, transparent, var(--paper) 22%);
 }
+/* 위쪽 투명한 띠가 밑에 깔린 버튼(말해보기 등)의 클릭을 먹지 않게 — 눌리는 건 판정 버튼만(QA B14) */
+.study .judgerow, .study .revealrow { pointer-events: none; }
+.study .judgerow > *, .study .revealrow > * { pointer-events: auto; }
 
 /* 문장 퀘스트: 오늘은 건너뛰기 */
 .tdq-skip { display: block; margin: -2px 0 6px auto; min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--ink-soft); font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

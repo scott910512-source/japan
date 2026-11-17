@@ -497,8 +497,10 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
           <button type="button" className="ghost-btn qz-dunno qc-dunno" onClick={dunno} aria-label="잘 모르겠어요, 몰라요로 남기기">잘 모르겠어요</button>
         )}
         <div className="qc-tag">
-          {q.dir === QUIZ_DIR.JP_KO ? '뜻을 고르세요' : '일본어로 뭘까요'}
-          {q.type === QUIZ_TYPE.TYPING && ' · 직접 입력'}
+          {/* 직접 입력 문항에 「뜻을 고르세요 · 직접 입력」이라고 적혀 있었다 — 고를 보기가 없다(QA B17) */}
+          {q.type === QUIZ_TYPE.TYPING
+            ? (q.dir === QUIZ_DIR.JP_KO ? '뜻을 입력하세요' : '일본어로 입력하세요')
+            : (q.dir === QUIZ_DIR.JP_KO ? '뜻을 고르세요' : '일본어로 뭘까요')}
         </div>
         <div className={`qc-prompt${q.dir === QUIZ_DIR.KO_JP ? ' ko' : ''}`}>{q.prompt}</div>
 

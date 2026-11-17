@@ -22,6 +22,12 @@ function DualBar({ label, progress, ready }) {
   );
 }
 
+/* 준비도 숫자 — 홈(Today.jsx readyShown)과 같은 규칙: 10% 아래는 소수 첫째 자리까지 */
+export const readyText = (r) => {
+  const x = typeof r?.exact === 'number' ? r.exact : (r?.total || 0);
+  return x < 10 ? (Math.round(x * 10) / 10).toString() : Math.round(x).toString();
+};
+
 export default function N3Hub({
   progress, readiness, today, week, streak, day, dueCount, weakCount,
   onStartToday, onCurriculum, onReview, onExam, onWeak, onWrong,
@@ -31,7 +37,7 @@ export default function N3Hub({
   const started = steps.length > 0 && done > 0;
   const finished = steps.length > 0 && done >= steps.length;
   /* 진도도 준비도도 0이면 막대가 열 줄 있어 봐야 전부 빈 줄이다 */
-  const begun = progress.pct > 0 || readiness.total > 0 || TRACKS.some((t) => progress[t].pct > 0 || readiness[t] > 0);
+  const begun = progress.pct > 0 || (progress.exact || 0) > 0 || readiness.total > 0 || (readiness.exact || 0) > 0 || TRACKS.some((t) => progress[t].pct > 0 || readiness[t] > 0);
 
   return (
     <div className="n3-hub">
@@ -40,10 +46,12 @@ export default function N3Hub({
         <b>JLPT N3 MASTER</b>
       </div>
 
-      <div className="card n3-sum" data-progress={progress.pct} data-readiness={readiness.total} data-begun={begun ? '1' : '0'}>
+      <div className="card n3-sum" data-progress={progress.exact ?? progress.pct} data-readiness={readiness.exact ?? readiness.total} data-begun={begun ? '1' : '0'}>
         <div className="n3-sumtop">
-          <div className="n3-big"><b>{progress.pct}%</b><span>전체 진도</span></div>
-          <div className="n3-big ready"><b>{readiness.total}%</b><span>예상 N3 준비도</span></div>
+          <div className="n3-big"><b>{readyText({ exact: progress.exact, total: progress.pct })}%</b><span>전체 진도</span></div>
+          {/* ★ 10% 아래는 소수 첫째 자리까지 ★ (2026-11-17 QA B09) 문법 레슨 하나를 4/4로 맞혀도 N3 전체의 한 조각이라
+              0.1%쯤인데, 정수로 반올림해 「0%」로 보였다. 홈의 준비도 한 줄과 같은 셈으로 적는다 */}
+          <div className="n3-big ready"><b>{readyText(readiness)}%</b><span>예상 N3 준비도</span></div>
         </div>
         {begun ? (
           <div className="n3-bars">

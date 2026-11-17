@@ -15,6 +15,8 @@ export function hunterProfile({ words = [], review = {}, progress = {} } = {}) {
   const floor = (level - 1) ** 2 * 100;
   const ceiling = level ** 2 * 100;
   const rank = level >= 20 ? '트리플 스타 헌터' : level >= 12 ? '더블 스타 헌터' : level >= 6 ? '싱글 스타 헌터' : level >= 3 ? '루키 헌터' : '헌터 지망생';
+  /* 단어 회독 요약 — 내 학습의 「얼마나 했나」와 같은 셈(summarize)이다. 두 곳이 따로 세면 숫자가 어긋난다 */
+  const wordStat = summarize(words.map((w) => w.id), review);
   const levels = Object.fromEntries(['N5', 'N4', 'N3'].map((lv) => {
     const pool = words.filter((w) => String(w.level).toUpperCase() === lv);
     return [lv, { total: pool.length, seen: pool.filter((w) => review[w.id]?.lastSeen).length }];
@@ -23,7 +25,7 @@ export function hunterProfile({ words = [], review = {}, progress = {} } = {}) {
   const recommended = diagnostic?.best >= .8 ? 4 : diagnostic?.total ? 2 : levels.N5.seen >= 30 ? 2 : seen.length ? 1 : 0;
   const skills = [
     { key: 'grammar', label: '문법력', icon: '文', pct: progress.n3?.summary?.areas?.grammar ?? null, detail: `${grammar + seen.filter(([id]) => id.startsWith('g:')).length}개 학습 기록`, menu: 'grammar' },
-    { key: 'vocab', label: '어휘력', icon: '字', pct: words.length ? Math.round(words.reduce((n, w) => n + (review[w.id]?.lastSeen && !review[w.id]?.selfKnown ? Math.min(5, Math.max(0, review[w.id]?.level ?? review[w.id]?.streak ?? 0)) / 5 : 0), 0) / words.length * 100) : null, detail: `${seen.filter(([id]) => wordIds.has(id)).length}단어 학습`, menu: 'words' },
+    { key: 'vocab', label: '어휘력', icon: '字', pct: words.length ? Math.round(words.reduce((n, w) => n + (review[w.id]?.lastSeen && !review[w.id]?.selfKnown ? Math.min(5, Math.max(0, review[w.id]?.level ?? review[w.id]?.streak ?? 0)) / 5 : 0), 0) / words.length * 100) : null, detail: `${wordStat.seen}단어 학습`, menu: 'words' },
     { key: 'listening', label: '청해력', icon: '聴', pct: progress.n3?.summary?.areas?.listening ?? null, detail: 'N3 청해 문제 결과 기준', menu: 'listen' },
     { key: 'conversation', label: '회화력', icon: '話', pct: stages.some((s) => Number.isFinite(s.checkpoint)) ? Math.round(stages.reduce((n, s) => n + (s.checkpoint || 0), 0) / stages.length * 100) : null, detail: `${cleared}개 상황 통과 · 연습 지표`, menu: 'rpg' },
   ];
@@ -35,7 +37,5 @@ export function hunterProfile({ words = [], review = {}, progress = {} } = {}) {
     { id: 'test', symbol: '✓', title: '시험에 도전', note: '진단·확인 시험 1회 완료', earned: tests > 0 },
     { id: 'level', symbol: '★', title: '싱글 스타', note: '헌터 레벨 6 달성', earned: level >= 6 },
   ];
-  /* 단어 회독 요약 — 내 학습의 「얼마나 했나」와 같은 셈(summarize)이다. 두 곳이 따로 세면 숫자가 어긋난다 */
-  const wordStat = summarize(words.map((w) => w.id), review);
   return { xp, level, floor, ceiling, rank, levels, wordStat, recommended, skills, badges, seen: seen.length, lessons, cleared, diagnostic, percent: Math.round((xp - floor) / (ceiling - floor) * 100) };
 }

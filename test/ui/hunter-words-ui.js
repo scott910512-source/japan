@@ -68,7 +68,7 @@ const review = Object.fromEntries(N5.slice(0, SEEN).map((id, i) => [id, i < MAST
   ok('★ 세부 보기가 복습&내기록 탭을 연다 ★', await page.locator('.tabbar .tab.active[data-tab="me"]').count() === 1);
   const me = await page.locator('.screen.active').innerText();
   ok('거기에 기억 수준 · 판정 통계가 있다', me.includes('기억 수준') && me.includes('얼마나 했나'));
-  ok('★ 내 학습의 「한 번이라도 본 것」과 같은 수 ★', new RegExp(`${seen}\\s*한 번이라도 본 것|한 번이라도 본 것[\\s\\S]{0,12}${seen}`).test(me) || me.replace(/\s+/g, ' ').includes(`${seen} 한 번이라도 본 것`), me.replace(/\s+/g, ' ').match(/\d+ 한 번이라도 본 것/)?.[0]);
+  ok('★ 내 학습의 「본 단어」와 같은 수 ★ (QA B09: 화면마다 같은 셈)', me.replace(/\s+/g, ' ').includes(`${seen} 본 단어`), me.replace(/\s+/g, ' ').match(/\d+ 본 단어/)?.[0]);
 
   ok('콘솔 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | ') || '깨끗');
   await browser.close();

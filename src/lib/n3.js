@@ -151,7 +151,8 @@ export function progressOf(n3, review) {
     per[t] = { done: d, total: ids.length, pct: ids.length ? Math.round((d / ids.length) * 100) : 0 };
     done += d; total += ids.length;
   }
-  return { ...per, done, total, pct: total ? Math.round((done / total) * 100) : 0 };
+  /* exact: 소수 첫째 자리 — 레슨이 많아(청해 · 독해 추가) 하나 마쳐도 정수로는 0%에 머문다(QA B09) */
+  return { ...per, done, total, pct: total ? Math.round((done / total) * 100) : 0, exact: total ? Math.round((done / total) * 1000) / 10 : 0 };
 }
 
 /* ═══════════ 숙련도 ═══════════ */

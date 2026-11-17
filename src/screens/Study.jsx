@@ -554,8 +554,10 @@ export default function Study({
       {/* 읽는 법이 입에서 나오는지 확인한다. 뜻→한자 방향은 정답을 소리로 흘리게 되므로 뺀다.
           무엇을 말해야 하는지 버튼에 그대로 적는다 — "읽어보기"만 있으면 단어인지 예문인지 모른다.
           짧은 단어는 인식이 잘 빗나가서, 예문으로도 해볼 수 있게 따로 둔다. */}
+      {/* ★ 두 버튼은 한 줄에 나란히 ★ (2026-11-17 QA B14) 세로로 쌓으면 화면 아래에 붙는 판정 줄(1·2·3)이
+          「예문으로 말해보기」를 덮어, 내려 보기 전에는 버튼이 있는 줄도 몰랐다. 한 줄이면 높이가 절반이다 */}
       {revealed && view.direction !== 'mean-kanji' && (
-        <>
+        <div className={`sc-mics${word.example ? ' two' : ''}`}>
           <MicButton
             label={`「${word.kana}」 말해보기`}
             target={`${word.kanji} (${word.kana})`}
@@ -576,7 +578,7 @@ export default function Study({
               onToast={onToast}
             />
           )}
-        </>
+        </div>
       )}
 
       {/* ★ 답을 보기 전에는 판정이 아니라 「답 보기」 ★

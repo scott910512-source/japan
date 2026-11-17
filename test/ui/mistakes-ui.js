@@ -22,7 +22,7 @@ try {
   await page.locator('.n3-quiz').waitFor();
   const id = await page.locator('.n3-quiz').getAttribute('data-qid'); const q = questionById(id);
   const chosen = q.options.find((option) => option !== q.answer);
-  await page.locator('.n3-opts .qopt').nth(q.options.indexOf(chosen)).click();
+  await page.locator(`.n3-opts .qopt[data-opt=${JSON.stringify(chosen)}]`).click();   // 보기는 섞여 나온다(QA B01) — 자리 말고 글자로 고른다
   const read = () => page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_progress_v1') || '{}').mistakes || {});
   await page.waitForTimeout(100);
   let book = await read();
