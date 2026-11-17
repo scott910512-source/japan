@@ -36,7 +36,11 @@ export default function QuizRunner({
   const total = questions.length;
 
   /* 배열 문제는 조각을 섞어 보여 준다 — 문제마다 한 번만 */
-  const pieces = useMemo(() => (q?.type === 'order' ? shuffle(q.pieces) : null), [q]);
+  /* ★ 섞기는 문제 id가 바뀔 때만 ★ 부르는 쪽이 문제 묶음을 그릴 때마다 새 객체로 만든다(grammarQuestionsOf의 map).
+     q로 기억하면 답을 고른 뒤 다시 그려질 때 보기가 또 섞여, 누른 보기가 다른 자리로 튀었다 */
+  const qKey = q ? `${q.id}|${at}` : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const pieces = useMemo(() => (q?.type === 'order' ? shuffle(q.pieces) : null), [qKey]);
 
   useEffect(() => {
     if (!q) return undefined;
@@ -77,7 +81,8 @@ export default function QuizRunner({
   /* ★ 보기 순서를 문제마다 섞는다 ★ (2026-11-17 QA B01)
      자료는 정답을 늘 첫 칸에 적어 두었다(문법 420 · 독해 · 청해 · 모의고사 전부). 그대로 그리면 1번만 눌러도
      모의고사가 92% 「합격권」이 됐다 — 점수 · 준비도가 실력을 안 나타냈다. 정답은 자리가 아니라 값(answer)으로 본다. */
-  const mixed = useMemo(() => (q && q.type !== 'order' && Array.isArray(q.options) ? shuffle(q.options) : null), [q]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const mixed = useMemo(() => (q && q.type !== 'order' && Array.isArray(q.options) ? shuffle(q.options) : null), [qKey]);
   const options = (q?.type === 'order' ? pieces : mixed) || [];
   const { scope, keyboard } = useQuizHotkeys({
     options: !finished ? options : [],
