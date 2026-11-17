@@ -20,7 +20,12 @@ export const BOX = { NEW: 0, UNKNOWN: 1, VAGUE: 2, KNOWN: 3 };
  *
  * 그래서 졸업 뒤에도 한 달·석 달·반년으로 간격만 벌린다. 반년 간격이면
  * 2,330개가 전부 졸업해도 하루 13장꼴이라 부담이 되지 않는다. */
-const REVIEW_INTERVAL_DAYS = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 90 };
+/* 복습 간격(날). 2026-11-17: 1 · 3 · 7 · 30 · 90에서 1 · 3 · 7 · 14 · 30으로 —
+   외운 것(4단계)이 한 달 뒤에야 나와서 복습 미션이 비고, 잊은 걸 늦게 알았다. 잘 외운 것은 일주일, 또 맞히면 2주,
+   그다음 한 달, 그 뒤로는 석 달마다(KEEP_DAYS) 한 번씩 확인한다 */
+const REVIEW_INTERVAL_DAYS = { 1: 1, 2: 3, 3: 7, 4: 14, 5: 30 };
+/* 맨 위 단계(5)에서 또 맞혔을 때 — 석 달 */
+export const KEEP_DAYS = 90;
 const LONG_INTERVAL_DAYS = 180;
 export const MASTER_STREAK = 4;
 export const MAX_LEVEL = 5;
@@ -180,7 +185,8 @@ export function applyVerdict(prev, verdict, today = todayKey(), at = Date.now())
   if (ripe && !promotedToday) {
     next.level = Math.min(MAX_LEVEL, s.level + 1);
     next.promotedOn = today;
-    next.due = addDays(today, intervalOf(next.level));
+    /* 맨 위 단계에서 또 맞혔으면(이미 5단계) 석 달 뒤 — 같은 30일을 되풀이하지 않는다 */
+    next.due = addDays(today, s.level >= MAX_LEVEL ? KEEP_DAYS : intervalOf(next.level));
   } else {
     /* 안 올린다. 복습일도 그대로 둔다 — 미리 한 연습이 일정을 밀지 않는다.
        처음 보는 카드가 아니고 due가 없을 수는 없지만, 옛 기록을 대비해 채운다. */

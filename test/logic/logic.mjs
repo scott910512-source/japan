@@ -79,8 +79,9 @@ group('암기 · 복습 간격');
 
   ok('미학습은 복습 대상 아님', dueDate(emptyState()) === null);
   // 졸업해도 영영 빠지지는 않는다 — 간격만 벌어진다. 안 그러면 다 잊는다.
-  ok('졸업하면 한 달 뒤', dueDate(mk(BOX.KNOWN, MASTER_STREAK)) === '2026-02-09', dueDate(mk(BOX.KNOWN, MASTER_STREAK)));
-  ok('그다음은 석 달 뒤', dueDate(mk(BOX.KNOWN, 5)) === '2026-04-10', dueDate(mk(BOX.KNOWN, 5)));
+  /* 2026-11-17: 간격 1 · 3 · 7 · 14 · 30(그 뒤 석 달) */
+  ok('졸업하면 2주 뒤', dueDate(mk(BOX.KNOWN, MASTER_STREAK)) === '2026-01-24', dueDate(mk(BOX.KNOWN, MASTER_STREAK)));
+  ok('그다음은 한 달 뒤', dueDate(mk(BOX.KNOWN, 5)) === '2026-02-09', dueDate(mk(BOX.KNOWN, 5)));
   ok('그 뒤로는 반년 간격', dueDate(mk(BOX.KNOWN, 6)) === '2026-07-09', dueDate(mk(BOX.KNOWN, 6)));
   ok('졸업 표시는 그대로', isMastered(mk(BOX.KNOWN, MASTER_STREAK)) === true);
   ok('몰라요는 다음 날', dueDate(mk(BOX.UNKNOWN, 0)) === '2026-01-11');

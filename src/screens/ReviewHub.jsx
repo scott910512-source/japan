@@ -110,7 +110,7 @@ export default function ReviewHub({
         </button>
       </div>
       <p className="set-note">
-        <IconRepeat style={{ width: 12, height: 12, verticalAlign: '-2px' }} /> 복습 간격은 앱이 정해요 — 맞힐수록 1 · 3 · 7 · 30 · 90일로 벌어져요.
+        <IconRepeat style={{ width: 12, height: 12, verticalAlign: '-2px' }} /> 복습 간격은 앱이 정해요. 맞힐수록 1 · 3 · 7 · 14 · 30일로 벌어지고, 그 뒤로는 석 달마다 한 번씩 확인해요.
       </p>
 
       {/* 기억 단계 안내 — 이름은 rounds.js의 STAGES 하나만 본다(내 학습의 막대와 같은 말).
