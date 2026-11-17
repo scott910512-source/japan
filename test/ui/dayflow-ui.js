@@ -109,7 +109,7 @@ async function finishDeck(page) {
   ok('★ 새로 배우기는 스무 개 ★', /20/.test(await rowText(page, '새로 배우기')), await rowText(page, '새로 배우기'));
   ok('오늘 랜덤 테스트 줄이 있다(실제로 낼 문제 수를 적는다)', (await rowText(page, '오늘 랜덤 테스트')).includes('50문제'), await rowText(page, '오늘 랜덤 테스트'));
   const st = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1') || '{}'));
-  ok('★ 옛 설정(9·8·3)이 새 수량(복습 30 · 새로 20)으로 맞춰진다 ★', st.goals?.review === 30 && st.goals?.fresh === 20 && st.goalsV === 3, JSON.stringify(st.goals));
+  ok('★ 옛 설정(9·8·3)이 새 수량(복습 50 · 새로 20)으로 맞춰진다 ★', st.goals?.review === 50 && st.goals?.fresh === 20 && st.goalsV === 4, JSON.stringify(st.goals));
 
   console.log('\n[ 약점 퀴즈 30문제 → 다음: 쭉 퀴즈 ]');
   await page.locator('.tdq-row', { hasText: '약점 퀴즈' }).click();

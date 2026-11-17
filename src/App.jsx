@@ -21,7 +21,7 @@ import Onboarding from './components/Onboarding.jsx';
 import Today from './screens/Today.jsx';
 import Gate from './screens/Gate.jsx';
 import { IconArrowLeft } from './components/Icons.jsx';
-import { dailyPool, mixFresh } from './lib/cards.js';
+import { dailyPool, mixFresh, dedupeSentences } from './lib/cards.js';
 import { kijuIndex } from './lib/kiju.js';
 import { hasSignedInOnce, isGuest, setGuest } from './lib/storage.js';
 import { wrongTotals } from './lib/wrongbook.js';
@@ -225,7 +225,8 @@ export default function App() {
   // 오늘 학습 덱만 daily로 표시한다 — 복습 섞기 + 신규로 세션을 짜라는 뜻.
   /* 오늘의 학습 — 앱이 짜 준 큐 하나로 단어와 문장을 같이 돈다.
      문장은 카드 모양으로 감싸 두면 회독 화면이 그대로 받는다. */
-  const sentenceCards = useMemo(() => content?.sentenceCards || [], [content]);
+  /* 같은 일본어 문장은 하나만(lib/cards.js dedupeSentences) — 이미 공부한 쪽이 남는다 */
+  const sentenceCards = useMemo(() => dedupeSentences(content?.sentenceCards || [], review), [content, review]);
   /* 목적에 따라 차례를 바꿀 때 문장이 어느 상황인지 알아야 한다 —
      「여행」이면 주문·결제·길 찾기·숙소를 먼저 배정한다. */
   const sentById = useMemo(() => new Map(sentenceCards.map((c) => [c.id, c])), [sentenceCards]);

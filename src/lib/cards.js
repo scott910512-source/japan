@@ -141,6 +141,24 @@ export function mixFresh(pool, byId, review = {}) {
   return [...out, ...pool.filter((c) => !isNew(c))];
 }
 
+/* ★ 같은 문장은 학습 풀에 하나만 ★ (2026-11-17)
+ * 상황(식당 · 일상 · 삿포로)마다 같은 문장(「これをください。」 「予約しています。」 등 26개)이 따로 들어 있다.
+ * 상황 화면에서는 그 자리에 있어야 하지만, 매일 공부하는 풀에서는 같은 문장을 두 번 외우게 된다.
+ * 일본어가 같으면 하나만 남긴다 — 이미 공부한 쪽(회독 기록이 있는 쪽, 많이 본 쪽)이 남고, 없으면 먼저 나온 것. */
+const sameText = (s) => String(s || '').replace(/[\s。．、！？!?「」]/g, '');
+export function dedupeSentences(cards = [], review = {}) {
+  const pick = new Map();
+  for (const c of cards) {
+    const k = sameText(c.kanji);
+    const had = pick.get(k);
+    if (!had) { pick.set(k, c); continue; }
+    const r = (x) => (review?.[x.id]?.lastSeen ? 1000 + (review[x.id].rounds || 0) : 0);
+    if (r(c) > r(had)) pick.set(k, c);
+  }
+  const keep = new Set([...pick.values()].map((c) => c.id));
+  return cards.filter((c) => keep.has(c.id));
+}
+
 /* 큐(id 목록)를 실제 카드로 바꾼다. 없는 id는 조용히 버린다 —
  * 자료가 바뀌어 사라진 카드가 큐에 남아 있으면 화면이 빈 카드를 그린다. */
 /* extra: 단어장에도 상황 문장에도 없는 카드 — 지금은 JLPT 문장 듣기의 예문
