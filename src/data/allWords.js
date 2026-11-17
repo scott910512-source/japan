@@ -26,7 +26,9 @@ import { DAILY_WORDS } from './words-daily.js';
    자료의 kana는 서로 겹치지 않게 「・용법」 꼬리를 단 것이 있다(そうだ・ようす 등) — 읽기 · 소리 · 답으로 쓰는 칸이라
    꼬리는 떼어 싣는다. 겹쳐도 괜찮다 — 단어장은 표기(kanji)로 하나를 가린다. */
 import { GRAMMAR_POINTS } from './grammar-points.js';
-const GRAMMAR_CARDS = GRAMMAR_POINTS.map((g) => ({ ...g, kana: String(g.kana).split('・')[0] }));
+/* N5 기초 문법 95개(조사 쓰임별 · です/ます 활용 · て형 · 형용사 활용 …) — N4 카드가 이미 다루는 것은 뺐다 (2026-11-17) */
+import { GRAMMAR_POINTS_N5 } from './grammar-points-n5.js';
+const GRAMMAR_CARDS = [...GRAMMAR_POINTS_N5, ...GRAMMAR_POINTS].map((g) => ({ ...g, kana: String(g.kana).split('・')[0] }));
 
 /* 기본 수록 단어를 한 곳으로 모은다.
  *
