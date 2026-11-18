@@ -47,7 +47,7 @@ function AddWord({ onSubmit }) {
   const [group, setGroup] = useState('2');
   const [wordKind, setWordKind] = useState('noun');
 
-  const preview = kind === 'verb' && kana ? conjugate(kana, group) : null;
+  const preview = kind === 'verb' && kana ? conjugate(kana, group, { kanji }) : null;
   const previewRows = preview ? [
     ['ます', preview.masu], ['て형', preview.te], ['ない', preview.nai],
     ['가능형', preview.potentialDict], ['의지형', preview.volitionalCasual],

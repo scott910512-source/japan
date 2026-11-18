@@ -335,7 +335,21 @@ const overflow = (page) => page.evaluate(() => document.documentElement.scrollWi
   await page.locator('.n3-grammar').waitFor();
   await nextStep(page, '.n3-grammar', 4);
   await page.locator('.n3-quiz').waitFor();
-  await solve(page, { wrongAt: [0, 1] });
+  /* ★ 두 문제만 (틀리게) 풀고 나갔다 오면 3번부터 ★ (QA FIX-05) */
+  await solve(page, { wrongAt: [0, 1], max: 2 });
+  await page.locator('.n3-grammar .sub-header.inline:not(.n3-qhead) .sub-back').click();
+  await page.waitForTimeout(400);
+  const savedAns = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_n3_lesson_quiz_v1') || '{}')['g:souda-yousu']);
+  ok('★ 나가도 푼 답 둘이 저장돼 있다 ★', savedAns?.list?.length === 2 && savedAns.list.every((r) => r.ok === false), JSON.stringify(savedAns?.list?.map((r) => r.ok)));
+  /* 나가면 과정 목록으로 — 묶음이 접혀 있으면 다시 펼친다 */
+  if (!(await page.locator('.n3-curriculum').count())) { await page.locator('.n3-tile', { hasText: '전체 과정' }).click(); await page.waitForTimeout(300); }
+  if (!(await page.locator('.n3-chapter[data-chapter="ch2"].open').count())) { await page.locator('.n3-chapter[data-chapter="ch2"] .n3-chhead').click(); await page.waitForTimeout(200); }
+  if (!(await page.locator('.n3-lrow[data-lesson="g:souda-yousu"]').isVisible().catch(() => false))) { await page.locator('.n3-group[data-group="guess"] .n3-ghead').click(); await page.waitForTimeout(200); }
+  await page.locator('.n3-lrow[data-lesson="g:souda-yousu"]').click();
+  await page.locator('.n3-quiz').waitFor();
+  ok('★ 다시 들어오면 문제 단계 3번부터, 저장됐다는 안내 ★', (await page.locator('.n3-quiz .swl-count').innerText()).startsWith('3 /') && await page.locator('.n3-resume-note').count() === 1,
+    await page.locator('.n3-quiz .swl-count').innerText());
+  await solve(page, {});
   await page.locator('.n3-done').click();
   await page.locator('.n3-recap').waitFor();
   ok('틀린 것을 「다시 볼 것」으로', await page.locator('.n3-recapq').count() === 2);

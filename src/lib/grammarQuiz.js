@@ -16,7 +16,7 @@ export function shuffleGrammar(items, random = Math.random) {
 export function grammarQuiz(words, module, book = {}, random = Math.random) {
   if (!module) return [];
   const verbs = words.filter((w) => w.type === 'verb' && w.kana && ['1', '2', '3'].includes(String(w.group)))
-    .map((word) => ({ word, forms: conjugate(word.kana, String(word.group)) }));
+    .map((word) => ({ word, forms: conjugate(word.kana, String(word.group), word) }));
   const seen = new Set();
   const pool = [];
   for (const { word, forms } of verbs) {
@@ -30,7 +30,7 @@ export function grammarQuiz(words, module, book = {}, random = Math.random) {
   }
   const selected = prioritizeMistakes(shuffleGrammar(pool, random), book, (q) => q.id, GRAMMAR_QUIZ_SIZE);
   return selected.map(({ forms, ...q }) => {
-    const wrong = conjugate(q.word.kana, String(q.word.group) === '2' ? '1' : '2')?.[q.formKey];
+    const wrong = conjugate(q.word.kana, String(q.word.group) === '2' ? '1' : '2', q.word)?.[q.formKey];
     // Never pad duplicate choices with whitespace; every visible answer is unique.
     const candidates = [wrong, ...shuffleGrammar(Object.values(forms), random), ...shuffleGrammar(verbs.map((v) => v.forms?.[q.formKey]), random)];
     const distractors = [...new Set(candidates.filter(Boolean).map((s) => s.trim()))].filter((s) => s !== q.answer).slice(0, 3);

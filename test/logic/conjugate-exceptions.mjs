@@ -1,6 +1,9 @@
 /* 동사 활용 예외 — lib/conjugate.js (2026-11-17 QA B02) */
 import assert from 'node:assert/strict';
-import { conjugate } from '../../src/lib/conjugate.js';
+import { conjugate, NO_POTENTIAL_KANJI } from '../../src/lib/conjugate.js';
+import { ALL_WORDS } from '../../src/data/allWords.js';
+import { grammarQuiz } from '../../src/lib/grammarQuiz.js';
+import { GRAMMAR_MODULES } from '../../src/data/grammar.js';
 
 let pass = 0;
 const check = (l, f) => { f(); pass++; console.log('✓', l); };
@@ -27,5 +30,33 @@ check('보통 동사는 그대로', () => {
   assert.equal(conjugate('べんきょうする', '3').masu, 'べんきょうします');
   assert.equal(conjugate('くる', '3').nai, 'こない');
   assert.equal(conjugate('いる', '2').potentialDict, 'いられる');
+});
+/* ── 2026-11-18 QA FIX-01: 儲かる 같은 자발 · 상태 동사 ── */
+const verbs = ALL_WORDS.filter((w) => w.type === 'verb' && ['1', '2', '3'].includes(String(w.group)));
+check(`★ 자료의 동사 ${verbs.length}개 전부: 가능형 없음 목록의 동사는 가능형이 비어 있다 ★`, () => {
+  const bad = verbs.filter((w) => (NO_POTENTIAL_KANJI.has(w.kanji) || NO_POTENTIAL_KANJI.has(`${w.kanji}:${w.kana}`))
+    && conjugate(w.kana, String(w.group), w)?.potentialDict);
+  assert.deepEqual(bad.map((w) => w.kanji), []);
+});
+check('★ 儲かる · 見つかる · 助かる · 要る · 似合う는 가능형이 없다 ★', () => {
+  for (const [kanji, kana] of [['儲かる', 'もうかる'], ['見つかる', 'みつかる'], ['助かる', 'たすかる'], ['要る', 'いる'], ['似合う', 'にあう'], ['間に合う', 'まにあう'], ['異なる', 'ことなる'], ['鳴る', 'なる'], ['開く', 'あく']]) {
+    assert.equal(conjugate(kana, kana === 'いる' ? '1' : '1', { kanji })?.potentialDict ?? null, null, kanji);
+  }
+});
+check('가나가 같아도 다른 동사는 그대로: なる(되다) → なれる, いる(있다) → いられる, 開く(ひらく) → ひらける', () => {
+  assert.equal(conjugate('なる', '1', { kanji: 'なる' }).potentialDict, 'なれる');
+  assert.equal(conjugate('いる', '2', { kanji: '居る' }).potentialDict, 'いられる');
+  assert.equal(conjugate('ひらく', '1', { kanji: '開く' }).potentialDict, 'ひらける');
+});
+check('noPotential: true 표시도 가능형을 비운다', () => assert.equal(conjugate('はしる', '1', { kanji: '走る', noPotential: true }).potentialDict, null));
+check('★ 기초문법 가능형 세트를 200번 뽑아도 목록의 동사가 안 나온다 ★', () => {
+  const mod = GRAMMAR_MODULES.find((m) => m.id === 'potential');
+  let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let i = 0; i < 200; i += 1) {
+    for (const q of grammarQuiz(ALL_WORDS, mod, {}, rnd)) {
+      assert.ok(!NO_POTENTIAL_KANJI.has(q.word.kanji) && !NO_POTENTIAL_KANJI.has(`${q.word.kanji}:${q.word.kana}`), q.word.kanji);
+      assert.ok(q.answer, q.word.kanji);
+    }
+  }
 });
 console.log(`통과 ${pass} / 실패 0`);

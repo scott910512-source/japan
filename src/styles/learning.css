@@ -563,3 +563,13 @@
 .wordmemo .memo, .wordmemo .memo-add, .wordmemo .memo.editing { width: 100%; text-align: left; }
 
 .qv-note { font-size: 12px; font-weight: 600; color: var(--shu); margin-top: 4px; }
+
+/* 쭉 퀴즈: 이 판에서 틀렸던 문제를 다시 낼 때의 표시(QA FIX-03) */
+.st-retry { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 100px; font-size: 11px; font-weight: 700;
+  color: var(--shu); background: color-mix(in srgb, var(--shu) 12%, transparent); vertical-align: 1px; }
+/* 주관식 로마자 안내 — 칸 밑에 남는다(QA FIX-04) */
+.qv-romaji { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; padding: 8px 12px; border-radius: 12px;
+  font-size: 13px; color: var(--ink); background: color-mix(in srgb, var(--kin, #d9a441) 16%, var(--surface)); }
+.qv-romaji-use { font-weight: 700; }
+.qv-romaji-use span { font-family: var(--font-ja); font-size: 15px; margin-right: 2px; }
+.qv-romaji-ex { color: var(--ink-soft); }

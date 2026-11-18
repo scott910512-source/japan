@@ -135,5 +135,14 @@ ok('원문이 없거나 한자가 없으면 그대로', spokenKana('こんにち
   ok('「ㅋㅋㅋ」는 묻지 않고 그냥 틀림', judgeTyping(kaesu, 'jp-ko', 'ㅋㅋㅋ').verdict === 'wrong' && !judgeTyping(kaesu, 'jp-ko', 'ㅋㅋㅋ').canAccept);
 }
 
+/* QA FIX-09: 이표기(alt) — 丸い/円い · 子供/子ども · きれい/綺麗 */
+{
+  const { ALL_WORDS } = await import('../../src/data/allWords.js');
+  const byKanji = (k) => ALL_WORDS.find((w) => w.kanji === k);
+  for (const [k, alt] of [['丸い', '円い'], ['子供', '子ども'], ['きれい', '綺麗'], ['聞く', '聴く']]) {
+    ok(`★ 이표기 인정: ${k} = ${alt} ★`, judgeTyping(byKanji(k), 'ko-jp', alt).verdict === 'correct' && judgeTyping(byKanji(k), 'ko-jp', k).verdict === 'correct');
+  }
+}
+
 console.log(`\n통과 ${pass} / 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

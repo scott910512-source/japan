@@ -16,7 +16,7 @@ const CHROME = process.env.CHROMIUM || (existsSync(LOCAL_CHROME) ? LOCAL_CHROME 
 let pass = 0; let fail = 0;
 const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefined ? `— ${e}` : ''); } else { fail++; console.log('  ✗', l, e !== undefined ? `— ${e}` : ''); } };
 const WORDS = allWords.ALL_WORDS || allWords.default;
-const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+const norm = (s) => String(s || '').replace(/\s*[;·]\s*/g, ';').replace(/\s+/g, ' ').trim();   // 화면은 「;」를 「 · 」로 보인다
 
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
@@ -38,6 +38,17 @@ const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
   const start = page.locator('button', { hasText: '시험 시작' }).first();
   if (await start.count()) { await start.click(); await page.waitForTimeout(900); }
   await page.locator('.qtyping input').waitFor({ timeout: 15000 });
+
+  /* ★ 로마자로 내면 채점하지 않고 칸 밑에 안내가 남는다 · 히라가나로 바꾸기 ★ (QA FIX-04) */
+  const p0 = await page.locator('.qc-prompt').innerText();
+  await page.locator('.qtyping input').fill('TABERU');
+  await page.locator('.qtyping .submit-btn').click();
+  await page.waitForTimeout(300);
+  ok('★ 로마자(TABERU)를 내면 안내가 칸 밑에 남는다(채점 안 함) ★', await page.locator('.qv-romaji').count() === 1 && await page.locator('.qverdict').count() === 0
+    && (await page.locator('.qc-prompt').innerText()) === p0);
+  ok('「たべる로 바꾸기」를 누르면 칸에 히라가나가 들어간다', (await page.locator('.qv-romaji-use').innerText()).includes('たべる')
+    && await page.locator('.qv-romaji-use').click().then(() => page.locator('.qtyping input').inputValue()) === 'たべる');
+  await page.locator('.qtyping input').fill('');
 
   /* 뜻이 하나뿐인 낱말이 나올 때까지 틀리게 넘긴다(같은 뜻의 낱말이 여럿이면 어느 것을 묻는지 모른다) */
   let word = null; let wrongSeen = false;

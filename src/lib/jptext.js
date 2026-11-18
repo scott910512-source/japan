@@ -225,3 +225,42 @@ export function spokenKana(kana, jp) {
   for (const [pos, ch] of short) if (long.get(pos) === ch) out[pos] = ch;
   return out.join('');
 }
+
+/* ── 로마자 → 히라가나 (QA FIX-04) ──
+ * 주관식에 TABERU처럼 로마자로 쓴 사람에게 「たべる로 바꿀까요?」를 보여 주려는 것. 채점은 하지 않는다 —
+ * 바꾼 글자를 보고 제출은 사람이 한다. 헵번식 기본(shi · chi · tsu · fu · ja · 촉음 겹자음 · n')만 다룬다. 못 바꾸면 null */
+const ROMA = {
+  a: 'あ', i: 'い', u: 'う', e: 'え', o: 'お',
+  ka: 'か', ki: 'き', ku: 'く', ke: 'け', ko: 'こ', ga: 'が', gi: 'ぎ', gu: 'ぐ', ge: 'げ', go: 'ご',
+  sa: 'さ', shi: 'し', si: 'し', su: 'す', se: 'せ', so: 'そ', za: 'ざ', ji: 'じ', zi: 'じ', zu: 'ず', ze: 'ぜ', zo: 'ぞ',
+  ta: 'た', chi: 'ち', ti: 'ち', tsu: 'つ', tu: 'つ', te: 'て', to: 'と', da: 'だ', di: 'ぢ', du: 'づ', de: 'で', do: 'ど',
+  na: 'な', ni: 'に', nu: 'ぬ', ne: 'ね', no: 'の', ha: 'は', hi: 'ひ', fu: 'ふ', hu: 'ふ', he: 'へ', ho: 'ほ',
+  ba: 'ば', bi: 'び', bu: 'ぶ', be: 'べ', bo: 'ぼ', pa: 'ぱ', pi: 'ぴ', pu: 'ぷ', pe: 'ぺ', po: 'ぽ',
+  ma: 'ま', mi: 'み', mu: 'む', me: 'め', mo: 'も', ya: 'や', yu: 'ゆ', yo: 'よ',
+  ra: 'ら', ri: 'り', ru: 'る', re: 'れ', ro: 'ろ', wa: 'わ', wo: 'を', "n'": 'ん',
+  kya: 'きゃ', kyu: 'きゅ', kyo: 'きょ', gya: 'ぎゃ', gyu: 'ぎゅ', gyo: 'ぎょ', sha: 'しゃ', shu: 'しゅ', sho: 'しょ', she: 'しぇ',
+  sya: 'しゃ', syu: 'しゅ', syo: 'しょ', ja: 'じゃ', ju: 'じゅ', jo: 'じょ', je: 'じぇ', jya: 'じゃ', jyu: 'じゅ', jyo: 'じょ',
+  cha: 'ちゃ', chu: 'ちゅ', cho: 'ちょ', che: 'ちぇ', tya: 'ちゃ', tyu: 'ちゅ', tyo: 'ちょ', nya: 'にゃ', nyu: 'にゅ', nyo: 'にょ',
+  hya: 'ひゃ', hyu: 'ひゅ', hyo: 'ひょ', bya: 'びゃ', byu: 'びゅ', byo: 'びょ', pya: 'ぴゃ', pyu: 'ぴゅ', pyo: 'ぴょ',
+  mya: 'みゃ', myu: 'みゅ', myo: 'みょ', rya: 'りゃ', ryu: 'りゅ', ryo: 'りょ', fa: 'ふぁ', fi: 'ふぃ', fe: 'ふぇ', fo: 'ふぉ', '-': 'ー',
+};
+export function romajiToKana(text) {
+  const s = String(text || '').toLowerCase().replace(/\s+/g, '');
+  if (!s || !/^[a-z'-]+$/.test(s)) return null;
+  let out = ''; let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    /* 겹자음(kk · tt · ss · pp · tch)은 っ */
+    if (c === s[i + 1] && /[bcdfghjkmprstvwz]/.test(c)) { out += 'っ'; i += 1; continue; }
+    if (c === 't' && s.startsWith('tch', i)) { out += 'っ'; i += 1; continue; }
+    /* nn: 뒤에 모음이 오면 ん + な행(konnichiwa), 아니면 ん 하나(onna 제외 끝의 nn) */
+    if (c === 'n' && s[i + 1] === 'n') { out += 'ん'; i += /[aiueoy]/.test(s[i + 2] || '') ? 1 : 2; continue; }
+    let hit = null;
+    for (const len of [3, 2, 1]) { const part = s.slice(i, i + len); if (ROMA[part]) { hit = part; break; } }
+    /* 홀로 선 n(뒤에 모음 · y가 아닌 자음이 오거나 끝)은 ん */
+    if (c === 'n' && (!hit || hit === 'n') && !/[aiueoy]/.test(s[i + 1] || '')) { out += 'ん'; i += 1; continue; }
+    if (!hit) return null;
+    out += ROMA[hit]; i += hit.length;
+  }
+  return out;
+}

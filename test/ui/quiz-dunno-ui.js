@@ -126,7 +126,7 @@ async function startWordQuiz(page) {
     page.on('pageerror', (e) => errors.push(e.message));
     await startWordQuiz(page);
     const prompt = (await page.locator('.qc-prompt').innerText()).trim();
-    const w = WORDS.find((x) => x.mean === prompt) || WORDS.find((x) => String(x.mean).split(/[;/]/).map((m) => m.trim()).includes(prompt));
+    const w = WORDS.find((x) => x.mean === prompt || String(x.mean).replace(/\s*;\s*/g, ' · ') === prompt) || WORDS.find((x) => String(x.mean).split(/[;/]/).map((m) => m.trim()).includes(prompt));
     ok('시험 문제에서 정답 낱말을 찾았다', Boolean(w), prompt);
     const head0 = (await page.locator('.sh-title').first().innerText()).trim();
     await page.locator('.qtyping input').fill(w.kana);

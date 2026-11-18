@@ -25,6 +25,23 @@ const IRREGULAR = {
 const HONORIFIC_I = ['いらっしゃる', 'おっしゃる', 'なさる', 'くださる', 'ござる'];
 const U_TE_VERBS = ['とう', 'こう'];   // 問う · 請う — て형 · た형이 とうて · こうて(沿う 같은 다른 う동사는 표대로 そって)
 const NO_POTENTIAL = ['できる', 'わかる', 'みえる', 'きこえる', 'ある', 'いらっしゃる', 'おっしゃる', 'なさる', 'くださる', 'ござる', 'すぎる', 'たりる'];
+/* ★ 한자로 가리는 가능형 없음 ★ (2026-11-18 QA FIX-01) 가나만으로는 못 가른다 — なる(되다)는 가능형이 있지만 鳴る(울리다)는 없고,
+   いる(있다)는 いられる가 되지만 要る(필요하다)는 안 된다. 그래서 「저절로 그렇게 되는」 자동사 · 상태 동사는 한자로 적는다.
+   사람이 마음먹고 하는 쪽으로도 쓰는 것(変われる · 終われる · 起きられる · 役に立てる · 抜けられる)은 넣지 않았다.
+   단어 자료에 noPotential: true를 달아도 같은 대접이다 */
+export const NO_POTENTIAL_KANJI = new Set([
+  '儲かる', '見つかる', '助かる', '掛かる', '要る', '似合う', '間に合う', '異なる', '値する', '存在する', '足りる', '似る',
+  '分かる', '見える', '聞こえる', '出来る', '有る', '在る', '知る', '違う', '困る', '要する',
+  '開く:あく', '閉まる', '始まる', '生まれる', '降る', '晴れる', '曇る', '消える', '切れる', '治る', '直る', '決まる', '割れる', '汚れる', '折れる',
+  '倒れる', '壊れる', '落ちる', '増える', '減る', '揺れる', '光る', '鳴る', '済む', '効く', '故障する', '沈む', '揃う', '無くなる', '劣る',
+  '乾く', '崩れる', '優れる', '伝わる', '溶ける', '余る', '現れる', '至る', '生じる', '溜まる', '散る', '繋がる', '積もる', '整う', '外れる',
+  '深まる', '増す', '混ざる', '混じる', '役立つ', '破れる', '弱まる', '当てはまる', '差し支える', '暖まる', '温まる', '零れる', '広まる', '高まる',
+  '強まる', '緩む', '尽きる', '引っかかる', '見当たる', '売り切れる', '出来上がる', '突き当たる', '片付く', '広がる', '剥がれる', '漏れる',
+  '当たる', '垂れる', '挟まる', 'ムカつく', '腹が立つ', '癒される', '気が合う', '散らかる', '腐る', '冷え込む', '喉が渇く', '戸惑う', '慣れる',
+  '起こる', '続く', '冷える', '亡くなる', '枯れる', '凍る', '濡れる', '焼ける', '燃える', '痛む', '似通う', '響く', '目立つ', '見え始める',
+]);
+const noPotentialWord = (kana, kanji, flag) => Boolean(flag)
+  || (kanji && (NO_POTENTIAL_KANJI.has(kanji) || NO_POTENTIAL_KANJI.has(`${kanji}:${kana}`)));
 
 function buildForms(base) {
   const { masu, te, ta, nai, potentialDict, volitionalCasual, ba } = base;
@@ -56,10 +73,12 @@ function buildForms(base) {
 }
 
 // group: '1' | '2' | '3'
-export function conjugate(kana, group) {
+/* word(선택): { kanji, noPotential } — 가나가 같은 다른 동사(なる/鳴る, いる/要る)를 가른다 */
+export function conjugate(kana, group, word = null) {
   if (!kana) return null;
   const forms = conjugateRaw(kana, group);
-  if (forms && NO_POTENTIAL.some((v) => kana === v || (kana.endsWith(v) && v.length >= 3))) {
+  if (forms && (noPotentialWord(kana, word?.kanji, word?.noPotential)
+    || NO_POTENTIAL.some((v) => kana === v || (kana.endsWith(v) && v.length >= 3)))) {
     return { ...forms, potentialDict: null, potentialMasu: null };
   }
   return forms;

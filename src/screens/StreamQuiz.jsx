@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import RomajiHint from '../components/RomajiHint.jsx';
 import { focusUnlessTyping, sheetOpen } from '../lib/focus.js';
 import WordMemo from '../components/WordMemo.jsx';
 import { avoidToday } from '../lib/dayflow.js';
@@ -50,6 +51,7 @@ export default function StreamQuiz({
   const [cur, setCur] = useState(null);          // { item, q }
   const [answered, setAnswered] = useState(null); // { value, verdict, ok? }
   const [typed, setTyped] = useState('');
+  const [romaji, setRomaji] = useState(null);   // 로마자로 낸 답(QA FIX-04)
   /* 한 번에 풀 문제 수 — 정해 두지 않으면 20. 다 풀면 「계속하기 / 오늘은 여기까지」를 묻는다. 0이면 끝없이. */
   const [batch, setBatchState] = useState(loadBatch);
   const setBatch = (n) => { setBatchState(n); try { localStorage.setItem(BATCH_KEY, String(n)); } catch { /* 저장 못 해도 괜찮다 */ } };
@@ -120,7 +122,7 @@ export default function StreamQuiz({
     if (!first) { onToast?.('낼 수 있는 문제가 없어요'); return; }
     lastCheck.current = 0; setCheckpoint(false);
     questShown.current = questDone;   // 이미 오늘 몫을 마치고 다시 들어온 판은 끊지 않는다
-    setCur(first); setAnswered(null); setTyped(''); setPhase('run');
+    setCur(first); setAnswered(null); setTyped(''); setRomaji(null); setPhase('run');
   };
 
   /* ★ 퀘스트로 들어왔으면 바로 시작한다 ★ 자료가 준비되는 대로 한 번만. 풀 문제가 모자라면(MIN_POOL) 소개 화면에 남아
@@ -138,7 +140,7 @@ export default function StreamQuiz({
     const nxt = nextQuestion(sessionRef.current);
     if (!nxt) { setPhase('sum'); return; }
     setCheckpoint(false);
-    setCur(nxt); setAnswered(null); setTyped('');
+    setCur(nxt); setAnswered(null); setTyped(''); setRomaji(null);
   }, [nextQuestion]);
 
   /* ★ 오늘 몫(스무 문제)을 이 판에서 채웠으면 그 자리에서 멈춰 「다음: ○○」를 내민다 ★
@@ -202,7 +204,7 @@ export default function StreamQuiz({
       return;
     }
     const res = judge(cur.q, input);
-    if (res.verdict === 'invalid') { onToast?.(res.why); return; }      // 로마자 — 채점하지 않는다(QA B11)
+    if (res.verdict === 'invalid') { setRomaji(typeof input === 'string' ? input : typed); return; }      // 로마자 — 채점하지 않고 칸 밑에 안내(QA FIX-04)
     if (res.verdict === 'close') { setAnswered({ value: input, verdict: 'close', ok: null }); return; }
     /* 사전에 없는 한국어 뜻 — 같은 뜻의 다른 말일 수 있으니 내가 정하게 한다(QA B08) */
     if (res.canAccept) { setAnswered({ value: input, verdict: 'close', ok: null, synonym: true }); return; }
@@ -348,7 +350,10 @@ export default function StreamQuiz({
         {!answered && (
           <button type="button" className="ghost-btn st-dunno qc-dunno" onClick={dunno} aria-label="잘 모르겠어요, 몰라요로 남기기">잘 모르겠어요</button>
         )}
-        <div className="qc-tag"><span className="st-kind" data-kind={q.kind}>{KIND_LABEL[q.kind]}</span> {q.tag}</div>
+        <div className="qc-tag"><span className="st-kind" data-kind={q.kind}>{KIND_LABEL[q.kind]}</span> {q.tag}
+          {/* 이 판에서 틀렸던 문제를 한 번 더 — 왜 또 나오는지 알려 준다(QA FIX-03) */}
+          {cur?.item?.retry && <span className="st-retry">틀렸던 문제 · 다시 확인</span>}
+        </div>
         <div className={`qc-prompt${q.promptJp ? '' : ' ko'}`} lang={q.promptJp ? 'ja' : 'ko'}>{q.prompt}</div>
         {q.sub && (answered || q.kind === KIND.KANJI) && <div className="qc-sub">{q.sub}</div>}
         {q.speak && (q.promptJp || answered) && (
@@ -393,13 +398,14 @@ export default function StreamQuiz({
             ref={inputRef}
             className="search-input st-input"
             value={answered ? (answered.value ?? '') : typed}
-            onChange={(e) => setTyped(e.target.value)}
+            onChange={(e) => { setTyped(e.target.value); setRomaji(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter' && shortcutEvent(e)) { takeControl(); e.preventDefault(); if (!answered && typed.trim()) answer(typed); } }}
             placeholder={q.promptJp ? '뜻을 한국어로' : '일본어로 (한자 또는 히라가나)'}
             disabled={Boolean(answered)}
             autoComplete="off" autoCorrect="off" spellCheck={false}
           />
           {!answered && <button className="submit-btn st-submit" onClick={() => answer(typed)} disabled={!typed.trim()}>제출</button>}
+          <RomajiHint value={romaji} onUse={(k) => { setTyped(k); setRomaji(null); }} />
         </div>
       )}
 
