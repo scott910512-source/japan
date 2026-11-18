@@ -36,4 +36,32 @@ check('★ 「をください」 「これは」에 사람 · 장소가 안 들�
   }
 });
 check('문형마다 넣을 낱말은 넉넉하다', () => { for (const id of ['kore-desu', 'ga-arimasu', 'ga-suki', 'o-kudasai']) assert.ok(built(id).length >= 50, id); });
+/* ── 2026-11-18 QA FIX-02: 존재문 전수 검사 ── */
+const exist = built('ga-arimasu');
+const jpOf = (k) => exist.filter((b) => b.w.kanji === k).map((b) => b.jp);
+check('★ 사물 · 추상 · 신체는 います가 아니다(国 · 目 · 耳 · 鼻 · 髪 · 話 · 声) ★', () => {
+  for (const k of ['国', '目', '耳', '鼻', '髪', '話', '声']) assert.ok(!jpOf(k).some((j) => j.endsWith('がいます')), `${k}: ${jpOf(k)}`);
+});
+check('★ 의문사 · 방향 · 지시어는 존재문에 안 나온다(どなた · 北 · 南 · あっち · 側 · 所) ★', () => {
+  for (const k of ['どなた', '北', '南', 'あっち', '側', '所', '誰か', 'みんな']) assert.equal(jpOf(k).length, 0, k);
+});
+check('★ 魚がいます / 물고기가 있습니다(생선 ×) ★', () => {
+  const b = exist.find((x) => x.w.kanji === '魚');
+  assert.ok(b && b.jp === "魚がいます" && b.kr === "물고기가 있습니다", JSON.stringify(b));
+});
+check('사람 · 동물은 그대로 います(友達 · 先生 · 犬 · 猫)', () => {
+  for (const k of ['友達', '先生', '犬', '猫']) assert.ok(jpOf(k).every((j) => j.endsWith('がいます')) && jpOf(k).length > 0, k);
+});
+check('★ 조리 · 식습관 같은 추상명사는 「これは」 「ください」 「あります」에 안 나온다 ★', () => {
+  for (const id of ['kore-desu', 'o-kudasai', 'ga-arimasu']) {
+    assert.ok(!built(id).some((b) => ['冷凍', '保存', '乾杯', '味付け', '外食', '二次会', '食事'].includes(b.w.kanji)), id);
+  }
+});
+check('★ 비교 문형(これはあれより〜です)도 문장이 나온다 · 기분 형용사는 빠진다 ★', () => {
+  const id = PATTERNS.find((p) => p.jp.includes('より')).id;
+  const rows = built(id);
+  assert.ok(rows.length >= 30, `${rows.length}`);
+  assert.ok(!rows.some((b) => ['嬉しい', '悲しい', '痛い', '眠い'].includes(b.w.kanji)));
+  assert.ok(rows.every((b) => !String(b.kr).includes('undefined')));
+});
 console.log(`통과 ${pass} / 실패 0`);

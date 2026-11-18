@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import RomajiHint from '../components/RomajiHint.jsx';
 import {
   IconCheck, IconX, IconSpeaker, IconArrowLeft, IconEye, IconPencil, IconList, IconRepeat,
 } from '../components/Icons.jsx';
@@ -276,6 +277,8 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
   const done = index >= questions.length;
 
   const [typed, setTyped] = useState('');
+
+  const [romaji, setRomaji] = useState(null);   // 로마자로 낸 답(QA FIX-04)
   const [shownSub, setShownSub] = useState(false);
   /* 일본어를 고르는 문제에서 읽는 법을 열어 볼지.
      기본은 안 보여 준다 — 시험이 묻는 것은 표기고, 가나가 같이 떠 있으면
@@ -300,7 +303,7 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
   const holdForReview = reviewOpen && optRows.length >= 2;
 
   useEffect(() => {
-    setTyped('');
+    setTyped(''); setRomaji(null);
     setShownSub(false);
     setShownOpt(false);
     if (q?.type === QUIZ_TYPE.TYPING) focusUnlessTyping(inputRef.current);
@@ -399,7 +402,7 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
       if (t && (t === word.kanji || t === word.kana)) { onToast?.('이 문제는 뜻을 한국어로 쓰는 칸이에요'); return; }
     }
     const res = judgeTyping(word, q.dir, typed);
-    if (res.verdict === 'invalid') { onToast?.(res.why); return; }      // 로마자 — 채점하지 않는다
+    if (res.verdict === 'invalid') { setRomaji(typed); return; }      // 로마자 — 채점하지 않고 칸 밑에 안내(QA FIX-04)
     /* 사전에 없는 한국어 뜻은 「거의 맞음」처럼 내가 정하게 한다(같은 뜻의 다른 말) */
     if (res.canAccept) { recordX('close', typed, { synonym: true }); return; }
     recordX(res.verdict, typed, res.note ? { note: res.note } : null);
@@ -604,7 +607,7 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
             ref={inputRef}
             className="search-input"
             value={answered ? (answered.value ?? '') : typed}
-            onChange={(e) => setTyped(e.target.value)}
+            onChange={(e) => { setTyped(e.target.value); setRomaji(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter' && shortcutEvent(e)) { takeControl(); e.preventDefault(); answered ? next() : submitTyping(); } }}
             placeholder={q.dir === QUIZ_DIR.JP_KO ? '뜻을 한국어로' : '일본어로 (한자 또는 히라가나)'}
             disabled={Boolean(answered)}
@@ -617,6 +620,7 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
               제출{hasKeyboard && <kbd className="inline-key">Enter</kbd>}
             </button>
           )}
+          <RomajiHint value={romaji} onUse={(k) => { setTyped(k); setRomaji(null); }} />
         </div>
       )}
 

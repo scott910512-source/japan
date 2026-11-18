@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconArrowLeft } from '../../components/Icons.jsx';
 import { grammarById } from '../../data/n3/grammar.js';
 import { grammarQuestionsOf, verdictFor } from '../../lib/n3.js';
@@ -25,21 +25,58 @@ const writePos = (id, step) => {
   } catch { /* 자리를 못 적어도 레슨은 된다 */ }
 };
 
+/* ★ 푼 답도 문항마다 바로 적는다 ★ (2026-11-18 QA FIX-05) 단계만 남고 답은 사라져서, 다시 들어오면 1/4부터 다시 풀었다.
+   { [레슨 id]: { list: [{ qid, ok, picked }], applied: 회독에 넣은 개수 } } — 레슨 완료를 누르면 지운다 */
+const ANS_KEY = 'jp_n3_lesson_quiz_v1';
+const readAns = (id) => { try { const v = JSON.parse(localStorage.getItem(ANS_KEY) || '{}')[id]; return v && Array.isArray(v.list) ? v : { list: [], applied: 0 }; } catch { return { list: [], applied: 0 }; } };
+const writeAns = (id, v) => {
+  try {
+    const all = JSON.parse(localStorage.getItem(ANS_KEY) || '{}');
+    if (v == null) delete all[id]; else all[id] = v;
+    localStorage.setItem(ANS_KEY, JSON.stringify(all));
+  } catch { /* 못 적어도 레슨은 된다 */ }
+};
+
 export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQuit, onPartial, mastery }) {
   const l = grammarById(lessonId);
-  const [step, setStep] = useState(() => readPos(lessonId));
-  const [result, setResult] = useState(null);
-  const answered = useRef([]);
+  const questions = useMemo(() => grammarQuestionsOf(lessonId), [lessonId]);
+  /* 전에 풀다 나간 답을 문제 객체로 되돌린다(자료가 바뀌어 없어진 문항은 버린다) */
+  const saved = useMemo(() => {
+    const v = readAns(lessonId);
+    const byId = new Map(questions.map((q) => [q.id, q]));
+    const list = v.list.map((r) => (byId.has(r.qid) ? { q: byId.get(r.qid), ok: r.ok, picked: r.picked } : null)).filter(Boolean);
+    return { list, applied: Math.min(v.applied || 0, list.length) };
+  }, [lessonId, questions]);
+  const allDone = questions.length > 0 && saved.list.length >= questions.length;
+  const doneResult = allDone ? { right: saved.list.filter((r) => r.ok).length, total: saved.list.length, results: saved.list } : null;
+  /* 문제를 다 풀고 나갔으면 복습 단계(결과)로 바로 돌아온다 */
+  const [step, setStep] = useState(() => (allDone ? 5 : readPos(lessonId)));
+  const [result, setResult] = useState(doneResult);
+  const answered = useRef(saved.list);
+  const applied = useRef(saved.applied);
+  const save = () => writeAns(lessonId, { list: answered.current.map((r) => ({ qid: r.q.id, ok: r.ok, picked: r.picked })), applied: applied.current });
   useEffect(() => { if (step < 5) writePos(lessonId, step); }, [lessonId, step]);
   if (!l) return null;
 
   const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
   /* 문제를 풀다 나가면 그때까지 푼 것을 넣고 나간다 — 레슨 완료로 치지는 않는다 */
   const quit = () => {
-    if (!result && answered.current.length) onPartial?.({ results: answered.current });
+    /* 다 풀어 놓고 「레슨 완료」 없이 나가면 진도에 안 오른다 — 그대로 완료할지 묻는다 */
+    if (result) {
+      let finish = false;
+      try { finish = window.confirm('문제를 다 풀었어요. 레슨 완료로 저장하고 나갈까요?\n(취소하면 답은 남겨 두고 나가요 — 다시 오면 결과부터 보여요)'); } catch { finish = false; }
+      if (finish) { writePos(lessonId, null); writeAns(lessonId, null); onFinish?.(result); return; }
+    }
+    /* 아직 회독에 안 넣은 답만 넣는다 — 나갔다 오기를 거듭해도 같은 답을 두 번 세지 않게 */
+    const fresh = answered.current.slice(applied.current);
+    if (!result && fresh.length) { onPartial?.({ results: fresh }); applied.current = answered.current.length; save(); }
     onQuit?.();
   };
-  const answer = (q, ok, picked) => { answered.current = [...answered.current, { q, ok, picked }]; onAnswer?.(q, ok, picked); };
+  const answer = (q, ok, picked) => {
+    answered.current = [...answered.current, { q, ok, picked }];
+    save();
+    onAnswer?.(q, ok, picked);
+  };
 
   return (
     <div className="n3-lesson n3-grammar" data-lesson={l.id} data-step={step}>
@@ -119,7 +156,8 @@ export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQu
 
       {step === 4 && (
         <QuizRunner onQuit={quit}
-          questions={grammarQuestionsOf(l.id)}
+          questions={questions}
+          resume={saved.list}
           rate={rate}
           autoSpeak={false}
           onAnswer={answer}
@@ -151,7 +189,7 @@ export default function GrammarLesson({ lessonId, rate, onAnswer, onFinish, onQu
           <div className="set-note">
             {result ? `${result.right} / ${result.total} 맞혔어요 · 판정: ${({ known: '알아요', vague: '애매해요', unknown: '몰라요' })[verdictFor(result.right, result.total)]} — 복습일이 정해졌어요` : ''}
           </div>
-          <button className="submit-btn n3-finish-btn" onClick={() => { writePos(lessonId, null); onFinish?.(result || { right: 0, total: l.quiz.length, results: [] }); }}>레슨 완료</button>
+          <button className="submit-btn n3-finish-btn" onClick={() => { writePos(lessonId, null); writeAns(lessonId, null); onFinish?.(result || { right: 0, total: l.quiz.length, results: [] }); }}>레슨 완료</button>
         </div>
       )}
     </div>

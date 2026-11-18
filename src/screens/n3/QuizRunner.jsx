@@ -23,14 +23,17 @@ import { reviewRows, rowOf, speakText } from '../../lib/optionInfo.js';
 export default function QuizRunner({
   questions, title, mode = 'study', rate = 0.9, autoSpeak = true,
   onAnswer, onFinish, onDone, onQuit, doneLabel = '완료', finishExtra = null, hideFinish = false, lastLabel = '결과 보기',
+  resume = null,
 }) {
   /* 화면을 나가면 걸려 있던 타이머도 같이 꺼진다 — 안 그러면 나간 뒤에
      한 판이 적히거나 한 문제가 넘어간다(hooks/useTimeouts.js) */
   const { after, cancel } = useTimeouts();
   const advanceTimer = useRef(null);
-  const [at, setAt] = useState(0);
+  /* resume: 전에 풀다 나간 답([{ q, ok, picked }]) — 그다음 문제부터 이어서 푼다(QA FIX-05) */
+  const resumedFrom = Array.isArray(resume) && resume.length > 0 && resume.length < questions.length ? resume.length : 0;
+  const [at, setAt] = useState(resumedFrom);
   const [picked, setPicked] = useState(null);
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState(() => (resumedFrom ? resume : []));
   const [finished, setFinished] = useState(false);
   const q = questions[at];
   const total = questions.length;
@@ -144,6 +147,9 @@ export default function QuizRunner({
       </div>
       <KeyboardHelp />
       {title && <div className="n3-qtitle">{title}</div>}
+      {resumedFrom > 0 && at === resumedFrom && picked === null && (
+        <p className="n3-resume-note">앞의 {resumedFrom}문제 답은 저장돼 있어요 · {resumedFrom + 1}번부터 이어서 풀어요</p>
+      )}
       {at === 0 && <HunterTutor guide={mode === 'exam' ? 'hisoka' : 'hanzo'} scene="exam" title={mode === 'exam' ? '실전 도전' : '집중 퀴즈'} line={mode === 'exam' ? '이번에는 스스로 풀어 보자. 해설은 시험을 마친 뒤에 확인할 수 있어.' : '먼저 스스로 답을 골라 봐. 고른 뒤에 이유를 함께 살펴보자.'} compact />}
 
       {q.passage && (

@@ -14,7 +14,7 @@ export const DEFAULT_WORDS = [
   { id: 'v-hanasu', kanji: '話す', kana: 'はなす', mean: '말하다; 이야기하다', type: 'verb', group: '1', level: 'N5', example: '日本語を話します。', exampleKana: 'にほんごをはなします。', exampleKo: '일본어를 말합니다.', tags: ['기본', '일상'] },
   { id: 'v-yomu', kanji: '読む', kana: 'よむ', mean: '읽다', type: 'verb', group: '1', level: 'N5', example: '本を読みます。', exampleKana: 'ほんをよみます。', exampleKo: '책을 읽습니다.', tags: ['일상'] },
   { id: 'v-kaku', kanji: '書く', kana: 'かく', mean: '쓰다(글씨를); 적다', type: 'verb', group: '1', level: 'N5', example: '名前を書きます。', exampleKana: 'なまえをかきます。', exampleKo: '이름을 씁니다.', tags: ['기본', '일상'] },
-  { id: 'v-kiku', kanji: '聞く', kana: 'きく', mean: '듣다/묻다', type: 'verb', group: '1', level: 'N5', example: '道を聞きます。', exampleKana: 'みちをききます。', exampleKo: '길을 묻습니다.', tags: ['여행', '이동'] },
+  { id: 'v-kiku', kanji: '聞く', alt: ['聴く'], kana: 'きく', mean: '듣다/묻다', type: 'verb', group: '1', level: 'N5', example: '道を聞きます。', exampleKana: 'みちをききます。', exampleKo: '길을 묻습니다.', tags: ['여행', '이동'] },
   { id: 'v-kau', kanji: '買う', kana: 'かう', mean: '사다', type: 'verb', group: '1', level: 'N5', example: 'お土産を買います。', exampleKana: 'おみやげをかいます。', exampleKo: '기념품을 삽니다.', tags: ['쇼핑', '여행'] },
   { id: 'v-matsu', kanji: '待つ', kana: 'まつ', mean: '기다리다', type: 'verb', group: '1', level: 'N5', example: 'ここで待ちます。', exampleKana: 'ここでまちます。', exampleKo: '여기서 기다립니다.', tags: ['기본', '일상'] },
   { id: 'v-oyogu', kanji: '泳ぐ', kana: 'およぐ', mean: '수영하다', type: 'verb', group: '1', level: 'N5', example: '海で泳ぎます。', exampleKana: 'うみでおよぎます。', exampleKo: '바다에서 수영합니다.', tags: ['일상'] },

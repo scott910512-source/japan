@@ -223,6 +223,10 @@ export function pickDistractors(word, pool, count, rng = Math.random) {
   return out;
 }
 
+/* 화면에 보이는 뜻 — 자료의 뜻 구분자 「;」를 그대로 보이지 않는다(「지불하다; 내다」 → 「지불하다 · 내다」, QA FIX-07).
+   채점은 여전히 자료의 뜻을 하나씩 나눠서 한다(meaningsOf) */
+export const meanText = (mean) => String(mean || '').replace(/\s*;\s*/g, ' · ').trim();
+
 export function buildQuestion(word, { type, dir }, pool, rng = Math.random) {
   const jpFirst = dir === QUIZ_DIR.JP_KO;
   const base = {
@@ -230,9 +234,9 @@ export function buildQuestion(word, { type, dir }, pool, rng = Math.random) {
     wordId: word.id,
     type,
     dir,
-    prompt: jpFirst ? word.kanji : word.mean,
+    prompt: jpFirst ? word.kanji : meanText(word.mean),
     promptSub: jpFirst ? word.kana : null,   // 힌트로 열어 볼 읽는 법
-    answer: jpFirst ? word.mean : word.kanji,
+    answer: jpFirst ? meanText(word.mean) : word.kanji,
     answerSub: jpFirst ? word.kana : word.kana,
   };
 
@@ -249,7 +253,7 @@ export function buildQuestion(word, { type, dir }, pool, rng = Math.random) {
    * 손에 들고 있으니 여기서 같이 넘긴다. */
   const options = shuffled([word, ...distractors], rng).map((w) => ({
     wordId: w.id,
-    label: jpFirst ? w.mean : w.kanji,
+    label: jpFirst ? meanText(w.mean) : w.kanji,
     sub: jpFirst ? null : w.kana,
     jp: w.kanji,
     jpKana: w.kana,
@@ -334,7 +338,9 @@ export function gradeQuiz(questions, answers = {}) {
 }
 
 export function gradeLabel(score) {
-  if (score >= 90) return { text: '완벽해요', tone: 'great' };
+  /* 「완벽해요」는 다 맞혔을 때만 — 90점에 완벽하다고 하면 틀린 한 문제가 가려진다(QA FIX-08) */
+  if (score >= 100) return { text: '완벽해요', tone: 'great' };
+  if (score >= 90) return { text: '거의 다 맞혔어요', tone: 'great' };
   if (score >= 70) return { text: '잘 하고 있어요', tone: 'good' };
   if (score >= 50) return { text: '조금만 더', tone: 'okay' };
   return { text: '다시 외울 때예요', tone: 'weak' };

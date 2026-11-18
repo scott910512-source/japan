@@ -86,16 +86,31 @@ export function newSession() {
 
 const weightIn = (it, session) => weightOf(it.d + (session.bump[it.id] || 0));
 
-/* 다음에 낼 것. 약한 것이 더 잘 뽑히되, 방금 낸 것은 건너뛴다. */
+/* 틀린 것을 다시 내기 전에 사이에 둘 문제 수 */
+export const RETRY_GAP = 8;
+
+/* 다음에 낼 것. 약한 것이 더 잘 뽑히되, 방금 낸 것은 건너뛴다.
+ *
+ * ★ 한 판 안의 규칙 ★ (2026-11-17 QA B07 → 2026-11-18 FIX-03)
+ *   · 맞힌 것은 다시 안 낸다.
+ *   · 틀린 것(처음 대답 기준)은 RETRY_GAP문제 넘게 지난 뒤 딱 한 번 더 — 그 문제에는 retry 표시가 붙는다.
+ *   · 그 밖에는 한 판에 한 번씩만. 전에는 처음에 틀린 것이 판 안에서 몇 번이고 다시 뽑혀 返す가 세 번 나왔다.
+ *   · 낼 게 바닥나면(풀이 작다) 예전처럼 방금 낸 것만 피해서 고른다. */
 export function pickNext(pool, session, rng = Math.random) {
   if (!pool.length) return null;
-  const blockN = pool.length > RECENT_BLOCK * 2 ? RECENT_BLOCK : 1;
-  const block = new Set(session.recent.slice(-blockN));
-  /* ★ 한 판 안에서는 맞힌 것을 다시 내지 않는다 ★ (2026-11-17 QA B07) 전에는 방금 낸 몇 개만 피해서 스무 문제 안에
-     返す가 세 번, 같은 문장 문제가 두 번씩 나왔다. 틀린 것은 다시 나와도 된다(곧 다시 만나야 외운다). 낼 게 바닥나면 예전처럼 */
-  const fresh = pool.filter((it) => !block.has(it.id) && session.recorded?.[it.id] !== true);
-  const open = fresh.length ? fresh : pool.filter((it) => !block.has(it.id));
-  const list = open.length ? open : pool;
+  const asked = session.asked || {};
+  const n = (session.log || []).length;
+  const lastAt = (id) => { for (let i = n - 1; i >= 0; i -= 1) if (session.log[i].id === id) return i; return -1; };
+  const retry = pool.filter((it) => session.recorded?.[it.id] === false && (asked[it.id] || 0) === 1 && n - 1 - lastAt(it.id) >= RETRY_GAP);
+  if (retry.length) return { ...retry[0], retry: true };
+  const fresh = pool.filter((it) => !(asked[it.id] > 0));
+  let list = fresh;
+  if (!list.length) {
+    const blockN = pool.length > RECENT_BLOCK * 2 ? RECENT_BLOCK : 1;
+    const block = new Set(session.recent.slice(-blockN));
+    const open = pool.filter((it) => !block.has(it.id));
+    list = open.length ? open : pool;
+  }
   const weights = list.map((it) => weightIn(it, session));
   const total = weights.reduce((a, b) => a + b, 0);
   let r = rng() * total;
