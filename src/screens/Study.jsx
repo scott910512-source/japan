@@ -13,14 +13,14 @@ import FinishCard, { finishPrimary } from './study/FinishCard.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
 import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
-import { STEP, STEP_HINT, STEP_LABEL, hidesFront, needsSound, settingsForStep, stepFor } from '../lib/steps.js';
+import { STEP, STEP_HINT, STEP_LABEL, facetForStep, hidesFront, needsSound, settingsForStep, stepFor, stepForFacet } from '../lib/steps.js';
 import { useHotkeys, useHasKeyboard } from '../lib/useHotkeys.js';
 import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { stepOfDeck } from '../lib/dayflow.js';
 import { normalizeGoals } from '../lib/daily.js';
 import {
-  VERDICT, advanceSession, buildDailySession, buildNextRound, buildRound1, isWeak, nextRoundOf,
-  selfKnownLabel, stateOf, todayKey,
+  VERDICT, advanceSession, buildDailySession, buildNextRound, buildRound1, facetLevels, isWeak, isWordCard, nextRoundOf,
+  selfKnownLabel, stateOf, todayKey, weakestFacet, withFacets,
 } from '../lib/review.js';
 /* 끝 화면이 뜬 뒤 Enter를 받기까지 두는 틈 — 마지막 카드를 판정한 Enter가 이어져 끝 화면을 건너뛰지 않게 */
 const FINISH_ENTER_WAIT_MS = 500;
@@ -183,8 +183,13 @@ export default function Study({
   /* 앱이 짜 준 판(오늘의 학습)에서만 단계를 올린다. 골라 들어간 판에서는
      사용자가 설정한 방향을 그대로 지킨다 — 「나는 한→일로만 볼래」를
      앱이 마음대로 바꾸면 안 된다. */
+  /* 세 칸이 있는 낱말은 오늘 제일 약한 칸을 묻는다(뜻 · 읽기 · 떠올리기). 칸이 없는 카드(문장 · 문법)는 예전처럼 연속 정답 수로 */
+  const wordSt = word ? stateOf(review, word.id) : null;
+  const facetSt = word && isWordCard(word) ? withFacets(review[word.id], word) : null;
   const step = deck.stepped && word
-    ? stepFor(stateOf(review, word.id).streak, { canListen: settings.autoTTS !== false })
+    ? (facetSt?.fx
+      ? stepForFacet(weakestFacet(facetSt), { meanLevel: facetSt.fx.mean?.lv || 0, streak: wordSt.streak, canListen: settings.autoTTS !== false })
+      : stepFor(wordSt.streak, { canListen: settings.autoTTS !== false }))
     : null;
   const view = step ? settingsForStep(settings, step) : settings;
   const faces = word ? facesOf(word, view) : null;
@@ -271,7 +276,9 @@ export default function Study({
       day: todayKey(),
     });
 
-    const result = advanceSession(session, review, word.id, verdict, todayKey());
+    /* 낱말이면 세 칸을 붙인 기록 위에서, 지금 단계가 묻는 칸에 판정을 넣는다 */
+    const base = facetSt ? { ...review, [word.id]: facetSt } : review;
+    const result = advanceSession(session, base, word.id, verdict, todayKey(), facetSt ? facetForStep(step, view) : null);
     /* 카드 id를 같이 넘긴다 — 오늘 계획이 「무엇을」 끝냈는지 알아야
        같은 카드를 세 번 만나도 완료 수가 한 번만 오른다. */
     onReviewChange(result.progress, verdict, word.id);
@@ -521,6 +528,14 @@ export default function Study({
             {/* 「얘는 왜 한자가 없지?」처럼 카드를 보면 반드시 나오는 물음이 있다.
                 매번 밖에서 찾게 두느니 한 줄로 적어 둔다 — 있는 카드에만 나온다. */}
             {word.note && <div className="sc-note">{word.note}</div>}
+            {/* 이 낱말의 세 칸 — 셋 다 날짜를 두고 확인돼야 「외움」이다 */}
+            {facetLevels(facetSt) && (
+              <div className="sc-facets" aria-label="뜻 · 읽기 · 떠올리기 확인 단계">
+                {facetLevels(facetSt).map((f) => (
+                  <span key={f.key} className={`sc-facet${f.lv >= 4 ? ' ok' : ''}`} data-facet={f.key}>{f.label} <b>{Math.min(4, f.lv)}</b>/4</span>
+                ))}
+              </div>
+            )}
             <MemoBox
               memo={memos?.[word.id]}
               placeholder={`예) ${word.kana} → 소리로 외우는 나만의 방법`}

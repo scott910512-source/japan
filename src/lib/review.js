@@ -129,9 +129,111 @@ export function daysBetween(from, to) {
  * seenAt은 "몇 시 몇 분에 눌렀는가"다. 복습 날짜 계산은 lastSeen(날짜)만 쓰지만,
  * 기기 두 대를 합칠 때는 이게 필요하다 — 같은 날 같은 카드를 아이폰과 아이패드에서
  * 다르게 판정하면 날짜만으로는 어느 쪽이 나중인지 알 수가 없다. */
-export function applyVerdict(prev, verdict, today = todayKey(), at = Date.now()) {
+/* ═══════════ 낱말의 세 칸 — 뜻 · 읽기 · 떠올리기 (2026-11-19) ═══════════
+ *
+ * 일본어 낱말 하나는 한자 · 읽기 · 뜻이 같이 붙어야 외운 것이다. 食べる를 「먹다」로만 알고 たべる가 안 나오면
+ * 아직 다 외운 게 아니다. 그래서 낱말 카드는 세 칸을 따로 센다.
+ *   mean  한자(또는 소리)를 보고 뜻          — 카드 「읽기 · 듣기」 단계, 일→한 시험
+ *   read  한자를 보고 읽는 법                — 카드 「떠올리기 · 소리 내어」 단계, 읽기 문제
+ *   prod  한국어를 보고 일본어를 떠올리기     — 카드 「한국어 → 일본어」 단계, 한→일 시험
+ * 칸마다 날짜를 둔 확인 단계(lv)와 다음 확인일(due)이 있고, 오르는 규칙은 낱말 하나일 때와 같다(복습일에 하루 한 칸).
+ * ★ 카드의 level · due는 세 칸에서 나온다 ★ level = 가장 낮은 칸, due = 가장 이른 칸. 그래서 「외움」 · 복습일 ·
+ *   기억 단계 · 단어 지도가 손대지 않아도 세 칸 기준이 된다.
+ * 가나로만 쓰는 낱말(ちょっと)은 읽기 칸이 없다({ na: 1 }). 문장 · 문법 카드는 fx가 없어서 예전 그대로 한 칸이다.
+ * fx는 App이 낱말 카드에 붙인다(withFacets). 옛 기록은 「뜻만 확인됨」으로 옮긴다 — 읽기 · 떠올리기는 0에서,
+ * 다음 복습일은 그대로 둬서 하루에 몰려 나오지 않는다. */
+export const FACETS = ['mean', 'read', 'prod'];
+export const FACET_LABEL = { mean: '뜻', read: '읽기', prod: '떠올리기' };
+const HAS_KANJI = /[\u3400-\u9fff\uf900-\ufaff々〆]/;
+export const needsReading = (word) => HAS_KANJI.test(String(word?.kanji || ''));
+
+/* 세 칸을 따로 세는 카드인가 — 낱말만(문장 · 문법 카드는 아니다) */
+export const isWordCard = (card) => Boolean(card && !card.grammar && card.type && card.type !== 'sentence' && card.kind !== 'sentence');
+
+/* 낱말 카드에 세 칸을 붙인다. 이미 있으면 그대로. 자가 신고(이미 알아요)는 건드리지 않는다.
+   처음 보는 낱말(raw 없음)이면 빈 세 칸으로 시작한다 — 첫 판정부터 칸에 들어가게 */
+export function withFacets(raw, word) {
+  if (!raw) {
+    const fresh = { lv: 0, due: null, on: null };
+    return { ...emptyState(), fx: { mean: { ...fresh }, read: needsReading(word) ? { ...fresh } : { na: 1 }, prod: { ...fresh } } };
+  }
+  if (raw.fx || raw.selfKnown) return raw;
+  const st = migrateState(raw);
+  const blank = (due) => ({ lv: 0, due: due ?? null, on: null });
+  const fx = {
+    mean: { lv: st.level || 0, due: st.due ?? null, on: st.promotedOn || null },
+    read: needsReading(word) ? blank(st.due) : { na: 1 },
+    prod: blank(st.due),
+  };
+  return aggregateFacets({ ...raw, fx }, raw.level || 0);
+}
+
+/* 회독 기록 전체에서 아직 칸이 없는 낱말 카드에 칸을 붙인다(옛 기록 옮기기). 바뀐 게 없으면 같은 객체 */
+export function migrateFacets(review = {}, byId) {
+  let out = null;
+  for (const [id, st] of Object.entries(review)) {
+    if (!st || st.fx || st.selfKnown || !st.lastSeen) continue;
+    const card = byId?.get?.(id);
+    if (!isWordCard(card)) continue;
+    (out || (out = { ...review }))[id] = withFacets(st, card);
+  }
+  return out || review;
+}
+
+/* 칸들에서 카드의 level · due를 다시 잡는다. 단계가 올랐으면 promotedOn도 오늘로(기록 화면 「기억 단계 오름」) */
+function aggregateFacets(st, prevLevel = 0, today = null) {
+  const parts = FACETS.map((k) => st.fx?.[k]).filter((f) => f && !f.na);
+  if (!parts.length) return st;
+  const level = Math.min(...parts.map((f) => f.lv || 0));
+  const dues = parts.map((f) => f.due).filter(Boolean).sort();
+  const out = { ...st, level, due: dues[0] ?? st.due ?? null };
+  if (today && level > prevLevel) out.promotedOn = today;
+  return out;
+}
+
+/* 칸 하나에 판정 하나 — applyVerdict의 「알아요 · 애매해요 · 몰라요」 규칙을 칸 단위로 */
+function bumpFacet(f, verdict, today) {
+  const cur = f && !f.na ? f : { lv: 0, due: null, on: null };
+  if (verdict === VERDICT.UNKNOWN) return { ...cur, lv: 0, due: today };
+  if (verdict === VERDICT.VAGUE) return { ...cur, lv: Math.max(0, (cur.lv || 0) - 1), due: today };
+  const ripe = cur.due == null || cur.due <= today;
+  if (ripe && cur.on !== today) {
+    const lv = Math.min(MAX_LEVEL, (cur.lv || 0) + 1);
+    return { lv, due: addDays(today, (cur.lv || 0) >= MAX_LEVEL ? KEEP_DAYS : intervalOf(lv)), on: today };
+  }
+  return { ...cur, due: cur.due ?? addDays(today, intervalOf(cur.lv || 1)) };
+}
+
+/* 카드의 칸별 단계 — 화면이 「뜻 3 · 읽기 1 · 떠올리기 0」으로 그린다. 칸이 없으면 null */
+export function facetLevels(st) {
+  if (!st?.fx) return null;
+  return FACETS.filter((k) => st.fx[k] && !st.fx[k].na).map((k) => ({ key: k, label: FACET_LABEL[k], lv: st.fx[k].lv || 0, due: st.fx[k].due || null }));
+}
+
+/* 지금 제일 약한 칸(오늘 확인할 것 가운데 단계가 낮은 것). 같으면 읽기 → 떠올리기 → 뜻 */
+export function weakestFacet(st, today = todayKey()) {
+  const lv = facetLevels(st);
+  if (!lv?.length) return null;
+  const order = { read: 0, prod: 1, mean: 2 };
+  const ready = lv.filter((f) => !f.due || f.due <= today);
+  const pool = ready.length ? ready : lv;
+  return [...pool].sort((a, b) => a.lv - b.lv || order[a.key] - order[b.key])[0].key;
+}
+
+export function applyVerdict(prev, verdict, today = todayKey(), at = Date.now(), facet = null) {
   const s = migrateState(prev);
   const next = { ...s, rounds: s.rounds + 1, lastSeen: today, seenAt: at };
+
+  /* ★ 세 칸이 있는 낱말 ★ 판정은 그 칸에만 — 카드의 level · due는 칸에서 다시 나온다 */
+  if (s.fx && verdict !== VERDICT.MASTER) {
+    const key = FACETS.includes(facet) && s.fx[facet] && !s.fx[facet].na ? facet : 'mean';
+    next.fx = { ...s.fx, [key]: bumpFacet(s.fx[key], verdict, today) };
+    next.selfKnown = false;
+    if (verdict === VERDICT.UNKNOWN) { next.box = BOX.UNKNOWN; next.streak = 0; next.wrongCount = s.wrongCount + 1; }
+    else if (verdict === VERDICT.VAGUE) { next.box = BOX.VAGUE; next.streak = 0; next.vagueCount = s.vagueCount + 1; }
+    else { next.box = BOX.KNOWN; next.streak = s.streak + 1; }
+    return aggregateFacets(next, s.level || 0, today);
+  }
 
   if (verdict === VERDICT.MASTER) {
     /* 「이미 알아요」 — 자가 신고다.
@@ -143,6 +245,10 @@ export function applyVerdict(prev, verdict, today = todayKey(), at = Date.now())
     next.selfKnown = true;
     next.promotedOn = today;
     next.due = addDays(today, LONG_INTERVAL_DAYS);
+    if (s.fx) {
+      const full = { lv: MAX_LEVEL, due: next.due, on: today };
+      next.fx = Object.fromEntries(FACETS.map((k) => [k, s.fx[k]?.na ? { na: 1 } : full]));
+    }
     return next;
   }
 
@@ -478,8 +584,8 @@ export function buildNextRound(roundIds, progress) {
 //
 // session: { queue, roundIds, reinserted, done }
 // 반환: { session, progress } — 둘 다 새 객체
-export function advanceSession(session, progress, cardId, verdict, today = todayKey()) {
-  const nextState = applyVerdict(stateOf(progress, cardId), verdict, today);
+export function advanceSession(session, progress, cardId, verdict, today = todayKey(), facet = null) {
+  const nextState = applyVerdict(stateOf(progress, cardId), verdict, today, Date.now(), facet);
   const nextProgress = { ...progress, [cardId]: nextState };
 
   /* 같은 카드가 큐에 두 번 들어 있을 수 있다 — 몰라요가 열 번 넘게 쌓인

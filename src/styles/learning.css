@@ -573,3 +573,8 @@
 .qv-romaji-use { font-weight: 700; }
 .qv-romaji-use span { font-family: var(--font-ja); font-size: 15px; margin-right: 2px; }
 .qv-romaji-ex { color: var(--ink-soft); }
+/* 회독 카드 뒷면: 낱말의 세 칸(뜻 · 읽기 · 떠올리기) 확인 단계 */
+.sc-facets { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 6px 0 2px; }
+.sc-facet { font-size: 11.5px; padding: 2px 8px; border-radius: 100px; color: var(--ink-soft); background: var(--surface-2); }
+.sc-facet b { color: var(--ink); }
+.sc-facet.ok { color: var(--kon); background: color-mix(in srgb, var(--kon) 12%, var(--surface)); }
