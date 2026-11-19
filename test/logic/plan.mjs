@@ -12,7 +12,7 @@
  * 화면·큐·통계가 그 하나만 본다. */
 import {
   buildPlan, ensurePlan, planStatus, markStudied, unmarkStudied,
-  addMore, remaining, mergePlan, noteFreeStudy, untouched, MORE_STEP, reviewLeftOf } from '../../src/lib/plan.js';
+  addMore, remaining, mergePlan, noteFreeStudy, untouched, MORE_STEP, reviewLeftOf, markCarried } from '../../src/lib/plan.js';
 import { applyVerdict, emptyState, VERDICT } from '../../src/lib/review.js';
 
 let pass = 0; let fail = 0;
@@ -251,6 +251,26 @@ console.log('\n[ ★ 오늘 복습 몇 개 — 배지·홈·복습 탭이 한 �
   const r2 = reviewLeftOf(planStatus(done));
   ok('복습을 다 하면 0 — 밀린 것이 있어도 배지는 0', r2.left === 0 && r2.backlog > 0);
   ok('계획이 없으면 전부 0', reviewLeftOf(planStatus(null)).left === 0 && reviewLeftOf(null).backlog === 0);
+}
+
+console.log('\n[ ★ 복습 미션 「1개 남음」이 안 남는다 (2026-11-19) ★ ]');
+{
+  const plan = {
+    date: T, v: 1, assigned: [{ id: 'a', bucket: 'review' }, { id: 'b', bucket: 'review' }, { id: 'c', bucket: 'weak' }, { id: 'gone', bucket: 'review' }],
+    done: { a: true, c: true }, reps: 0, extra: 0,
+  };
+  ok('전: b(못 외움) · gone(자료에 없음) 둘이 남는다', reviewLeftOf(planStatus(plan)).left === 2);
+  const known = new Set(['a', 'b', 'c']);
+  ok('★ 자료에 없는 카드는 세지 않는다 ★', reviewLeftOf(planStatus(plan, known)).left === 1 && planStatus(plan, known).assigned === 3);
+  const carried = markCarried(plan, ['b']);
+  const st = planStatus(carried, known);
+  ok('★ 3회독 뒤 내일로 넘긴 카드는 오늘 몫으로는 끝 ★', reviewLeftOf(st).left === 0 && st.finished && st.lanes.review.carried === 1);
+  ok('넘긴 카드는 남은 큐에도 안 들어간다', remaining(carried, ['review', 'weak']).every((x) => x.id !== 'b'));
+  ok('계획에 없는 id · 이미 끝낸 id는 넘김으로 안 적는다', markCarried(plan, ['zzz', 'a']) === plan);
+  const merged = mergePlan({ ...carried }, { ...plan, done: { a: true } });
+  ok('기기를 합쳐도 넘김은 남는다', merged.carried?.b === true && reviewLeftOf(planStatus(merged, known)).left === 0);
+  const studied = markStudied(carried, 'b');
+  ok('넘긴 카드를 다시 공부해 알아요가 되면 done', studied.done.b === true && planStatus(studied, known).lanes.review.carried === 0);
 }
 
 console.log(`\n통과 ${pass} / 실패 ${fail}`);

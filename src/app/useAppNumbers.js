@@ -24,7 +24,7 @@ import { GRAMMAR_MODULES } from '../data/grammar.js';
  * 상태로 들고 있으면 한쪽만 갱신되는 날이 오고, 그게 바로 위의 「99+ 대 11」
  * 같은 일이다. */
 export function useAppNumbers({
-  words, wordIds, byId, review, progress, plan, sentenceIds, today,
+  words, wordIds, byId, review, progress, plan, sentenceIds, today, known = null,
 }) {
   /* 오늘 볼 때가 된 낱말 */
   const due = useMemo(() => dueCards(wordIds, review, today), [wordIds, review, today]);
@@ -37,7 +37,8 @@ export function useAppNumbers({
 
   /* 화면·큐·통계가 모두 이 하나를 본다 — 같은 정보를 여러 곳에서 다른
      숫자로 보여 주지 않으려면 셈하는 자리가 하나여야 한다. */
-  const planNow = useMemo(() => planStatus(plan), [plan]);
+  /* 판에 실제로 낼 수 있는 카드만 센다(known: App이 낱말 + 겹친 것을 걷어 낸 문장 카드로 만든다). 자료가 아직 안 실렸으면 null */
+  const planNow = useMemo(() => planStatus(plan, known), [plan, known]);
 
   /* ★ 복습 탭 배지 · 홈 · 복습 탭이 같은 수를 본다 ★
      오늘 계획의 복습·약점 갈래에서 남은 것 — reviewLeftOf 한 곳에서. 밀린
