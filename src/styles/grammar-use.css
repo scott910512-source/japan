@@ -1,0 +1,83 @@
+/* 외운 단어로 문법 활용 — screens/GrammarUse.jsx */
+.gu { display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px; }
+.gu-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-right: 54px; }   /* 오른쪽 위 곤 질문 단추 자리 */
+.gu-head b { font-size: 17px; }
+.gu-count { font-size: 13px; color: var(--ink-soft); white-space: nowrap; }
+.gu-bar { height: 5px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.gu-bar i { display: block; height: 100%; background: var(--kon); transition: width .2s; }
+.gu-what { font-size: 14.5px; line-height: 1.6; margin: 0; }
+.gu-prep { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.gu-prep span[lang="ja"] { font-family: var(--font-ja); font-size: 17px; }
+.gu-start, .gu-next, .gu-submit { margin-top: 4px; }
+
+.gu-q { display: flex; flex-direction: column; gap: 12px; }
+.gu-kind { font-size: 12px; font-weight: 700; color: var(--kon); }
+.gu-sent { font-family: var(--font-ja); font-size: 24px; line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
+.gu-ko, .gu-ko-prompt { font-size: 15px; color: var(--ink-soft); }
+.gu-ko-prompt { color: var(--ink); font-size: 17px; font-weight: 600; }
+.gu-help { display: flex; flex-direction: column; gap: 6px; }
+.gu-wordbtn { align-self: flex-start; }
+.gu-words { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 12px; background: var(--surface-2); }
+.gu-word { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 14px; }
+.gu-word span[lang="ja"] { font-family: var(--font-ja); font-size: 17px; }
+.gu-forgot { margin-left: auto; min-height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: none; color: var(--shu); font-size: 12.5px; text-decoration: underline; cursor: pointer; }
+
+.gu-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gu-opts.sentences { grid-template-columns: 1fr; }
+.gu-opt {
+  display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 10px 12px; border-radius: 14px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink); font-family: var(--font-ja); font-size: 18px; text-align: left;
+}
+.gu-opt kbd, .gu-chip kbd { font-family: var(--font-ui, inherit); font-size: 11px; color: var(--ink-soft); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; }
+.gu-type { display: flex; flex-wrap: wrap; gap: 8px; }
+.gu-input { flex: 1 1 200px; font-family: var(--font-ja); font-size: 18px; }
+.gu-type .gu-submit { flex: 0 0 auto; width: auto; padding: 0 20px; margin-top: 0; }
+.gu-type .qv-romaji { flex-basis: 100%; }
+.gu-line { display: flex; flex-wrap: wrap; gap: 6px; min-height: 52px; padding: 8px; border-radius: 14px; border: 1px dashed var(--line); font-family: var(--font-ja); }
+.gu-line-empty { align-self: center; font-family: var(--font-ui, inherit); font-size: 13px; color: var(--ink-soft); }
+.gu-pool { display: flex; flex-wrap: wrap; gap: 8px; font-family: var(--font-ja); }
+.gu-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 6px 12px; border-radius: 12px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink); font-family: var(--font-ja); font-size: 18px;
+}
+.gu-chip.on { background: color-mix(in srgb, var(--kon) 12%, var(--surface)); border-color: var(--kon); }
+
+.gu-fb { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line); }
+.gu-verdict { font-weight: 800; font-size: 16px; }
+.gu-fb.ok .gu-verdict { color: var(--kon); }
+.gu-fb.no .gu-verdict { color: var(--shu); }
+.gu-mine b, .gu-right b { font-family: var(--font-ja); font-size: 18px; margin-left: 4px; }
+.gu-mine b { color: var(--shu); text-decoration: line-through; }
+.gu-full { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.gu-full span[lang="ja"] { font-family: var(--font-ja); font-size: 19px; }
+.gu-full small { flex-basis: 100%; color: var(--ink-soft); }
+.gu-say { min-height: 36px; }
+.gu-expl, .gu-tip, .gu-ex { margin: 0; font-size: 14px; line-height: 1.6; }
+.gu-tip { color: var(--ink-soft); }
+.gu-ex span[lang="ja"] { font-family: var(--font-ja); }
+.gu-ex small { color: var(--ink-soft); margin-left: 4px; }
+.gu-score { margin: 0; font-size: 12.5px; color: var(--ink-soft); text-align: right; }
+
+.gu-fix { padding: 8px 0; border-top: 1px dashed var(--line); }
+.gu-fix-jp { font-family: var(--font-ja); font-size: 17px; }
+.gu-fix-why { font-size: 13.5px; color: var(--ink-soft); }
+
+.gu-result { display: flex; flex-direction: column; gap: 10px; }
+.gu-per { display: flex; flex-direction: column; gap: 4px; }
+.gu-per-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; padding: 6px 10px; border-radius: 10px; background: var(--surface-2); font-size: 14px; }
+.gu-per-row b { font-family: var(--font-ja); }
+.gu-per-row.no em { color: var(--shu); font-style: normal; font-weight: 700; }
+.gu-per-row.ok em { color: var(--kon); font-style: normal; font-weight: 700; }
+.gu-wrongs { display: flex; flex-direction: column; gap: 6px; }
+.gu-wrong div[lang="ja"] { font-family: var(--font-ja); font-size: 17px; }
+.gu-wrong small { color: var(--ink-soft); }
+.gu-actions { display: flex; flex-direction: column; gap: 8px; }
+
+.gu-list { display: flex; flex-direction: column; gap: 8px; }
+.gu-row.weak .rc-body span { color: var(--shu); }
+.gu-row.ok .rc-body span { color: var(--kon); }
+.gu-back { align-self: flex-start; margin: 0 0 8px; }
+@media (max-width: 380px) {
+  .gu-opts { grid-template-columns: 1fr; }
+  .gu-sent { font-size: 21px; }
+}

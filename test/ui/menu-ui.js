@@ -138,9 +138,9 @@ async function boot(browser, settings = {}) {
   await page.waitForTimeout(500);
   ok('돌아오면 원래 화면', await page.locator('.bigstart').count() === 1);
 
-  console.log('\n[ 문법 안에 셋 ]');
+  console.log('\n[ 문법 안에 넷(활용 추가) ]');
   await openMenu(page, '문법');
-  ok('갈래가 셋', await page.locator('.gm-tabs button').count() === 3,
+  ok('갈래가 넷 — 기초 · 일상 · 문형 · 활용', await page.locator('.gm-tabs button').count() === 4 && await page.locator('.gm-tabs [data-tab="use"]').count() === 1,
     (await page.locator('.gm-tabs button').allTextContents()).join(' / '));
   ok('기초문법이 있다', await page.locator('.gm-tabs [data-tab="cards"]').count() === 1);
   ok('일상문법이 있다', await page.locator('.gm-tabs [data-tab="daily"]').count() === 1);

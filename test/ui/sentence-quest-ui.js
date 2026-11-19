@@ -75,7 +75,7 @@ async function finishDeck(page) {
   ok('★ 문장 퀘스트 줄이 새로 배우기 뒤, 랜덤 테스트 앞에 있다 ★', idx('문장 퀘스트') > idx('새로 배우기') && idx('문장 퀘스트') < idx('오늘 랜덤 테스트') && idx('새로 배우기') >= 0, rows.map((r) => r.split('\n')[0]).join(' | '));
   const r0 = await rowText(page, '문장 퀘스트');
   ok('처음엔 0 / 5', /0\s*\/\s*5/.test(r0), r0);
-  ok('★ 「오늘은 건너뛰기」가 줄 옆에 있다 ★', await page.locator('.tdq-skip').count() === 1);
+  ok('★ 「오늘은 건너뛰기」가 줄 옆에 있다 ★', await page.locator('.tdq-skip[data-skip="sentencequest"]').count() === 1);
 
   console.log('\n[ 새 문장 다섯 개를 배운다 ]');
   await page.locator('.tdq-row', { hasText: '문장 퀘스트' }).click();
@@ -122,7 +122,7 @@ async function finishDeck(page) {
   await goTab(page, '오늘');
   const r1 = await rowText(page, '문장 퀘스트');
   ok('★ 오늘 탭에서 5 / 5 마쳤어요로 바뀐다 ★', /5\s*\/\s*5/.test(r1) && r1.includes('배웠어요'), r1);
-  ok('끝낸 줄에는 건너뛰기가 없다', await page.locator('.tdq-skip').count() === 0);
+  ok('끝낸 줄에는 건너뛰기가 없다', await page.locator('.tdq-skip[data-skip="sentencequest"]').count() === 0);
   await page.close();
 
   console.log('\n[ 오늘은 건너뛰기 ]');
@@ -130,14 +130,14 @@ async function finishDeck(page) {
   p2.on('pageerror', (e) => errors.push(e.message));
   await goTab(p2, '오늘');
   const before = await p2.locator('.tdq-row').count();
-  await p2.locator('.tdq-skip').click();
+  await p2.locator('.tdq-skip[data-skip="sentencequest"]').click();
   await p2.waitForTimeout(500);
   ok('★ 건너뛰면 줄이 빠진다 ★', await p2.locator('.tdq-row', { hasText: '문장 퀘스트' }).count() === 0 && await p2.locator('.tdq-row').count() === before - 1);
-  ok('건너뛰었다고 알려 주고 되돌릴 수 있다', (await p2.locator('.tdq-skipped').innerText()).includes('건너뛰었어요') && await p2.locator('.tdq-undo').count() === 1);
+  ok('건너뛰었다고 알려 주고 되돌릴 수 있다', (await p2.locator('.tdq-skipped[data-skip="sentencequest"]').innerText()).includes('건너뛰었어요') && await p2.locator('.tdq-skipped[data-skip="sentencequest"] .tdq-undo').count() === 1);
   ok('건너뜀이 저장된다', (await quests(p2))?.sentenceSkip === true);
-  await p2.locator('.tdq-undo').click();
+  await p2.locator('.tdq-skipped[data-skip="sentencequest"] .tdq-undo').click();
   await p2.waitForTimeout(500);
-  ok('★ 되돌리면 줄이 다시 나온다 ★', await p2.locator('.tdq-row', { hasText: '문장 퀘스트' }).count() === 1 && await p2.locator('.tdq-skipped').count() === 0);
+  ok('★ 되돌리면 줄이 다시 나온다 ★', await p2.locator('.tdq-row', { hasText: '문장 퀘스트' }).count() === 1 && await p2.locator('.tdq-skipped[data-skip="sentencequest"]').count() === 0);
   await p2.close();
 
   console.log('\n[ 새로 배우기에는 문장 카드가 안 섞인다 ]');

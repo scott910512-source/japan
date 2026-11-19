@@ -40,7 +40,7 @@ const readyShown = (s) => {
 export default function Today({
   plan, planNow, settings, streak, session, resumeLabel, flowNow = null, sessionStep = null, onAsk = null,
   grammarLeft, grammarNext, onOpenN3, n3, words, review, progress, stats, onOpen, onSettings, onAttempt, onLearnMistake, homeResetKey,
-  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, sentenceQuest = null, onStartSentenceQuest, onSkipSentenceQuest, onUndoSkipSentenceQuest, onOpenProgress, wrongCount = 0, onOpenWrong, onStartRegionExam, questSeal = null,
+  onStartAll, onStartWords, onStartReview, onOpenGrammar, onResume, onOpenReview, onLearnMore, weakQuiz = null, onStartWeakQuiz, streamQuest = null, onStartStreamQuest, randomQuest = null, onStartRandomTest, sentenceQuest = null, onStartSentenceQuest, onSkipSentenceQuest, onUndoSkipSentenceQuest, grammarQuest = null, grammarInfo = null, onStartGrammarQuest, onSkipGrammarQuest, onUndoSkipGrammarQuest, onOpenProgress, wrongCount = 0, onOpenWrong, onStartRegionExam, questSeal = null,
 }) {
   const today = todayKey();
 
@@ -118,6 +118,15 @@ export default function Today({
       note: freshRow.complete ? `오늘 새 학습을 마쳤어요${freshRow.extraTotal ? ` · 더 배운 것 ${freshRow.extraDone} / ${freshRow.extraTotal}` : ''}` : freshMix,
       done: freshRow.done, total: freshRow.total, icon: <IconBook />, onClick: onStartWords,
     },
+    /* ★ 외운 단어로 문법 활용 ★ 외운 단어로 만든 문장에서 문법 하나(처음 열흘은 여럿)를 확인한다. 하루 한 세트 */
+    grammarQuest && !grammarQuest.skipped && {
+      key: 'grammaruse', title: '외운 단어로 문법 활용',
+      note: grammarQuest.complete
+        ? `오늘 문법 활용을 마쳤어요${grammarInfo?.label ? ` · ${grammarInfo.label}` : ''}`
+        : [grammarInfo?.label, grammarInfo?.note, grammarInfo?.progress].filter(Boolean).join(' · '),
+      done: grammarQuest.done, total: grammarQuest.total, icon: <IconBook />, onClick: onStartGrammarQuest,
+      onSkip: onSkipGrammarQuest,
+    },
     /* ★ 문장 퀘스트 ★ 새 문장을 배우고 바로 조립해 본다. 새로 배우기에는 문장이 안 섞이니 새 문장은 여기로 들어온다.
        건너뛰면(skipped) 오늘 줄에서 빠진다 */
     sentenceQuest && !sentenceQuest.skipped && {
@@ -145,6 +154,7 @@ export default function Today({
     if (k === 'weakquiz') return named(`약한 낱말 ${Math.max(0, (weakQuiz?.total || 0) - (weakQuiz?.done || 0))}문제`);
     if (k === 'stream') return named(`외운 것을 이어서 ${Math.max(0, (streamQuest?.total || 0) - (streamQuest?.done || 0))}문제`);
     if (k === 'fresh') return named(freshMix);
+    if (k === 'grammar') return named([grammarInfo?.label, grammarInfo?.note].filter(Boolean).join(' · ') || '외운 단어로 문법 확인');
     if (k === 'sentence') return named(`새 문장 ${Math.max(0, (sentenceQuest?.total || 0) - (sentenceQuest?.done || 0))}개 · 배우고 조립해 봐요`);
     if (k === 'random') return named(`오늘 만난 것을 다 섞어서 ${randomQuest?.count || 50}문제`);
     return started ? '퀘스트를 다 마쳤어요 · 코스로 이어 가요' : flowNow.label;
@@ -258,14 +268,17 @@ export default function Today({
                 </button>
                 {/* 오늘은 건너뛰기 — 줄을 누르는 단추와 따로 둔다(단추 안에 단추를 넣을 수 없다) */}
                 {mission.onSkip && !complete && (
-                  <button type="button" className="tdq-skip" onClick={mission.onSkip}>오늘은 건너뛰기</button>
+                  <button type="button" className="tdq-skip" data-skip={mission.key} onClick={mission.onSkip}>오늘은 건너뛰기</button>
                 )}
                 </Fragment>
               );
             })}
           </div>
+          {grammarQuest?.skipped && (
+            <p className="tdq-skipped" data-skip="grammaruse">문법 활용은 오늘 건너뛰었어요. <button type="button" className="tdq-undo" onClick={onUndoSkipGrammarQuest}>되돌리기</button></p>
+          )}
           {sentenceQuest?.skipped && (
-            <p className="tdq-skipped">문장 퀘스트는 오늘 건너뛰었어요. <button type="button" className="tdq-undo" onClick={onUndoSkipSentenceQuest}>되돌리기</button></p>
+            <p className="tdq-skipped" data-skip="sentencequest">문장 퀘스트는 오늘 건너뛰었어요. <button type="button" className="tdq-undo" onClick={onUndoSkipSentenceQuest}>되돌리기</button></p>
           )}
         </section>
       )}

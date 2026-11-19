@@ -15,6 +15,7 @@ import { mergeN3 } from './n3progress.js';
 import { mergeMistakes } from './mistakes.js';
 import { mergeWeakQuiz } from './weakquiz.js';
 import { mergeQuests } from './quests.js';
+import { mergeGrammarUse } from './grammarUse.js';
 import { mergeRegions } from './regions.js';
 import { mergeSpeak } from './speak.js';
 /* 약점 장부 — 규칙은 lib/weak.js. 횟수는 큰 쪽, 잊어버린 간격은 작은 쪽. */
@@ -217,6 +218,8 @@ export function mergeProgress(local = {}, remote = {}) {
     speak: mergeSpeak(local.speak, remote.speak),
     /* 둘 다 없으면 null로 둔다 — 한 번도 안 연 사람에게 빈 코스 기록을 만들지 않는다 */
     n3: (local.n3 || remote.n3) ? mergeN3(local.n3, remote.n3) : null,
+    /* 문법 활용 — 날짜 · 문제 id 집합이라 합집합(같은 기록을 두 번 받아도 늘지 않는다). 둘 다 없으면 null */
+    grammarUse: (local.grammarUse || remote.grammarUse) ? mergeGrammarUse(local.grammarUse, remote.grammarUse) : null,
   };
 }
 

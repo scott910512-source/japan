@@ -1,4 +1,4 @@
-import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, TravelCourse, N3Course, DrillHub, StreamQuiz, ComposeQuiz, SpeakPractice, StoryListen } from './screens.js';
+import { WordDeck, KijuDeck, Basics, GrammarHub, Situations, Translate, Quiz, Listen, ListenHub, Conjugate, Match, Rpg, Repeat, Adverb, WordManager, SwissCourse, TravelCourse, N3Course, DrillHub, StreamQuiz, ComposeQuiz, SpeakPractice, StoryListen, GrammarUse } from './screens.js';
 import { filterByLevel } from '../lib/wordFilters.js';
 
 export default function FeatureScreen({
@@ -50,6 +50,8 @@ export default function FeatureScreen({
   onExit,
   /* 하루 흐름의 끝 화면에 두는 「홈으로」 — 어디서 들어왔든 오늘 화면으로 */
   onHome = null,
+  /* 외운 단어로 문법 활용 — 고른 문법(없으면 오늘 퀘스트) · 다음 단계 · 기록 · 단어를 잊음 · 단어가 모자람 */
+  grammarUseGid = null, grammarNext = null, onGrammarRecord, onWordForgot, onNeedWords,
   weakQuiz = null,
   weakQuizOn = false,
   onNextQuest = null,
@@ -138,6 +140,9 @@ export default function FeatureScreen({
                   ...p, sentenceDone: { ...p.sentenceDone, [patternId]: true },
                 }))}
                 onDailyGrammar={(dailyGrammar) => setProgress((p) => ({ ...p, dailyGrammar }))}
+                review={review}
+                onGrammarRecord={onGrammarRecord}
+                onWordForgot={onWordForgot}
                 onToast={showToast}
               />
             )}
@@ -260,6 +265,14 @@ export default function FeatureScreen({
                 onActivity={noteActivity}
                 onToast={showToast}
                 onExit={onExit}
+              />
+            )}
+            {sub === 'grammaruse' && (
+              <GrammarUse
+                key={grammarUseGid || 'quest'}
+                words={words} review={review} progress={progress} gid={grammarUseGid} settings={settings}
+                onRecord={onGrammarRecord} onAttempt={onAttempt} onWordForgot={onWordForgot} onToast={showToast}
+                next={grammarNext} onHome={onHome} onExit={onExit} onNeedWords={onNeedWords}
               />
             )}
             {sub === 'compose' && (

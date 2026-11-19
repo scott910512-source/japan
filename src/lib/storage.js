@@ -206,6 +206,8 @@ const DEFAULT_PROGRESS = {
   /* 말하기 연습에 쓰는 AI 문장 — { items: { id: 문장 }, gone: { id: 지운 시각 } } (lib/speak.js) */
   speak: { items: {}, gone: {} },
   regions: {},
+  /* 외운 단어로 문법 활용 — { place, g: { 문법: { pass, fail, quick, apply, qs } }, days } (lib/grammarUse.js) */
+  grammarUse: null,
 };
 export function loadProgress() {
   const saved = read(KEYS.progress, {});
@@ -223,6 +225,7 @@ export function loadProgress() {
     quests: saved?.quests && typeof saved.quests === 'object' ? saved.quests : {},
     regions: saved?.regions && typeof saved.regions === 'object' && !Array.isArray(saved.regions) ? saved.regions : {},
     speak: saved?.speak && typeof saved.speak === 'object' && !Array.isArray(saved.speak) ? saved.speak : { items: {}, gone: {} },
+    grammarUse: saved?.grammarUse && typeof saved.grammarUse === 'object' && !Array.isArray(saved.grammarUse) ? saved.grammarUse : null,
   };
 }
 export function saveProgress(progress) {

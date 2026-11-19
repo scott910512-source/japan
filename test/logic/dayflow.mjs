@@ -6,15 +6,17 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
 
 console.log('\n[ 순서 ]');
 {
-  ok('★ 순서는 퀘스트 줄과 같다: 복습 · 약점 퀴즈 · 쭉 퀴즈 · 새로 배우기 · 문장 · 랜덤 테스트, 그 뒤에 오늘의 N3 ★', FLOW.join() === 'review,weakquiz,stream,fresh,sentence,random,n3');
+  ok('★ 순서는 퀘스트 줄과 같다: 복습 · 약점 퀴즈 · 쭉 퀴즈 · 새로 배우기 · 문법 활용 · 문장 · 랜덤 테스트, 그 뒤에 오늘의 N3 ★', FLOW.join() === 'review,weakquiz,stream,fresh,grammar,sentence,random,n3');
   /* 차례대로 하는 사람 — 지나온 단계는 마쳤고(false) 뒤 단계는 남았다(true) */
   const from = (step) => Object.fromEntries(FLOW.map((s, i) => [s, i > FLOW.indexOf(step)]));
   ok('복습 다음은 약점 퀴즈', nextStep('review', from('review')).to === 'weakquiz');
   ok('약점 퀴즈 다음은 쭉 퀴즈', nextStep('weakquiz', from('weakquiz')).to === 'stream');
   ok('쭉 퀴즈 다음은 새로 배우기', nextStep('stream', from('stream')).to === 'fresh');
-  ok('새로 배우기 다음은 문장 퀘스트', nextStep('fresh', from('fresh')).to === 'sentence' && nextStep('fresh', from('fresh')).label === '문장 퀘스트');
+  ok('★ 새로 배우기 다음은 외운 단어로 문법 활용 ★', nextStep('fresh', from('fresh')).to === 'grammar' && nextStep('fresh', from('fresh')).label === '외운 단어로 문법 활용');
+  ok('★ 문법 활용 다음은 문장 퀘스트 ★', nextStep('grammar', from('grammar')).to === 'sentence' && nextStep('grammar', from('grammar')).label === '문장 퀘스트');
+  ok('문법 활용을 마쳤거나 건너뛰었으면 새로 배우기 다음은 문장 퀘스트', nextStep('fresh', { ...from('fresh'), grammar: false }).to === 'sentence');
   ok('★ 문장 퀘스트 다음은 오늘 랜덤 테스트(N3 코스로 새지 않는다) ★', nextStep('sentence', from('sentence')).to === 'random');
-  ok('★ 문장 퀘스트를 건너뛰었거나 마쳤으면(false) 새로 배우기 다음이 랜덤 테스트로 넘어간다 ★', nextStep('fresh', { ...from('fresh'), sentence: false }).to === 'random');
+  ok('★ 문장 퀘스트를 건너뛰었거나 마쳤으면(false) 새로 배우기 다음이 랜덤 테스트로 넘어간다 ★', nextStep('fresh', { ...from('fresh'), grammar: false, sentence: false }).to === 'random');
   ok('랜덤 테스트 다음은 오늘의 N3', nextStep('random', from('random')).to === 'n3');
   ok('N3를 안 켰거나 다 했으면 랜덤 테스트가 마지막', nextStep('random', { ...from('random'), n3: false }) === null);
   ok('오늘의 N3 다음은 없다', nextStep('n3', from('n3')) === null);
