@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { ALL_WORDS } from '../../src/data/allWords.js';
 import { goTab } from './_nav.js';
+import { allFacets } from './_seed.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 /* CI에는 이 경로가 없다 — 있을 때만 쓰고, 없으면 playwright가 받아 둔 브라우저를 쓴다(다른 검사와 같다) */
@@ -21,7 +22,7 @@ const n5 = ALL_WORDS.filter((w) => w.level === 'N5' && !w.grammar);
 const review = {};
 n5.slice(0, n5.length - 5).forEach((w, i) => {
   const lv = i % 6;
-  review[w.id] = { lastSeen: '2026-11-01', seenAt: 1, level: lv === 5 ? 4 : lv, rounds: 3, wrongCount: i % 17 === 0 ? 5 : 0, vagueCount: 0, due: '2026-12-30' };
+  review[w.id] = allFacets({ lastSeen: '2026-11-01', seenAt: 1, level: lv === 5 ? 4 : lv, rounds: 3, wrongCount: i % 17 === 0 ? 5 : 0, vagueCount: 0, due: '2026-12-30' });
 });
 
 /* N5 문법 카드도 이미 본 것으로 — 이 사람은 N5를 거의 다 했다(남은 건 낱말 5개뿐) */

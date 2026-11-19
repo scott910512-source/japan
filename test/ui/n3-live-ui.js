@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { ALL_WORDS } from '../../src/data/allWords.js';
 import { applyVerdict, VERDICT, addDays, todayKey } from '../../src/lib/review.js';
+import { allFacets } from './_seed.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -21,7 +22,7 @@ const today = todayKey();
 const known = (ago = 5) => applyVerdict(undefined, VERDICT.KNOWN, addDays(today, -ago));
 const n5 = ALL_WORDS.filter((w) => w.level === 'N5').slice(0, 12);
 const n3 = ALL_WORDS.filter((w) => w.level === 'N3').slice(0, 12);
-const seededReview = Object.fromEntries([...n5, ...n3].map((w) => [w.id, { ...known(), due: addDays(today, -1) }]));
+const seededReview = Object.fromEntries([...n5, ...n3].map((w) => [w.id, allFacets({ ...known(), due: addDays(today, -1) })]));   // 세 칸 다 확인된 낱말(_seed.js)
 
 async function boot(browser, { review = {}, settings = {} } = {}) {
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
@@ -76,7 +77,7 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
   const before = summary?.exact || 0;
 
   console.log('\n[ 더 보면 더 오른다 ]');
-  const more = Object.fromEntries(n3.slice(0, 12).map((w) => [w.id, { ...known(1), due: addDays(today, 5), level: 3 }]));
+  const more = Object.fromEntries(n3.slice(0, 12).map((w) => [w.id, allFacets({ ...known(1), due: addDays(today, 5), level: 3 })]));
   await page.evaluate((more) => {
     const r = JSON.parse(localStorage.getItem('jp_manabu_review_v1') || '{}');
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify({ ...r, ...more }));

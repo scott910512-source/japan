@@ -25,7 +25,7 @@ export const STEP = {
 
 export const STEP_LABEL = {
   [STEP.READ]: '읽기',
-  [STEP.RECALL]: '떠올리기',
+  [STEP.RECALL]: '읽는 법',
   [STEP.LISTEN]: '듣기',
   [STEP.PRODUCE]: '한국어 → 일본어',
   [STEP.SPEAK]: '소리 내어',
@@ -33,7 +33,7 @@ export const STEP_LABEL = {
 
 export const STEP_HINT = {
   [STEP.READ]: '읽는 법까지 같이 봐요',
-  [STEP.RECALL]: '읽는 법 없이 뜻을 떠올려 보세요',
+  [STEP.RECALL]: '한자만 보고 읽는 법을 떠올려 보세요',
   [STEP.LISTEN]: '소리만 듣고 맞혀 보세요',
   [STEP.PRODUCE]: '일본어로 어떻게 말할까요?',
   [STEP.SPEAK]: '소리 내어 말해 보세요',
@@ -76,4 +76,26 @@ export function hidesFront(step) {
    상관없이 들려줘야 한다. */
 export function needsSound(step) {
   return step === STEP.LISTEN;
+}
+
+
+/* ★ 세 칸이 있는 낱말은 제일 약한 칸을 묻는다 ★ (2026-11-19, lib/review.js FACETS)
+ *   읽기 칸 → 「읽는 법」(한자만 보고 읽기), 떠올리기 칸 → 「한국어 → 일본어」, 뜻 칸 → 「읽기」(처음) · 「듣기」
+ * 뜻을 한 번도 확인 못 한 낱말(처음 배우는 것)은 무조건 「읽기」부터 — 처음 보는 한자를 읽기 없이 내밀지 않는다 */
+export function stepForFacet(facet, { meanLevel = 0, streak = 0, canListen = true } = {}) {
+  if (!facet || meanLevel < 1) return STEP.READ;
+  if (facet === 'read') return STEP.RECALL;
+  if (facet === 'prod') return STEP.PRODUCE;
+  return streak >= 1 && canListen ? STEP.LISTEN : STEP.READ;
+}
+
+/* 이 단계에서 누른 판정이 어느 칸의 것인가 */
+export function facetForStep(step, view = null) {
+  if (step === STEP.RECALL || step === STEP.SPEAK) return 'read';
+  if (step === STEP.PRODUCE) return 'prod';
+  if (step) return 'mean';
+  /* 골라 들어간 판(단계 없음) — 사용자가 고른 방향으로 */
+  if (view?.direction === 'mean-kanji') return 'prod';
+  if (view?.direction === 'kanji-kana') return 'read';
+  return 'mean';
 }

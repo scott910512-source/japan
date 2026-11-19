@@ -8,6 +8,7 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab, openMenu, startReview } from './_nav.js';
+import { allFacets } from './_seed.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -25,9 +26,10 @@ const day = (d) => { const x = new Date(); x.setDate(x.getDate() - d); return x.
 function seedStreak(streak) {
   const review = {};
   for (let i = 1; i <= 120; i++) {
-    review[`n5-${String(i).padStart(4, '0')}`] = {
-      box: 3, streak, lastSeen: day(200), rounds: streak, wrongCount: 0, vagueCount: 0, seenAt: 1,
-    };
+    /* 세 칸(뜻 · 읽기 · 떠올리기)이 고른 낱말 — 고르면 단계가 연속 정답 수대로 돈다(칸이 고르지 않으면 약한 칸을 묻는다) */
+    review[`n5-${String(i).padStart(4, '0')}`] = allFacets({
+      box: 3, streak, level: Math.min(4, streak), lastSeen: day(200), rounds: streak, wrongCount: 0, vagueCount: 0, seenAt: 1, due: day(1),
+    });
   }
   return review;
 }
@@ -70,7 +72,7 @@ const startToday = (page) => startReview(page);
 
   const CASES = [
     { streak: 0, label: '읽기', front: 'jp', kana: true },
-    { streak: 1, label: '떠올리기', front: 'jp', kana: false },
+    { streak: 1, label: '읽는 법', front: 'jp', kana: false },
     { streak: 2, label: '듣기', front: 'hidden' },
     { streak: 3, label: '한국어 → 일본어', front: 'ko' },
     { streak: 4, label: '소리 내어', front: 'jp', kana: false },
@@ -135,7 +137,7 @@ const startToday = (page) => startReview(page);
   {
     const page = await boot(browser, seedStreak(2), { autoTTS: false });
     await startToday(page);
-    ok('듣기 대신 떠올리기로', (await page.textContent('.sc-step')) === '떠올리기', await page.textContent('.sc-step'));
+    ok('듣기 대신 「읽는 법」(글자를 보고 떠올리기)으로', (await page.textContent('.sc-step')) === '읽는 법', await page.textContent('.sc-step'));
     ok('글자가 보임', await page.locator('.sc-hear').count() === 0);
     await page.close();
   }

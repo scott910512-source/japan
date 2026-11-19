@@ -121,7 +121,7 @@ const countsOf = async (page) => Object.fromEntries(await page.locator('.st-coun
   const wrongAnyIds = new Set(results.filter((r) => !r.ok).map((r) => r.id));
   ok('여러 문제를 풀었다', results.length >= 6, `${results.length}문제 · 낱말 ${firstOf.size}개 · 맞힘 ${rightAnswers}`);
   ok('★ 첫 대답이 틀린 것은 「몰라요」 — 오늘 복습으로 올라온다 ★',
-    wrongs.length > 0 && wrongs.every((r) => after[r.id]?.box === BOX.UNKNOWN && after[r.id]?.due === today),
+    wrongs.length > 0 && wrongs.every((r) => after[r.id]?.box === BOX.UNKNOWN && after[r.id]?.due <= today),   // 낱말은 세 칸 중 가장 이른 날이 복습일이라 오늘이거나 그 전
     wrongs.slice(0, 2).map((r) => `${r.id}:${after[r.id]?.box}`).join(' '));
   ok('★ 첫 대답이 맞은 것은 「알아요」로 들어간다(rounds가 오른다) ★',
     rights.length === 0 || rights.every((r) => (after[r.id]?.rounds || 0) > (before[r.id]?.rounds || 0) && after[r.id]?.box === BOX.KNOWN),

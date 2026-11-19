@@ -9,6 +9,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { ALL_WORDS } from '../../src/data/allWords.js';
 import { goTab } from './_nav.js';
+import { allFacets } from './_seed.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -19,7 +20,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
 const today = new Date().toISOString().slice(0, 10);
 const n5 = ALL_WORDS.filter((w) => w.level === 'N5');
 const review = {};
-n5.slice(0, 30).forEach((w) => { review[w.id] = { lastSeen: '2026-10-01', box: 3, level: 1, streak: 1, rounds: 1, due: '2099-01-01' }; });
+n5.slice(0, 30).forEach((w) => { review[w.id] = allFacets({ lastSeen: '2026-10-01', box: 3, level: 1, streak: 1, rounds: 1, due: '2099-01-01' }); });   // 세 칸 다 1단계
 /* 열어 보기만 한 단어 40개 — 확인된 것으로 세면 안 된다 */
 n5.slice(30, 70).forEach((w) => { review[w.id] = { lastSeen: '2026-10-02', box: 1, level: 0, streak: 0, rounds: 1, due: '2099-01-01' }; });
 

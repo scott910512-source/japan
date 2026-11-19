@@ -34,7 +34,7 @@ import { MIN_POOL as STREAM_MIN_POOL } from './lib/stream.js';
 import { questsOf, sealQuests, sealedProgress, noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE } from './lib/quests.js';
 import { readQuizKeep, clearQuizKeep } from './lib/quizkeep.js';
 import { FLOW, FLOW_LABEL, nextStep, stepOfDeck, randomTestIds, n3Open, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
-import { todayKey } from './lib/review.js';
+import { migrateFacets, todayKey } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
 import { useToday } from './lib/useToday.js';
@@ -227,6 +227,12 @@ export default function App() {
      문장은 카드 모양으로 감싸 두면 회독 화면이 그대로 받는다. */
   /* 같은 일본어 문장은 하나만(lib/cards.js dedupeSentences) — 이미 공부한 쪽이 남는다 */
   const sentenceCards = useMemo(() => dedupeSentences(content?.sentenceCards || [], review), [content, review]);
+  /* ★ 낱말 카드에 세 칸(뜻 · 읽기 · 떠올리기)을 붙인다 ★ 옛 기록 · 다른 기기에서 온 기록도 — 바뀐 게 없으면 같은 객체라 다시 안 그린다.
+     옛 「외움」은 「뜻만 확인됨」으로 옮겨진다(lib/review.js withFacets) */
+  useEffect(() => {
+    if (!words.length) return;
+    setReview((prev) => migrateFacets(prev, byId));
+  }, [review, byId, words.length, setReview]);
   /* 판에 낼 수 있는 카드 id — 오늘 계획에 있는데 자료에서 없어진 카드는 「남은 1개」로 남지 않게 센 데서 뺀다(lib/plan.js planStatus) */
   const studyableIds = useMemo(() => (words.length && sentenceCards.length ? new Set([...wordIds, ...sentenceCards.map((c) => c.id)]) : null), [words, wordIds, sentenceCards]);
   /* 목적에 따라 차례를 바꿀 때 문장이 어느 상황인지 알아야 한다 —

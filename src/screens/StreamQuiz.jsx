@@ -177,7 +177,9 @@ export default function StreamQuiz({
   /* 대답이 확정됐다 — 판에 적고, 첫 대답이면 복습 기록에도 넣는다 */
   const finalize = (ok, value, extra = {}) => {
     const { item, q } = cur;
-    if (shouldRecord(sessionRef.current, item.id)) onVerdicts?.({ [item.id]: verdictFor(ok) });
+    /* 낱말 문제는 어느 칸을 물었는지 같이 — 일본어를 보고 뜻은 「뜻」, 한국어를 보고 일본어는 「떠올리기」 */
+    const facet = q.kind === 'word' ? (q.promptJp ? 'mean' : 'prod') : null;
+    if (shouldRecord(sessionRef.current, item.id)) onVerdicts?.({ [item.id]: verdictFor(ok) }, facet ? { [item.id]: facet } : null);
     onAttempt?.({ id: `stream:${item.id}:${q.dir || q.kind}`, source: 'stream', ref: item.id, kind: KIND_LABEL[q.kind] || q.kind, prompt: q.prompt, correct: q.answerText, chosen: q.options?.find((o) => o.key === value)?.label || (value ?? '잘 모르겠어요'), options: q.options?.map((o) => o.label), explanation: [extra.why, q.explain].filter(Boolean).join(' '), ok });
     onActivity?.({ quizzed: 1 });
     /* 오늘의 퀘스트(쭉 퀴즈 열 문제)가 센다 */

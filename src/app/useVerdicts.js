@@ -78,7 +78,8 @@ export function useVerdicts({
    * 들어가고, 다음 날 오늘의 학습이 약점으로 집어 간다 — 별도 배선 없이.
    *
    * 연속일은 여기서 올린다. 실전도 공부다. 통계의 studied도 같이 센다. */
-  const applyVerdicts = useCallback((map) => {
+  /* facets(선택): { 카드id: 'mean' | 'read' | 'prod' } — 낱말 시험이 어느 칸을 물었는지(일→한은 뜻, 한→일은 떠올리기) */
+  const applyVerdicts = useCallback((map, facets = null) => {
     const ids = Object.keys(map || {});
     if (!ids.length) return;
     const day = todayKey();
@@ -97,7 +98,7 @@ export function useVerdicts({
     }
     setReview((prev) => {
       const next = { ...prev };
-      for (const id of ids) next[id] = applyVerdict(next[id], map[id], day);
+      for (const id of ids) next[id] = applyVerdict(next[id], map[id], day, Date.now(), facets?.[id] || null);
       return next;
     });
     setStreak((prev) => (prev.lastDate === day ? prev : touchStreak()));
