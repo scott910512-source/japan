@@ -31,10 +31,11 @@ import { REGION_RULES, REGION_QUIZ_MIN, regionQuizIds, noteRegionExam, PASS_RATI
 import { weakIds, WEAK_KIND } from './lib/weak.js';
 import { noteWeakQuiz, weakQuizState, weakQuizOf } from './lib/weakquiz.js';
 import { MIN_POOL as STREAM_MIN_POOL } from './lib/stream.js';
-import { questsOf, sealQuests, sealedProgress, noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE } from './lib/quests.js';
+import { questsOf, sealQuests, sealedProgress, noteQuest, streamQuestState, randomQuestState, sentenceQuestState, planSentenceQuest, skipSentenceQuest, pickNewSentences, SENTENCE_QUEST_SIZE, grammarQuestState, noteGrammarSet, skipGrammarQuest } from './lib/quests.js';
+import { knownWords, questInfo, applyOutcome, MIN_KNOWN, readRun as readGrammarRun } from './lib/grammarUse.js';
 import { readQuizKeep, clearQuizKeep } from './lib/quizkeep.js';
 import { FLOW, FLOW_LABEL, nextStep, stepOfDeck, randomTestIds, n3Open, RANDOM_TEST_SIZE, RANDOM_TEST_MIN } from './lib/dayflow.js';
-import { migrateFacets, todayKey } from './lib/review.js';
+import { migrateFacets, todayKey, VERDICT } from './lib/review.js';
 import { supabaseConfigured } from './lib/supabase.js';
 import { authGate } from './lib/authboot.js';
 import { useToday } from './lib/useToday.js';
@@ -56,6 +57,7 @@ const SUB_TITLES = {
   drill: '퀴즈',
   stream: '쭉 퀴즈',
   compose: '문장 만들기',
+  grammaruse: '외운 단어로 문법 활용',
   speak: '말하기 연습',
   repeat: '전체 복습 · 회독 학습',
   adverb: '부사 연습',
@@ -546,6 +548,37 @@ export default function App() {
     setProgress((p) => ({ ...p, quests: skipSentenceQuest(p.quests, skip, today) }));
   }, [setProgress, today]);
 
+  /* ★ 외운 단어로 문법 활용 ★ 외운 단어로 만든 문장에서 문법을 확인한다(lib/grammarUse.js).
+     처음엔 초기 진단 → 열흘 동안 여러 문법 탐색 → 그 뒤로 문법 하나씩 반복. 하루 한 세트가 오늘 몫이다.
+     외운 단어가 MIN_KNOWN개도 안 되면 줄을 안 만든다(문장을 못 만든다). */
+  const knownForGrammar = useMemo(() => knownWords(words, review, today).size, [words, review, today]);
+  const grammarQuest = useMemo(
+    () => grammarQuestState(progress, knownForGrammar >= MIN_KNOWN, today),
+    [progress, knownForGrammar, today],
+  );
+  const grammarInfo = useMemo(() => {
+    const info = questInfo(progress.grammarUse, today);
+    /* 하던 세트가 있으면 「확인 2 / 3」 */
+    const run = readGrammarRun();
+    const st = run && !run.closed && run.phase !== 'done' ? run.stages?.[run.stage] : null;
+    const answered = st ? st.answers.filter(Boolean).length : 0;
+    return { ...info, progress: st && answered ? `${st.label} ${answered} / ${st.qs.length}` : '' };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress.grammarUse, today, sub]);
+  const [grammarUseGid, setGrammarUseGid] = useState(null);
+  const startGrammarQuest = useCallback((gid = null) => {
+    setDeck(null);
+    setGrammarUseGid(gid);
+    nav.openMenu('grammaruse');
+  }, [setDeck, nav]);
+  const skipGrammar = useCallback((skip = true) => {
+    setProgress((p) => ({ ...p, quests: skipGrammarQuest(p.quests, skip, today) }));
+  }, [setProgress, today]);
+  /* 세트를 마쳤다 — 문법 기록(날짜 집합)과 오늘 퀘스트(세트 id 집합)에 한 번. 두 번 불려도 늘지 않는다 */
+  const onGrammarRecord = useCallback((outcome, run) => {
+    setProgress((p) => ({ ...p, grammarUse: applyOutcome(p.grammarUse, outcome), quests: noteGrammarSet(p.quests, run.id, today) }));
+  }, [setProgress, today]);
+
   /* ★ 하루 흐름 ★ 한 단계가 끝나면 다음 단계를 바로 내민다.
      복습 미션 → 약점 퀴즈 → 쭉 퀴즈 → 새로 배우기(끝에서 10개 더) → 문장 퀘스트 → 오늘 랜덤 테스트 → 오늘의 N3.
      할 게 없거나 이미 마친 단계는 건너뛴다(lib/dayflow.js). */
@@ -559,6 +592,7 @@ export default function App() {
     weakquiz: Boolean(weakQuiz && weakQuiz.total > 0 && !weakQuiz.complete),
     stream: Boolean(streamQuest && !streamQuest.complete),
     fresh: freshLeft > 0 && !sealedProgress(freshDone, freshAssigned, seals.sealFresh).complete,
+    grammar: Boolean(grammarQuest && !grammarQuest.skipped && !grammarQuest.complete),
     sentence: Boolean(sentenceQuest && !sentenceQuest.skipped && !sentenceQuest.complete),
     n3: n3FlowOpen,
     random: Boolean(randomQuest && !randomQuest.complete),
@@ -570,10 +604,11 @@ export default function App() {
     else if (to === 'weakquiz') startWeakQuiz();
     else if (to === 'stream') startStreamQuest();
     else if (to === 'fresh') startToday(['fresh']);
+    else if (to === 'grammar') startGrammarQuest();
     else if (to === 'sentence') startSentenceQuest();
     else if (to === 'n3') nav.openMenu('n3', { view: { kind: 'today' } });
     else if (to === 'random') startRandomTest();
-  }, [setDeck, startWeakQuiz, startStreamQuest, startToday, startSentenceQuest, startRandomTest, nav]);
+  }, [setDeck, startWeakQuiz, startStreamQuest, startToday, startGrammarQuest, startSentenceQuest, startRandomTest, nav]);
   /* 오늘 끝 화면까지 간 카드 판(복습 · 새로 배우기) — 「다음」이 이 판들로 되돌려 보내지 않게 적어 둔다(dayflow.nextStep) */
   const [flowTried, setFlowTried] = useState({ day: today, steps: {} });
   const markTried = useCallback((step) => {
@@ -634,6 +669,7 @@ export default function App() {
     if (word) {
       guardDeck(() => startJlptSet([word], '틀린 단어 다시 학습', `mistake:${word.id}`), `mistake:${word.id}`);
     } else if (row.ref?.startsWith('k:')) openMenu('n3', { view: { kind: 'kanjicard', id: row.ref } });
+    else if (row.source === 'grammaruse' && row.ref?.startsWith('gu:')) { setGrammarUseGid(row.ref.slice(3)); openMenu('grammaruse'); }
     else if (/^[gvrl]:/.test(row.ref || '')) openMenu('n3', { view: { kind: 'lesson', id: row.ref } });
     else if (row.source === 'compose') openMenu('compose', { mode: row.id.includes(':cloze:') ? 'blank' : row.id.includes(':write:') ? 'write' : 'build' });
     else if (row.source === 'grammar') openMenu('grammar');
@@ -831,6 +867,11 @@ export default function App() {
             onStartStreamQuest={startStreamQuest}
             randomQuest={randomQuest}
             onStartRandomTest={startRandomTest}
+            grammarQuest={grammarQuest}
+            grammarInfo={grammarInfo}
+            onStartGrammarQuest={() => startGrammarQuest()}
+            onSkipGrammarQuest={() => skipGrammar(true)}
+            onUndoSkipGrammarQuest={() => skipGrammar(false)}
             sentenceQuest={sentenceQuest}
             onStartSentenceQuest={() => guardDeck(() => startSentenceQuest(), 'quest:sentence')}
             onSkipSentenceQuest={() => skipSentence(true)}
@@ -1051,6 +1092,11 @@ export default function App() {
                 n3Next={flowAfter('n3')}
                 composeFocus={composeFocus}
                 composeNext={flowAfter('sentence')}
+                grammarUseGid={grammarUseGid}
+                grammarNext={flowAfter('grammar')}
+                onGrammarRecord={onGrammarRecord}
+                onWordForgot={(id) => applyVerdicts({ [id]: VERDICT.UNKNOWN }, { [id]: 'mean' })}
+                onNeedWords={() => goStep('fresh')}
                 seenToday={streamSeenToday}
                 streamNext={flowAfter('stream')}
                 streamAuto={streamAuto}

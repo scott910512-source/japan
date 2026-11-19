@@ -744,3 +744,12 @@ export function questInfo(gu, today = todayKey(), canMake = () => true) {
 
 /* 검사용 — 단어 하나의 verbform 꼴 */
 export const __vform = (w) => vform(w);
+
+/* 하던 세트 — 이 기기에 적어 두고 새로고침 · 재접속해도 같은 문제 · 같은 제출 상태에서 잇는다(날이 바뀌면 버린다) */
+export const GU_RUN_KEY = 'jp_grammar_use_run_v1';
+export function readRun() {
+  try { const r = JSON.parse(globalThis.localStorage?.getItem(GU_RUN_KEY) || 'null'); return r && r.day === todayKey() ? r : null; } catch { return null; }
+}
+export function writeRun(r) {
+  try { if (r) globalThis.localStorage?.setItem(GU_RUN_KEY, JSON.stringify(r)); else globalThis.localStorage?.removeItem(GU_RUN_KEY); } catch { /* 못 적어도 푸는 데는 지장 없다 */ }
+}

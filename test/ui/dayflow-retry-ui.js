@@ -31,7 +31,7 @@ const review = {
 
 async function boot(browser, progress = null, extraSettings = {}, store = null) {
   /* 이 검사는 문장 퀘스트 말고의 흐름을 본다 — 오늘 문장 퀘스트는 건너뛴 것으로 심는다(문장 퀘스트는 sentence-quest-ui가 본다) */
-  progress = { quests: { day: todayKey(), sentenceSkip: true }, ...(progress || {}) };
+  progress = { quests: { day: todayKey(), sentenceSkip: true, grammarSkip: true }, ...(progress || {}) };
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(({ rv, progress, extraSettings, store }) => {
@@ -136,7 +136,7 @@ async function finishDeck(page) {
   console.log('\n[ 쭉 퀴즈 — 오늘 몫을 채운 그 자리에서 다음 단계를 내민다 ]');
   {
     /* 앞서 17문제를 풀어 둔 날 + 한 번에 30문제로 둔 사람. 전에는 30문제를 다 풀 때까지 「다음」이 안 나왔다 */
-    const p2 = await boot(browser, { quests: { day: todayKey(), sentenceSkip: true, stream: 17 } });
+    const p2 = await boot(browser, { quests: { day: todayKey(), sentenceSkip: true, grammarSkip: true, stream: 17 } });
     p2.on('pageerror', (e) => errors.push(e.message));
     await p2.evaluate(() => localStorage.setItem('jp_stream_batch', '30'));
     await goTab(p2, '오늘');
@@ -169,7 +169,7 @@ async function finishDeck(page) {
   {
     /* 약점 퀴즈 — 약한 낱말이 열둘뿐이던 때 12 / 12로 마쳤다(sealWeak). 지금은 약한 낱말이 마흔 개 있다 */
     const done12 = due.slice(0, 12).map((w) => w.id);
-    const p3 = await boot(browser, { quests: { day: todayKey(), sentenceSkip: true, sealWeak: 12 }, weakQuiz: { day: todayKey(), ids: done12 } });
+    const p3 = await boot(browser, { quests: { day: todayKey(), sentenceSkip: true, grammarSkip: true, sealWeak: 12 }, weakQuiz: { day: todayKey(), ids: done12 } });
     p3.on('pageerror', (e) => errors.push(e.message));
     await goTab(p3, '오늘');
     const wr = await rowText(p3, '약점 퀴즈');

@@ -35,7 +35,7 @@ async function boot(browser, review, goals = null) {
     localStorage.setItem('jp_manabu_guest_v1', '1');
     localStorage.setItem('jp_manabu_settings_v1', JSON.stringify({ onboarded: true, canReadKana: true, autoTTS: false, goalsV: 3, ...(goals ? { goals } : {}) }));
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(rv));
-    localStorage.setItem('jp_manabu_progress_v1', JSON.stringify({ quests: { day, sentenceSkip: true } }));
+    localStorage.setItem('jp_manabu_progress_v1', JSON.stringify({ quests: { day, sentenceSkip: true, grammarSkip: true } }));
   }, { rv: review, day: today, goals });
   const page = await ctx.newPage();
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });

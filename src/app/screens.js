@@ -27,6 +27,7 @@ export const Rpg = lazy(() => import('../screens/Rpg.jsx'));
 export const DrillHub = lazy(() => import('../screens/DrillHub.jsx'));
 export const StreamQuiz = lazy(() => import('../screens/StreamQuiz.jsx'));
 export const ComposeQuiz = lazy(() => import('../screens/ComposeQuiz.jsx'));
+export const GrammarUse = lazy(() => import('../screens/GrammarUse.jsx'));
 /* 말하기 연습 — 문장을 보고 말해 본 뒤 정답을 듣는다 */
 export const SpeakPractice = lazy(() => import('../screens/SpeakPractice.jsx'));
 export const StoryListen = lazy(() => import('../screens/StoryListen.jsx'));

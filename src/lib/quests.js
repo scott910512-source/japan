@@ -13,7 +13,7 @@ export const SENTENCE_QUEST_SIZE = 5;
 
 export function questsOf(progress, today = todayKey()) {
   const q = progress?.quests;
-  if (!q || q.day !== today) return { day: today, stream: 0, random: 0, sentenceIds: [], sentenceSkip: false, ...sealsOf(null) };
+  if (!q || q.day !== today) return { day: today, stream: 0, random: 0, sentenceIds: [], sentenceSkip: false, grammarSetIds: [], grammarSkip: false, ...sealsOf(null) };
   return {
     day: today,
     stream: Math.max(0, Number(q.stream) || 0),
@@ -21,6 +21,10 @@ export function questsOf(progress, today = todayKey()) {
     sentenceIds: Array.isArray(q.sentenceIds) ? q.sentenceIds.filter((x) => typeof x === 'string') : [],
     sentenceSkip: Boolean(q.sentenceSkip),
     ...(Number(q.sentenceSkipAt) > 0 ? { sentenceSkipAt: Number(q.sentenceSkipAt) } : {}),
+    /* 문법 활용 — 오늘 마친 세트 id(합집합이라 두 기기 · 두 번 불려도 한 세트는 하나) · 건너뛰기 */
+    grammarSetIds: Array.isArray(q.grammarSetIds) ? q.grammarSetIds.filter((x) => typeof x === 'string') : [],
+    grammarSkip: Boolean(q.grammarSkip),
+    ...(Number(q.grammarSkipAt) > 0 ? { grammarSkipAt: Number(q.grammarSkipAt) } : {}),
     ...sealsOf(q),
   };
 }
@@ -139,5 +143,27 @@ export function mergeQuests(a, b) {
   /* 건너뛰기는 누른 시각이 있으면 나중에 누른 쪽 — 건너뛴 뒤 되돌린 것이 남는다. 시각이 없는 옛 기록은 위 규칙(한쪽이라도) 그대로 */
   const sa = Number(a.sentenceSkipAt) || 0; const sb = Number(b.sentenceSkipAt) || 0;
   if (sa || sb) out.sentenceSkip = sa === sb ? Boolean(a.sentenceSkip) || Boolean(b.sentenceSkip) : Boolean((sa > sb ? a : b).sentenceSkip);
+  const ga = Number(a.grammarSkipAt) || 0; const gb = Number(b.grammarSkipAt) || 0;
+  if (ga || gb) out.grammarSkip = ga === gb ? Boolean(a.grammarSkip) || Boolean(b.grammarSkip) : Boolean((ga > gb ? a : b).grammarSkip);
   return out;
+}
+
+/* ── 문법 활용 퀘스트(외운 단어로 문법 활용) ──
+ * 오늘 몫 = 세트 하나. 「오늘 퀘스트 완료」(세트를 마침)와 「문법 통과」(progress.grammarUse)는 따로 센다. */
+export function noteGrammarSet(prev, setId, today = todayKey()) {
+  const cur = questsOf({ quests: prev }, today);
+  if (!setId || cur.grammarSetIds.includes(setId)) return prev && prev.day === today ? prev : cur;
+  return { ...cur, grammarSetIds: [...cur.grammarSetIds, setId] };
+}
+export function skipGrammarQuest(prev, skip = true, today = todayKey(), at = Date.now()) {
+  const cur = questsOf({ quests: prev }, today);
+  return { ...cur, grammarSkip: Boolean(skip), grammarSkipAt: at };
+}
+/* 줄 상태. available = 외운 단어로 오늘 세트를 만들 수 있나(못 만들면 줄을 안 만든다) */
+export function grammarQuestState(progress, available, today = todayKey()) {
+  const q = questsOf(progress, today);
+  if (q.grammarSkip) return { skipped: true, done: 0, total: 1, complete: false };
+  if (!available && !q.grammarSetIds.length) return null;
+  const done = Math.min(1, q.grammarSetIds.length);
+  return { skipped: false, done, total: 1, complete: done >= 1, sets: q.grammarSetIds.length };
 }
