@@ -19,7 +19,7 @@ import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import { stepOfDeck } from '../lib/dayflow.js';
 import { normalizeGoals } from '../lib/daily.js';
 import {
-  VERDICT, advanceSession, buildDailySession, buildRound1, isWeak, nextRoundOf,
+  VERDICT, advanceSession, buildDailySession, buildNextRound, buildRound1, isWeak, nextRoundOf,
   selfKnownLabel, stateOf, todayKey,
 } from '../lib/review.js';
 /* 끝 화면이 뜬 뒤 Enter를 받기까지 두는 틈 — 마지막 카드를 판정한 Enter가 이어져 끝 화면을 건너뛰지 않게 */
@@ -287,7 +287,9 @@ export default function Study({
       onToast(`${next.session.round}회독 시작 — 남은 ${next.session.queue.length}개`);
     } else {
       onSessionChange(null);
-      onFinished?.(deck.id, { reason: next.reason, ids: [...judgedIds.current] });
+      /* 3회독 뒤에도 남은 카드 — 내일 복습으로 넘어간다. 오늘 계획에서는 「넘김」으로 적게 id를 같이 넘긴다 */
+      const carriedIds = next.reason === 'carryover' ? buildNextRound(result.session.roundIds || [], result.progress) : [];
+      onFinished?.(deck.id, { reason: next.reason, ids: [...judgedIds.current], carried: carriedIds });
       setFinished({
         done: result.session.done,
         reason: next.reason,

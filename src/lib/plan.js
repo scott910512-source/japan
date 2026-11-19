@@ -119,6 +119,17 @@ export function markStudied(plan, id) {
   return { ...plan, done: { ...plan.done, [id]: true } };
 }
 
+/* ★ 내일로 넘긴 카드 ★ (2026-11-19) 복습 판은 3회독까지만 돌고, 그래도 못 외운 카드는 내일 복습 큐로 넘긴다.
+   그런데 오늘 계획에는 「안 끝남」으로 남아서 홈에 「복습 미션 1개 남음」이 떴고, 눌러도 같은 카드 하나짜리 판만 열렸다.
+   넘긴 카드는 오늘 몫으로는 끝난 것으로 센다. 다시 공부해서 알아요가 되면 그때 done이 된다 */
+export function markCarried(plan, ids = []) {
+  if (!plan || !ids.length) return plan;
+  const assignedIds = new Set(plan.assigned.map((x) => x.id));
+  const add = ids.filter((id) => assignedIds.has(id) && !plan.done?.[id] && !plan.carried?.[id]);
+  if (!add.length) return plan;
+  return { ...plan, carried: { ...(plan.carried || {}), ...Object.fromEntries(add.map((id) => [id, true])) } };
+}
+
 /* 되돌리기. 판정을 무르면 완료도 물러야 한다 —
    안 그러면 되돌릴 때마다 완료 수만 남는다. */
 export function unmarkStudied(plan, id) {
@@ -129,16 +140,20 @@ export function unmarkStudied(plan, id) {
 }
 
 /* 오늘 계획이 어디까지 왔나. 화면·큐·통계가 모두 이 하나를 본다. */
-export function planStatus(plan) {
+/* known(선택): 지금 자료에 있는 카드 id. 자료가 바뀌어 없어진 카드(이름이 바뀐 낱말 · 합친 문장)는 판에 못 나와서
+   영영 안 끝난다 — 그걸 세면 홈에 「복습 1개 남음」이 계속 남았다(2026-11-19). 자료가 다 실린 뒤에만 넘긴다 */
+export function planStatus(plan, known = null) {
   if (!plan) return { assigned: 0, done: 0, left: 0, reps: 0, lanes: {}, finished: false };
-  const lanes = { review: { assigned: 0, done: 0 }, weak: { assigned: 0, done: 0 }, fresh: { assigned: 0, done: 0 } };
-  let done = 0;
-  for (const it of plan.assigned) {
-    const lane = lanes[it.bucket] || (lanes[it.bucket] = { assigned: 0, done: 0 });
-    lane.assigned += 1;
+  const lanes = { review: { assigned: 0, done: 0, carried: 0 }, weak: { assigned: 0, done: 0, carried: 0 }, fresh: { assigned: 0, done: 0, carried: 0 } };
+  let done = 0; let assigned = 0;
+  const live = plan.assigned.filter((it) => !known || known.has(it.id));
+  for (const it of live) {
+    const lane = lanes[it.bucket] || (lanes[it.bucket] = { assigned: 0, done: 0, carried: 0 });
+    lane.assigned += 1; assigned += 1;
     if (plan.done[it.id]) { lane.done += 1; done += 1; }
+    /* 3회독까지 돌고도 못 외워 내일 복습으로 넘긴 카드 — 오늘 몫으로는 끝난 것이다(내일 다시 만난다) */
+    else if (plan.carried?.[it.id]) { lane.done += 1; lane.carried += 1; done += 1; }
   }
-  const assigned = plan.assigned.length;
   /* 후보는 있는데 오늘 몫에 다 못 담은 것 */
   const over = {
     review: Math.max(0, (plan.sizes?.review || 0) - lanes.review.assigned),
@@ -153,7 +168,7 @@ export function planStatus(plan) {
     reps: plan.reps,
     lanes,
     finished: assigned > 0 && done >= assigned,
-    minutes: estimateMinutes(plan.assigned.filter((x) => !plan.done[x.id])),
+    minutes: estimateMinutes(live.filter((x) => !plan.done[x.id] && !plan.carried?.[x.id])),
   };
 }
 
@@ -186,7 +201,7 @@ export function reviewLeftOf(status) {
 export function remaining(plan, lanes = null) {
   if (!plan) return [];
   const use = lanes?.length ? new Set(lanes) : null;
-  return plan.assigned.filter((x) => !plan.done[x.id] && (!use || use.has(x.bucket)));
+  return plan.assigned.filter((x) => !plan.done[x.id] && !plan.carried?.[x.id] && (!use || use.has(x.bucket)));
 }
 
 /* ★ 계획을 다 하면 거기서 끝이다 ★
@@ -253,11 +268,14 @@ export function mergePlan(local, remote) {
   }
   const done = {};
   for (const id of [...doneOf(base), ...otherDone]) if (ids.has(id)) done[id] = true;
+  const carried = {};
+  for (const id of [...Object.keys(local.carried || {}), ...Object.keys(remote.carried || {})]) if (ids.has(id) && !done[id]) carried[id] = true;
   return {
     ...base,
     assigned,
     reps: Math.max(local.reps || 0, remote.reps || 0),
     extra: Math.max(local.extra || 0, remote.extra || 0),
     done,
+    carried,
   };
 }

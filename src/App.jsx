@@ -13,7 +13,7 @@ import { useAppNumbers } from './app/useAppNumbers.js';
 import { useToast } from './app/useToast.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TabBar from './components/TabBar.jsx';
-import { ensurePlan, MORE_STEP } from './lib/plan.js';
+import { ensurePlan, markCarried, MORE_STEP } from './lib/plan.js';
 import { LANE_DECK, useStudyQueue } from './app/useStudyQueue.js';
 import BottomSheet from './components/BottomSheet.jsx';
 import GonAsk from './components/GonAsk.jsx';
@@ -227,6 +227,8 @@ export default function App() {
      문장은 카드 모양으로 감싸 두면 회독 화면이 그대로 받는다. */
   /* 같은 일본어 문장은 하나만(lib/cards.js dedupeSentences) — 이미 공부한 쪽이 남는다 */
   const sentenceCards = useMemo(() => dedupeSentences(content?.sentenceCards || [], review), [content, review]);
+  /* 판에 낼 수 있는 카드 id — 오늘 계획에 있는데 자료에서 없어진 카드는 「남은 1개」로 남지 않게 센 데서 뺀다(lib/plan.js planStatus) */
+  const studyableIds = useMemo(() => (words.length && sentenceCards.length ? new Set([...wordIds, ...sentenceCards.map((c) => c.id)]) : null), [words, wordIds, sentenceCards]);
   /* 목적에 따라 차례를 바꿀 때 문장이 어느 상황인지 알아야 한다 —
      「여행」이면 주문·결제·길 찾기·숙소를 먼저 배정한다. */
   const sentById = useMemo(() => new Map(sentenceCards.map((c) => [c.id, c])), [sentenceCards]);
@@ -297,7 +299,7 @@ export default function App() {
     due, sentenceDue, planNow, reviewLeft,
     weakBook, weakWords, weakRows, wordStat, rounds, n3Wrong, grammarLeft, grammarNext,
   } = useAppNumbers({
-    words, wordIds, byId, review, progress, plan, sentenceIds, today,
+    words, wordIds, byId, review, progress, plan, sentenceIds, today, known: studyableIds,
   });
 
   /* 지도에서 연 화면의 레벨 — 설정의 레벨 필터 대신 이 화면에서만 쓴다(설정 값은 그대로) */
@@ -720,6 +722,8 @@ export default function App() {
               onReviewChange={applyReview}
               onFinished={(id, info) => {
                 markTried(deckStep(id));
+                /* 3회독 뒤에도 못 외운 카드는 내일 복습으로 — 오늘 몫으로는 끝난 것(홈에 「1개 남음」이 남지 않게) */
+                if (info?.carried?.length) setPlan((p) => markCarried(p, info.carried));
                 /* 새로 배우기를 끝까지 외웠으면 그 낱말들로 테스트를 낸다(틀린 단어를 카드로 다시 외운 판은 아니다) */
                 setFreshJust(stepOfDeck(id) === 'fresh' && info?.reason === 'clear' && info.ids?.length ? { ids: info.ids } : null);
               }}

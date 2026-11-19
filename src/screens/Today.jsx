@@ -52,6 +52,8 @@ export default function Today({
   const back = reviewLeftOf(planNow);
   const backLane = { assigned: back.assigned, done: back.done };
   const backLeft = back.left;
+  /* 3회독 뒤에도 못 외워 내일로 넘긴 카드 수 — 끝난 것으로 세되, 말은 해 준다 */
+  const backCarried = (lanes.review?.carried || 0) + (lanes.weak?.carried || 0);
   const freshLane = { assigned: lanes.fresh?.assigned || 0, done: lanes.fresh?.done || 0 };
   const freshLeft = Math.max(0, freshLane.assigned - freshLane.done);
   /* 큰 버튼이 여는 판의 양 — 복습이 남았으면 복습(+약점), 없으면 새로 배우기. 시간은 전체 예상 시간을 개수 비율로 나눈다 */
@@ -96,7 +98,7 @@ export default function Today({
   const missions = [
     backLane.assigned > 0 && {
       key: 'review', title: '복습 미션',
-      note: backRow.complete ? `오늘 복습을 모두 마쳤어요${backRow.extraTotal > backRow.extraDone ? ` · 더 할 수 있는 복습 ${backRow.extraTotal - backRow.extraDone}개` : ''}` : `남은 ${backLeft}개 · 복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`,
+      note: backRow.complete ? `오늘 복습을 모두 마쳤어요${backCarried > 0 ? ` · 못 외운 ${backCarried}개는 내일 다시` : ''}${backRow.extraTotal > backRow.extraDone ? ` · 더 할 수 있는 복습 ${backRow.extraTotal - backRow.extraDone}개` : ''}` : `남은 ${backLeft}개 · 복습 ${(lanes.review?.assigned || 0) - (lanes.review?.done || 0)} · 약점 ${(lanes.weak?.assigned || 0) - (lanes.weak?.done || 0)}`,
       done: backRow.done, total: backRow.total, icon: <IconRepeat />, onClick: onStartReview,
     },
     /* ★ 약점 퀴즈 ★ 약한 낱말 다섯 문제. 약점이 하나도 없고 오늘 푼 것도 없으면 줄이 안 뜬다 */
