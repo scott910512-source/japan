@@ -10,6 +10,7 @@ import { chromium } from 'playwright-core';
 import { goTab, openMenu } from './_nav.js';
 import * as allWords from '../../src/data/allWords.js';
 import { applyVerdict, VERDICT, addDays, todayKey } from '../../src/lib/review.js';
+import { allFacets } from './_seed.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -20,7 +21,7 @@ const ok = (l, c, e) => { if (c) { pass++; console.log('  ✓', l, e !== undefin
 const today = todayKey();
 const N5 = (allWords.ALL_WORDS || allWords.default).filter((w) => String(w.level).toUpperCase() === 'N5');
 /* 복습 차례가 된 낱말 여덟 개 — 연속 정답 2번이라 「듣기」 단계(글자를 가리고 소리로만 맞히는 판)다 */
-const review = Object.fromEntries(N5.slice(0, 8).map((w) => [w.id, { ...applyVerdict(undefined, VERDICT.KNOWN, addDays(today, -5)), due: addDays(today, -1), streak: 2 }]));
+const review = Object.fromEntries(N5.slice(0, 8).map((w) => [w.id, allFacets({ ...applyVerdict(undefined, VERDICT.KNOWN, addDays(today, -5)), due: addDays(today, -1), streak: 2 })]));   // 세 칸이 고른 낱말
 
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
@@ -63,7 +64,7 @@ const review = Object.fromEntries(N5.slice(0, 8).map((w) => [w.id, { ...applyVer
   await page.waitForTimeout(500);
   ok('★ 누르면 「눈으로만」으로 바뀌고 설정에 남는다 ★', await page.locator('.studyhead .soundtoggle[data-sound="off"]').count() === 1 && (await page.locator('.studyhead .soundtoggle').innerText()).includes('눈으로만') && await setting() === false);
   ok('무엇이 바뀌었는지 알려 준다', (await page.locator('.toast').innerText().catch(() => '')).includes('듣기 단추를 눌러야만'));
-  ok('★ 듣기 단계가 글자를 보고 떠올리는 단계로 바뀐다(눈으로 풀 수 있다) ★', (await page.locator('.sc-step').innerText()).includes('떠올리기') && (await page.locator('.studycard .sc-main').innerText()).trim().length > 0, await page.locator('.sc-step').innerText());
+  ok('★ 듣기 단계가 글자를 보고 떠올리는 단계로 바뀐다(눈으로 풀 수 있다) ★', (await page.locator('.sc-step').innerText()).includes('읽는 법') && (await page.locator('.studycard .sc-main').innerText()).trim().length > 0, await page.locator('.sc-step').innerText());
   const n1 = await spoken();
   /* 카드 세 장을 넘긴다 — 뒤집고 「알아요」 */
   for (let k = 0; k < 3; k += 1) {

@@ -2,7 +2,7 @@
  * 한자 · 읽기 · 뜻이 다 붙어야 외운 것이다. 칸마다 날짜를 둔 확인을 따로 세고, 카드 단계는 가장 낮은 칸이다. */
 import assert from 'node:assert/strict';
 import {
-  applyVerdict, withFacets, migrateFacets, facetLevels, weakestFacet, isMastered, isWordCard, needsReading, VERDICT, addDays,
+  applyVerdict, withFacets, migrateFacets, facetLevels, weakestFacet, facetsEven, isMastered, isWordCard, needsReading, VERDICT, addDays,
 } from '../../src/lib/review.js';
 import { stepForFacet, facetForStep, STEP } from '../../src/lib/steps.js';
 import { stageOf } from '../../src/lib/rounds.js';
@@ -82,5 +82,9 @@ check('단계 → 칸: 읽는 법 · 소리 내어 = 읽기, 한→일 = 떠올�
   assert.equal(facetForStep(STEP.RECALL), 'read'); assert.equal(facetForStep(STEP.SPEAK), 'read');
   assert.equal(facetForStep(STEP.PRODUCE), 'prod'); assert.equal(facetForStep(STEP.READ), 'mean'); assert.equal(facetForStep(STEP.LISTEN), 'mean');
   assert.equal(facetForStep(null, { direction: 'mean-kanji' }), 'prod');
+});
+check('세 칸이 고르면(facetsEven) 예전 단계 순서, 고르지 않으면 약한 칸', () => {
+  assert.equal(facetsEven(withFacets(undefined, W)), true);
+  assert.equal(facetsEven(withFacets(mastered, W)), false);
 });
 console.log(`통과 ${pass} / 실패 0`);

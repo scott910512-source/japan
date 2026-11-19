@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { goTab } from './_nav.js';
 import * as allWords from '../../src/data/allWords.js';
+import { allFacets } from './_seed.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -19,9 +20,9 @@ const N5 = WORDS.filter((w) => String(w.level).toUpperCase() === 'N5').map((w) =
 const day = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 /* 본 단어 12개: 그중 4개는 외운 것(단계 높음) */
 const SEEN = 12; const MASTERED = 4;
-const review = Object.fromEntries(N5.slice(0, SEEN).map((id, i) => [id, i < MASTERED
+const review = Object.fromEntries(N5.slice(0, SEEN).map((id, i) => [id, allFacets(i < MASTERED
   ? { box: 5, level: 4, streak: 4, lastSeen: day(10), rounds: 5, seenAt: 1, due: day(-30) }
-  : { box: 2, level: 1, streak: 1, lastSeen: day(2), rounds: 1, seenAt: 1, due: day(-1) }]));
+  : { box: 2, level: 1, streak: 1, lastSeen: day(2), rounds: 1, seenAt: 1, due: day(-1) })]));
 
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });

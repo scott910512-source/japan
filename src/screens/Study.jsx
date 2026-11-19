@@ -20,7 +20,7 @@ import { stepOfDeck } from '../lib/dayflow.js';
 import { normalizeGoals } from '../lib/daily.js';
 import {
   VERDICT, advanceSession, buildDailySession, buildNextRound, buildRound1, facetLevels, isWeak, isWordCard, nextRoundOf,
-  selfKnownLabel, stateOf, todayKey, weakestFacet, withFacets,
+  facetsEven, selfKnownLabel, stateOf, todayKey, weakestFacet, withFacets,
 } from '../lib/review.js';
 /* 끝 화면이 뜬 뒤 Enter를 받기까지 두는 틈 — 마지막 카드를 판정한 Enter가 이어져 끝 화면을 건너뛰지 않게 */
 const FINISH_ENTER_WAIT_MS = 500;
@@ -187,8 +187,9 @@ export default function Study({
   const wordSt = word ? stateOf(review, word.id) : null;
   const facetSt = word && isWordCard(word) ? withFacets(review[word.id], word) : null;
   const step = deck.stepped && word
-    ? (facetSt?.fx
+    ? (facetSt?.fx && !facetsEven(facetSt)
       ? stepForFacet(weakestFacet(facetSt), { meanLevel: facetSt.fx.mean?.lv || 0, streak: wordSt.streak, canListen: settings.autoTTS !== false })
+      /* 세 칸이 고르면 예전처럼 돌아가며(읽기 → 읽는 법 → 듣기 → 한→일 → 소리 내어) — 듣기 연습이 사라지지 않게 */
       : stepFor(wordSt.streak, { canListen: settings.autoTTS !== false }))
     : null;
   const view = step ? settingsForStep(settings, step) : settings;

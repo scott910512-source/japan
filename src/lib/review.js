@@ -210,6 +210,12 @@ export function facetLevels(st) {
   return FACETS.filter((k) => st.fx[k] && !st.fx[k].na).map((k) => ({ key: k, label: FACET_LABEL[k], lv: st.fx[k].lv || 0, due: st.fx[k].due || null }));
 }
 
+/* 세 칸이 같은 단계인가 — 고르면 회독 화면이 예전처럼 단계를 돌린다 */
+export function facetsEven(st) {
+  const lv = facetLevels(st);
+  return !lv?.length || lv.every((f) => f.lv === lv[0].lv);
+}
+
 /* 지금 제일 약한 칸(오늘 확인할 것 가운데 단계가 낮은 것). 같으면 읽기 → 떠올리기 → 뜻 */
 export function weakestFacet(st, today = todayKey()) {
   const lv = facetLevels(st);
