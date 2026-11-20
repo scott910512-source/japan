@@ -4,6 +4,7 @@ import KeyboardHelp from '../components/KeyboardHelp.jsx';
 import RomajiHint from '../components/RomajiHint.jsx';
 import { useQuizHotkeys, shortcutEvent } from '../lib/useHotkeys.js';
 import { speakJapanese, stopSpeaking } from '../lib/tts.js';
+import SoundToggle from '../components/SoundToggle.jsx';
 import { todayKey } from '../lib/review.js';
 import {
   readRun, writeRun, GRAMMAR_USE_BY_ID, DIAG_SIZE, FOLLOW_SIZE, PRACTICE_SIZE, TIER_LABEL, buildSet, judge, nextStage, outcomeOf, stageScore, statusOf, recommend, modeOf,
@@ -19,7 +20,7 @@ const MODE_TITLE = { place: '초기 진단', explore: '탐색 테스트', repeat
 const KIND_LABEL = { choice: '알맞은 것 고르기', type: '빈칸에 직접 쓰기', order: '순서대로 문장 만들기', pick: '상황에 맞는 문장 고르기' };
 
 export default function GrammarUse({
-  words, review, progress, gid = null, settings = {}, onRecord, onAttempt, onWordForgot, onToast,
+  words, review, progress, gid = null, settings = {}, onRecord, onAttempt, onWordForgot, onToast, onSettingsChange = null,
   next = null, onHome = null, onExit = null, onNeedWords = null, embedded = false,
 }) {
   const today = todayKey();
@@ -73,6 +74,8 @@ export default function GrammarUse({
     const answers = [...stage.answers]; answers[run.at] = a;
     const stages = run.stages.map((s, i) => (i === run.stage ? { ...s, answers } : s));
     save({ ...run, stages });
+    /* 소리 켬이면 답을 낸 뒤 완성 문장을 읽어 준다(답을 내기 전에는 정답이 들리면 안 돼서 안 읽는다). 눈으로만이면 🔊를 눌러야만 */
+    if (settings?.autoTTS !== false) speakJapanese(q.fullKana || q.full, rate);
     const cause = ok ? null : (q.cause || 'grammar');
     onAttempt?.({
       id: `grammaruse:${q.gid}:${q.qid}`, source: 'grammaruse', ref: `gu:${q.gid}`, kind: `문법 활용 · ${GRAMMAR_USE_BY_ID[q.gid].short}`,
@@ -175,6 +178,7 @@ export default function GrammarUse({
         {stage && run.phase !== 'intro' && run.phase !== 'done' && (
           <span className="gu-count" aria-label="이번 단계 진행">{stage.label} {Math.min(stage.qs.length, run.at + 1)} / {stage.qs.length}</span>
         )}
+        {onSettingsChange && <SoundToggle compact on={settings?.autoTTS !== false} onChange={onSettingsChange} onToast={onToast} />}
       </div>
       {stage && run.phase === 'q' && (
         <div className="gu-bar" aria-hidden="true"><i style={{ width: `${(answered / stage.qs.length) * 100}%` }} /></div>

@@ -29,15 +29,16 @@ export function cellWeak(st, rec) {
 }
 
 /* 문법 카드(grammar: true)는 레벨 묶음이 아니라 「문법」 묶음으로 따로 */
-const levelOf = (w) => (w.grammar ? '문법' : MAP_LEVELS.includes(String(w.level).toUpperCase()) ? String(w.level).toUpperCase() : '기타');
+const levelOf = (w, byLevel = false) => (w.grammar && !byLevel ? '문법' : MAP_LEVELS.includes(String(w.level).toUpperCase()) ? String(w.level).toUpperCase() : '기타');
 
 /* 레벨별 묶음: [{ level, cells: [{ id, jp, kana, mean, state }], counts: { 상태: 개수 } }] */
-export function buildWordMap(words = [], review = {}, ledger = null, { first = null } = {}) {
+/* grammarByLevel: 문법 카드만 넘겨 N5 · N4 · N3으로 나눌 때(문법 지도) */
+export function buildWordMap(words = [], review = {}, ledger = null, { first = null, grammarByLevel = false } = {}) {
   const groups = new Map([...MAP_LEVELS, '문법', '기타'].map((lv) => [lv, []]));
   words.forEach((w, i) => {
     if (!w?.id) return;
     const rec = ledger?.[w.id] ? weakEntry(ledger, w.id) : null;
-    groups.get(levelOf(w)).push({
+    groups.get(levelOf(w, grammarByLevel)).push({
       id: w.id, jp: w.kanji || w.kana || '', kana: w.kana || '', mean: w.mean || '',
       state: cellState(review?.[w.id]),
       weak: cellWeak(review?.[w.id], rec),

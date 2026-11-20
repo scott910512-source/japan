@@ -4,6 +4,7 @@ import { todayKey } from '../lib/review.js';
 
 const GrammarUse = lazy(() => import('./GrammarUse.jsx'));
 import Grammar from './Grammar.jsx';
+import GrammarMap from '../components/GrammarMap.jsx';
 import Sentence from './Sentence.jsx';
 import DailyGrammar from './DailyGrammar.jsx';
 
@@ -31,7 +32,7 @@ const TABS = [
 
 export default function GrammarHub({
   words, progress, settings, onProgress, onPatternDone, onDailyGrammar, onToast, onAttempt,
-  review = {}, onGrammarRecord, onWordForgot,
+  review = {}, onGrammarRecord, onWordForgot, onSettingsChange = null,
 }) {
   const [tab, setTab] = useState('cards');
   const [useGid, setUseGid] = useState(undefined);   // undefined = 목록, null = 오늘 세트, 문자열 = 그 문법
@@ -67,7 +68,7 @@ export default function GrammarHub({
         <Suspense fallback={<p className="set-note">불러오는 중…</p>}>
           <button className="ghost-btn gu-back" onClick={() => setUseGid(undefined)}>← 문법 목록</button>
           <GrammarUse key={useGid || 'today'} embedded words={words} review={review} progress={progress} gid={useGid} settings={settings}
-            onRecord={onGrammarRecord} onAttempt={onAttempt} onWordForgot={onWordForgot} onToast={onToast} onExit={() => setUseGid(undefined)} />
+            onRecord={onGrammarRecord} onAttempt={onAttempt} onWordForgot={onWordForgot} onToast={onToast} onSettingsChange={onSettingsChange} onExit={() => setUseGid(undefined)} />
         </Suspense>
       ))}
       {tab === 'pattern' && (
@@ -88,6 +89,7 @@ function UseList({ gu, onPick }) {
       <button className="submit-btn gu-today" onClick={() => onPick(null)}>
         {mode === 'place' ? '초기 진단 시작' : mode === 'explore' ? '오늘의 탐색 테스트' : '오늘의 문법 확인'}
       </button>
+      <GrammarMap gu={gu} cardsTabs={false} onPick={onPick} />
       {GRAMMAR_USE.map((g) => {
         const st = statusOf(gu, g.id, today);
         const tag = st.weak ? '복습 대상' : st.level > 0 ? `확인 ${st.level}일` : st.place === 1 ? '진단 맞음' : st.place === 0 ? '진단 틀림' : '안 봄';
