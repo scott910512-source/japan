@@ -99,10 +99,15 @@ console.log('\n[ 세 칸(뜻 · 읽기 · 떠올리기) 따로 보기 ]');
   const fx = page.locator('.wmap-pick .wmap-fx li');
   const txt = await page.locator('.wmap-pick .wmap-fx').innerText();
   ok('★ 칸을 누르면 뜻 · 읽기 · 떠올리기가 따로 보인다 ★', await fx.count() === 3, txt.replace(/\s+/g, ' '));
-  ok('뜻 확인 3번 · 읽기 확인 0번 · 떠올리기 확인 1번',
-    (await fx.nth(0).innerText()).includes('확인 3번') && (await fx.nth(1).innerText()).includes('확인 0번') && (await fx.nth(2).innerText()).includes('확인 1번'));
+  ok('뜻 3번 · 읽기 0번 · 떠올리기 1번',
+    (await fx.nth(0).innerText()).includes('3번') && (await fx.nth(1).innerText()).includes('0번') && (await fx.nth(2).innerText()).includes('1번'));
+  /* ★ 지도 바로 밑(폰)에 뜬다 — 가장 약한 TOP 10보다 위 ★ */
+  const yPick = (await page.locator('.wmap-pick').boundingBox()).y;
+  const yGrid = await page.locator('.wmap .wmap-grid').last().boundingBox();
+  const yTop = (await page.locator('.wmap-top').boundingBox())?.y ?? 1e9;
+  ok('★ 누른 단어는 지도 바로 밑 · TOP 10보다 위 ★', yPick >= yGrid.y + yGrid.height - 2 && yPick < yTop, `${Math.round(yGrid.y + yGrid.height)} ≤ ${Math.round(yPick)} < ${Math.round(yTop)}`);
   await cell(kanaW.id).click(); await page.waitForTimeout(150);
-  ok('가나 단어는 「읽기: 가나 단어라 없음」', (await page.locator('.wmap-pick .wmap-fx li[data-facet="read"]').innerText()).includes('가나 단어라 없음'));
+  ok('가나 단어는 「읽기: 가나 단어라 없음」', (await page.locator('.wmap-pick .wmap-fx li[data-facet="read"]').innerText()).includes('없음'));
 }
 
 console.log('\n[ 가장 약한 TOP 10 · 반복 학습 ]');
