@@ -1,4 +1,5 @@
 import WordHeatmap from '../components/WordHeatmap.jsx';
+import GrammarMap from '../components/GrammarMap.jsx';
 import { useMemo, useState } from 'react';
 import { IconFlame, IconChevron } from '../components/Icons.jsx';
 import { addDays, isMastered, stateOf, MASTERY_RULE } from '../lib/review.js';
@@ -51,7 +52,7 @@ function monthGrid(year, month) {
 const AREA_LABEL = { vocab: '어휘', grammar: '문법', kanji: '한자', reading: '독해', listening: '청해' };
 
 export default function Log({
-  words = [], weakLedger = null, kijuFirst = null, onStudyIds = null,
+  words = [], weakLedger = null, kijuFirst = null, onStudyIds = null, grammarUse = null, onOpenGrammarUse = null,
   review, stats, streak, grammarLeft, stat, rounds,
   n3Summary, weakWords, showN3, onOpenStudy, onOpenReview, onOpenQuiz, onOpenWrong, wrongCount = 0, onOpenWeak, weakGrammar = 0, reviewLeft = 0,
 }) {
@@ -302,6 +303,10 @@ export default function Log({
       {/* ★ 전체 단어 지도 ★ 모든 낱말을 한 칸씩 — 어디까지 왔고 어디가 비었는지 한눈에(lib/wordmap.js) */}
       <div className="section-label">전체 단어 지도</div>
       <WordHeatmap words={words} review={review} ledger={weakLedger} first={kijuFirst} onStudy={onStudyIds} />
+
+      {/* ★ 문법 지도 ★ 외운 단어로 문법 활용 24개 + 문법 카드(N5 · N4 · N3) — 단어 지도와 같은 색 */}
+      <div className="section-label">문법 지도</div>
+      <GrammarMap gu={grammarUse} words={words} review={review} onPick={onOpenGrammarUse} />
 
       <div className="section-label">기억 수준</div>
       <div className="card roundstat">

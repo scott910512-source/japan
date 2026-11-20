@@ -130,6 +130,7 @@ export default function FeatureScreen({
             {sub === 'grammar' && (
               <GrammarHub
                 onAttempt={onAttempt}
+                onSettingsChange={patchSettings}
                 words={words}
                 progress={progress}
                 settings={settings}
@@ -271,7 +272,7 @@ export default function FeatureScreen({
               <GrammarUse
                 key={grammarUseGid || 'quest'}
                 words={words} review={review} progress={progress} gid={grammarUseGid} settings={settings}
-                onRecord={onGrammarRecord} onAttempt={onAttempt} onWordForgot={onWordForgot} onToast={showToast}
+                onRecord={onGrammarRecord} onAttempt={onAttempt} onWordForgot={onWordForgot} onToast={showToast} onSettingsChange={patchSettings}
                 next={grammarNext} onHome={onHome} onExit={onExit} onNeedWords={onNeedWords}
               />
             )}

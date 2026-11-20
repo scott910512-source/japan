@@ -896,6 +896,8 @@ export default function App() {
 
           <Log
             words={words}
+            grammarUse={progress.grammarUse}
+            onOpenGrammarUse={(gid) => { setGrammarUseGid(gid); openMenu('grammaruse'); }}
             /* 단어 지도의 「가장 약한 10개 반복 학습」 — 그 낱말들로 한 판(모를 때까지 다시 나온다) */
             onStudyIds={(ids) => {
               const cards = ids.map((id) => byId.get(id)).filter(Boolean);

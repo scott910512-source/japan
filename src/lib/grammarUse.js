@@ -753,3 +753,22 @@ export function readRun() {
 export function writeRun(r) {
   try { if (r) globalThis.localStorage?.setItem(GU_RUN_KEY, JSON.stringify(r)); else globalThis.localStorage?.removeItem(GU_RUN_KEY); } catch { /* 못 적어도 푸는 데는 지장 없다 */ }
 }
+
+/* ★ 문법 지도 ★ 24개 문법을 한 칸씩 — 단어 지도(lib/wordmap.js)와 같은 색 단계로.
+ * 안 봄 → 진단만(round1) → 확인 1일(round2) → 확인 2일(round3) → 확인 3일 이상(done), 약점은 덧칠(빨강) */
+export const GRAMMAR_MAP_STATES = [
+  { id: 'fresh', label: '안 봄' },
+  { id: 'round1', label: '진단 · 연습만' },
+  { id: 'round2', label: '확인 1일' },
+  { id: 'round3', label: '확인 2일' },
+  { id: 'done', label: '확인 3일+' },
+];
+export function grammarMapCells(gu, today = todayKey()) {
+  return GRAMMAR_USE.map((g) => {
+    const st = statusOf(gu, g.id, today);
+    const state = st.level >= 3 ? 'done' : st.level === 2 ? 'round3' : st.level === 1 ? 'round2' : st.seen ? 'round1' : 'fresh';
+    const tag = st.weak ? '복습 대상' : st.level > 0 ? `확인 ${st.level}일` : st.place === 1 ? '진단 맞음' : st.place === 0 ? '진단 틀림' : st.seen ? '연습함' : '안 봄';
+    /* 진단에서 틀리고 아직 통과 못 한 문법도 약점으로 칠한다(먼저 볼 곳) */
+    return { gid: g.id, short: g.short, title: g.title, level: g.level, state, weak: st.weak || (st.place === 0 && !st.lastPass), tag, due: st.lastPass && !st.weak ? st.due : null };
+  });
+}

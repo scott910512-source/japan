@@ -5,7 +5,7 @@ import { chromium } from 'playwright-core';
 import { ALL_WORDS } from '../../src/data/allWords.js';
 import { todayKey, addDays } from '../../src/lib/review.js';
 import { allFacets } from './_seed.js';
-import { openMenu } from './_nav.js';
+import { openMenu, goTab } from './_nav.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:8932/japan/';
 const LOCAL_CHROME = '/opt/pw-browsers/chromium';
@@ -20,17 +20,18 @@ const TEN = Array.from({ length: 10 }, (_, i) => addDays(today, -(i + 1)));
 /* 반복 학습 시기: 초기 진단 끝 + 열흘 */
 const REPEAT_GU = { place: { day: TEN[9], res: {} }, g: {}, days: TEN };
 
-async function boot(browser, { gu = null, quests = {} } = {}) {
+async function boot(browser, { gu = null, quests = {}, autoTTS = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  await ctx.addInitScript(([r, g, q, d]) => {
+  await ctx.addInitScript(([r, g, q, d, tts]) => {
+    window.__spoken = [];
     if (localStorage.getItem('qa_seeded')) return;
     localStorage.setItem('qa_seeded', '1');
     localStorage.setItem('jp_manabu_guest_v1', '1');
-    localStorage.setItem('jp_manabu_settings_v1', JSON.stringify({ onboarded: true, canReadKana: true, autoTTS: false, levels: ['N5'], goalsV: 4 }));
+    localStorage.setItem('jp_manabu_settings_v1', JSON.stringify({ onboarded: true, canReadKana: true, autoTTS: tts, levels: ['N5'], goalsV: 4 }));
     localStorage.setItem('jp_manabu_review_v1', JSON.stringify(r));
     localStorage.setItem('jp_manabu_progress_v1', JSON.stringify({ grammarUse: g, quests: { day: d, sentenceSkip: true, ...q } }));
-    window.speechSynthesis.speak = () => {};
-  }, [REVIEW, gu, quests, today]);
+  }, [REVIEW, gu, quests, today, autoTTS]);
+  await ctx.addInitScript(() => { window.__spoken = []; window.speechSynthesis.speak = (u) => { window.__spoken.push(u.text); }; });
   const page = await ctx.newPage();
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
@@ -199,6 +200,64 @@ const nextQ = async (page) => { await page.locator('.gu-next').click(); await pa
     await page.locator('.gu-row[data-gid="o"]').click();
     await page.locator('.gu').waitFor();
     ok('★ 고른 문법(を)으로 같은 세트 화면이 열린다 ★', (await page.locator('.gu').getAttribute('data-gid')) === 'o');
+    await ctx.close();
+  }
+
+  console.log('\n[ 소리 켬 · 눈으로만 — 문법 활용 퀴즈 안에서 바로 ]');
+  {
+    const { page, ctx } = await boot(browser, { gu: REPEAT_GU, autoTTS: true });
+    await page.locator('.tdq-row', { hasText: '외운 단어로 문법 활용' }).click();
+    await page.locator('.gu-start').click();
+    const tg = page.locator('.gu-head .soundtoggle');
+    ok('★ 퀴즈 머리에 「소리 켬」 단추 ★', await tg.count() === 1 && (await tg.getAttribute('data-sound')) === 'on');
+    const { q } = await cur(page);
+    const pre = await page.evaluate(() => window.__spoken.slice());
+    ok('답을 내기 전에는 정답 문장을 읽지 않는다', !pre.some((t) => t.includes(q.answer) && (t === q.full || t === q.fullKana)), pre.join(' | '));
+    await answer(page, true); await page.waitForTimeout(400);
+    const said = await page.evaluate(() => window.__spoken.slice());
+    ok('★ 소리 켬 — 답을 내면 완성 문장을 읽어 준다 ★', said.length >= 1, said.join(' | ') || q.full);
+    await tg.click(); await page.waitForTimeout(300);
+    const st = await page.evaluate(() => JSON.parse(localStorage.getItem('jp_manabu_settings_v1')));
+    ok('★ 누르면 「눈으로만」 · 설정에 남는다 ★', (await tg.getAttribute('data-sound')) === 'off' && st.autoTTS === false);
+    await nextQ(page);
+    await page.evaluate(() => { window.__spoken = []; });
+    await answer(page, true); await page.waitForTimeout(400);
+    ok('눈으로만 — 답을 내도 알아서 읽지 않는다', (await page.evaluate(() => window.__spoken.length)) === 0);
+    await page.locator('.gu-fb .gu-say').click(); await page.waitForTimeout(300);
+    ok('🔊를 누르면 그때는 읽는다', (await page.evaluate(() => window.__spoken.length)) >= 1);
+    ok('JS 오류 없음', page.errors.length === 0, page.errors[0]);
+    await ctx.close();
+  }
+
+  console.log('\n[ 문법 지도 — 내 학습 화면 · 문법 메뉴 활용 탭 ]');
+  {
+    const gu = { ...REPEAT_GU, place: { day: TEN[9], res: { desu: 1, wa: 0 } }, g: { o: { pass: [TEN[5], TEN[2], TEN[0]], fail: [], quick: [], qs: [] }, de: { pass: [TEN[3]], fail: [TEN[1]], quick: [], qs: [] }, masu: { pass: [TEN[1]], fail: [], quick: [], qs: [] } } };
+    const { page, ctx } = await boot(browser, { gu });
+    await goTab(page, '내 학습');
+    const map = page.locator('.gmap');
+    await map.waitFor({ timeout: 10000 });
+    ok('★ 「문법 지도」 — 24개 문법이 이름 붙은 칸으로 ★', await map.locator('.gmap-cell').count() === 24);
+    const cls = async (gid) => map.locator(`.gmap-cell[data-gid="${gid}"]`).getAttribute('class');
+    ok('확인 3일 = 진한 색(익숙함)', (await cls('o')).includes('s-done'), await cls('o'));
+    ok('확인 1일 = 옅은 색', (await cls('masu')).includes('s-round2'), await cls('masu'));
+    ok('나중에 틀림 = 약점(빨강)', (await cls('de')).includes('s-weak'), await cls('de'));
+    ok('진단에서 틀림 = 약점(먼저 볼 곳)', (await cls('wa')).includes('s-weak'));
+    ok('진단만 맞음 = 가장 옅은 색', (await cls('desu')).includes('s-round1'));
+    ok('안 본 문법 = 빈칸', (await cls('tekara')).includes('s-fresh'));
+    ok('단어 지도와 겹치지 않는다(.wmap 하나)', await page.locator('.wmap').count() === 1);
+    ok('문법 카드 N5 · N4 · N3 탭도 있다', await map.locator('.gmap-tabs [data-tab="N5"]').count() === 1 && await map.locator('.gmap-tabs [data-tab="N3"]').count() === 1);
+    await map.locator('.gmap-tabs [data-tab="N5"]').click();
+    ok('문법 카드 칸(단어 지도 모양)', await map.locator('.gmap-cards .wm-cell').count() > 50, String(await map.locator('.gmap-cards .wm-cell').count()));
+    await map.locator('.gmap-tabs [data-tab="use"]').click();
+    await map.locator('.gmap-cell[data-gid="de"]').click();
+    ok('칸을 누르면 이름 · 상태', (await map.locator('.gmap-pick').innerText()).includes('복습 대상'));
+    await map.locator('.gmap-go').click();
+    await page.locator('.gu').waitFor({ timeout: 8000 });
+    ok('★ 「이 문법 연습」 → 그 문법(で) 세트 ★', (await page.locator('.gu').getAttribute('data-gid')) === 'de');
+    await openMenu(page, '문법');
+    await page.locator('.gm-tabs [data-tab="use"]').click(); await page.waitForTimeout(300);
+    ok('문법 메뉴 「활용」 탭 머리에도 같은 지도(활용만)', await page.locator('.gmap-use .gmap-cell').count() === 24 && await page.locator('.gmap-use .gmap-tabs').count() === 0);
+    ok('JS 오류 없음', page.errors.length === 0, page.errors[0]);
     await ctx.close();
   }
 
