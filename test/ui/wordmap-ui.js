@@ -105,6 +105,8 @@ console.log('\n[ 세 칸(뜻 · 읽기 · 떠올리기) 따로 보기 ]');
   const yPick = (await page.locator('.wmap-pick').boundingBox()).y;
   const yGrid = await page.locator('.wmap .wmap-grid').last().boundingBox();
   const yTop = (await page.locator('.wmap-top').boundingBox())?.y ?? 1e9;
+  const how = await page.locator('.wmap-howto').innerText();
+  ok('★ 지도 밑에 세 칸 설명(뜻 · 읽기 · 떠올리기) ★', how.includes('일본어 단어 → 한국어 뜻') && how.includes('한자만 보고 → 발음') && how.includes('한국어 뜻 → 일본어 단어'), how.replace(/\s+/g, ' '));
   ok('★ 누른 단어는 지도 바로 밑 · TOP 10보다 위 ★', yPick >= yGrid.y + yGrid.height - 2 && yPick < yTop, `${Math.round(yGrid.y + yGrid.height)} ≤ ${Math.round(yPick)} < ${Math.round(yTop)}`);
   await cell(kanaW.id).click(); await page.waitForTimeout(150);
   ok('가나 단어는 「읽기: 가나 단어라 없음」', (await page.locator('.wmap-pick .wmap-fx li[data-facet="read"]').innerText()).includes('없음'));

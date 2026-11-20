@@ -103,6 +103,12 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
           )}
         </aside>
       </div>
+      {/* ★ 세 칸이 묻는 것 ★ 지도 바로 밑에 늘 — 색 기준 단추 · 누른 단어의 「뜻 1번 · 읽기 0번」이 무슨 뜻인지 */}
+      <ul className="wmap-howto">
+        <li><b>뜻</b> 일본어 단어 → 한국어 뜻 <small>(소리만 듣고 뜻 맞히기도 지금은 여기서 셈)</small></li>
+        <li><b>읽기</b> 한자만 보고 → 발음(가나)</li>
+        <li><b>떠올리기</b> 한국어 뜻 → 일본어 단어</li>
+      </ul>
       {top.length > 0 && (
         <div className="wmap-top">
           <div className="wmap-top-head">
