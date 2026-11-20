@@ -30,9 +30,9 @@ const HAS_KANJI = /[\u3400-\u9fff]/;
 const kanjiW = n5.slice(0, n5.length - 5).find((w) => HAS_KANJI.test(w.kanji || ''));
 const kanaW = n5.slice(0, n5.length - 5).find((w) => !HAS_KANJI.test(w.kanji || ''));
 review[kanjiW.id] = { lastSeen: '2026-11-01', seenAt: 1, level: 0, rounds: 3, wrongCount: 0, vagueCount: 0, due: '2026-11-02',
-  fx: { mean: { lv: 3, due: '2026-12-30', on: null }, read: { lv: 0, due: '2026-11-02', on: null }, prod: { lv: 1, due: '2026-12-01', on: null } } };
+  fx: { mean: { lv: 3, due: '2026-12-30', on: null }, read: { lv: 0, due: '2026-11-02', on: null }, prod: { lv: 1, due: '2026-12-01', on: null }, listen: { lv: 2, due: '2026-12-10', on: null } } };
 review[kanaW.id] = { lastSeen: '2026-11-01', seenAt: 1, level: 2, rounds: 3, wrongCount: 0, vagueCount: 0, due: '2026-12-30',
-  fx: { mean: { lv: 2, due: '2026-12-30', on: null }, read: { na: 1 }, prod: { lv: 2, due: '2026-12-30', on: null } } };
+  fx: { mean: { lv: 2, due: '2026-12-30', on: null }, read: { na: 1 }, prod: { lv: 2, due: '2026-12-30', on: null }, listen: { lv: 2, due: '2026-12-30', on: null } } };
 
 /* N5 문법 카드도 이미 본 것으로 — 이 사람은 N5를 거의 다 했다(남은 건 낱말 5개뿐) */
 ALL_WORDS.filter((w) => w.level === 'N5' && w.grammar).forEach((w) => {
@@ -87,8 +87,8 @@ ok('★ 칸을 누르면 그 낱말이 뜬다 ★', await page.locator('.wmap-pi
 console.log('\n[ 세 칸(뜻 · 읽기 · 떠올리기) 따로 보기 ]');
 {
   const cell = (id) => page.locator(`.wmap .wm-cell[data-id="${id}"]`);
-  ok('지도 위에 칸 색 기준 단추 넷(세 칸 모두 · 뜻 · 읽기 · 떠올리기)', await page.locator('.wmap-facets button').count() === 4);
-  ok('세 칸 모두 = 가장 낮은 칸(읽기 0)으로 칠한다', (await cell(kanjiW.id).getAttribute('class')).includes('s-round1'));
+  ok('지도 위에 칸 색 기준 단추 다섯(네 칸 모두 · 뜻 · 읽기 · 떠올리기 · 듣기)', await page.locator('.wmap-facets button').count() === 5);
+  ok('네 칸 모두 = 가장 낮은 칸(읽기 0)으로 칠한다', (await cell(kanjiW.id).getAttribute('class')).includes('s-round1'));
   await page.locator('.wmap-facets [data-facet="mean"]').click(); await page.waitForTimeout(200);
   ok('★ 뜻 기준 → 뜻 3단계 색 ★', (await cell(kanjiW.id).getAttribute('class')).includes('s-round3'), await cell(kanjiW.id).getAttribute('class'));
   await page.locator('.wmap-facets [data-facet="read"]').click(); await page.waitForTimeout(200);
@@ -98,15 +98,19 @@ console.log('\n[ 세 칸(뜻 · 읽기 · 떠올리기) 따로 보기 ]');
   await cell(kanjiW.id).click(); await page.waitForTimeout(150);
   const fx = page.locator('.wmap-pick .wmap-fx li');
   const txt = await page.locator('.wmap-pick .wmap-fx').innerText();
-  ok('★ 칸을 누르면 뜻 · 읽기 · 떠올리기가 따로 보인다 ★', await fx.count() === 3, txt.replace(/\s+/g, ' '));
-  ok('뜻 3번 · 읽기 0번 · 떠올리기 1번',
-    (await fx.nth(0).innerText()).includes('3번') && (await fx.nth(1).innerText()).includes('0번') && (await fx.nth(2).innerText()).includes('1번'));
+  ok('★ 칸을 누르면 뜻 · 읽기 · 떠올리기 · 듣기가 따로 보인다 ★', await fx.count() === 4, txt.replace(/\s+/g, ' '));
+  ok('뜻 3번 · 읽기 0번 · 떠올리기 1번 · 듣기 2번',
+    (await fx.nth(0).innerText()).includes('3번') && (await fx.nth(1).innerText()).includes('0번') && (await fx.nth(2).innerText()).includes('1번') && (await fx.nth(3).innerText()).includes('2번'));
+  await page.locator('.wmap-facets [data-facet="listen"]').click(); await page.waitForTimeout(200);
+  ok('★ 듣기 기준 → 듣기 2단계 색 ★', (await cell(kanjiW.id).getAttribute('class')).includes('s-round2'));
+  await page.locator('.wmap-facets [data-facet="all"]').click(); await page.waitForTimeout(200);
+  await cell(kanjiW.id).click(); await page.waitForTimeout(150);
   /* ★ 지도 바로 밑(폰)에 뜬다 — 가장 약한 TOP 10보다 위 ★ */
   const yPick = (await page.locator('.wmap-pick').boundingBox()).y;
   const yGrid = await page.locator('.wmap .wmap-grid').last().boundingBox();
   const yTop = (await page.locator('.wmap-top').boundingBox())?.y ?? 1e9;
   const how = await page.locator('.wmap-howto').innerText();
-  ok('★ 지도 밑에 세 칸 설명(뜻 · 읽기 · 떠올리기) ★', how.includes('일본어 단어 → 한국어 뜻') && how.includes('한자만 보고 → 발음') && how.includes('한국어 뜻 → 일본어 단어'), how.replace(/\s+/g, ' '));
+  ok('★ 지도 밑에 세 칸 설명(뜻 · 읽기 · 떠올리기) ★', how.includes('일본어 단어 → 한국어 뜻') && how.includes('한자만 보고 → 발음') && how.includes('한국어 뜻 → 일본어 단어') && how.includes('소리만 듣고'), how.replace(/\s+/g, ' '));
   ok('★ 누른 단어는 지도 바로 밑 · TOP 10보다 위 ★', yPick >= yGrid.y + yGrid.height - 2 && yPick < yTop, `${Math.round(yGrid.y + yGrid.height)} ≤ ${Math.round(yPick)} < ${Math.round(yTop)}`);
   await cell(kanaW.id).click(); await page.waitForTimeout(150);
   ok('가나 단어는 「읽기: 가나 단어라 없음」', (await page.locator('.wmap-pick .wmap-fx li[data-facet="read"]').innerText()).includes('없음'));

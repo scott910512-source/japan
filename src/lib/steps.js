@@ -79,20 +79,22 @@ export function needsSound(step) {
 }
 
 
-/* ★ 세 칸이 있는 낱말은 제일 약한 칸을 묻는다 ★ (2026-11-19, lib/review.js FACETS)
- *   읽기 칸 → 「읽는 법」(한자만 보고 읽기), 떠올리기 칸 → 「한국어 → 일본어」, 뜻 칸 → 「읽기」(처음) · 「듣기」
+/* ★ 칸이 있는 낱말은 제일 약한 칸을 묻는다 ★ (2026-11-19, lib/review.js FACETS)
+ *   읽기 칸 → 「읽는 법」(한자만 보고 읽기), 떠올리기 칸 → 「한국어 → 일본어」, 뜻 칸 → 「읽기」, 듣기 칸 → 「듣기」(눈으로만이면 미룸)
  * 뜻을 한 번도 확인 못 한 낱말(처음 배우는 것)은 무조건 「읽기」부터 — 처음 보는 한자를 읽기 없이 내밀지 않는다 */
-export function stepForFacet(facet, { meanLevel = 0, streak = 0, canListen = true } = {}) {
+export function stepForFacet(facet, { meanLevel = 0, canListen = true } = {}) {
   if (!facet || meanLevel < 1) return STEP.READ;
   if (facet === 'read') return STEP.RECALL;
   if (facet === 'prod') return STEP.PRODUCE;
-  return streak >= 1 && canListen ? STEP.LISTEN : STEP.READ;
+  if (facet === 'listen') return canListen ? STEP.LISTEN : STEP.READ;
+  return STEP.READ;
 }
 
 /* 이 단계에서 누른 판정이 어느 칸의 것인가 */
 export function facetForStep(step, view = null) {
   if (step === STEP.RECALL || step === STEP.SPEAK) return 'read';
   if (step === STEP.PRODUCE) return 'prod';
+  if (step === STEP.LISTEN) return 'listen';
   if (step) return 'mean';
   /* 골라 들어간 판(단계 없음) — 사용자가 고른 방향으로 */
   if (view?.direction === 'mean-kanji') return 'prod';

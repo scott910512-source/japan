@@ -188,7 +188,7 @@ export default function Study({
   const facetSt = word && isWordCard(word) ? withFacets(review[word.id], word) : null;
   const step = deck.stepped && word
     ? (facetSt?.fx && !facetsEven(facetSt)
-      ? stepForFacet(weakestFacet(facetSt), { meanLevel: facetSt.fx.mean?.lv || 0, streak: wordSt.streak, canListen: settings.autoTTS !== false })
+      ? stepForFacet(weakestFacet(facetSt, todayKey(), { canListen: settings.autoTTS !== false }), { meanLevel: facetSt.fx.mean?.lv || 0, canListen: settings.autoTTS !== false })
       /* 세 칸이 고르면 예전처럼 돌아가며(읽기 → 읽는 법 → 듣기 → 한→일 → 소리 내어) — 듣기 연습이 사라지지 않게 */
       : stepFor(wordSt.streak, { canListen: settings.autoTTS !== false }))
     : null;
@@ -233,6 +233,8 @@ export default function Study({
     // 듣기 단계는 소리가 전부다 — 안 내면 화면에 아무것도 없다
     if (!studyReady || (!settings.autoTTS && !needsSound(step))) return;
     if (view.direction === 'mean-kanji' && !revealed) return;
+    /* 「답 낸 뒤」(설정 → 읽어 주는 때)면 뒤집어 답을 볼 때 읽는다. 듣기 단계는 소리가 문제라 처음에 */
+    if (settings.ttsWhen === 'end' && !revealed && !needsSound(step)) return;
     if (spokenFor.current === visitKey) return;   // 한 방문에 한 번만
     spokenFor.current = visitKey;
 
@@ -529,9 +531,9 @@ export default function Study({
             {/* 「얘는 왜 한자가 없지?」처럼 카드를 보면 반드시 나오는 물음이 있다.
                 매번 밖에서 찾게 두느니 한 줄로 적어 둔다 — 있는 카드에만 나온다. */}
             {word.note && <div className="sc-note">{word.note}</div>}
-            {/* 이 낱말의 세 칸 — 셋 다 날짜를 두고 확인돼야 「외움」이다 */}
+            {/* 이 낱말의 네 칸 — 다 날짜를 두고 확인돼야 「외움」이다 */}
             {facetLevels(facetSt) && (
-              <div className="sc-facets" aria-label="뜻 · 읽기 · 떠올리기 확인 단계">
+              <div className="sc-facets" aria-label="뜻 · 읽기 · 떠올리기 · 듣기 확인 단계">
                 {facetLevels(facetSt).map((f) => (
                   <span key={f.key} className={`sc-facet${f.lv >= 4 ? ' ok' : ''}`} data-facet={f.key}>{f.label} <b>{Math.min(4, f.lv)}</b>/4</span>
                 ))}

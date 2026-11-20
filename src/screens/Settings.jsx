@@ -270,6 +270,17 @@ export default function Settings({
       <div className="card">
         <Toggle label="자동 음성" sub="카드가 나오면 바로 읽어줘요"
           on={settings.autoTTS} onClick={() => onChange({ autoTTS: !settings.autoTTS })} />
+        {/* ★ 읽어 주는 때 ★ 문제가 나올 때(소리로 문제를 받는다) · 답을 낸 뒤(먼저 눈으로 떠올리고 소리로 확인) */}
+        <div className="setrow col set-ttswhen">
+          <div className="set-title">읽어 주는 때</div>
+          <div className="grouppick" role="group" aria-label="읽어 주는 때">
+            {[['start', '문제 나올 때'], ['end', '답 낸 뒤']].map(([id, lb]) => (
+              <button key={id} type="button" data-when={id} aria-pressed={(settings.ttsWhen || 'start') === id}
+                className={(settings.ttsWhen || 'start') === id ? 'active' : ''} onClick={() => onChange({ ttsWhen: id })}>{lb}</button>
+            ))}
+          </div>
+          <div className="set-sub">퀴즈 · 카드에서 자동 음성이 나오는 때 — 「답 낸 뒤」면 먼저 눈으로 떠올리고 소리로 확인해요. 듣기 문제는 늘 처음에 읽어요</div>
+        </div>
         <Toggle label="판정할 때 읽어주기" sub="몰라요·애매해요·알아요를 고르면 그 단어를 한 번 더 읽어줘요"
           on={settings.speakOnJudge} onClick={() => onChange({ speakOnJudge: !settings.speakOnJudge })} />
         <Toggle label="히라가나 항상 보기" sub="앞면에 읽는 법을 함께 표시해요"

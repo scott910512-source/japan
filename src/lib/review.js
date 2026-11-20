@@ -142,8 +142,10 @@ export function daysBetween(from, to) {
  * 가나로만 쓰는 낱말(ちょっと)은 읽기 칸이 없다({ na: 1 }). 문장 · 문법 카드는 fx가 없어서 예전 그대로 한 칸이다.
  * fx는 App이 낱말 카드에 붙인다(withFacets). 옛 기록은 「뜻만 확인됨」으로 옮긴다 — 읽기 · 떠올리기는 0에서,
  * 다음 복습일은 그대로 둬서 하루에 몰려 나오지 않는다. */
-export const FACETS = ['mean', 'read', 'prod'];
-export const FACET_LABEL = { mean: '뜻', read: '읽기', prod: '떠올리기' };
+/* ★ 네 번째 칸 듣기(2026-11-20) ★ 소리만 듣고 무슨 단어 · 무슨 뜻인지. 전에는 듣기 단계 판정이 뜻 칸에 들어갔다.
+ * 옛 기록(세 칸)은 그대로 두고 듣기 칸만 0에서 붙인다 — 다음 복습일은 카드 것 그대로(하루에 몰려 나오지 않게). */
+export const FACETS = ['mean', 'read', 'prod', 'listen'];
+export const FACET_LABEL = { mean: '뜻', read: '읽기', prod: '떠올리기', listen: '듣기' };
 const HAS_KANJI = /[\u3400-\u9fff\uf900-\ufaff々〆]/;
 export const needsReading = (word) => HAS_KANJI.test(String(word?.kanji || ''));
 
@@ -155,15 +157,18 @@ export const isWordCard = (card) => Boolean(card && !card.grammar && card.type &
 export function withFacets(raw, word) {
   if (!raw) {
     const fresh = { lv: 0, due: null, on: null };
-    return { ...emptyState(), fx: { mean: { ...fresh }, read: needsReading(word) ? { ...fresh } : { na: 1 }, prod: { ...fresh } } };
+    return { ...emptyState(), fx: { mean: { ...fresh }, read: needsReading(word) ? { ...fresh } : { na: 1 }, prod: { ...fresh }, listen: { ...fresh } } };
   }
-  if (raw.fx || raw.selfKnown) return raw;
+  if (raw.selfKnown || raw.fx?.listen) return raw;
+  /* 세 칸 기록 → 듣기 칸만 0에서 */
+  if (raw.fx) return aggregateFacets({ ...raw, fx: { ...raw.fx, listen: { lv: 0, due: raw.due ?? null, on: null } } }, raw.level || 0);
   const st = migrateState(raw);
   const blank = (due) => ({ lv: 0, due: due ?? null, on: null });
   const fx = {
     mean: { lv: st.level || 0, due: st.due ?? null, on: st.promotedOn || null },
     read: needsReading(word) ? blank(st.due) : { na: 1 },
     prod: blank(st.due),
+    listen: blank(st.due),
   };
   return aggregateFacets({ ...raw, fx }, raw.level || 0);
 }
@@ -172,7 +177,7 @@ export function withFacets(raw, word) {
 export function migrateFacets(review = {}, byId) {
   let out = null;
   for (const [id, st] of Object.entries(review)) {
-    if (!st || st.fx || st.selfKnown || !st.lastSeen) continue;
+    if (!st || st.fx?.listen || st.selfKnown || !st.lastSeen) continue;
     const card = byId?.get?.(id);
     if (!isWordCard(card)) continue;
     (out || (out = { ...review }))[id] = withFacets(st, card);
@@ -216,11 +221,12 @@ export function facetsEven(st) {
   return !lv?.length || lv.every((f) => f.lv === lv[0].lv);
 }
 
-/* 지금 제일 약한 칸(오늘 확인할 것 가운데 단계가 낮은 것). 같으면 읽기 → 떠올리기 → 뜻 */
-export function weakestFacet(st, today = todayKey()) {
-  const lv = facetLevels(st);
+/* 지금 제일 약한 칸(오늘 확인할 것 가운데 단계가 낮은 것). 같으면 읽기 → 떠올리기 → 듣기 → 뜻.
+ * canListen이 거짓(눈으로만)이면 듣기 칸은 묻지 않고 미룬다 */
+export function weakestFacet(st, today = todayKey(), { canListen = true } = {}) {
+  const lv = facetLevels(st)?.filter((f) => canListen || f.key !== 'listen');
   if (!lv?.length) return null;
-  const order = { read: 0, prod: 1, mean: 2 };
+  const order = { read: 0, prod: 1, listen: 2, mean: 3 };
   const ready = lv.filter((f) => !f.due || f.due <= today);
   const pool = ready.length ? ready : lv;
   return [...pool].sort((a, b) => a.lv - b.lv || order[a.key] - order[b.key])[0].key;

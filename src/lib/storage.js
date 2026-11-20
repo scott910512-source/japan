@@ -377,6 +377,7 @@ export const DEFAULT_SETTINGS = {
 
   // 학습 기능
   autoTTS: true,      // 카드가 뜨면 자동으로 읽어주기
+  ttsWhen: 'start',   // 자동으로 읽는 때 — 'start' 문제가 나올 때 · 'end' 답을 내거나 답을 볼 때
   listenSayKo: true,  // 듣기 화면에서 뜻도 소리로 (기기 한국어 음성)
   listenDir: 'jp-ko',     // 'jp-ko' 듣고 뜻 떠올리기 | 'ko-jp' 뜻 듣고 일본어로 말하기
   listenScope: 'today',   // 'today' | 'kiju' | 'seen' | 'weak' | 'all' — 무엇을 들을지
