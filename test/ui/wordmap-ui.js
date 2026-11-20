@@ -25,6 +25,15 @@ n5.slice(0, n5.length - 5).forEach((w, i) => {
   review[w.id] = allFacets({ lastSeen: '2026-11-01', seenAt: 1, level: lv === 5 ? 4 : lv, rounds: 3, wrongCount: i % 17 === 0 ? 5 : 0, vagueCount: 0, due: '2026-12-30' });
 });
 
+/* 세 칸이 고르지 않은 낱말 둘 — 한자 낱말(뜻 3 · 읽기 0 · 떠올리기 1)과 가나로만 쓰는 낱말(읽기 칸 없음) */
+const HAS_KANJI = /[\u3400-\u9fff]/;
+const kanjiW = n5.slice(0, n5.length - 5).find((w) => HAS_KANJI.test(w.kanji || ''));
+const kanaW = n5.slice(0, n5.length - 5).find((w) => !HAS_KANJI.test(w.kanji || ''));
+review[kanjiW.id] = { lastSeen: '2026-11-01', seenAt: 1, level: 0, rounds: 3, wrongCount: 0, vagueCount: 0, due: '2026-11-02',
+  fx: { mean: { lv: 3, due: '2026-12-30', on: null }, read: { lv: 0, due: '2026-11-02', on: null }, prod: { lv: 1, due: '2026-12-01', on: null } } };
+review[kanaW.id] = { lastSeen: '2026-11-01', seenAt: 1, level: 2, rounds: 3, wrongCount: 0, vagueCount: 0, due: '2026-12-30',
+  fx: { mean: { lv: 2, due: '2026-12-30', on: null }, read: { na: 1 }, prod: { lv: 2, due: '2026-12-30', on: null } } };
+
 /* N5 문법 카드도 이미 본 것으로 — 이 사람은 N5를 거의 다 했다(남은 건 낱말 5개뿐) */
 ALL_WORDS.filter((w) => w.level === 'N5' && w.grammar).forEach((w) => {
   review[w.id] = { lastSeen: '2026-11-01', seenAt: 1, level: 2, rounds: 3, wrongCount: 0, vagueCount: 0, due: '2026-12-30' };
@@ -75,6 +84,27 @@ ok('레벨 탭으로 걸러 본다', await page.locator('.wmap .wmap-grid .wm-ce
 await page.locator('.wmap .wmap-grid .wm-cell').first().click();
 await page.waitForTimeout(150);
 ok('★ 칸을 누르면 그 낱말이 뜬다 ★', await page.locator('.wmap-pick').count() === 1 && (await page.locator('.wmap-pick b').innerText()).length > 0, await page.locator('.wmap-pick').innerText().catch(() => ''));
+console.log('\n[ 세 칸(뜻 · 읽기 · 떠올리기) 따로 보기 ]');
+{
+  const cell = (id) => page.locator(`.wmap .wm-cell[data-id="${id}"]`);
+  ok('지도 위에 칸 색 기준 단추 넷(세 칸 모두 · 뜻 · 읽기 · 떠올리기)', await page.locator('.wmap-facets button').count() === 4);
+  ok('세 칸 모두 = 가장 낮은 칸(읽기 0)으로 칠한다', (await cell(kanjiW.id).getAttribute('class')).includes('s-round1'));
+  await page.locator('.wmap-facets [data-facet="mean"]').click(); await page.waitForTimeout(200);
+  ok('★ 뜻 기준 → 뜻 3단계 색 ★', (await cell(kanjiW.id).getAttribute('class')).includes('s-round3'), await cell(kanjiW.id).getAttribute('class'));
+  await page.locator('.wmap-facets [data-facet="read"]').click(); await page.waitForTimeout(200);
+  ok('★ 읽기 기준 → 읽기 0(확인 1단계 색) ★', (await cell(kanjiW.id).getAttribute('class')).includes('s-round1'));
+  ok('★ 가나 단어는 읽기 칸 없음(빗금) ★', (await cell(kanaW.id).getAttribute('class')).includes('s-na'));
+  await page.locator('.wmap-facets [data-facet="all"]').click(); await page.waitForTimeout(200);
+  await cell(kanjiW.id).click(); await page.waitForTimeout(150);
+  const fx = page.locator('.wmap-pick .wmap-fx li');
+  const txt = await page.locator('.wmap-pick .wmap-fx').innerText();
+  ok('★ 칸을 누르면 뜻 · 읽기 · 떠올리기가 따로 보인다 ★', await fx.count() === 3, txt.replace(/\s+/g, ' '));
+  ok('뜻 확인 3번 · 읽기 확인 0번 · 떠올리기 확인 1번',
+    (await fx.nth(0).innerText()).includes('확인 3번') && (await fx.nth(1).innerText()).includes('확인 0번') && (await fx.nth(2).innerText()).includes('확인 1번'));
+  await cell(kanaW.id).click(); await page.waitForTimeout(150);
+  ok('가나 단어는 「읽기: 가나 단어라 없음」', (await page.locator('.wmap-pick .wmap-fx li[data-facet="read"]').innerText()).includes('가나 단어라 없음'));
+}
+
 console.log('\n[ 가장 약한 TOP 10 · 반복 학습 ]');
 const topRows = await page.locator('.wmap-top-row').count();
 ok('★ 가장 약한 단어 TOP 10이 보인다 ★', topRows > 0 && topRows <= 10, `${topRows}줄`);
