@@ -334,7 +334,8 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
   const spokenFor = useRef(null);
   useEffect(() => {
     if (!settings.autoTTS || !q) return;
-    if (q.dir === QUIZ_DIR.KO_JP && !answered) return;
+    /* 「답 낸 뒤」로 고르면 일→한도 답을 낸 뒤에 읽는다(설정 → 읽어 주는 때) */
+    if ((q.dir === QUIZ_DIR.KO_JP || settings.ttsWhen === 'end') && !answered) return;
     if (spokenFor.current === index) return;
     spokenFor.current = index;
     speak();

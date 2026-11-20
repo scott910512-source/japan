@@ -171,7 +171,7 @@ export function readinessWeight(st) {
   if (st.selfKnown) return 0.5;
   /* 세 칸이 있는 낱말은 칸마다 무게를 매겨 평균 — 뜻만 알아도 그만큼은 준비된 것이다(가장 낮은 칸만 보면 0에 묶인다) */
   if (st.fx) {
-    const parts = ['mean', 'read', 'prod'].map((k) => st.fx[k]).filter((f) => f && !f.na);
+    const parts = ['mean', 'read', 'prod', 'listen'].map((k) => st.fx[k]).filter((f) => f && !f.na);
     if (parts.length) return parts.reduce((n, f) => n + readinessWeight({ ...st, fx: null, level: f.lv || 0, selfKnown: false }), 0) / parts.length;
   }
   if (isMastered(st)) return 1;

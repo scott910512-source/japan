@@ -21,10 +21,10 @@ export function cellState(st) {
   return stageOf(st);
 }
 
-/* ★ 세 칸(뜻 · 읽기 · 떠올리기) 따로 보기 ★ 카드 단계는 세 칸 중 가장 낮은 칸이라, 지도만 봐서는 뭐가 외워졌는지 모른다.
+/* ★ 칸(뜻 · 읽기 · 떠올리기 · 듣기) 따로 보기 ★ 카드 단계는 칸 중 가장 낮은 칸이라, 지도만 봐서는 뭐가 외워졌는지 모른다.
  * facet을 주면 그 칸의 단계로 칠한다. 가나로만 쓰는 낱말의 읽기 칸은 'na'(읽기 칸 없음).
  * 칸이 없는 카드(문법 · 문장, 이미 알아요)는 카드 단계 그대로 */
-export const FACET_VIEWS = [{ id: null, label: '세 칸 모두' }, ...FACETS.map((k) => ({ id: k, label: FACET_LABEL[k] }))];
+export const FACET_VIEWS = [{ id: null, label: '네 칸 모두' }, ...FACETS.map((k) => ({ id: k, label: FACET_LABEL[k] }))];
 export function facetState(st, facet) {
   if (!facet || !st?.lastSeen || st.selfKnown || !st.fx) return stageOf(st);
   const f = st.fx[facet];

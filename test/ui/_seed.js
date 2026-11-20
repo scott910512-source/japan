@@ -3,5 +3,5 @@
  * 앱이 「뜻만 확인됨」으로 옮겨서 단계가 0이 된다 — 외운 것을 보려는 검사는 이걸로 심는다. */
 export function allFacets(st) {
   const f = { lv: st.level || 0, due: st.due ?? null, on: null };
-  return { ...st, fx: { mean: { ...f }, read: { ...f }, prod: { ...f } } };
+  return { ...st, fx: { mean: { ...f }, read: { ...f }, prod: { ...f }, listen: { ...f } } };
 }

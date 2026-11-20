@@ -266,11 +266,14 @@ function Play({ stage, phase, setPhase, review, saved, settings, onReview, onPro
   const saying = learning
     ? { key: `learn:${learning.id}`, text: learning.kana || learning.jp, must: false }
     : q
-      ? {
-        key: q.key,
-        text: q.form === FORM.KO_JP ? '' : q.speak,
-        must: q.form === FORM.LISTEN,
-      }
+      ? (settings.ttsWhen === 'end' && q.form !== FORM.LISTEN
+        /* 「답 낸 뒤」 — 고른 다음에 읽는다(한→일도 그때는 답이 새지 않는다) */
+        ? { key: answered ? `${q.key}:after` : q.key, text: answered ? q.speak : '', must: false }
+        : {
+          key: q.key,
+          text: q.form === FORM.KO_JP ? '' : q.speak,
+          must: q.form === FORM.LISTEN,
+        })
       : sc
         ? { key: `live:${sc.id}`, text: sc.npc.kana || sc.npc.jp, must: false }
         : { key: '', text: '', must: false };

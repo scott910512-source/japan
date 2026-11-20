@@ -6,7 +6,7 @@ import { weakRank } from '../lib/weak.js';
 /* 전체 단어 지도 — 모든 낱말을 작은 칸 하나씩, 기억 상태 색으로(lib/wordmap.js).
  * 레벨을 고르면 그 레벨만, 칸을 누르면 그 낱말이 아래에 뜬다. 칸이 2천 개가 넘어도 그냥 div라 가볍다. */
 export default function WordHeatmap({ words = [], review = {}, ledger = null, first = null, onStudy = null }) {
-  /* 칸 색 기준 — 세 칸 모두(카드 단계 = 가장 낮은 칸) · 뜻 · 읽기 · 떠올리기 */
+  /* 칸 색 기준 — 네 칸 모두(카드 단계 = 가장 낮은 칸) · 뜻 · 읽기 · 떠올리기 · 듣기 */
   const [facet, setFacet] = useState(null);
   const groups = useMemo(() => buildWordMap(words, review, ledger, { first, facet }), [words, review, ledger, first, facet]);
   /* 처음엔 지금 공부 중인 레벨 하나만 — 전체(2천7백 칸)를 다 펼치면 폰에서 몇 화면을 내려야 한다.
@@ -75,7 +75,7 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
           </div>
         ))}
         </div>
-        {/* ★ 누른 칸의 단어 ★ 지도 바로 옆(넓은 화면) · 바로 밑(폰)에 작게 — 단어 · 읽기 · 뜻, 세 칸은 한 줄로 */}
+        {/* ★ 누른 칸의 단어 ★ 지도 바로 옆(넓은 화면) · 바로 밑(폰)에 작게 — 단어 · 읽기 · 뜻, 칸은 한 줄로 */}
         <aside className={`wmap-side${picked ? ' wmap-pick' : ' empty'}`} aria-live="polite">
           {picked ? (
             <>
@@ -86,7 +86,7 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
                 <em className={`wm-tag s-${picked.state}`}>{label[picked.state] || '읽기 없음'}</em>
                 {picked.weak && <em className="wm-tag s-weak">약점</em>}
               </span>
-              {/* 세 칸 — 단어 단계는 가장 낮은 칸이라 무엇이 외워졌는지는 여기서 본다 */}
+              {/* 네 칸 — 단어 단계는 가장 낮은 칸이라 무엇이 외워졌는지는 여기서 본다 */}
               {picked.fx && (
                 <ul className="wmap-fx">
                   {picked.fx.map((f) => (
@@ -103,11 +103,12 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
           )}
         </aside>
       </div>
-      {/* ★ 세 칸이 묻는 것 ★ 지도 바로 밑에 늘 — 색 기준 단추 · 누른 단어의 「뜻 1번 · 읽기 0번」이 무슨 뜻인지 */}
+      {/* ★ 네 칸이 묻는 것 ★ 지도 바로 밑에 늘 — 색 기준 단추 · 누른 단어의 「뜻 1번 · 읽기 0번」이 무슨 뜻인지 */}
       <ul className="wmap-howto">
-        <li><b>뜻</b> 일본어 단어 → 한국어 뜻 <small>(소리만 듣고 뜻 맞히기도 지금은 여기서 셈)</small></li>
+        <li><b>뜻</b> 일본어 단어 → 한국어 뜻</li>
         <li><b>읽기</b> 한자만 보고 → 발음(가나)</li>
         <li><b>떠올리기</b> 한국어 뜻 → 일본어 단어</li>
+        <li><b>듣기</b> 소리만 듣고 → 무슨 단어 · 무슨 뜻 <small>(눈으로만이면 미뤄 둬요)</small></li>
       </ul>
       {top.length > 0 && (
         <div className="wmap-top">
@@ -133,12 +134,13 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
   );
 }
 
-/* 세 칸이 묻는 것 — 회독 화면의 세 칸과 같은 뜻 */
-const FACET_HOW = { mean: '일본어 보고 한국어 뜻', read: '한자 보고 읽는 소리', prod: '한국어 보고 일본어 떠올리기' };
+/* 네 칸이 묻는 것 — 회독 화면의 세 칸과 같은 뜻 */
+const FACET_HOW = { mean: '일본어 보고 한국어 뜻', read: '한자 보고 읽는 소리', prod: '한국어 보고 일본어 떠올리기', listen: '소리만 듣고 단어 · 뜻' };
 const FACET_NOTE = {
   mean: '뜻 칸 기준 — 일본어를 보고 뜻을 아는지',
   read: '읽기 칸 기준 — 한자를 보고 소리(가나)를 아는지. 가나로만 쓰는 단어는 읽기 칸이 없어요',
   prod: '떠올리기 칸 기준 — 한국어를 보고 일본어가 떠오르는지',
+  listen: '듣기 칸 기준 — 소리만 듣고 무슨 단어 · 무슨 뜻인지 아는지',
 };
 function facetText(f) {
   if (f.na) return '없음(가나)';

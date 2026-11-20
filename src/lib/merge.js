@@ -310,7 +310,7 @@ const SYNCED_SETTINGS = [
   'sentenceScope', 'purpose', 'tripDate', 'quickJudge',
   /* 화면 · 소리 · AI 설정도 계정에 — 기기를 바꿔도 같은 테마 · 음성 속도 · 자동 재생으로. 키(봉투로 따로 간다)와
      이 기기에만 있는 목소리(deviceVoiceURI — 기기마다 목소리 목록이 다르다)는 빼 둔다 */
-  'theme', 'speechRate', 'autoTTS', 'useCloudTTS', 'shuffle', 'level', 'aiProvider', 'geminiModel', 'claudeModel',
+  'theme', 'speechRate', 'autoTTS', 'ttsWhen', 'useCloudTTS', 'shuffle', 'level', 'aiProvider', 'geminiModel', 'claudeModel',
   /* 칸마다 이 사람이 마지막으로 바꾼 시각 — { 칸: ms }. 아래 「설정은 나중에 바꾼 쪽이 이긴다」가 본다 */
   'settingsAt',
 ];

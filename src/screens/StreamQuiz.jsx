@@ -234,7 +234,7 @@ export default function StreamQuiz({
   const spokenFor = useRef(null);
   useEffect(() => {
     if (!settings?.autoTTS || phase !== 'run' || checkpoint || !cur?.q?.speak) return;
-    if (!cur.q.promptJp && !answered) return;
+    if ((!cur.q.promptJp || settings.ttsWhen === 'end') && !answered) return;
     if (spokenFor.current === cur) return;
     spokenFor.current = cur;
     speak(cur.q.speak);
