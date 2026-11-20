@@ -671,3 +671,6 @@
   .wmap-side b { font-size: 22px; line-height: 1.2; overflow-wrap: anywhere; }
   .wmap-side .wmap-fx { flex-direction: column; gap: 1px; }
 }
+.wmap-howto { list-style: none; margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--ink-soft); }
+.wmap-howto b { display: inline-block; min-width: 4.2em; color: var(--ink); }
+.wmap-howto small { font-size: 11px; }
