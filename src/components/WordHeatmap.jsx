@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { buildWordMap, totalCounts, MAP_STATES, FACET_VIEWS } from '../lib/wordmap.js';
-import { MASTER_STREAK, todayKey } from '../lib/review.js';
+import { MASTER_STREAK } from '../lib/review.js';
 import { weakRank } from '../lib/weak.js';
 
 /* 전체 단어 지도 — 모든 낱말을 작은 칸 하나씩, 기억 상태 색으로(lib/wordmap.js).
@@ -55,23 +55,54 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
         <span className="wl-item"><i className="wm-cell s-weak" />약점 {counts.weak}</span>
         {facet === 'read' && counts.na > 0 && <span className="wl-item"><i className="wm-cell s-na" />가나 단어(읽기 없음) {counts.na}</span>}
       </div>
-      {shown.map((g) => (
-        <div key={g.level} className="wmap-group">
-          {level === 'all' && <div className="wmap-lv">{g.level} <small>{g.counts.seen} / {g.cells.length}</small></div>}
-          {/* 칸은 단추가 아니라 작은 점이다(눌러서 보는 건 덤) — 2천 개의 단추를 만들지 않고 줄 하나가 누른 칸을 알아낸다 */}
-          <div className="wmap-grid" onClick={(e) => {
-            const id = e.target?.dataset?.id;
-            if (!id) return;
-            const c = g.cells.find((x) => x.id === id);
-            setPicked(picked?.id === id ? null : c);
-          }}>
-            {g.cells.map((c) => (
-              <i key={c.id} data-id={c.id} className={`wm-cell s-${c.state}${c.weak ? ' s-weak' : ''}${picked?.id === c.id ? ' on' : ''}`}
-                title={`${c.jp} · ${c.mean} · ${label[c.state] || '읽기 없음'}${c.weak ? ' · 약점' : ''}`} />
-            ))}
+      <div className={`wmap-body${picked ? ' has-pick' : ''}`}>
+        <div className="wmap-groups">
+        {shown.map((g) => (
+          <div key={g.level} className="wmap-group">
+            {level === 'all' && <div className="wmap-lv">{g.level} <small>{g.counts.seen} / {g.cells.length}</small></div>}
+            {/* 칸은 단추가 아니라 작은 점이다(눌러서 보는 건 덤) — 2천 개의 단추를 만들지 않고 줄 하나가 누른 칸을 알아낸다 */}
+            <div className="wmap-grid" onClick={(e) => {
+              const id = e.target?.dataset?.id;
+              if (!id) return;
+              const c = g.cells.find((x) => x.id === id);
+              setPicked(picked?.id === id ? null : c);
+            }}>
+              {g.cells.map((c) => (
+                <i key={c.id} data-id={c.id} className={`wm-cell s-${c.state}${c.weak ? ' s-weak' : ''}${picked?.id === c.id ? ' on' : ''}`}
+                  title={`${c.jp} · ${c.mean} · ${label[c.state] || '읽기 없음'}${c.weak ? ' · 약점' : ''}`} />
+              ))}
+            </div>
           </div>
+        ))}
         </div>
-      ))}
+        {/* ★ 누른 칸의 단어 ★ 지도 바로 옆(넓은 화면) · 바로 밑(폰)에 작게 — 단어 · 읽기 · 뜻, 세 칸은 한 줄로 */}
+        <aside className={`wmap-side${picked ? ' wmap-pick' : ' empty'}`} aria-live="polite">
+          {picked ? (
+            <>
+              <b lang="ja">{picked.jp}</b>
+              {picked.kana && picked.kana !== picked.jp && <span className="ws-kana" lang="ja">{picked.kana}</span>}
+              <span className="ws-mean">{picked.mean}</span>
+              <span className="ws-tags">
+                <em className={`wm-tag s-${picked.state}`}>{label[picked.state] || '읽기 없음'}</em>
+                {picked.weak && <em className="wm-tag s-weak">약점</em>}
+              </span>
+              {/* 세 칸 — 단어 단계는 가장 낮은 칸이라 무엇이 외워졌는지는 여기서 본다 */}
+              {picked.fx && (
+                <ul className="wmap-fx">
+                  {picked.fx.map((f) => (
+                    <li key={f.key} data-facet={f.key} title={`${FACET_HOW[f.key]}${f.due ? ` · 다음 ${f.due}` : ''}`}
+                      className={f.na ? 'na' : f.lv >= MASTER_STREAK ? 'done' : f.lv > 0 ? 'ok' : 'zero'}>
+                      <i className="fx-name">{f.label}</i> <span>{facetText(f)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <small>칸을 누르면 여기에 단어가 떠요</small>
+          )}
+        </aside>
+      </div>
       {top.length > 0 && (
         <div className="wmap-top">
           <div className="wmap-top-head">
@@ -91,28 +122,7 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
           </ol>
         </div>
       )}
-      {picked ? (
-        <div className="wmap-pick">
-          <b lang="ja">{picked.jp}</b>
-          {picked.kana && picked.kana !== picked.jp && <span lang="ja">{picked.kana}</span>}
-          <span>{picked.mean}</span>
-          <em className={`wm-tag s-${picked.state}`}>{label[picked.state] || '읽기 없음'}</em>
-          {picked.weak && <em className="wm-tag s-weak">약점</em>}
-          {/* ★ 세 칸 따로 ★ 단어 단계는 가장 낮은 칸이라, 무엇이 외워졌고 무엇이 남았는지는 여기서 본다 */}
-          {picked.fx && (
-            <ul className="wmap-fx">
-              {picked.fx.map((f) => (
-                <li key={f.key} data-facet={f.key} className={f.na ? 'na' : f.lv >= MASTER_STREAK ? 'done' : f.lv > 0 ? 'ok' : 'zero'}>
-                  <i className="fx-name">{f.label}</i><small>{FACET_HOW[f.key]}</small>
-                  <span>{facetText(f)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : (
-        <div className="set-note">칸을 누르면 그 단어가 보여요. 왼쪽 위부터 새로 배우기가 고르는 차례(기출 먼저)예요.</div>
-      )}
+      <div className="set-note">왼쪽 위부터 새로 배우기가 고르는 차례(기출 먼저)예요.</div>
     </div>
   );
 }
@@ -125,10 +135,8 @@ const FACET_NOTE = {
   prod: '떠올리기 칸 기준 — 한국어를 보고 일본어가 떠오르는지',
 };
 function facetText(f) {
-  if (f.na) return '가나 단어라 없음';
-  if (!f.seen) return '아직 안 봄';
+  if (f.na) return '없음(가나)';
+  if (!f.seen) return '안 봄';
   /* 지도 단계 이름(확인 1단계 …)과 헷갈리지 않게 칸은 「복습일에 맞힌 횟수」로 — 4번이면 익숙함 */
-  const stage = f.lv >= MASTER_STREAK ? '익숙함' : `확인 ${f.lv}번`;
-  if (!f.due) return stage;
-  return `${stage} · 다음 ${f.due <= todayKey() ? '오늘' : f.due.slice(5).replace('-', '/')}`;
+  return f.lv >= MASTER_STREAK ? '익숙함' : `${f.lv}번`;
 }
