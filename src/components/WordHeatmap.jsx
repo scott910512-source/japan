@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
-import { buildWordMap, totalCounts, MAP_STATES } from '../lib/wordmap.js';
+import { buildWordMap, totalCounts, MAP_STATES, FACET_VIEWS } from '../lib/wordmap.js';
+import { MASTER_STREAK, todayKey } from '../lib/review.js';
 import { weakRank } from '../lib/weak.js';
 
 /* 전체 단어 지도 — 모든 낱말을 작은 칸 하나씩, 기억 상태 색으로(lib/wordmap.js).
  * 레벨을 고르면 그 레벨만, 칸을 누르면 그 낱말이 아래에 뜬다. 칸이 2천 개가 넘어도 그냥 div라 가볍다. */
 export default function WordHeatmap({ words = [], review = {}, ledger = null, first = null, onStudy = null }) {
-  const groups = useMemo(() => buildWordMap(words, review, ledger, { first }), [words, review, ledger, first]);
+  /* 칸 색 기준 — 세 칸 모두(카드 단계 = 가장 낮은 칸) · 뜻 · 읽기 · 떠올리기 */
+  const [facet, setFacet] = useState(null);
+  const groups = useMemo(() => buildWordMap(words, review, ledger, { first, facet }), [words, review, ledger, first, facet]);
   /* 처음엔 지금 공부 중인 레벨 하나만 — 전체(2천7백 칸)를 다 펼치면 폰에서 몇 화면을 내려야 한다.
      공부 중인 레벨 = 아직 안 본 낱말이 남은 첫 레벨(N5 → N4 → N3) */
   const [level, setLevel] = useState(() => (groups.find((g) => g.counts.fresh > 0) || groups[0])?.level || 'all');
@@ -34,6 +37,13 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
             onClick={() => { setLevel(t.id); setPicked(null); }}>{t.label}</button>
         ))}
       </div>
+      <div className="wmap-facets segment" role="group" aria-label="칸 색 기준">
+        {FACET_VIEWS.map((f) => (
+          <button key={f.id || 'all'} type="button" data-facet={f.id || 'all'} className={facet === f.id ? 'active' : ''} aria-pressed={facet === f.id}
+            onClick={() => { setFacet(f.id); setPicked(null); }}>{f.label}</button>
+        ))}
+      </div>
+      {facet && <div className="set-note wmap-facet-note">{FACET_NOTE[facet]}</div>}
       <div className="wmap-sum">
         <b>{touched}</b> / {total}개 만남 · 익숙함 <b>{counts.done + counts.long}</b> · 약점 <b>{counts.weak}</b>
       </div>
@@ -43,6 +53,7 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
         ))}
         {/* 약점은 단계가 아니라 덧칠 — 약점인 칸도 위 단계 개수에 들어 있다 */}
         <span className="wl-item"><i className="wm-cell s-weak" />약점 {counts.weak}</span>
+        {facet === 'read' && counts.na > 0 && <span className="wl-item"><i className="wm-cell s-na" />가나 단어(읽기 없음) {counts.na}</span>}
       </div>
       {shown.map((g) => (
         <div key={g.level} className="wmap-group">
@@ -56,7 +67,7 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
           }}>
             {g.cells.map((c) => (
               <i key={c.id} data-id={c.id} className={`wm-cell s-${c.state}${c.weak ? ' s-weak' : ''}${picked?.id === c.id ? ' on' : ''}`}
-                title={`${c.jp} · ${c.mean} · ${label[c.state]}${c.weak ? ' · 약점' : ''}`} />
+                title={`${c.jp} · ${c.mean} · ${label[c.state] || '읽기 없음'}${c.weak ? ' · 약점' : ''}`} />
             ))}
           </div>
         </div>
@@ -85,12 +96,39 @@ export default function WordHeatmap({ words = [], review = {}, ledger = null, fi
           <b lang="ja">{picked.jp}</b>
           {picked.kana && picked.kana !== picked.jp && <span lang="ja">{picked.kana}</span>}
           <span>{picked.mean}</span>
-          <em className={`wm-tag s-${picked.state}`}>{label[picked.state]}</em>
+          <em className={`wm-tag s-${picked.state}`}>{label[picked.state] || '읽기 없음'}</em>
           {picked.weak && <em className="wm-tag s-weak">약점</em>}
+          {/* ★ 세 칸 따로 ★ 단어 단계는 가장 낮은 칸이라, 무엇이 외워졌고 무엇이 남았는지는 여기서 본다 */}
+          {picked.fx && (
+            <ul className="wmap-fx">
+              {picked.fx.map((f) => (
+                <li key={f.key} data-facet={f.key} className={f.na ? 'na' : f.lv >= MASTER_STREAK ? 'done' : f.lv > 0 ? 'ok' : 'zero'}>
+                  <i className="fx-name">{f.label}</i><small>{FACET_HOW[f.key]}</small>
+                  <span>{facetText(f)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : (
         <div className="set-note">칸을 누르면 그 단어가 보여요. 왼쪽 위부터 새로 배우기가 고르는 차례(기출 먼저)예요.</div>
       )}
     </div>
   );
+}
+
+/* 세 칸이 묻는 것 — 회독 화면의 세 칸과 같은 뜻 */
+const FACET_HOW = { mean: '일본어 보고 한국어 뜻', read: '한자 보고 읽는 소리', prod: '한국어 보고 일본어 떠올리기' };
+const FACET_NOTE = {
+  mean: '뜻 칸 기준 — 일본어를 보고 뜻을 아는지',
+  read: '읽기 칸 기준 — 한자를 보고 소리(가나)를 아는지. 가나로만 쓰는 단어는 읽기 칸이 없어요',
+  prod: '떠올리기 칸 기준 — 한국어를 보고 일본어가 떠오르는지',
+};
+function facetText(f) {
+  if (f.na) return '가나 단어라 없음';
+  if (!f.seen) return '아직 안 봄';
+  /* 지도 단계 이름(확인 1단계 …)과 헷갈리지 않게 칸은 「복습일에 맞힌 횟수」로 — 4번이면 익숙함 */
+  const stage = f.lv >= MASTER_STREAK ? '익숙함' : `확인 ${f.lv}번`;
+  if (!f.due) return stage;
+  return `${stage} · 다음 ${f.due <= todayKey() ? '오늘' : f.due.slice(5).replace('-', '/')}`;
 }
