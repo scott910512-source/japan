@@ -12,7 +12,7 @@ export default function NewPassword({ session, onDone, onVaultKey, onToast }) {
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (password.length < 6) { onToast('비밀번호는 6자 이상이어야 해요'); return; }
+    if (password.length < 8) { onToast('비밀번호는 8자 이상이어야 해요'); return; }
     if (password !== confirm) { onToast('두 번 입력한 비밀번호가 달라요'); return; }
 
     setBusy(true);
@@ -52,7 +52,7 @@ export default function NewPassword({ session, onDone, onVaultKey, onToast }) {
           className="search-input"
           type="password"
           autoComplete="new-password"
-          placeholder="새 비밀번호 (6자 이상)"
+          placeholder="새 비밀번호 (8자 이상)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={{ marginBottom: 8 }}

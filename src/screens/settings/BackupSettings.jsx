@@ -5,6 +5,9 @@ import {
 } from '../../lib/storage.js';
 import { todayKey } from '../../lib/review.js';
 
+/* 백업 파일 크기 한도 — 영상 자막까지 든 백업도 몇 MB다. 넉넉히 30MB */
+const BACKUP_MAX_BYTES = 30 * 1024 * 1024;
+
 /* 설정 → 기록 백업. Settings.jsx에서 떼어 냈다 — 저장 상태 한 줄·백업 범위·
    내려받기·복원·초기화. 동작은 그대로다. */
 export default function BackupSettings({ settings, onChange, onToast, onReload, session, syncState, storeError }) {
@@ -80,6 +83,12 @@ export default function BackupSettings({ settings, onChange, onToast, onReload, 
 
   const restore = async (file) => {
     if (!file) return;
+    /* 기기 저장 공간(수 MB)보다 훨씬 큰 파일은 백업일 수 없다 — 읽다가 탭이 멈추기 전에 거른다(보안 감사 #12) */
+    if (file.size > BACKUP_MAX_BYTES) {
+      onToast('파일이 너무 커요 — 이 앱의 백업 파일이 아니에요');
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
     try {
       const backup = JSON.parse(await file.text());
       const s = backupSummary(backup);

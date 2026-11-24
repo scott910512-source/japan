@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import BottomSheet from '../components/BottomSheet.jsx';
 import { PATTERNS } from '../data/sentences.js';
 
@@ -37,7 +37,12 @@ export default function Sentence({ words, progress, onPatternDone }) {
       <div className="stack">
         {PATTERNS.map((p) => (
           <div key={p.id} className="pattern-card" onClick={() => open(p.id)}>
-            <div className="pattern-jp" dangerouslySetInnerHTML={{ __html: p.jp.replace('〇〇', '<span class="blank">〇〇</span>') }} />
+            {/* 빈칸만 강조 — HTML 문자열을 넣지 않고 조각으로 그린다(보안 감사 #11: dangerouslySetInnerHTML 없앰) */}
+            <div className="pattern-jp">
+              {p.jp.split('〇〇').map((part, i, all) => (
+                <Fragment key={i}>{part}{i < all.length - 1 && <span className="blank">〇〇</span>}</Fragment>
+              ))}
+            </div>
             <div className="pattern-kr">{p.kr}{progress.sentenceDone[p.id] ? ' · 학습 완료' : ''}</div>
             <div className="pattern-meta">
               {p.tags.map((t) => <span key={t} className="tagpill">{t}</span>)}

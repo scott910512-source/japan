@@ -2,6 +2,10 @@ node_modules
 dist
 dist-ssr
 *.local
+# 환경 변수 파일 — 키가 들어갈 수 있다(보안 감사 #13). 예시 파일만 올린다
+.env
+.env.*
+!.env.example
 .DS_Store
 
 # vite가 설정을 읽을 때 잠깐 만드는 파일 — 빌드 중에 git add -A를 하면 딸려 들어온다
