@@ -1,6 +1,7 @@
 /* 아이디 찾기 — 가짜 서버(가로챈 요청)로 본다. 실제 서버에는 아무것도 안 보낸다.
  *
- *   1. 처음 쓰는 기기: 「아이디를 잊었어요」 → 이메일을 넣으면 가입된 주소인지 알려 준다
+ *   1. 처음 쓰는 기기: 「아이디를 잊었어요」 → 이메일을 넣으면 가입된 주소면 로그인 링크를 메일로 보낸다
+ *      ★ 화면의 답은 가입 여부와 상관없이 같다 ★ (보안 감사 #9 — 남의 이메일 가입 여부를 알아낼 수 없게)
  *      (서버에는 「계정은 만들지 말고」로 청한다 — 없는 주소로 계정이 생기면 안 된다)
  *   2. 로그인하면 그 이메일을 기기에 기억한다
  *   3. 로그인했던 기기: 로그인 화면이 쓰던 이메일을 가려서 보여 주고, 누르면 칸에 채운다 */
@@ -66,13 +67,14 @@ const notice = async (page) => ((await page.locator('.acct-notice').count()) ? (
     await page.locator('.gate input[type="email"]').fill('nobody@example.com');
     await page.locator('.gate .card .submit-btn').click();
     await page.waitForTimeout(900);
-    ok('★ 가입 안 된 주소면 없다고 알려 준다 ★', (await notice(page)).includes('가입한 계정이 없어요') && await page.locator('.acct-usefound').count() === 0, await notice(page));
+    const noUser = await notice(page);
+    ok('★ 가입 안 된 주소도 「없다」고 하지 않는다(가입 여부를 드러내지 않음) ★', noUser.includes('가입된 주소라면') && !noUser.includes('없어요'), noUser);
     ok('★ 서버에는 계정을 만들지 말라고 청했다 ★', otp.length === 1 && otp[0].email === 'nobody@example.com' && otp[0].create_user === false, JSON.stringify(otp[0]));
     await page.waitForTimeout(260);
     await page.locator('.gate input[type="email"]').fill(user.email);
     await page.locator('.gate input[type="email"]').press('Enter');
     await page.waitForTimeout(900);
-    ok('★ 가입된 주소면 그 이메일이 아이디라고 알려 준다 ★', (await notice(page)).includes('가입된 주소예요') && (await notice(page)).includes('로그인 링크'), await notice(page));
+    ok('★ 가입된 주소도 똑같은 안내(로그인 링크는 메일로) ★', (await notice(page)) === noUser && (await notice(page)).includes('로그인 링크'), await notice(page));
     ok('「이 이메일로 로그인」이 나온다', await page.locator('.acct-usefound').count() === 1);
     await page.locator('.acct-usefound').click();
     ok('★ 누르면 로그인 화면으로 가고 이메일이 채워져 있다 ★', (await page.locator('.gate .card .set-title').first().innerText()).trim() === '로그인' && await page.locator('.gate input[type="email"]').inputValue() === user.email && await page.locator('.gate input[type="password"]').count() === 1);

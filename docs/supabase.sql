@@ -119,3 +119,27 @@ create trigger on_auth_user_created
 insert into public.user_data (user_id)
 select id from auth.users
 on conflict (user_id) do nothing;
+
+-- ─────────────────────────────────────────────
+-- 6) 한 사람이 저장 공간을 다 쓰지 못하게 칸마다 크기 한도 (보안 감사 추가 C, 2026-11-24)
+--    기록은 원래 브라우저 저장소(기기당 5~10MB)에서 오므로 정상 기록은 한 칸이 15MB를 넘을 수 없다.
+--    not valid — 이미 있는 줄은 검사하지 않고 앞으로 쓰는 값만 본다(재실행해도 안전하게 먼저 지운다).
+-- ─────────────────────────────────────────────
+alter table public.user_data drop constraint if exists user_data_size_limit;
+alter table public.user_data add constraint user_data_size_limit check (
+  pg_column_size(review) < 15000000 and pg_column_size(progress) < 15000000 and
+  pg_column_size(settings) < 1000000 and pg_column_size(stats) < 15000000 and
+  pg_column_size(custom_words) < 15000000 and pg_column_size(streak) < 1000000 and
+  pg_column_size(memos) < 15000000 and pg_column_size(videos) < 15000000 and
+  coalesce(pg_column_size(gtts_key_enc), 0) < 100000
+) not valid;
+
+-- ─────────────────────────────────────────────
+-- 7) 점검 — RLS가 실제로 켜져 있는지 (보안 감사 #14). 읽기만 한다.
+--    모든 줄이 rls_on = true, policies ≥ 1 이어야 한다. 아니면 위 2)를 다시 실행한다.
+-- ─────────────────────────────────────────────
+select c.relname as table_name, c.relrowsecurity as rls_on,
+       (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname) as policies
+from pg_class c
+where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p')
+order by 1;

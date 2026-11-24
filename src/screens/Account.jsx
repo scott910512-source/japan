@@ -112,6 +112,8 @@ export default function Account({ session, syncState, onSync, onFlush, onSignedO
       onToast('아이디가 아니라 이메일 주소를 넣어 주세요 (예: name@gmail.com)');
       return;
     }
+    /* 새로 만드는 비밀번호는 8자 이상(보안 감사 #9). 로그인은 예전에 6자로 만든 비밀번호도 받는다 */
+    if (mode === 'signup' && password.length < 8) { onToast('비밀번호는 8자 이상이어야 해요'); return; }
     if (mode !== 'reset' && mode !== 'find' && password.length < 6) { onToast('비밀번호는 6자 이상이어야 해요'); return; }
 
     setBusy(true);
@@ -120,13 +122,14 @@ export default function Account({ session, syncState, onSync, onFlush, onSignedO
       if (mode === 'find') {
         setFound('');
         const answer = await findAccount(supabase, address, redirectUrl());
-        if (answer === 'yes') {
-          setFound(address);
-          setNotice('가입된 주소예요. 이 이메일이 아이디예요. 로그인 링크도 메일로 보냈어요. 비밀번호가 기억나면 「이 이메일로 로그인」을 누르세요.');
-        } else if (answer === 'no') {
-          setNotice('이 주소로 가입한 계정이 없어요. 다른 이메일을 넣어 보세요.');
-        } else {
+        /* ★ 가입 여부를 화면에 드러내지 않는다 ★ (보안 감사 #9) 「가입된 주소예요 / 없어요」로 갈라 답하면 남의 이메일이
+           이 앱에 가입했는지 누구나 알아낼 수 있다. 비밀번호 재설정과 같은 원칙으로, 가입된 주소든 아니든 같은 안내를 준다.
+           가입된 주소라면 서버가 로그인 링크를 메일로 보낸다(없는 주소로 계정을 만들지는 않는다 — idfind.js) */
+        if (answer === 'wait') {
           setNotice('너무 자주 확인했어요. 1분쯤 뒤에 다시 해 주세요.');
+        } else {
+          setFound(address);
+          setNotice('가입된 주소라면 그 이메일이 아이디이고, 로그인 링크를 메일로 보냈어요. 메일이 안 오면 주소를 다시 확인해 주세요. 비밀번호가 기억나면 「이 이메일로 로그인」을 누르세요.');
         }
         return;
       }
@@ -204,7 +207,7 @@ export default function Account({ session, syncState, onSync, onFlush, onSignedO
           className="search-input"
           type="password"
           autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-          placeholder="비밀번호 (6자 이상)"
+          placeholder={mode === 'signup' ? '비밀번호 (8자 이상)' : '비밀번호'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}

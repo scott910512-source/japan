@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { cspPlugin } from './csp.config.js';
 
 // GitHub Pages 프로젝트 사이트(https://<user>.github.io/japan/)에 올리므로 base가 필요하다.
 const base = process.env.VITE_BASE ?? '/japan/';
@@ -22,6 +23,8 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    /* 배포 빌드의 index.html에 CSP를 넣는다 — 무엇을 허용하는지는 csp.config.js */
+    cspPlugin(),
     VitePWA({
       /* ★ 갱신 시점은 앱이 정한다 — 「자동」이 아니라 「물어보고」 ★
          autoUpdate면 새 서비스워커가 깔리자마자 라이브러리가 무조건 새로고침한다. 이 앱의 「보고 있는 화면이면 미룬다」
