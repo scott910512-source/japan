@@ -11,6 +11,7 @@ import HunterTutor from '../components/HunterTutor.jsx';
 import StudyHeader from './study/StudyHeader.jsx';
 import FinishCard, { finishPrimary } from './study/FinishCard.jsx';
 import { readingText, speakJapanese, speakSlow } from '../lib/tts.js';
+import { cardSpeech } from '../lib/jptext.js';
 import { releaseMic } from '../lib/stt.js';
 import { kanaToHangul } from '../lib/hangul.js';
 import { STEP, STEP_HINT, STEP_LABEL, facetForStep, hidesFront, needsSound, settingsForStep, stepFor, stepForFacet } from '../lib/steps.js';
@@ -30,8 +31,9 @@ const FINISH_ENTER_WAIT_MS = 500;
  * 한자 한 글자만 던지면 음성 엔진이 음독을 고르기 쉽다 — 「海」를 うみ가 아니라
  * 海鮮처럼 カイ로 읽어 버린다. 가나는 읽는 법 그 자체라 헷갈릴 여지가 없고,
  * 어차피 우리가 외우게 하려는 것도 그 소리다. */
+/* 문법 카드는 조사 は · へ를 소리 나는 대로(わ · え) — lib/jptext.js cardSpeech */
 function readingOf(word) {
-  return word.kana || word.kanji;
+  return cardSpeech(word);
 }
 
 // 카드 앞/뒷면에 무엇을 띄울지. 회독 방향과 "히라가나를 읽을 수 있는지"에 따라 달라진다.

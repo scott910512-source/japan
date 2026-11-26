@@ -264,3 +264,22 @@ export function romajiToKana(text) {
   }
   return out;
 }
+
+/* ★ 문법 카드의 읽기를 소리 나는 대로 ★ (2026-11-26)
+ * 문법 카드는 읽기 칸에 조사만 들어 있는 것이 많다(は · へ · ではありません …). 그대로 음성 엔진에 넘기면
+ * 「は」 한 글자를 「하」로, 「へ」를 「헤」로 읽는다. 조사 は는 「わ」, へ는 「え」로 바꿔 넘긴다 — 화면 글자는 그대로다.
+ * 낱말의 첫 글자인 は(始める · はず · 反面)는 조사가 아니라 그대로 둔다.
+ * 조각을 이어 적은 읽기(〜は〜が → はが)는 조각 사이를 쉬어 읽게 쉼표를 넣는다. */
+const GRAMMAR_JOINED = { 'はが': 'わ、が', 'はにあります': 'わ、にあります', 'のはからだ': 'のわ、からだ', 'ほどはない': 'ほど、わない' };
+export function grammarSpoken(kana) {
+  const k = String(kana || '');
+  if (GRAMMAR_JOINED[k]) return GRAMMAR_JOINED[k];
+  if (k === 'へ') return 'え';
+  return k.replace(/は(?!じめ|ず|んめん)/g, 'わ');
+}
+/* 카드 하나를 소리 낼 때의 글자 — 문법 카드면 위 규칙, 아니면 읽기(가나) 그대로 */
+export function cardSpeech(card) {
+  if (!card) return '';
+  const read = card.kana || card.kanji || '';
+  return card.grammar ? grammarSpoken(read) : read;
+}

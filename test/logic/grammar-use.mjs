@@ -220,4 +220,33 @@ check('★ 두 기기 합치기 — 같은 기록을 두 번 넣어도 늘지 �
 check('세트는 시작할 때 문제를 다 정한다(같은 날 같은 문법은 같은 세트)', () => {
   assert.deepEqual(repeatRun().stages[0].qs.map((q) => q.qid), repeatRun().stages[0].qs.map((q) => q.qid));
 });
+
+/* ★ 틀린 문법 다시 풀기(retry) — 문법은 같고 문제는 새로 ★ */
+check('★ 다시 풀기: 틀린 문법만 · 문법마다 두 문제 · 방금 푼 문장은 다시 안 낸다 ★', () => {
+  const place = G.buildSet({ words: ALL_WORDS, review: ALL_KNOWN, gu: null, today: T });
+  const done = place.stages[0].qs;
+  const wrong = ['de', 'ni-time'];
+  const exclude = done.flatMap((q) => [q.qid, q.full]);
+  const r = G.buildSet({ words: ALL_WORDS, review: ALL_KNOWN, gu: null, today: T, mode: 'retry', gids: wrong, exclude, nonce: 'x' });
+  assert.equal(r.mode, 'retry');
+  const qs = r.stages[0].qs;
+  assert.deepEqual([...new Set(qs.map((q) => q.gid))].sort(), [...wrong].sort());
+  for (const g of wrong) assert.equal(qs.filter((q) => q.gid === g).length, G.RETRY_PER);
+  assert.ok(qs.every((q) => !exclude.includes(q.qid) && !exclude.includes(q.full)), '방금 푼 문제가 다시 나왔다');
+  assert.equal(new Set(qs.map((q) => q.full)).size, qs.length, '같은 문장 두 번');
+});
+check('다시 풀기 기록: 또 틀리면 복습 대상(fail), 맞혀도 통과로는 안 센다(같은 날 해설 본 직후)', () => {
+  const r = G.buildSet({ words: ALL_WORDS, review: ALL_KNOWN, gu: null, today: T, mode: 'retry', gids: ['de', 'o'], exclude: [], nonce: 'y' });
+  const s = r.stages[0];
+  s.answers = s.qs.map((q) => ({ ok: q.gid !== 'de' }));
+  const out = G.outcomeOf(r, T);
+  assert.deepEqual(out.touch.de.fail, [T]);
+  const o = out.touch.o || {};
+  assert.equal((o.pass || []).length, 0);
+});
+check('다시 풀기도 날마다 · nonce마다 다른 세트, 같은 nonce면 같은 세트', () => {
+  const a = G.buildSet({ words: ALL_WORDS, review: ALL_KNOWN, gu: null, today: T, mode: 'retry', gids: ['o'], nonce: 'n1' });
+  const b = G.buildSet({ words: ALL_WORDS, review: ALL_KNOWN, gu: null, today: T, mode: 'retry', gids: ['o'], nonce: 'n1' });
+  assert.deepEqual(a.stages[0].qs.map((q) => q.qid), b.stages[0].qs.map((q) => q.qid));
+});
 console.log(`통과 ${pass} / 실패 0`);

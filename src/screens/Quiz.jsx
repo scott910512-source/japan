@@ -18,6 +18,7 @@ import { WEAK_KIND } from '../lib/weak.js';
 import { readQuizKeep, writeQuizKeep, keepModeOf } from '../lib/quizkeep.js';
 import { OptWrap, useReviewOpen } from '../components/OptionReview.jsx';
 import { reviewRows, rowOf, wordInfo } from '../lib/optionInfo.js';
+import { cardSpeech } from '../lib/jptext.js';
 
 const COUNTS = [10, 20, 30, 50];
 
@@ -312,7 +313,7 @@ function QuizRun({ run, pool, allWords = [], settings, onSound, onRun, onQuit, o
   // 한자를 그대로 보내면 한 글자짜리 단어에서 음독이 나온다(「海」→ カイ).
   // 읽는 법인 가나를 보내야 외우려는 소리가 나온다.
   const speak = useCallback(() => {
-    if (word) speakJapanese(word.kana || word.kanji, settings.speechRate);
+    if (word) speakJapanese(cardSpeech(word), settings.speechRate);
   }, [word, settings.speechRate]);
 
   /* ★ 정답의 예문을 읽어 준다 ★

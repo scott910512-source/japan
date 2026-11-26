@@ -7,7 +7,7 @@ export const GRAMMAR_POINTS_N5 = [
   { id: 'gp-n5-001', kanji: '〜は(주제)', kana: 'は', mean: '~은/는(주제)', type: 'etc', level: 'N5',
     example: '私は会社員です。', exampleKana: 'わたしはかいしゃいんです。', exampleKo: '저는 회사원입니다.', tags: ['문법', '조사'], grammar: true, note: '접속: 명사 + は. 글자는 は지만 わ로 읽음' },
   { id: 'gp-n5-002', kanji: '〜は(대비)', kana: 'は', mean: '~은/는(대비)', type: 'etc', level: 'N5',
-    example: '肉は食べますが、魚は食べません。', exampleKana: 'にくはたべますが、さかなはたべません。', exampleKo: '고기는 먹지만 생선은 안 먹습니다.', tags: ['문법', '조사'], grammar: true, note: '두 가지를 견줄 때 각각에 は를 붙여 차이를 드러냄' },
+    example: '肉は食べますが、魚は食べません。', exampleKana: 'にくはたべますが、さかなはたべません。', exampleKo: '고기는 먹지만 생선은 안 먹습니다.', tags: ['문법', '조사'], grammar: true, note: '읽기는 わ. 둘을 견주거나, 하나에만 붙여 「다른 건 몰라도 이건」의 뜻을 냄' },
   { id: 'gp-n5-003', kanji: '〜は〜が(특징)', kana: 'はが', mean: '~은/는 ~이/가 (어떠하다)', type: 'etc', level: 'N5',
     example: '姉は髪が長いです。', exampleKana: 'あねはかみがながいです。', exampleKo: '언니는 머리가 깁니다.', tags: ['문법', '조사'], grammar: true, note: '전체(사람·사물)는 は, 그 부분·특징은 が로 나타냄' },
   { id: 'gp-n5-004', kanji: '〜が(주어)', kana: 'が', mean: '~이/가(주어)', type: 'etc', level: 'N5',

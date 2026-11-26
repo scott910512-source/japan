@@ -591,13 +591,15 @@ export function explorePicks(gu, today = todayKey(), canMake = () => true, n = E
 }
 
 /* ═══════════ 세트 만들기 — 시작할 때 문제를 다 정해 둔다(새로고침해도 같은 문제) ═══════════ */
-export function buildSet({ words, review, gu, today = todayKey(), gid = null, mode = null, nonce = '' }) {
+/* retry: 방금 틀린 문법(gids)만 문법마다 두 문제 — 문법은 같고 문제는 바꾼다(exclude = 방금 푼 문제 id · 문장, 전에 푼 문제도 피한다) */
+export const RETRY_PER = 2;
+export function buildSet({ words, review, gu, today = todayKey(), gid = null, mode = null, nonce = '', gids = [], exclude = [] }) {
   const m = mode || (gid ? 'repeat' : modeOf(gu));
   const seed = `${today}|${m}|${gid || ''}|${nonce}`;
   const ctx = makeCtx({ words, review, today, seed });
   const can = (id) => Boolean(makeQuestion(id, makeCtx({ words, review, today, seed: `${seed}|can|${id}` }), 'choice'));
   const avoidOf = (id) => new Set(statusOf(gu, id, today).qs);
-  const id = `${today}:${m}:${gid || 'mix'}:${hashId(seed)}`;
+  const id = `${today}:${m}:${gid || (m === 'retry' ? gids.join('+') : 'mix')}:${hashId(seed)}`;
   const known = ctx.known.size;
   const base = { id, day: today, mode: m, knownCount: known, prep: [], at: 0, stage: 0, recorded: false };
   if (known < MIN_KNOWN) return { ...base, empty: true, needWords: true, reason: `외운 단어가 ${known}개라 문장을 만들기 어려워요. 새로 배우기에서 단어를 조금 더 익힌 뒤에 시작해요` };
@@ -609,6 +611,19 @@ export function buildSet({ words, review, gu, today = todayKey(), gid = null, mo
     });
     if (qs1.length < 3) return { ...base, empty: true, reason: '아직 외운 단어가 적어 진단 문장을 만들 수 없어요' };
     return finish({ ...base, stages: [{ name: 'place', label: '초기 진단', qs: qs1, answers: [] }], spare: { place2: qs2 } }, ctx);
+  }
+  if (m === 'retry') {
+    const skip = new Set(exclude);
+    const qs = [];
+    for (const g of gids) {
+      if (!GRAMMAR_USE_BY_ID[g]) continue;
+      const avoid = new Set([...avoidOf(g), ...skip]);
+      const got = makeQuestions(g, ctx, RETRY_PER, shuffle(['choice', 'type', 'order', 'pick'], ctx.rng).slice(0, RETRY_PER), avoid);
+      got.forEach((q) => { skip.add(q.qid); skip.add(q.full); });
+      qs.push(...got);
+    }
+    if (!qs.length) return { ...base, empty: true, reason: '외운 단어로 새 문장을 더 만들 수 없어요. 단어를 조금 더 익힌 뒤에 다시 해 봐요' };
+    return finish({ ...base, grammars: gids, stages: [{ name: 'retry', label: '틀린 문법 다시', qs: shuffle(qs, ctx.rng), answers: [] }] }, ctx);
   }
   if (m === 'explore') {
     const picks = explorePicks(gu, today, can);
@@ -692,6 +707,12 @@ export function outcomeOf(run, today = todayKey()) {
       if (!s) continue;
       s.answers.forEach((a, i) => { if (a && !a.void) placeRes[s.qs[i].gid] = a.ok ? 1 : 0; });
     }
+  } else if (run.mode === 'retry') {
+    /* 결과를 보고 바로 다시 푼 것 — 또 틀리면 복습 대상으로 적고, 맞혀도 통과로는 안 센다(같은 날 해설을 본 직후라 기억 확인이 아니다) */
+    const s = by('retry');
+    const bad = new Set();
+    s.answers.forEach((a, i) => { if (a && !a.void && !a.ok) bad.add(s.qs[i].gid); });
+    for (const g of bad) add(g, 'fail', today);
   } else if (run.mode === 'explore') {
     const s = by('explore');
     const per = {};

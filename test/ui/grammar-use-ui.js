@@ -117,6 +117,34 @@ const nextQ = async (page) => { await page.locator('.gu-next').click(); await pa
     await ctx.close();
   }
 
+  console.log('\n[ 틀린 문법 다시 풀기 — 문법은 같고 문제는 새로 ]');
+  {
+    const { page, ctx } = await boot(browser);
+    await page.locator('.tdq-row', { hasText: '외운 단어로 문법 활용' }).click();
+    await page.locator('.gu-start').click();
+    /* 처음 두 문제만 틀리고 나머지는 맞힌다 */
+    for (let i = 0; i < 40 && (await phase(page)) === 'q'; i += 1) {
+      if (!(await page.locator('.gu-fb').count())) await answer(page, i >= 2);
+      await nextQ(page);
+    }
+    const before = await runOf(page);
+    const seen = before.stages.flatMap((st) => st.qs.map((q) => q.full));
+    const wrongG = [...new Set(before.stages.flatMap((st) => st.qs.filter((q, i) => st.answers[i] && !st.answers[i].ok).map((q) => q.gid)))];
+    const btn = page.locator('.gu-retrywrong');
+    ok('★ 결과에 「틀린 문법 N개 다시 풀기 · 문제는 새로」 ★', await btn.count() === 1 && (await btn.innerText()).includes(`${wrongG.length}개`), await btn.innerText().catch(() => ''));
+    await btn.click(); await page.waitForTimeout(300);
+    const r = await runOf(page);
+    ok('다시 풀기 세트가 열린다(설명 먼저)', r.mode === 'retry' && (await phase(page)) === 'intro');
+    const qs = r.stages[0].qs;
+    ok('★ 틀린 문법만 · 문법마다 두 문제 ★', [...new Set(qs.map((q) => q.gid))].sort().join() === [...wrongG].sort().join() && qs.length === wrongG.length * 2, `${wrongG.join(',')} · ${qs.length}문제`);
+    ok('★ 방금 푼 문장은 다시 안 나온다 ★', qs.every((q) => !seen.includes(q.full)));
+    await page.locator('.gu-start').click();
+    for (let i = 0; i < 10 && (await phase(page)) === 'q'; i += 1) { await answer(page, true); await nextQ(page); }
+    ok('다 맞히면 결과 · 더 틀린 게 없으니 다시 풀기 단추 없음', (await phase(page)) === 'done' && await page.locator('.gu-retrywrong').count() === 0 && (await page.locator('.gu-result').innerText()).includes('틀린 문법 다시'));
+    ok('JS 오류 없음', page.errors.length === 0, page.errors[0]);
+    await ctx.close();
+  }
+
   console.log('\n[ 반복 학습 — 3/3 빠른 통과 → 다음 문법으로 ]');
   {
     const { page, ctx } = await boot(browser, { gu: REPEAT_GU });

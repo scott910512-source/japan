@@ -7,7 +7,7 @@ import { speakJapanese, stopSpeaking } from '../lib/tts.js';
 import SoundToggle from '../components/SoundToggle.jsx';
 import { todayKey } from '../lib/review.js';
 import {
-  readRun, writeRun, GRAMMAR_USE_BY_ID, DIAG_SIZE, FOLLOW_SIZE, PRACTICE_SIZE, TIER_LABEL, buildSet, judge, nextStage, outcomeOf, stageScore, statusOf, recommend, modeOf,
+  readRun, writeRun, GRAMMAR_USE_BY_ID, DIAG_SIZE, FOLLOW_SIZE, PRACTICE_SIZE, TIER_LABEL, RETRY_PER, buildSet, judge, nextStage, outcomeOf, stageScore, statusOf, recommend, modeOf,
 } from '../lib/grammarUse.js';
 import '../styles/grammar-use.css';
 
@@ -16,7 +16,7 @@ import '../styles/grammar-use.css';
  * 세트는 시작할 때 문제를 다 정하고(lib/grammarUse.js buildSet) 이 기기에 적어 둔다 — 새로고침 · 재접속해도
  * 같은 문제, 같은 제출 상태에서 이어진다. 기록(통과 · 약점 · 오늘 퀘스트)은 세트를 마칠 때 한 번만 넘긴다.
  * 진단 중에는 규칙표 · 완성 문장 · 정답 소리를 안 보인다 — 답을 낸 뒤의 해설과 설명 단계에서만. */
-const MODE_TITLE = { place: '초기 진단', explore: '탐색 테스트', repeat: '문법 확인' };
+const MODE_TITLE = { place: '초기 진단', explore: '탐색 테스트', repeat: '문법 확인', retry: '틀린 문법 다시' };
 const KIND_LABEL = { choice: '알맞은 것 고르기', type: '빈칸에 직접 쓰기', order: '순서대로 문장 만들기', pick: '상황에 맞는 문장 고르기' };
 
 export default function GrammarUse({
@@ -30,7 +30,7 @@ export default function GrammarUse({
   const [run, setRun] = useState(() => {
     const kept = readRun();
     const want = gid ? `repeat:${gid}` : modeOf(gu);
-    if (kept && !kept.closed && (kept.want === want || (!gid && kept.quest))) return kept;
+    if (kept && !kept.closed && (kept.want === want || (!gid && (kept.quest || kept.want === 'retry')))) return kept;
     return null;
   });
   const [input, setInput] = useState('');
@@ -41,8 +41,11 @@ export default function GrammarUse({
 
   const start = (opts = {}) => {
     const target = opts.gid ?? gid;
-    const set = buildSet({ words, review, gu, today, gid: target, nonce: opts.nonce || '' });
-    const r = { ...set, want: target ? `repeat:${target}` : modeOf(gu), quest: !target || Boolean(opts.quest), phase: set.empty ? 'empty' : 'intro' };
+    const set = opts.mode === 'retry'
+      ? buildSet({ words, review, gu, today, mode: 'retry', gids: opts.gids, exclude: opts.exclude, nonce: opts.nonce || '' })
+      : buildSet({ words, review, gu, today, gid: target, nonce: opts.nonce || '' });
+    const want = opts.mode === 'retry' ? 'retry' : target ? `repeat:${target}` : modeOf(gu);
+    const r = { ...set, want, quest: opts.mode === 'retry' ? false : (!target || Boolean(opts.quest)), phase: set.empty ? 'empty' : 'intro' };
     setRun(r); writeRun(set.empty ? null : r);
     setInput(''); setPlaced([]); setShowWords(false); setRomaji(null);
   };
@@ -133,6 +136,18 @@ export default function GrammarUse({
     start({ gid: r.gid, quest: false });
   };
   const retry = () => start({ gid: run.gid, nonce: `again${Date.now()}`, quest: false });
+  /* 진단 · 탐색 · 다시 풀기에서 틀린 문법만 — 문법은 같고 문제는 새로(방금 푼 문장은 다시 안 낸다) */
+  const retryWrong = () => {
+    const wrong = new Set();
+    const exclude = [];
+    run.stages.forEach((s) => s.qs.forEach((qq, i) => {
+      exclude.push(qq.qid, qq.full);
+      const a = s.answers[i];
+      if (a && !a.void && !a.ok) wrong.add(qq.gid);
+    }));
+    if (!wrong.size) return;
+    start({ mode: 'retry', gids: [...wrong], exclude, nonce: `retry${Date.now()}` });
+  };
 
   useQuizHotkeys({
     scope,
@@ -166,7 +181,7 @@ export default function GrammarUse({
     );
   }
 
-  const title = run.mode === 'repeat' ? `${MODE_TITLE.repeat} · ${g?.short}` : run.mode === 'explore' ? `${MODE_TITLE.explore}` : MODE_TITLE.place;
+  const title = run.mode === 'repeat' ? `${MODE_TITLE.repeat} · ${g?.short}` : MODE_TITLE[run.mode] || MODE_TITLE.place;
   const sc = stage ? stageScore(stage) : { right: 0, total: 0 };
   const answered = stage ? stage.answers.filter(Boolean).length : 0;
 
@@ -197,7 +212,7 @@ export default function GrammarUse({
       {run.phase === 'done' && (
         <Result
           run={run} g={g} gu={gu} today={today} next={next} onHome={onHome} onExit={onExit} embedded={embedded}
-          onNextGrammar={nextGrammar} onRetry={retry} onClose={finishAndClose}
+          onNextGrammar={nextGrammar} onRetry={retry} onRetryWrong={retryWrong} onClose={finishAndClose}
         />
       )}
       {stage && run.phase === 'q' && <p className="gu-score" aria-live="polite">맞힌 것 {sc.right} / {sc.total}</p>}
@@ -212,11 +227,13 @@ function Intro({ run, g, onStart }) {
     ? `문법마다 한 문제씩 ${n}문제예요. 기초를 8개 넘게 맞히면 뒤 묶음도 이어서 봐요. 출발점을 찾는 진단이라 틀려도 괜찮아요.`
     : run.mode === 'explore'
       ? `여러 문법을 섞은 ${n}문제예요. 처음 열흘은 넓게 재 보고, 그다음부터 약한 문법을 하나씩 반복해요.`
+      : run.mode === 'retry'
+        ? `방금 틀린 문법 ${run.grammars?.length || 0}개를 문법마다 ${RETRY_PER}문제씩, 처음 보는 문장으로 다시 풀어요(${n}문제).`
       : `「${g?.title}」 기초 확인 ${DIAG_SIZE}문제예요. 다 맞히면 바로 통과, 하나 틀리면 추가 확인 ${FOLLOW_SIZE}문제, 더 틀리면 짧은 설명 뒤에 연습 ${PRACTICE_SIZE}문제예요.`;
   return (
     <div className="gu-intro">
       <HunterTutor guide="zushi" scene="arena" mood="explain" title="외운 단어로 문법 활용"
-        line={run.mode === 'repeat' ? '아는 단어로 만든 문장에서 이 문법을 정말 쓸 수 있는지 볼게요. 힌트 없이 먼저 풀어 봐요!' : '문법은 사람마다 아는 곳이 달라요. 먼저 어디까지 아는지 같이 재 봐요!'} compact />
+        line={run.mode === 'retry' ? '해설을 봤으니 이번엔 다른 문장으로! 같은 문법인데 단어와 모양이 바뀌어요.' : run.mode === 'repeat' ? '아는 단어로 만든 문장에서 이 문법을 정말 쓸 수 있는지 볼게요. 힌트 없이 먼저 풀어 봐요!' : '문법은 사람마다 아는 곳이 달라요. 먼저 어디까지 아는지 같이 재 봐요!'} compact />
       <p className="gu-what">{what}</p>
       <p className="set-note">외운 단어 {run.knownCount}개로 만든 문장이에요 · {TIER_LABEL[3]} · {TIER_LABEL[2]}를 먼저 써요.</p>
       {run.prep?.length > 0 && (
@@ -368,7 +385,7 @@ function Feedback({ q, ans, g, rate, onNext, last }) {
 }
 
 /* 결과 — 실제 풀이로 계산한 문구와 수치, 다음 행동 */
-function Result({ run, g, gu, today, next, onHome, onExit, embedded, onNextGrammar, onRetry, onClose }) {
+function Result({ run, g, gu, today, next, onHome, onExit, embedded, onNextGrammar, onRetry, onRetryWrong, onClose }) {
   const by = (n) => run.stages.find((s) => s.name === n);
   const diag = by('diag'); const follow = by('follow'); const practice = by('practice');
   const wrongRows = run.stages.flatMap((s) => s.qs.map((q, i) => ({ q, a: s.answers[i], s }))).filter((x) => x.a && !x.a.ok && !x.a.void);
@@ -382,8 +399,10 @@ function Result({ run, g, gu, today, next, onHome, onExit, embedded, onNextGramm
     const per = {};
     run.stages.forEach((s) => s.answers.forEach((a, i) => { if (!a || a.void) return; const id = s.qs[i].gid; (per[id] ||= { r: 0, t: 0 }); per[id].t += 1; if (a.ok) per[id].r += 1; }));
     const total = Object.values(per).reduce((n, x) => n + x.t, 0); const right = Object.values(per).reduce((n, x) => n + x.r, 0);
-    head = `${run.mode === 'place' ? '초기 진단' : '탐색 테스트'} ${right} / ${total}`;
-    line = run.mode === 'place' ? '어디서부터 시작할지 정했어요. 내일부터 열흘 동안 여러 문법을 섞어 확인해요.' : '오늘 확인한 문법이에요. 틀린 문법은 다음 탐색 · 반복 학습에 먼저 나와요.';
+    head = `${MODE_TITLE[run.mode] || '탐색 테스트'} ${right} / ${total}`;
+    line = run.mode === 'place' ? '어디서부터 시작할지 정했어요. 내일부터 열흘 동안 여러 문법을 섞어 확인해요.'
+      : run.mode === 'retry' ? (right === total ? '다른 문장에서도 맞혔어요. 다른 날 한 번 더 확인하면 기억에 남아요.' : '아직 헷갈리는 문법은 복습에 넣었어요. 다른 문장으로 한 번 더 풀어 볼 수 있어요.')
+        : '오늘 확인한 문법이에요. 틀린 문법은 다음 탐색 · 반복 학습에 먼저 나와요.';
     run.per = per;
   }
   const st = g ? statusOf(gu, g.id, today) : null;
@@ -412,7 +431,12 @@ function Result({ run, g, gu, today, next, onHome, onExit, embedded, onNextGramm
       <div className="gu-actions">
         {run.mode === 'repeat' && passed && <button className="submit-btn gu-nextgrammar" onClick={onNextGrammar}>다음 문법으로</button>}
         {run.mode === 'repeat' && !passed && <button className="ghost-btn gu-retry" onClick={onRetry}>틀린 문법 다시 연습</button>}
-        {next && <button className={`${passed && run.mode === 'repeat' ? 'ghost-btn' : 'submit-btn'} gu-nextquest`} onClick={() => onClose(next.go)}>다음: {next.label}</button>}
+        {run.mode !== 'repeat' && wrongRows.length > 0 && (
+          <button className="submit-btn gu-retrywrong" onClick={onRetryWrong}>
+            틀린 문법 {new Set(wrongRows.map((x) => x.q.gid)).size}개 다시 풀기 <small>· 문제는 새로</small>
+          </button>
+        )}
+        {next && <button className={`${(passed && run.mode === 'repeat') || (run.mode !== 'repeat' && wrongRows.length > 0) ? 'ghost-btn' : 'submit-btn'} gu-nextquest`} onClick={() => onClose(next.go)}>다음: {next.label}</button>}
         {!embedded && (onHome || onExit) && <button className="ghost-btn gu-home" onClick={() => onClose(onHome || onExit)}>오늘로</button>}
       </div>
     </div>
